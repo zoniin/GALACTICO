@@ -120,15 +120,41 @@ class AxisReliability:
     minutes_floor: int
     period: str
     gate: ReliabilityGate = DEFAULT_GATE
+    confidence: float = 0.90
+
+    @property
+    def interval(self) -> tuple[float, float] | None:
+        """Confidence interval on the reliability, via the Fisher z transform.
+
+        The gate exists to prevent false precision, so it must not itself be a
+        bare float compared against a bare threshold. A metric at r = 0.71 over
+        forty players is not reliably above 0.70.
+        """
+        r, n = self.reliability, self.n_players
+        if not math.isfinite(r) or n < 4 or abs(r) >= 1.0:
+            return None
+        z = 0.5 * math.log((1 + r) / (1 - r))
+        se = 1.0 / math.sqrt(n - 3)
+        crit = 1.6448536269514722 if self.confidence == 0.90 else 1.959963984540054
+        lo, hi = z - crit * se, z + crit * se
+        return math.tanh(lo), math.tanh(hi)
+
+    @property
+    def lower_bound(self) -> float:
+        """The reliability we can defend, not the one we happened to measure."""
+        band = self.interval
+        if band is None:
+            return self.reliability
+        return band[0]
 
     @property
     def grade(self) -> Grade:
-        r = self.reliability
+        r = self.lower_bound
         return self.gate.grade(None if not math.isfinite(r) else r)
 
     @property
     def optimizer_weight(self) -> float:
-        r = self.reliability
+        r = self.lower_bound
         return self.gate.optimizer_weight(None if not math.isfinite(r) else r)
 
     @property
@@ -140,14 +166,16 @@ class AxisReliability:
         }[self.grade]
 
     def row(self) -> str:
-        r = f"{self.reliability:.3f}" if math.isfinite(self.reliability) else "n/a"
-        return (f"{self.key:<28}{r:>8}{self.n_players:>7}"
+        r = f"{self.reliability:.2f}" if math.isfinite(self.reliability) else "n/a"
+        band = self.interval
+        ci = f"{band[0]:.2f}-{band[1]:.2f}" if band else "  n/a  "
+        return (f"{self.key:<28}{r:>6}{ci:>13}{self.n_players:>7}"
                 f"{self.optimizer_weight:>8.2f}   {self.verdict}")
 
 
 def reliability_report(axes: Sequence[AxisReliability]) -> str:
     """The table. Publish it, including the rows that fail."""
-    header = f"{'axis':<28}{'r':>8}{'n':>7}{'weight':>8}   verdict"
+    header = f"{'axis':<28}{'r':>6}{'90% CI':>13}{'n':>7}{'weight':>8}   verdict"
     rule = "-" * len(header)
     body = "\n".join(a.row() for a in sorted(axes, key=lambda a: -a.reliability))
     failing = [a.key for a in axes if a.grade is Grade.INSUFFICIENT]

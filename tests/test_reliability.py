@@ -93,3 +93,42 @@ def test_an_unmeasured_axis_carries_no_optimiser_weight() -> None:
     unknown = AxisReliability("mystery", float("nan"), 0, 900, "n/a")
     assert unknown.grade is Grade.BAND
     assert unknown.optimizer_weight == 0.0
+
+
+# --- the gate must not itself be a bare float ----------------------------
+
+def test_reliability_carries_its_own_confidence_interval() -> None:
+    thin = AxisReliability("switch_frequency", 0.71, 40, 900, "La Liga 2015/16")
+    thick = AxisReliability("switch_frequency", 0.71, 1200, 900, "La Liga 2015/16")
+    assert thin.interval is not None and thick.interval is not None
+    assert (thin.interval[1] - thin.interval[0]) > (thick.interval[1] - thick.interval[0])
+
+
+def test_a_thin_estimate_above_the_threshold_still_fails_the_gate() -> None:
+    """r = 0.71 over forty players is not reliably above 0.70. Grading on the
+    measured value alone would let it ship as a number.
+
+    Note how conservative this is: r = 0.71 fails the gate even at n = 1200,
+    because its lower bound is 0.686. Clearing 0.70 on the lower bound needs a
+    measured r nearer 0.74 at that sample size. That is the intended behaviour —
+    the gate defends the reliability we can support, not the one we happened to
+    observe."""
+    thin = AxisReliability("switch_frequency", 0.71, 40, 900, "La Liga 2015/16")
+    borderline = AxisReliability("switch_frequency", 0.71, 1200, 900, "La Liga 2015/16")
+    solid = AxisReliability("progression", 0.75, 1200, 900, "La Liga 2015/16")
+
+    assert thin.lower_bound < borderline.lower_bound < 0.70 < solid.lower_bound
+    assert thin.grade is Grade.BAND
+    assert borderline.grade is Grade.BAND
+    assert solid.grade is Grade.NUMBER
+
+
+def test_interval_is_undefined_for_degenerate_inputs() -> None:
+    assert AxisReliability("x", 1.0, 100, 900, "p").interval is None
+    assert AxisReliability("x", 0.8, 3, 900, "p").interval is None
+    assert AxisReliability("x", float("nan"), 100, 900, "p").interval is None
+
+
+def test_the_report_shows_the_interval() -> None:
+    text = reliability_report([AxisReliability("progression", 0.88, 1200, 900, "p")])
+    assert "90% CI" in text and "0.87-0.89" in text

@@ -230,12 +230,14 @@ class ReliabilityGate:
               evidence: EvidenceClass = EvidenceClass.ESTIMATED) -> Grade:
         """Grade a value.
 
-        Reliability gating applies to estimates and weaker. A directly recorded
-        count is not an estimate of anything — a player either played 64 passes or
-        he did not — so asking for its split-half reliability is a category error
-        and would suppress a number that is simply true.
+        Only a directly recorded count bypasses the gate. A player either played
+        64 passes or he did not, so asking for its split-half reliability is a
+        category error. A per-90 rate is different: it is offered as an estimate of
+        a player's rate and therefore carries sampling error, so it is gated like
+        any other estimate. That distinction is the hole through which unmeasured
+        quantities would otherwise reach the optimiser at full weight.
         """
-        if evidence <= EvidenceClass.DERIVED:
+        if evidence <= EvidenceClass.OBSERVED:
             return Grade.NUMBER
         if reliability is None:
             return Grade.BAND
@@ -253,7 +255,7 @@ class ReliabilityGate:
         from anything. A metric below the band threshold gets exactly zero, which
         is the part that matters.
         """
-        if evidence <= EvidenceClass.DERIVED:
+        if evidence <= EvidenceClass.OBSERVED:
             return 1.0
         if reliability is None:
             return 0.0
@@ -268,15 +270,26 @@ class ReliabilityGate:
 DEFAULT_GATE = ReliabilityGate()
 
 
-def _decimals_for(spread: float | None) -> int | None:
-    """Decimal places justified by an uncertainty, at one significant figure.
+def _uncertainty_scale(spread: float | None) -> tuple[float, int] | None:
+    """Quantum and decimal places justified by an uncertainty.
 
-    Quoting 78.43 when the standard deviation is 6 is a lie about precision. This
-    returns the number of decimals the uncertainty actually supports.
+    Quoting 78.43 when the standard deviation is 6 is a lie about precision. So is
+    quoting 78 when the standard deviation is 30 — the truthful rendering there is
+    80 +/- 30, because the units digit carries no information either. Both cases
+    are handled by rounding to the place of the uncertainty's leading significant
+    digit rather than merely limiting the decimals.
     """
     if spread is None or not math.isfinite(spread) or spread <= 0:
         return None
-    return max(0, -math.floor(math.log10(spread)))
+    exponent = math.floor(math.log10(spread))
+    return 10.0 ** exponent, max(0, -exponent)
+
+
+def _significant(value: float) -> str:
+    """Render an exact value without inventing precision it does not have."""
+    if value == int(value) and abs(value) < 1e15:
+        return str(int(value))
+    return f"{value:.3g}"
 
 
 @dataclass(frozen=True)
@@ -348,8 +361,15 @@ class MetricResult:
             ),
             uncertainty=Uncertainty(sd=sd, draws=draws, draw_key=key),
             sample_size=_min_or_none(self.sample_size, other.sample_size),
-            reliability=_min_or_none(self.reliability, other.reliability),
-            assumptions=self.assumptions | other.assumptions | frozenset(extra_assumptions),
+            # Reliability is deliberately NOT propagated. The reliability of a
+            # composite is not min() of its parts: for a difference between two
+            # correlated measures it is typically lower than either, and for a sum
+            # of independent ones it can be higher. Difference scores are the hero
+            # output of Transfer Lab and Opponent Lab, so a plausible-looking wrong
+            # number here would feed the gate silently. Unknown is the honest value.
+            reliability=None,
+            assumptions=(self.assumptions | other.assumptions
+                         | frozenset(extra_assumptions) | {"reliability-not-propagated"}),
         )
 
     def _shares_replicates(self, other: "MetricResult") -> bool:
@@ -386,8 +406,15 @@ class MetricResult:
         u = self.uncertainty
         draws = None if u.draws is None else u.draws * k
         sd = None if u.sd is None else abs(k) * u.sd
-        return replace(self, value=self.value * k,
-                       uncertainty=Uncertainty(sd=sd, draws=draws, draw_key=u.draw_key))
+        # Scaling an observation produces a derived quantity, not another
+        # observation. A per-90 rate is a transformation of a count and must not
+        # inherit the count's exemption from the reliability gate.
+        return replace(
+            self,
+            value=self.value * k,
+            evidence=EvidenceClass(max(self.evidence, EvidenceClass.DERIVED)),
+            uncertainty=Uncertainty(sd=sd, draws=draws, draw_key=u.draw_key),
+        )
 
     __rmul__ = __mul__
 
@@ -424,17 +451,18 @@ class MetricResult:
         if grade is Grade.INSUFFICIENT:
             return "insufficient signal"
         spread = self.uncertainty.spread
-        dp = _decimals_for(spread)
+        scale = _uncertainty_scale(spread)
         if grade is Grade.BAND:
             band = self.uncertainty.interval(self.value)
             if band is None:
-                return f"~{self.value:.0f} (reliability unknown)"
+                return "reliability unknown"
             lo, hi = band
-            d = dp if dp is not None else 1
-            return f"{lo:.{d}f}–{hi:.{d}f}"
-        if spread is None:
-            return f"{self.value:g}"
-        return f"{self.value:.{dp}f} ± {spread:.{dp}f}"
+            q, dp = scale if scale else (1.0, 1)
+            return f"{_q(lo, q):.{dp}f}–{_q(hi, q):.{dp}f}"
+        if scale is None:
+            return _significant(self.value)
+        q, dp = scale
+        return f"{_q(self.value, q):.{dp}f} ± {_q(spread, q):.{dp}f}"
 
     def lineage(self) -> str:
         return self.provenance.lineage()
@@ -462,6 +490,11 @@ class MetricResult:
     def __repr__(self) -> str:
         return (f"MetricResult({self.render(allow_experimental=True)!r}, "
                 f"{self.evidence.name}, {self.provenance.definition!r})")
+
+
+def _q(value: float, quantum: float) -> float:
+    """Snap a value to the place the uncertainty justifies."""
+    return round(value / quantum) * quantum
 
 
 def _min_or_none(a: float | int | None, b: float | int | None):

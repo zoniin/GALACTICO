@@ -129,12 +129,24 @@ def test_product_records_the_delta_method_approximation() -> None:
 
 # --- weakest link on sample size and reliability -------------------------
 
-def test_sample_size_and_reliability_take_the_weaker_input() -> None:
+def test_sample_size_takes_the_weaker_input() -> None:
     a = make(1.0, EvidenceClass.ESTIMATED, sd=1.0, reliability=0.9, n=900)
     b = make(1.0, EvidenceClass.ESTIMATED, sd=1.0, reliability=0.6, n=340)
-    total = a + b
-    assert total.reliability == pytest.approx(0.6)
-    assert total.sample_size == 340
+    assert (a + b).sample_size == 340
+
+
+def test_reliability_does_not_survive_composition() -> None:
+    """min() would be wrong in both directions. The reliability of a difference
+    between two correlated measures is typically lower than either component; a
+    sum of independent ones can be higher. Difference scores are the hero output
+    of Transfer Lab and Opponent Lab, so a plausible wrong number here would feed
+    the gate silently."""
+    a = make(1.0, EvidenceClass.ESTIMATED, sd=1.0, reliability=0.9, n=900)
+    b = make(1.0, EvidenceClass.ESTIMATED, sd=1.0, reliability=0.6, n=340)
+    composed = a - b
+    assert composed.reliability is None
+    assert "reliability-not-propagated" in composed.assumptions
+    assert composed.grade is Grade.BAND
 
 
 # --- rendering -----------------------------------------------------------
@@ -237,11 +249,30 @@ def test_an_observed_count_is_not_gated_on_reliability() -> None:
     assert passes.optimizer_weight == 1.0
 
 
-def test_derived_quantities_are_also_ungated() -> None:
+def test_scaling_an_observation_demotes_it_to_derived() -> None:
+    """A per-90 rate is a transformation of a count, not another count. If it
+    inherited OBSERVED it would bypass the reliability gate at full weight, which
+    is the hole through which unmeasured quantities reach the optimiser."""
+    count = MetricResult.observed(64, source="statsbomb", definition="passes@1")
+    per90 = count * (90 / 78)
+    assert count.evidence is EvidenceClass.OBSERVED
+    assert per90.evidence is EvidenceClass.DERIVED
+    assert per90.optimizer_weight == 0.0
+    assert per90.grade is Grade.BAND
+
+
+def test_a_derived_rate_does_not_print_invented_precision() -> None:
     per90 = MetricResult.observed(64, source="statsbomb", definition="passes@1") * (90 / 78)
-    derived = dataclasses.replace(per90, evidence=EvidenceClass.DERIVED)
-    assert derived.grade is Grade.NUMBER
-    assert derived.optimizer_weight == 1.0
+    rated = dataclasses.replace(per90, reliability=0.9)
+    assert rated.render() == "73.8"
+
+
+def test_wide_uncertainty_shortens_the_number() -> None:
+    """78.4327 +/- 30 is not '78 +/- 30'. The units digit carries no information
+    either, so the truthful rendering rounds the value to the uncertainty's own
+    leading digit."""
+    assert make(78.4327, EvidenceClass.ESTIMATED, sd=30.0, reliability=0.85).render() == "80 ± 30"
+    assert make(1234.0, EvidenceClass.ESTIMATED, sd=400.0, reliability=0.85).render() == "1200 ± 400"
 
 
 def test_estimates_are_still_gated() -> None:
