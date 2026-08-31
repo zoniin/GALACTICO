@@ -207,10 +207,15 @@ def compare(a: int, b: int) -> dict:
             "construct_id": lc["construct_id"], "family": lc["family"],
             "left": lc["value"], "right": rc["value"], "delta": delta,
             "left_percentile": lc["percentile"], "right_percentile": rc["percentile"],
-            "leader": left["name"] if delta > 0 else right["name"],
+            # A style construct has no better direction, so it gets no winner.
+            "leader": None if lc["family"] == "style" else (
+                left["name"] if delta > 0 else right["name"]),
             "interpretable": both_shown,
             "material": material,
             "language": (
+                f"{left['name']} {lc['value']:.0%}, {right['name']} {rc['value']:.0%} — "
+                f"different channel preference, no better direction"
+                if lc["family"] == "style" else
                 "materially higher under this estimator" if (material and excludes_zero) else
                 "higher, and the difference interval excludes zero" if excludes_zero else
                 "higher, but the difference interval includes zero" if interval else
@@ -223,10 +228,19 @@ def compare(a: int, b: int) -> dict:
 
 @app.get("/api/explore/{construct_id}")
 def explore(construct_id: str, position: str = "", team: str = "",
-            min_minutes: int = 900, limit: int = Query(300, le=400)) -> dict:
+            min_minutes: int | None = None, limit: int = Query(300, le=400)) -> dict:
     if construct_id not in CONSTRUCTS:
         raise HTTPException(404, "unknown construct")
-    family = CONSTRUCTS[construct_id].family.value
+    construct = CONSTRUCTS[construct_id]
+    family = construct.family.value
+    # Default to the construct's OWN estimator floor, not a flat 900. A flat
+    # default let a player whose profile says INSUFFICIENT SIGNAL appear in the
+    # same construct's list with a four-decimal number, which reads as the floor
+    # being a formality.
+    if min_minutes is None:
+        estimator = construct.estimators.get(f"{bundle()['regime']}_v1")
+        min_minutes = (estimator.minutes_floor if estimator and estimator.minutes_floor
+                       else bundle()["minutes_floor"])
     rows = []
     for p in bundle()["profiles"]:
         if position and p["position"] != position:
@@ -237,6 +251,8 @@ def explore(construct_id: str, position: str = "", team: str = "",
             continue
         c = next((x for x in p["constructs"] if x["construct_id"] == construct_id), None)
         if c is None or c["value"] is None:
+            continue
+        if c["render_state"] == "insufficient_signal":
             continue
         rows.append({"player_id": p["player_id"], "name": p["name"], "team": p["team"],
                      "position": p["position"], "minutes": p["minutes"],

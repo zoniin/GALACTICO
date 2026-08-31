@@ -10,7 +10,10 @@
   --ink-600:#333d38;
   --bone-100:#eeeae0; --bone-300:#b8b2a4; --bone-500:#7d786d;
   --gold:#c9a227; --gold-dim:#8a7220;
-  --pos:#5fbf95; --neg:#d4735f; --warn:#c9a227;
+  --pos:#5fbf95; --neg:#d4735f;
+  /* Not in the gold family and not in the red family: a withheld
+     measurement is neither the selected player nor a bad player. */
+  --warn:#8f9a95;
   --chalk:rgba(220,225,220,.10);
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
   --ui:"Segoe UI",system-ui,-apple-system,sans-serif;
@@ -141,8 +144,10 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
 .cmp{display:grid;grid-template-columns:1fr 9rem 1fr;gap:.8rem;align-items:center;
   padding:.85rem 0;border-bottom:1px solid var(--ink-700)}
 .cmp .bar-l,.cmp .bar-r{height:8px;background:var(--ink-700)}
-.cmp .bar-l i,.cmp .bar-r i{display:block;height:100%;background:var(--gold-dim)}
-.cmp .bar-l{direction:rtl} .cmp .bar-l i{background:var(--bone-500)}
+/* Both sides neutral. Gold on one bar asserted a winner by which search
+   box you typed into, and reversed itself if you swapped the order. */
+.cmp .bar-l i,.cmp .bar-r i{display:block;height:100%;background:var(--ink-600)}
+.cmp .bar-l{direction:rtl}
 .cmp .mid{text-align:center;font-family:var(--mono);font-size:.72rem}
 .cmp .lang{grid-column:1/-1;font-size:.76rem;color:var(--bone-500);margin-top:.3rem}
 .cmp .lang.material{color:var(--bone-300)}
@@ -302,7 +307,7 @@ function strip(pct, population){
   const rug = (population || []).map(p =>
     '<line x1="' + p + '" y1="20" x2="' + p + '" y2="26" stroke="var(--bone-500)" ' +
     'stroke-width="1" opacity=".28" vector-effect="non-scaling-stroke"/>').join('');
-  return `<svg viewBox="0 0 ${w} 34" preserveAspectRatio="none" role="img">
+  return `<svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img">
     <line x1="0" y1="17" x2="100" y2="17" stroke="var(--ink-600)" stroke-width="1"
       vector-effect="non-scaling-stroke"/>
     ${[25,50,75].map(t=>`<line x1="${t}" y1="12" x2="${t}" y2="22" stroke="var(--ink-600)"
@@ -338,9 +343,10 @@ async function showPlayer(id){
       return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div></div>
         <div class="insufficient">INSUFFICIENT SIGNAL
-          <small>${p.minutes.toLocaleString()} of ${c.minutes_floor.toLocaleString()} minutes this
-          estimator needs before a point estimate is shown.</small></div>
-        <div></div></div>`;
+          <small>This estimator needs ${c.minutes_floor.toLocaleString()} minutes before a point
+          estimate is shown; he played ${p.minutes.toLocaleString()}.</small></div>
+        <div><div class="val" style="color:var(--bone-500)">—</div>
+          <div class="unit">${UNITS[c.construct_id]||''}</div></div></div>`;
     const signal = c.signal;
     return `<div class="card">
       <div><div class="name">${label(c.construct_id)}</div>
@@ -354,7 +360,7 @@ async function showPlayer(id){
           quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
           <div class="unit" style="opacity:.7">90% ${c.quantiles[0].toFixed(3)}–${c.quantiles[c.quantiles.length-1].toFixed(3)}</div>` : ''}
         <div style="margin-top:.4rem;text-align:right"><span class="badge g-${signal}"
-          title="How repeatable this ESTIMATOR is over comparable samples: r = ${(c.reliability||0).toFixed(2)}. This is not the uncertainty in this player's own estimate.">signal: ${signal}</span></div>
+          title="How repeatable this ESTIMATOR is over comparable samples: r = ${(c.reliability||0).toFixed(2)}. This is not the uncertainty in this player's own estimate.">estimator signal: ${signal}</span></div>
       </div></div>`;
   }).join('');
 
@@ -501,15 +507,27 @@ async function loadExplore(id){
   const head = d.orderable_as_ranking
     ? `<p class="lede">Ordered high to low. This is a quality construct, so the ordering is meaningful.</p>`
     : `<p class="lede"><strong>Not a ranking.</strong> This is a style construct — there is no good
-       direction. The list is ordered only to show the distribution.</p>`;
+       direction, so rows are ordered by how far they sit from the pitch's own geometry
+       (dashed tick), in either direction.</p>`;
   const max = Math.max(...d.rows.map(r=>r.value));
-  $('#explore-body').innerHTML = head + `<div class="cards">` + d.rows.slice(0,40).map(r =>
-    `<div class="card" style="grid-template-columns:14rem 1fr 7rem;padding:.55rem 0">
-      <div><span>${r.name}</span> <span class="pctsub">${r.team}</span></div>
-      <div style="height:8px;background:var(--ink-700)"><i style="display:block;height:100%;
-        width:${(r.value/max*100).toFixed(1)}%;background:var(--gold-dim)"></i></div>
-      <div class="mono" style="text-align:right;font-size:.82rem">${r.value.toFixed(4)}</div>
-    </div>`).join('') + `</div>`;
+  const neutral = (CONSTRUCTS.channel_geometry||{})[id];
+  // Style is ordered by DEPARTURE from the pitch's own geometry and drawn against
+  // that neutral, not as a descending fill from zero. Filled bars sorted high-to-low
+  // in the accent colour are the most fixed "more is better" idiom in the medium,
+  // and a line of grey disclaimer text does not override one.
+  const rows = d.orderable_as_ranking ? d.rows
+    : [...d.rows].sort((a,b) => Math.abs(b.value-neutral) - Math.abs(a.value-neutral));
+  $('#explore-body').innerHTML = head + `<div class="cards">` + rows.slice(0,40).map(r => {
+    const withheld = r.render_state === 'insufficient_signal';
+    return `<div class="card" style="grid-template-columns:14rem 1fr 7rem;padding:.55rem 0">
+      <div><span>${r.name}</span> <span class="pctsub">${r.team} · ${r.minutes}′</span></div>
+      <div>${d.orderable_as_ranking
+        ? `<div style="height:8px;background:var(--ink-700)"><i style="display:block;height:100%;
+             width:${(r.value/max*100).toFixed(1)}%;background:var(--ink-600)"></i></div>`
+        : geoBar(r.value, neutral)}</div>
+      <div class="mono" style="text-align:right;font-size:.82rem;color:${withheld?'var(--bone-500)':'inherit'}">${
+        withheld ? '— withheld' : r.value.toFixed(4)}</div>
+    </div>`; }).join('') + `</div>`;
 }
 
 /* ---------- compare ---------- */
@@ -525,8 +543,9 @@ async function runCompare(){
         <div class="bar-l"><i style="width:${Math.abs(x.left)/m*100}%"></i></div>
         <div class="mid">${label(x.construct_id)}</div>
         <div class="bar-r"><i style="width:${Math.abs(x.right)/m*100}%"></i></div>
-        <div class="lang ${x.material?'material':''}">
-          ${x.material ? `<strong>${x.leader}</strong> ${x.language}`
+        <div class="lang ${x.material && x.family !== 'style' ? 'material':''}">
+          ${x.family === 'style' ? x.language
+            : x.material ? `<strong>${x.leader}</strong> ${x.language}`
             : x.interpretable ? `${x.leader} ${x.language}`
             : x.language}
           <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}${
