@@ -1,0 +1,5 @@
+#!/bin/sh
+# The licence guard must run AT COMMIT TIME, not whenever someone remembers.
+# A 418 MB pickle reached HEAD once because the guard ran earlier in the session
+# than the script that wrote the file. Ordering is not a discipline problem.
+exec python scripts/check_licensing.py --staged

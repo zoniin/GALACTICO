@@ -2,6 +2,7 @@
 
 install:
 	uv venv && uv pip install -e ".[dev,viz]"
+	git config core.hooksPath .githooks
 
 test:
 	python -m pytest -q
