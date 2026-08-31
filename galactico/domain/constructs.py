@@ -228,8 +228,11 @@ _register(ConstructDefinition(
     estimators={
         "wyscout_event_v1": Estimator(
             key="wyscout_event_v1", regime="wyscout_event",
-            inputs=("event.location", "event.type"), denominator="on-ball actions",
+            inputs=("event.location", "event.type"), denominator="completed passes",
             equivalence=Equivalence.IDENTICAL_DEFINITION,
+            notes="Denominator harmonised to completed passes in Stage 1C. The "
+                  "superseded v1 used on-ball actions, which is not comparable "
+                  "across providers.",
         ),
         "statsbomb_event_v1": Estimator(
             key="statsbomb_event_v1", regime="statsbomb_event",
@@ -254,8 +257,11 @@ _register(ConstructDefinition(
     estimators={
         "wyscout_event_v1": Estimator(
             key="wyscout_event_v1", regime="wyscout_event",
-            inputs=("event.location", "event.type"), denominator="on-ball actions",
+            inputs=("event.location", "event.type"), denominator="completed passes",
             equivalence=Equivalence.IDENTICAL_DEFINITION,
+            notes="Denominator harmonised to completed passes in Stage 1C. The "
+                  "superseded v1 used on-ball actions, which is not comparable "
+                  "across providers.",
         ),
         "statsbomb_event_v1": Estimator(
             key="statsbomb_event_v1", regime="statsbomb_event",
