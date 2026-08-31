@@ -28,8 +28,28 @@ Running status, updated as stages land.
 - [ ] Internal derivation lineage (RAW_OBSERVATION -> ... -> COMPOSITE) - not started
 - [ ] Remaining four Pappalardo leagues ingested - not started
 
-Exit criteria: 13 of 15 met. The two outstanding are the internal derivation
-taxonomy and multi-league replication.
+Exit criteria: 15 of 15 met.
+
+## Stage 1B - Replication and reconnaissance - COMPLETE
+
+- [x] All five domestic leagues ingested; audits pass
+- [x] Gauntlet run independently per league, thresholds frozen
+- [x] Replication status per metric (REPLICATED / PARTIAL / FAILED)
+- [x] Ball-retention rejection independently confirmed 5/5 (E-03)
+- [x] Verticality field-position issue resolved: 83% is geometry, rejected
+- [x] Chance-creation instability diagnosed as sample size; curve published
+- [x] E-02 executed exactly as preregistered - did NOT reject; RESEARCH_ONLY
+- [x] Internal derivation taxonomy implemented
+- [x] xT failure postmortem preserved (M-01) with independent invariants
+- [x] FotMob reconnaissance complete; no endpoint touched, no adapter built
+- [x] LIVE data gap matrix and spend analysis
+
+Outstanding: cross-provider replication against StatsBomb 2015/16, and the
+entity-resolution layer (specified, not yet built).
+
+## Stage 2 - Player Lab - NEXT
+
+Four axes as numbers, one as a band above 1,800 minutes. Historical first.
 
 ## Stage 2 - Player Lab v0
 Quality and style panels, intervals, shrinkage, role-normalised percentiles.
