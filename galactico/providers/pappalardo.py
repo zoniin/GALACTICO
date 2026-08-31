@@ -221,6 +221,7 @@ class PappalardoProvider(Provider):
                 "counter_attack": COUNTER_ATTACK in tags,
                 "interception": INTERCEPTION in tags,
                 "clearance": CLEARANCE_TAG in tags,
+                "dangerous_loss": DANGEROUS_BALL_LOST in tags,
                 "provider": self.provider_id,
                 "event_id": int(event["id"]),
             }
