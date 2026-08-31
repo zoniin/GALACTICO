@@ -1,0 +1,56 @@
+{
+ "league": "Italy",
+ "n_players": 306,
+ "tests": {
+  "T1_adjusted_reliability_low": {
+   "value": 0.8097045831609724,
+   "passed": true
+  },
+  "T2_confound_r2": {
+   "value": 0.6281436421834039,
+   "passed": false
+  },
+  "T3_ordering_rho": {
+   "value": 0.594833505570755,
+   "passed": true
+  },
+  "T4_top12_overlap": {
+   "value": 6.0,
+   "passed": true
+  },
+  "T5_closest_baseline_r": {
+   "value": 0.8665839188273742,
+   "passed": false
+  }
+ },
+ "t5_closest_baseline": "passes_per_90",
+ "decision": "RESEARCH_ONLY",
+ "top12_raw": [
+  "Jorginho",
+  "M. Ham\u0161\u00edk",
+  "Albiol",
+  "M. Brozovi\u0107",
+  "K. Koulibaly",
+  "M. Pjani\u0107",
+  "L. Biglia",
+  "A. Barzagli",
+  "Borja Valero",
+  "L. Insigne",
+  "M\u00e1rio Rui",
+  "Lucas Leiva"
+ ],
+ "top12_adjusted": [
+  "M. Brozovi\u0107",
+  "Jorginho",
+  "B. Sagna",
+  "L. Biglia",
+  "M. Ham\u0161\u00edk",
+  "L. Cigarini",
+  "F. Viviani",
+  "A. Barzagli",
+  "F. Magnanelli",
+  "D. De Rossi",
+  "Borja Valero",
+  "S. Sensi"
+ ]
+}
