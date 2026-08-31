@@ -22,6 +22,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from galactico.features.estimators import harmonised_axes  # noqa: F401
 from galactico.models.xt import PitchGrid, fit_expected_threat
 from galactico.providers.pappalardo import PappalardoProvider
 from galactico.providers.statsbomb import StatsBombProvider
@@ -64,38 +65,6 @@ def fit_xt(actions: pd.DataFrame, grid: PitchGrid | None = None):
         turnover_start=lost[["start_x", "start_y"]].to_numpy(),
         grid=grid or PitchGrid(),
     )
-
-
-def harmonised_axes(actions: pd.DataFrame, xt, minutes: pd.Series) -> pd.DataFrame:
-    """Estimator v2. Completed passes only, on both providers.
-
-    Every input here exists with the same meaning in both ontologies: a pass, its
-    start, its end, whether it was completed, and whether it set up a shot.
-    """
-    passes = actions[(actions["type"] == "pass") & (actions["success"] == True)].copy()  # noqa: E712
-    passes["xt_delta"] = (xt.values[xt.grid.cells(passes["end_x"], passes["end_y"])]
-                          - xt.values[xt.grid.cells(passes["start_x"], passes["start_y"])])
-    gained = passes[passes["xt_delta"] > 0]
-
-    idx = minutes.index
-    per_90 = 90.0 / minutes.replace(0, np.nan)
-    n_passes = passes.groupby("player_id").size().reindex(idx)
-
-    out = pd.DataFrame(index=idx)
-    prog = gained.groupby("player_id")["xt_delta"].sum().reindex(idx).fillna(0.0)
-    out["progression"] = prog * per_90
-    out["progression_per_action"] = prog / n_passes
-    out["chance_creation"] = (
-        passes[passes["key_pass"]].groupby("player_id")["xt_delta"].sum()
-        .reindex(idx).fillna(0.0) * per_90
-    )
-
-    y = passes["start_y"]
-    half = (y.between(0.21, 0.37)) | (y.between(0.63, 0.79))
-    wide = (y < 0.21) | (y > 0.79)
-    out["half_space_share"] = passes[half].groupby("player_id").size().reindex(idx).fillna(0) / n_passes
-    out["width"] = passes[wide].groupby("player_id").size().reindex(idx).fillna(0) / n_passes
-    return out
 
 
 def baselines(actions: pd.DataFrame, minutes: pd.Series) -> pd.DataFrame:

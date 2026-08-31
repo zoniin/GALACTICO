@@ -147,7 +147,18 @@ def _is_open_play_pass(actions: pd.DataFrame) -> pd.Series:
 
 def compute_axes(actions: pd.DataFrame, xt: ExpectedThreat,
                  minutes: pd.Series) -> pd.DataFrame:
-    """Per-player axis values over a competition-season.
+    """ESTIMATOR v1 — SUPERSEDED. Kept only to reproduce Stage 1B's numbers.
+
+    This divides ``progression_per_action`` by ON-BALL ACTIONS. The construct
+    registry declares the denominator as COMPLETED PASSES, and that is what
+    Player Lab serves via :func:`galactico.features.estimators.harmonised_axes`.
+    The two produce different quantities under the same name, which is a
+    correctness hazard rather than a version difference: on-ball actions are not
+    comparable across providers because Wyscout duels are 27% of all actions.
+
+    Do not use this for anything that reaches a profile.
+
+    Per-player axis values over a competition-season.
 
     ``minutes`` is indexed by ``player_id``. Volume axes are per 90; share axes are
     per action. Set pieces are excluded from open-play axes throughout, because a

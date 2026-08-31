@@ -10,7 +10,8 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from experiments.run_external_replication import fit_xt, harmonised_axes  # noqa: E402
+from experiments.run_external_replication import fit_xt  # noqa: E402
+from galactico.features.estimators import harmonised_axes  # noqa: E402
 from galactico.profiles import build_profiles, write_bundle  # noqa: E402
 from galactico.reliability import split_half_reliability  # noqa: E402
 

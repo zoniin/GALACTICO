@@ -129,3 +129,36 @@ def test_zone_shares_are_a_distribution(bundle) -> None:
         thirds = sum(z[k] for k in ("own_third", "middle_third", "final_third"))
         assert channels == pytest.approx(1.0, abs=1e-6)
         assert thirds == pytest.approx(1.0, abs=1e-6)
+
+
+# --- estimator consistency ----------------------------------------------
+
+def test_denominators_match_the_registry() -> None:
+    """Two functions computed progression_per_action with different denominators
+    under one name. The registry declares completed passes; the shipped estimator
+    must divide by completed passes. This shipped once."""
+    from galactico.features.estimators import ESTIMATOR_DENOMINATORS
+    for construct_id, declared in ESTIMATOR_DENOMINATORS.items():
+        construct = CONSTRUCTS[construct_id]
+        estimator = construct.estimators["wyscout_event_v1"]
+        assert estimator.denominator == declared, (
+            f"{construct_id}: registry says {estimator.denominator!r}, "
+            f"canonical estimator says {declared!r}"
+        )
+
+
+def test_style_bands_are_anchored_to_pitch_geometry() -> None:
+    """Wide is 42% of the pitch's width by area. A 42% width share is therefore
+    NO preference, and any band that calls it 'wide' is stating the opposite."""
+    from galactico.features.estimators import CHANNEL_GEOMETRY, describe_style
+    band, neutral = describe_style("width", CHANNEL_GEOMETRY["width"])
+    assert neutral == 0.42
+    assert "balance" in band
+    assert "markedly central" in describe_style("width", 0.25)[0]
+    assert "wide" in describe_style("width", 0.60)[0]
+
+
+def test_channel_geometry_sums_to_the_whole_pitch() -> None:
+    from galactico.features.estimators import CHANNEL_GEOMETRY
+    total = sum(CHANNEL_GEOMETRY.values())
+    assert total == pytest.approx(1.0, abs=1e-9)

@@ -108,9 +108,14 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
 .spectrum{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;color:var(--bone-500)}
 
 /* badges */
+/* Grade is encoded by FORM, never colour. Red-amber-green would make
+   "we do not know" read as "this player is bad" — the merit reading the
+   measurement work spent months removing. */
 .badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;
-  padding:.18em .5em;border:1px solid currentColor;white-space:nowrap}
-.b-high{color:var(--pos)} .b-mod{color:var(--warn)} .b-low{color:var(--neg)}
+  padding:.18em .5em;border:1px solid var(--ink-600);color:var(--bone-500);white-space:nowrap}
+.g-number{border-style:solid;color:var(--bone-300)}
+.g-band{border-style:dashed}
+.g-insufficient{border-style:dotted}
 .b-none{color:var(--bone-500)}
 
 .insufficient{font-family:var(--mono);font-size:.78rem;color:var(--warn);
@@ -286,21 +291,24 @@ function wireSearch(input, box, onPick){
 }
 
 /* ---------- percentile strip (QUALITY only) ---------- */
-function strip(pct, reliability){
+/* A percentile is a position in the BETWEEN-player distribution. Reliability is
+   a property of the estimator. They are different quantities, and an earlier
+   version widened the percentile marker with reliability — which reads as a
+   confidence interval on this player, which it is not. The rug shows the
+   population, the marker shows where he sits in it, the grade is stated in words. */
+function strip(pct, population){
   if (pct === null || pct === undefined) return '';
-  const w = 100, x = Math.max(0, Math.min(100, pct));
-  // Reliability bounds how much of an individual estimate is signal, so the
-  // marker widens as reliability falls. It is a visual honesty device, not a
-  // confidence interval on this player.
-  const halo = reliability >= 0.8 ? 2.5 : reliability >= 0.6 ? 7 : 14;
+  const x = Math.max(0, Math.min(100, pct));
+  const rug = (population || []).map(p =>
+    '<line x1="' + p + '" y1="20" x2="' + p + '" y2="26" stroke="var(--bone-500)" ' +
+    'stroke-width="1" opacity=".28" vector-effect="non-scaling-stroke"/>').join('');
   return `<svg viewBox="0 0 ${w} 34" preserveAspectRatio="none" role="img">
     <line x1="0" y1="17" x2="100" y2="17" stroke="var(--ink-600)" stroke-width="1"
       vector-effect="non-scaling-stroke"/>
     ${[25,50,75].map(t=>`<line x1="${t}" y1="12" x2="${t}" y2="22" stroke="var(--ink-600)"
       stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
-    <rect x="${Math.max(0,x-halo)}" y="14" width="${Math.min(100,halo*2)}" height="6"
-      fill="var(--gold)" opacity=".22"/>
-    <line x1="${x}" y1="8" x2="${x}" y2="26" stroke="var(--gold)" stroke-width="2"
+    ${rug}
+    <line x1="${x}" y1="7" x2="${x}" y2="27" stroke="var(--gold)" stroke-width="2"
       vector-effect="non-scaling-stroke"/>
   </svg>`;
 }
@@ -333,15 +341,16 @@ async function showPlayer(id){
           <small>${p.minutes.toLocaleString()} of ${c.minutes_floor.toLocaleString()} minutes this
           estimator needs before a point estimate is shown.</small></div>
         <div></div></div>`;
-    const grade = c.reliability_grade;
+    const grade = c.grade;
     return `<div class="card">
       <div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div></div>
-      <div><div class="strip">${strip(c.percentile, c.reliability||0)}</div>
+      <div><div class="strip">${strip(c.percentile, POPULATION[c.construct_id])}</div>
         <div class="pctsub">${c.percentile===null?'':Math.round(c.percentile)+'th percentile among '}${c.reference_label} · n=${c.reference_n}</div></div>
       <div><div class="val">${c.display ?? '—'}</div>
         <div class="unit">${UNITS[c.construct_id]||''}</div>
-        <div style="margin-top:.4rem;text-align:right"><span class="badge b-${grade==='high'?'high':grade==='moderate'?'mod':'low'}">${grade}</span></div>
+        <div style="margin-top:.4rem;text-align:right"><span class="badge g-${grade}"
+          title="Estimator reliability at this sample: r = ${(c.reliability||0).toFixed(2)}">${grade === 'number' ? 'point estimate' : grade}</span></div>
       </div></div>`;
   }).join('');
 
@@ -352,8 +361,10 @@ async function showPlayer(id){
         <div class="claim">${def.claim||''}</div>
         <div class="claim" style="color:var(--bone-500);margin-top:.4rem">
           <span class="badge b-none">style · not ranked</span></div></div>
-      <div><div class="mono" style="font-size:.9rem">${(c.value*100).toFixed(0)}% of completed passes</div>
-        <div class="spectrum" style="margin-top:.5rem">${describe(c.construct_id, c.value)}</div></div>
+      <div><div class="mono" style="font-size:.9rem">${(c.value*100).toFixed(0)}% of completed passes
+          <span style="color:var(--bone-500)"> · the pitch itself is ${(c.geometric_neutral*100).toFixed(0)}%</span></div>
+        <div class="strip" style="height:18px">${geoBar(c.value, c.geometric_neutral)}</div>
+        <div class="spectrum">${c.style_band} — ${c.departure >= 0 ? '+' : ''}${(c.departure*100).toFixed(0)} points against pitch geometry</div></div>
     </div>`;
   }).join('');
 
@@ -386,6 +397,22 @@ async function showPlayer(id){
   el.classList.remove('hidden');
   $('#intro h1').textContent = 'Five constructs survived.';
 }
+
+/* Style shares are geometry-dominated. Wide is 42% of the pitch's width by
+   area, the half-spaces 32%. A 42% width share is NO preference, and a filled bar
+   on a 0-100 track would state the opposite. So the neutral point is drawn and
+   the deviation from it is the mark. */
+function geoBar(v, neutral){
+  const x = Math.max(0, Math.min(100, v*100)), n = neutral*100;
+  return '<svg viewBox="0 0 100 18" preserveAspectRatio="none" role="img"' +
+    ' aria-label="Channel share against the pitch own geometry">' +
+    '<line x1="0" y1="9" x2="100" y2="9" stroke="var(--ink-600)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
+    '<line x1="' + n + '" y1="2" x2="' + n + '" y2="16" stroke="var(--bone-500)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>' +
+    '<line x1="' + Math.min(n,x) + '" y1="9" x2="' + Math.max(n,x) + '" y2="9" stroke="var(--bone-300)" stroke-width="3" vector-effect="non-scaling-stroke"/>' +
+    '<circle cx="' + x + '" cy="9" r="2.8" fill="var(--gold)"/></svg>';
+}
+
+let POPULATION = {};
 
 const LABELS = {progression:"Progression", progression_per_action:"Progression per action",
   chance_creation:"Chance creation", half_space_share:"Half-space share", width:"Width"};
@@ -518,6 +545,13 @@ function renderWhy(){
   wireSearch($('#q'), $('#results'), showPlayer);
   wireSearch($('#qa'), $('#ra'), id => { cmpA = id; runCompare(); });
   wireSearch($('#qb'), $('#rb'), id => { cmpB = id; runCompare(); });
+  // Reference-population rug: the between-player distribution each percentile
+  // is computed against, sampled so the strip shows shape without implying one.
+  for (const c of CONSTRUCTS.shipped){
+    const d = await api('/api/explore/' + c.id);
+    POPULATION[c.id] = d.rows.map(r => r.percentile)
+      .filter(v => v !== null).filter((_, i) => i % 4 === 0);
+  }
   const first = await api('/api/players?q=modric&limit=1');
   if (first.players.length) showPlayer(first.players[0].player_id);
 })();

@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..domain.constructs import CONSTRUCTS
 from ..domain.precision import format_measurement, quantise
+from ..features.estimators import CHANNEL_GEOMETRY, describe_style
 from ..identity import normalise_name
 from ..profiles import REJECTED, RESEARCH_ONLY
 
@@ -86,6 +87,7 @@ def constructs() -> dict:
             "notes": estimator.notes,
         })
     return {
+        "channel_geometry": CHANNEL_GEOMETRY,
         "shipped": shipped,
         "rejected": [{"id": k, "headline": v[0], "detail": v[1]} for k, v in REJECTED.items()],
         "research_only": [{"id": k, "headline": v[0], "detail": v[1]}
@@ -113,13 +115,21 @@ def players(q: str = "", team: str = "", position: str = "",
 
 def _decorate(profile: dict) -> dict:
     out = dict(profile)
-    out["constructs"] = [
-        {**c, "display": _fmt(c["value"], c["sd"]),
-         "reliability_grade": (
-             "high" if (c["reliability"] or 0) >= 0.80 else
-             "moderate" if (c["reliability"] or 0) >= 0.60 else "low")}
-        for c in profile["constructs"]
-    ]
+    decorated = []
+    for c in profile["constructs"]:
+        row = {**c, "display": _fmt(c["value"], c["sd"])}
+        # Grade is a statement about the ESTIMATOR, not the player, so it is named
+        # rather than colour-coded. A traffic light would make "we do not know"
+        # read as "this player is bad".
+        r = c["reliability"] or 0.0
+        row["grade"] = "number" if r >= 0.70 else "band" if r >= 0.50 else "insufficient"
+        if c["family"] == "style" and c["value"] is not None:
+            band, neutral = describe_style(c["construct_id"], c["value"])
+            row["style_band"] = band
+            row["geometric_neutral"] = neutral
+            row["departure"] = c["value"] - neutral
+        decorated.append(row)
+    out["constructs"] = decorated
     return out
 
 
