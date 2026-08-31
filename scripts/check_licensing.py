@@ -49,6 +49,17 @@ CREDENTIAL_PATTERNS = [
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".yaml", ".yml", ".json", ".txt", ".cfg",
                  ".ini", ".sh", ".ts", ".js", ".svelte", ".html"}
 
+# Extension checks miss the obvious leak: event data committed as .txt or .json.
+# These fingerprint the CONTENT instead — provider schema keys that only appear in
+# real feeds, and the shape of a bulk record dump.
+PROVIDER_FINGERPRINTS = [
+    (re.compile(r'"(possession_team|freeze_frame|obv_total_net|shot_statsbomb_xg)"'), "StatsBomb event data"),
+    (re.compile(r'"(eventId|subEventId|matchPeriod|tagsList)"\s*:'), "Wyscout event data"),
+    (re.compile(r'"(player_data|shots_data|rosters_data)"\s*:'), "Understat payload"),
+    (re.compile(r'"(x-rapidapi-key|api-football)"'), "API-Football response"),
+]
+BULK_RECORD_THRESHOLD = 200
+
 
 def tracked_files(staged_only: bool) -> list[Path]:
     args = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"] if staged_only \
@@ -99,6 +110,22 @@ def check(paths: list[Path]) -> list[str]:
             for pattern, label in CREDENTIAL_PATTERNS:
                 if pattern.search(text):
                     problems.append(f"{rel}: looks like a committed {label}")
+
+            if not in_fixtures(rel):
+                for pattern, label in PROVIDER_FINGERPRINTS:
+                    if pattern.search(text):
+                        problems.append(
+                            f"{rel}: content matches {label}. Extension checks do not "
+                            f"catch data renamed to a source suffix"
+                        )
+                        break
+                # A bulk record dump: many repeated object openings on few lines.
+                if path.suffix.lower() in {".json", ".txt"}:
+                    records = text.count('"id"') + text.count('"player_id"')
+                    if records > BULK_RECORD_THRESHOLD:
+                        problems.append(
+                            f"{rel}: {records} record keys — this looks like a data dump"
+                        )
 
         if rel == ".env" or rel.startswith(".env."):
             if not rel.endswith(".example"):
