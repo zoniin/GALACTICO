@@ -15,6 +15,14 @@ stops being true, that is a research result and belongs in `/research`.
 - **StatsBomb open data may not be hosted or commercially exploited**, derived
   analysis included. Local-only, permanently.
 
+## LIVE ships without a physical axis
+
+UEFA publishes exactly the physical data Galactico wanted — distance, top speed,
+sprints, possession-state splits — through keyless JSON. Its terms bar systematic
+collection, scripted access, and using the content to develop or train a model.
+Nothing under $100/month supplies a lawful substitute. The LIVE player model has
+no physical dimension and will not have one until someone licenses a feed.
+
 ## Statistics
 
 - **The player x role interaction is at most 9% of variance** and indistinguishable

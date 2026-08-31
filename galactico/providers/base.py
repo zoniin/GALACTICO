@@ -150,17 +150,23 @@ PROVIDERS: dict[str, LicensePosture] = {
         notes="Seven matches, TRACAB Gen5 at 25Hz, real named players.",
     ),
     "uefa": LicensePosture(
-        name="UEFA open competition statistics",
-        tier=DataTier.PUBLIC,
+        name="UEFA competition statistics (REFERENCE ONLY)",
+        tier=DataTier.LOCAL_LICENSED,
         may_redistribute=False,
-        may_host_derived=True,
+        may_host_derived=False,
         may_commit=False,
         commercial_use=False,
         requires_attribution=True,
         attribution="Official UEFA competition statistics.",
-        notes="Unauthenticated. Supplies official physical metrics — distance, top "
-              "speed, sprint counts — for Champions League players, which is a "
-              "metric family no ordinary public football API carries.",
+        notes="TECHNICALLY OPEN, LEGALLY CLOSED. The endpoints are keyless and the "
+              "data is richer than any public football API — 380 per-player "
+              "per-match statistics, ~37 physical, plus a 105x69 heatmap grid. But "
+              "UEFA Terms & Conditions clause 6.2 prohibits systematic collection "
+              "into a database, scripted access, AND using the content to develop "
+              "or train any software, model or algorithm. Galactico LIVE would be "
+              "all three. Consult by hand; never ingest. robots.txt permits the "
+              "paths and the terms forbid the use — reachability is not a licence. "
+              "See docs/research/UEFA-PHYSICAL-DATA.md.",
     ),
     "clubelo": LicensePosture(
         name="ClubElo",

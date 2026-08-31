@@ -32,21 +32,28 @@ original five could not express.
 | xG / xA | UNAVAILABLE | UNAVAILABLE | **DIRECT** | LICENSE_BLOCKED | DIRECT | DERIVABLE | — | MODELLED |
 | shot location | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | **LICENSE_BLOCKED** | DIRECT | HISTORICAL_ONLY | DERIVABLE | — |
 | touch location | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | LICENSE_BLOCKED | DIRECT | HISTORICAL_ONLY | DERIVABLE | — |
-| heatmaps | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | LICENSE_BLOCKED | UNAVAILABLE | DERIVABLE | DERIVABLE | — |
+| heatmaps | UNAVAILABLE | LICENSE_BLOCKED | UNAVAILABLE | LICENSE_BLOCKED | UNAVAILABLE | DERIVABLE | DERIVABLE | — |
 | event XY | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | **DIRECT** | **HISTORICAL_ONLY** | MODELLED | — |
-| physical distance | UNAVAILABLE | **DIRECT?** | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | HISTORICAL_ONLY | MODELLED | — |
-| top speed / sprints | UNAVAILABLE | **DIRECT?** | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | HISTORICAL_ONLY | MODELLED | — |
+| physical distance | UNAVAILABLE | **LICENSE_BLOCKED** | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | HISTORICAL_ONLY | MODELLED | — |
+| top speed / sprints | UNAVAILABLE | **LICENSE_BLOCKED** | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | HISTORICAL_ONLY | MODELLED | — |
 | **width / half-space** | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | LICENSE_BLOCKED | DIRECT | HISTORICAL_ONLY | DERIVABLE | MODELLED |
 | role | DERIVABLE | DERIVABLE | DERIVABLE | LICENSE_BLOCKED | DERIVABLE | HISTORICAL_ONLY | DERIVABLE | — |
 | team shape | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | DERIVABLE | HISTORICAL_ONLY | **DERIVABLE** | — |
 | pressing / press resistance | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | DERIVABLE | HISTORICAL_ONLY | UNAVAILABLE | UNAVAILABLE |
 
-`DIRECT?` marks UEFA's physical metrics: the most load-bearing unverified claim in
-the whole analysis. It matters because it is the only free route to a physical
-axis for current Real Madrid players, and it is unresolved whether the numbers are
-reachable as JSON or only inside per-match PDF reports. **Settle this before
-committing to any spend plan.** If it is PDF-only the data is still usable, but a
-PDF-extraction workstream has to be costed in.
+**RESOLVED, against us.** UEFA's physical metrics were the most load-bearing
+unverified claim here. They exist, they are keyless JSON, and they are far richer
+than assumed — 380 per-player per-match statistics including possession-state
+distance splits, a 105x69 heatmap grid and a pass network.
+
+And UEFA Terms & Conditions clause 6.2 bars systematic collection, scripted
+access, and using the content to develop or train any software or model. All three
+apply. `robots.txt` permits the paths; the terms forbid the use.
+
+**The physical axis family is dead for LIVE**, not deferred. The only free physical
+signal left is 17 matches across SkillCorner and DFL/Sportec — enough to develop a
+construct, nowhere near enough to populate one. See
+[UEFA-PHYSICAL-DATA.md](research/UEFA-PHYSICAL-DATA.md).
 
 ## The free corpus is larger than previously stated
 
@@ -68,9 +75,9 @@ inference.
 **$19/month. API-Football Pro. That is the whole recommendation.**
 
 Free layer: StatsBomb + Pappalardo + Sportec + SkillCorner as the spatial training
-corpus; FPL for current-season Opta xG/xA per gameweek (Premier League); UEFA for
-Champions League minutes and lineups, and physical metrics if they resolve; ClubElo
-as the opponent-strength covariate; football-data.co.uk for team-xG validation.
+corpus; FPL for current-season Opta xG/xA per gameweek (Premier League); ClubElo as
+the opponent-strength covariate; football-data.co.uk for team-xG validation. **UEFA
+is not in this list** — see above.
 
 Paid layer: current-season minutes, lineups, passes, injuries and transfers across
 ~1,100 competitions.
@@ -82,7 +89,7 @@ leagues plus a team-level Pressure Index of undocumented granularity. Its
 `ballCoordinates` carry no `player_id` and are not a substitute for event data.
 
 **No amount under $100/month unlocks:** current-season event XY, progressive
-passes, or press resistance. Those are historical-only, permanently, until someone
+passes, press resistance, or **any physical metric Galactico may lawfully use**. Those are historical-only, permanently, until someone
 writes a much larger cheque.
 
 ## How to spend the trials

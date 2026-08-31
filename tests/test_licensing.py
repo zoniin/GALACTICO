@@ -42,13 +42,19 @@ def test_every_provider_requiring_attribution_supplies_one() -> None:
 def test_the_hostable_set_is_exactly_what_the_public_demo_may_use() -> None:
     hostable = {k for k, v in PROVIDERS.items() if v.may_host_derived}
     assert "statsbomb" not in hostable
-    assert {"pappalardo", "skillcorner", "dfl", "uefa", "clubelo"} <= hostable
+    assert {"pappalardo", "skillcorner", "dfl", "clubelo"} <= hostable
+    assert "uefa" not in hostable, (
+        "UEFA is technically open and legally closed: T&C 6.2 bars systematic "
+        "collection, scripted access, and using the content to develop software "
+        "or models. This assertion previously said the opposite and locked the "
+        "error in. See docs/research/UEFA-PHYSICAL-DATA.md."
+    )
 
 
 def test_non_redistributable_sources_are_not_marked_public_without_reason() -> None:
     """UEFA, ClubElo and FPL are hostable-derived but not redistributable. That
     combination is legitimate and deliberate; assert it stays deliberate."""
-    for provider_id in ("uefa", "clubelo", "fpl"):
+    for provider_id in ("clubelo", "fpl"):
         posture = PROVIDERS[provider_id]
         assert posture.may_host_derived
         assert not posture.may_redistribute
