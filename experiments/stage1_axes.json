@@ -1,0 +1,114 @@
+[
+ {
+  "axis": "progression",
+  "family": "quality",
+  "r": 0.887920510464265,
+  "ci": [
+   0.8671478494608997,
+   0.9056093712637681
+  ],
+  "n": 333,
+  "conf_r2": 0.2963146607206294,
+  "rho": 0.7949487717493585,
+  "top12": 9,
+  "grade": "number",
+  "best_baseline": "touches_per_90",
+  "baseline_r": 0.5929807459437422
+ },
+ {
+  "axis": "progression_per_action",
+  "family": "quality",
+  "r": 0.8621834562423577,
+  "ci": [
+   0.8370524321333923,
+   0.8836839899704381
+  ],
+  "n": 333,
+  "conf_r2": 0.05972799049857558,
+  "rho": 0.9547946486495964,
+  "top12": 12,
+  "grade": "number",
+  "best_baseline": "pass_completion",
+  "baseline_r": 0.5265672772172996
+ },
+ {
+  "axis": "chance_creation",
+  "family": "quality",
+  "r": 0.5999259707376644,
+  "ci": [
+   0.5388156943619802,
+   0.6547554368343254
+  ],
+  "n": 333,
+  "conf_r2": 0.14673096561474608,
+  "rho": 0.8685634464660398,
+  "top12": 9,
+  "grade": "band",
+  "best_baseline": "mean_x",
+  "baseline_r": 0.48120611389534323
+ },
+ {
+  "axis": "ball_retention",
+  "family": "quality",
+  "r": 0.8973509040710572,
+  "ci": [
+   0.8782133106639578,
+   0.9136195182933121
+  ],
+  "n": 333,
+  "conf_r2": 0.272312236522429,
+  "rho": 0.8432932780820237,
+  "top12": 4,
+  "grade": "number",
+  "best_baseline": "pass_completion",
+  "baseline_r": 0.9498596065640603
+ },
+ {
+  "axis": "half_space_share",
+  "family": "style",
+  "r": 0.9632059645846751,
+  "ci": [
+   0.9560618684545422,
+   0.9692067566667617
+  ],
+  "n": 333,
+  "conf_r2": 0.04319893724667734,
+  "rho": 0.9737751100253073,
+  "top12": 9,
+  "grade": "number",
+  "best_baseline": "pass_completion",
+  "baseline_r": 0.47029491110433147
+ },
+ {
+  "axis": "width",
+  "family": "style",
+  "r": 0.9863563038153752,
+  "ci": [
+   0.9836697923361826,
+   0.9886033916885063
+  ],
+  "n": 333,
+  "conf_r2": 0.04625015352990802,
+  "rho": 0.9656174567642916,
+  "top12": 5,
+  "grade": "number",
+  "best_baseline": "mean_x",
+  "baseline_r": 0.5235682775665111
+ },
+ {
+  "axis": "verticality",
+  "family": "style",
+  "r": 0.9738351052006605,
+  "ci": [
+   0.9687219302496817,
+   0.9781216941393828
+  ],
+  "n": 333,
+  "conf_r2": 0.05460605098579219,
+  "rho": 0.9584750170955657,
+  "top12": 11,
+  "grade": "number",
+  "best_baseline": "mean_x",
+  "baseline_r": 0.8970899733463791
+ }
+]

@@ -30,7 +30,7 @@ REPO = Path(__file__).resolve().parent.parent
 MAX_BYTES = 512 * 1024
 
 DATA_SUFFIXES = {".parquet", ".duckdb", ".db", ".jsonl", ".csv", ".feather", ".arrow",
-                 ".h5", ".hdf5", ".npz", ".pkl", ".mp4", ".mkv", ".avi"}
+                 ".h5", ".hdf5", ".npz", ".npy", ".pkl", ".mp4", ".mkv", ".avi"}
 
 FIXTURE_DIRS = {"tests/fixtures"}
 
