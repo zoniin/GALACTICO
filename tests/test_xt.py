@@ -8,12 +8,17 @@ import pytest
 from galactico.models.xt import PitchGrid, fit_expected_threat
 
 
-def synthetic_pitch(seed: int = 3, n_moves: int = 40_000, n_shots: int = 6_000):
-    """Ball advances on average; shots convert only near goal and near the centre.
+def synthetic_pitch(seed: int = 3, n_moves: int = 40_000, n_shots: int = 6_000,
+                    n_turnovers: int = 12_000):
+    """Ball advances on average; shots convert only near goal; possession is lost.
 
-    The correct surface therefore rises toward the opposition goal and toward the
-    middle of the pitch, and a forward pass carries positive value. Anything else
-    means the fit is wrong rather than merely noisy.
+    The correct surface rises toward the opposition goal and toward the middle,
+    and a forward pass carries positive value.
+
+    Turnovers are generated deliberately. An earlier version of this function
+    omitted them, and so did the implementation, so the suite was green while both
+    were wrong about football — see docs/research/M-01. A generator that shares the
+    implementation's assumptions cannot test them.
     """
     rng = np.random.default_rng(seed)
     start = np.column_stack([rng.uniform(0, 1, n_moves), rng.uniform(0, 1, n_moves)])
@@ -25,21 +30,27 @@ def synthetic_pitch(seed: int = 3, n_moves: int = 40_000, n_shots: int = 6_000):
     shots = np.column_stack([shot_x, shot_y])
     conversion = 0.02 + 0.55 * shot_x**6 * np.exp(-((shot_y - 0.5) ** 2) / 0.02)
     goals = rng.uniform(size=n_shots) < conversion
-    return start, end, shots, goals
+
+    # Possession is lost more often in the final third, where defences are dense.
+    lost_x = rng.beta(2.0, 2.0, n_turnovers)
+    lost_y = rng.uniform(0, 1, n_turnovers)
+    turnovers = np.column_stack([lost_x, lost_y])
+    return start, end, shots, goals, turnovers
 
 
 @pytest.fixture(scope="module")
 def fitted():
-    start, end, shots, goals = synthetic_pitch()
+    start, end, shots, goals, turnovers = synthetic_pitch()
     return fit_expected_threat(
-        move_start=start, move_end=end, shot_start=shots, shot_goal=goals
+        move_start=start, move_end=end, shot_start=shots, shot_goal=goals,
+        turnover_start=turnovers,
     )
 
 
 def test_fit_converges(fitted) -> None:
     assert fitted.converged
     assert fitted.iterations < 200
-    assert fitted.n_actions == 46_000
+    assert fitted.n_actions == 58_000
 
 
 def test_value_increases_toward_goal(fitted) -> None:
@@ -88,3 +99,52 @@ def test_mismatched_shot_arrays_are_rejected() -> None:
             move_start=np.zeros((5, 2)), move_end=np.zeros((5, 2)),
             shot_start=np.zeros((3, 2)), shot_goal=np.zeros(2, dtype=bool),
         )
+
+
+# --- invariants derived independently of the implementation --------------
+#
+# The bug that shipped in Stage 1 survived a green suite because the synthetic
+# generator encoded the same false assumption as the code: neither had turnovers,
+# so both agreed on a flat surface. These tests state what football requires,
+# not what the equation computes.
+
+
+def test_own_box_to_dangerous_central_area_is_materially_positive(fitted) -> None:
+    """A football invariant, not an equation restatement.
+
+    Carrying possession from your own penalty area to the top of the opponent's
+    box must be worth materially more than nothing under any surface that means
+    anything. Stated as a fraction of the surface's own range so it holds
+    regardless of scale.
+    """
+    own_box = fitted.value_at(0.05, 0.5)
+    dangerous = fitted.value_at(0.88, 0.5)
+    span = float(fitted.values.max() - fitted.values.min())
+    assert dangerous - own_box > 0.25 * span
+
+
+def test_advancing_is_monotone_along_the_centre(fitted) -> None:
+    """Value must not fall while moving straight at the goal."""
+    line = [fitted.value_at(x, 0.5) for x in (0.1, 0.3, 0.5, 0.7, 0.9)]
+    assert all(b >= a for a, b in zip(line, line[1:]))
+
+
+def test_a_surface_without_turnovers_collapses_to_near_uniform() -> None:
+    """Regression test for the Stage 1 bug, asserting the failure directly.
+
+    With no absorbing state other than a shot, every possession eventually
+    produces one and the fixed point is nearly uniform. If this ever stops being
+    near-uniform the parameterisation has changed and the guarantee that turnovers
+    matter needs re-deriving.
+    """
+    start, end, shots, goals, turnovers = synthetic_pitch()
+    flat = fit_expected_threat(move_start=start, move_end=end,
+                               shot_start=shots, shot_goal=goals)
+    flat_ratio = float(flat.values.std()) / float(flat.values.mean())
+
+    proper = fit_expected_threat(move_start=start, move_end=end, shot_start=shots,
+                                 shot_goal=goals, turnover_start=turnovers)
+    proper_ratio = float(proper.values.std()) / float(proper.values.mean())
+
+    assert flat_ratio < 0.35, "surface without turnovers should be near-uniform"
+    assert proper_ratio > 3 * flat_ratio, "turnovers must restore the gradient"
