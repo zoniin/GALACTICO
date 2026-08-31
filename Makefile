@@ -20,3 +20,9 @@ check: licence lint test
 
 reliability:
 	python -m galactico.reliability.report
+
+profiles:
+	PYTHONPATH=. python scripts/build_profiles.py
+
+serve: profiles
+	PYTHONPATH=. python -m uvicorn galactico.api.player_lab:app --port 8090 --reload

@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Galáctico — Player Lab</title>
+<style>
+:root{
+  --ink-900:#0c0f0e; --ink-850:#121614; --ink-800:#181d1b; --ink-700:#232a27;
+  --ink-600:#333d38;
+  --bone-100:#eeeae0; --bone-300:#b8b2a4; --bone-500:#7d786d;
+  --gold:#c9a227; --gold-dim:#8a7220;
+  --pos:#5fbf95; --neg:#d4735f; --warn:#c9a227;
+  --chalk:rgba(220,225,220,.10);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --ui:"Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink-900); color:var(--bone-100);
+  font-family:var(--ui); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--gold);text-underline-offset:.2em}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* chrome */
+header.bar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.4rem;
+  padding:.7rem 1.4rem;background:var(--ink-850);
+  border-bottom:1px solid var(--ink-700);
+}
+.brand{font-family:var(--serif);font-size:1.15rem;letter-spacing:.02em}
+.brand em{font-style:normal;color:var(--gold)}
+.tier{
+  font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+  border:1px solid var(--gold-dim);color:var(--gold);padding:.2em .5em;
+}
+.bar .spacer{flex:1}
+.bar nav{display:flex;gap:1.1rem;font-family:var(--mono);font-size:.7rem;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--bone-500)}
+.bar nav button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;
+  padding:.2em 0;border-bottom:1px solid transparent}
+.bar nav button:hover,.bar nav button[aria-current="true"]{color:var(--bone-100);border-bottom-color:var(--gold)}
+.bar nav button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+main{max-width:1180px;margin:0 auto;padding:2.2rem 1.4rem 5rem}
+section{margin-bottom:3.4rem}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.9rem,1.1rem+2.6vw,3rem);
+  line-height:1.06;margin:0 0 .5rem;letter-spacing:-.015em;text-wrap:balance}
+h2{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--bone-500);font-weight:600;margin:0 0 1rem;
+  padding-bottom:.5rem;border-bottom:1px solid var(--ink-700)}
+p.lede{color:var(--bone-300);max-width:62ch;margin:0 0 1.6rem;font-size:1.02rem}
+
+/* search */
+.search{position:relative;max-width:34rem}
+input[type=search]{
+  width:100%;background:var(--ink-800);border:1px solid var(--ink-600);color:var(--bone-100);
+  font:inherit;padding:.7rem .9rem;border-radius:2px}
+input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
+.results{position:absolute;z-index:20;left:0;right:0;background:var(--ink-800);
+  border:1px solid var(--ink-600);border-top:0;max-height:20rem;overflow:auto}
+.results button{display:flex;width:100%;gap:.8rem;align-items:baseline;background:none;
+  border:0;color:inherit;font:inherit;text-align:left;padding:.5rem .9rem;cursor:pointer}
+.results button:hover{background:var(--ink-700)}
+.results .t{color:var(--bone-500);font-size:.8rem}
+.results .m{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--bone-500)}
+
+/* player head */
+.phead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1.4rem;
+  border-bottom:1px solid var(--ink-700);padding-bottom:1.1rem;margin-bottom:1.8rem}
+.phead h1{margin:0}
+.phead .sub{font-family:var(--mono);font-size:.76rem;color:var(--bone-500);letter-spacing:.06em}
+.phead .facts{margin-left:auto;display:flex;gap:1.8rem;text-align:right}
+.fact .k{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--bone-500)}
+.fact .v{font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+
+/* construct cards */
+.cards{display:grid;gap:0;border-top:1px solid var(--ink-700)}
+.card{padding:1.15rem 0;border-bottom:1px solid var(--ink-700);
+  display:grid;grid-template-columns:15rem 1fr 8rem;gap:1.6rem;align-items:center}
+@media(max-width:800px){.card{grid-template-columns:1fr;gap:.6rem}}
+.card .name{font-family:var(--serif);font-size:1.12rem}
+.card .claim{color:var(--bone-500);font-size:.82rem;max-width:26ch;margin-top:.15rem}
+.card .val{font-family:var(--mono);font-size:1.5rem;font-variant-numeric:tabular-nums;text-align:right}
+.card .unit{font-family:var(--mono);font-size:.66rem;color:var(--bone-500);text-align:right;
+  letter-spacing:.08em;text-transform:uppercase}
+
+/* percentile strip — quality only */
+.strip{position:relative;height:34px}
+.strip svg{display:block;width:100%;height:34px;overflow:visible}
+.strip .axis{font-family:var(--mono);font-size:9px;fill:var(--bone-500)}
+.pct{font-family:var(--mono);font-size:.92rem;color:var(--bone-100)}
+.pctsub{font-family:var(--mono);font-size:.64rem;color:var(--bone-500)}
+
+/* style panel — deliberately NOT a percentile */
+.style-row{display:grid;grid-template-columns:15rem 1fr;gap:1.6rem;align-items:center;
+  padding:1.15rem 0;border-bottom:1px solid var(--ink-700)}
+@media(max-width:800px){.style-row{grid-template-columns:1fr}}
+.zones{display:flex;height:30px;border:1px solid var(--ink-600);overflow:hidden}
+.zones div{position:relative}
+.zones div span{position:absolute;inset:auto 0 -1.35rem 0;text-align:center;
+  font-family:var(--mono);font-size:.58rem;color:var(--bone-500);letter-spacing:.08em}
+.spectrum{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;color:var(--bone-500)}
+
+/* badges */
+.badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;
+  padding:.18em .5em;border:1px solid currentColor;white-space:nowrap}
+.b-high{color:var(--pos)} .b-mod{color:var(--warn)} .b-low{color:var(--neg)}
+.b-none{color:var(--bone-500)}
+
+.insufficient{font-family:var(--mono);font-size:.78rem;color:var(--warn);
+  border-left:2px solid var(--warn);padding-left:.8rem}
+.insufficient small{display:block;color:var(--bone-500);font-size:.7rem;margin-top:.2rem}
+
+/* scatter */
+#scatter{width:100%;height:460px;display:block;background:var(--ink-850);
+  border:1px solid var(--ink-700)}
+.quad{font-family:var(--mono);font-size:.64rem;color:var(--bone-500);
+  display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1.4rem;margin-top:.8rem}
+
+/* why-five */
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0;
+  border-top:1px solid var(--ink-700)}
+.why > div{padding:1.1rem 1.4rem 1.1rem 0;border-bottom:1px solid var(--ink-700)}
+.why h3{font-family:var(--serif);font-weight:400;font-size:1.02rem;margin:.3rem 0 .35rem}
+.why p{color:var(--bone-500);font-size:.85rem;margin:0}
+.tag{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
+.t-ship{color:var(--pos)} .t-rej{color:var(--neg)} .t-res{color:var(--warn)}
+
+/* compare */
+.cmp{display:grid;grid-template-columns:1fr 9rem 1fr;gap:.8rem;align-items:center;
+  padding:.85rem 0;border-bottom:1px solid var(--ink-700)}
+.cmp .bar-l,.cmp .bar-r{height:8px;background:var(--ink-700)}
+.cmp .bar-l i,.cmp .bar-r i{display:block;height:100%;background:var(--gold-dim)}
+.cmp .bar-l{direction:rtl} .cmp .bar-l i{background:var(--bone-500)}
+.cmp .mid{text-align:center;font-family:var(--mono);font-size:.72rem}
+.cmp .lang{grid-column:1/-1;font-size:.76rem;color:var(--bone-500);margin-top:.3rem}
+.cmp .lang.material{color:var(--bone-300)}
+
+details{border-top:1px solid var(--ink-700);padding:.7rem 0}
+summary{cursor:pointer;font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--bone-500)}
+summary:hover{color:var(--bone-100)}
+details .body{padding:.8rem 0 .2rem;font-size:.84rem;color:var(--bone-300)}
+details dl{display:grid;grid-template-columns:12rem 1fr;gap:.3rem 1rem;margin:0;
+  font-family:var(--mono);font-size:.74rem}
+details dt{color:var(--bone-500)}
+.hidden{display:none}
+.foot{font-family:var(--mono);font-size:.66rem;color:var(--bone-500);line-height:1.8;
+  border-top:1px solid var(--ink-700);padding-top:1.2rem}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span class="brand">GAL<em>Á</em>CTICO</span>
+  <span class="tier" id="tier">LAB · —</span>
+  <span class="spacer"></span>
+  <nav>
+    <button data-view="player" aria-current="true">Player</button>
+    <button data-view="map">Map</button>
+    <button data-view="explore">Explore</button>
+    <button data-view="compare">Compare</button>
+    <button data-view="why">Why only five?</button>
+  </nav>
+</header>
+
+<main>
+  <!-- PLAYER ------------------------------------------------------------ -->
+  <div id="view-player">
+    <section id="intro">
+      <h1>Five constructs survived.</h1>
+      <p class="lede">Galáctico does not manufacture ratings. Eight candidate measures went
+        through reliability, confound and incremental-information testing across five leagues
+        and a second data provider. Four survived cleanly, one survives conditionally, and
+        three did not. This is what is left.</p>
+      <div class="search">
+        <input type="search" id="q" placeholder="Search a player or club — Modrić, Kroos, Isco…"
+               autocomplete="off" aria-label="Search players">
+        <div class="results hidden" id="results" role="listbox"></div>
+      </div>
+    </section>
+    <section id="profile" class="hidden"></section>
+  </div>
+
+  <!-- MAP --------------------------------------------------------------- -->
+  <div id="view-map" class="hidden">
+    <section>
+      <h1>Volume is not efficiency.</h1>
+      <p class="lede">Progression per 90 against progression per completed pass. A player can
+        be high-volume and ordinary-efficiency, or low-volume and elite-efficiency. Collapsing
+        these into one rating would destroy the only interesting thing about the pair.</p>
+      <canvas id="scatter" aria-label="Scatter of progression per 90 against progression per action"></canvas>
+      <div class="quad">
+        <span>↖ low volume · high efficiency — selective, used sparingly</span>
+        <span>↗ high volume · high efficiency — the rare corner</span>
+        <span>↙ low volume · low efficiency</span>
+        <span>↘ high volume · low efficiency — high responsibility, ordinary return</span>
+      </div>
+    </section>
+  </div>
+
+  <!-- EXPLORE ----------------------------------------------------------- -->
+  <div id="view-explore" class="hidden">
+    <section>
+      <h1>Explore a construct.</h1>
+      <p class="lede">Distributions across the competition. Quality constructs can be ordered;
+        style constructs cannot, and are not presented as a ranking.</p>
+      <div id="explore-tabs" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.2rem"></div>
+      <div id="explore-body"></div>
+    </section>
+  </div>
+
+  <!-- COMPARE ----------------------------------------------------------- -->
+  <div id="view-compare" class="hidden">
+    <section>
+      <h1>Compare two players.</h1>
+      <p class="lede">The difference is the point, not two profiles side by side. Where a gap is
+        smaller than the measurement can separate, it says so.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;max-width:44rem">
+        <div class="search"><input type="search" id="qa" placeholder="First player…" autocomplete="off">
+          <div class="results hidden" id="ra"></div></div>
+        <div class="search"><input type="search" id="qb" placeholder="Second player…" autocomplete="off">
+          <div class="results hidden" id="rb"></div></div>
+      </div>
+      <div id="cmp" style="margin-top:2rem"></div>
+    </section>
+  </div>
+
+  <!-- WHY --------------------------------------------------------------- -->
+  <div id="view-why" class="hidden">
+    <section>
+      <h1>Why only five?</h1>
+      <p class="lede">Every candidate went through the same lifecycle: definition, reliability,
+        confound audit, construct validity, incremental information, robustness. Three failed at
+        three different stages, and the differences matter more than the failures.</p>
+      <div class="why" id="why"></div>
+    </section>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = p => fetch(p).then(r => r.ok ? r.json() : Promise.reject(r.status));
+const UNITS = {progression:"xT / 90", progression_per_action:"xT / pass",
+  chance_creation:"xT / 90", half_space_share:"share", width:"share"};
+let META = null, CONSTRUCTS = null;
+
+/* ---------- view switching ---------- */
+document.querySelectorAll('.bar nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.bar nav button').forEach(x => x.setAttribute('aria-current', x === b));
+  ['player','map','explore','compare','why'].forEach(v =>
+    $('#view-' + v).classList.toggle('hidden', v !== b.dataset.view));
+  if (b.dataset.view === 'map') drawScatter();
+  if (b.dataset.view === 'explore') initExplore();
+});
+
+/* ---------- search ---------- */
+function wireSearch(input, box, onPick){
+  let t;
+  input.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(async () => {
+      const q = input.value.trim();
+      if (q.length < 2){ box.classList.add('hidden'); return; }
+      const d = await api('/api/players?q=' + encodeURIComponent(q) + '&limit=10');
+      box.innerHTML = d.players.map(p =>
+        `<button data-id="${p.player_id}"><span>${p.name}</span>
+         <span class="t">${p.team} · ${p.position}</span>
+         <span class="m">${p.minutes.toLocaleString()}′</span></button>`).join('')
+        || '<button disabled><span class="t">no match</span></button>';
+      box.classList.remove('hidden');
+      box.querySelectorAll('button[data-id]').forEach(btn => btn.onclick = () => {
+        box.classList.add('hidden'); input.value = btn.querySelector('span').textContent;
+        onPick(+btn.dataset.id);
+      });
+    }, 140);
+  });
+}
+
+/* ---------- percentile strip (QUALITY only) ---------- */
+function strip(pct, reliability){
+  if (pct === null || pct === undefined) return '';
+  const w = 100, x = Math.max(0, Math.min(100, pct));
+  // Reliability bounds how much of an individual estimate is signal, so the
+  // marker widens as reliability falls. It is a visual honesty device, not a
+  // confidence interval on this player.
+  const halo = reliability >= 0.8 ? 2.5 : reliability >= 0.6 ? 7 : 14;
+  return `<svg viewBox="0 0 ${w} 34" preserveAspectRatio="none" role="img">
+    <line x1="0" y1="17" x2="100" y2="17" stroke="var(--ink-600)" stroke-width="1"
+      vector-effect="non-scaling-stroke"/>
+    ${[25,50,75].map(t=>`<line x1="${t}" y1="12" x2="${t}" y2="22" stroke="var(--ink-600)"
+      stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
+    <rect x="${Math.max(0,x-halo)}" y="14" width="${Math.min(100,halo*2)}" height="6"
+      fill="var(--gold)" opacity=".22"/>
+    <line x1="${x}" y1="8" x2="${x}" y2="26" stroke="var(--gold)" stroke-width="2"
+      vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+/* ---------- style zones (NOT a percentile) ---------- */
+function zoneBar(z){
+  const seg = [["left_wide","LW"],["left_half","LH"],["centre","C"],["right_half","RH"],["right_wide","RW"]];
+  const tone = ["#3a463f","#4d5f52","#6f8471","#4d5f52","#3a463f"];
+  return `<div class="zones" role="img" aria-label="Share of completed passes by pitch channel">` +
+    seg.map(([k,l],i)=>{
+      const v = (z[k]||0);
+      return `<div style="flex:${Math.max(v,0.001)};background:${tone[i]}"
+        title="${l} ${(v*100).toFixed(0)}%"><span>${l}</span></div>`;
+    }).join('') + `</div>`;
+}
+
+/* ---------- profile ---------- */
+async function showPlayer(id){
+  const p = await api('/api/players/' + id);
+  const q = p.constructs.filter(c => c.family === 'quality');
+  const s = p.constructs.filter(c => c.family === 'style');
+  const el = $('#profile');
+
+  const qualityCards = q.map(c => {
+    const def = CONSTRUCTS.shipped.find(x => x.id === c.construct_id) || {};
+    if (c.render_state === 'insufficient_signal')
+      return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
+        <div class="claim">${def.claim||''}</div></div>
+        <div class="insufficient">INSUFFICIENT SIGNAL
+          <small>${p.minutes.toLocaleString()} of ${c.minutes_floor.toLocaleString()} minutes this
+          estimator needs before a point estimate is shown.</small></div>
+        <div></div></div>`;
+    const grade = c.reliability_grade;
+    return `<div class="card">
+      <div><div class="name">${label(c.construct_id)}</div>
+        <div class="claim">${def.claim||''}</div></div>
+      <div><div class="strip">${strip(c.percentile, c.reliability||0)}</div>
+        <div class="pctsub">${c.percentile===null?'':Math.round(c.percentile)+'th percentile among '}${c.reference_label} · n=${c.reference_n}</div></div>
+      <div><div class="val">${c.display ?? '—'}</div>
+        <div class="unit">${UNITS[c.construct_id]||''}</div>
+        <div style="margin-top:.4rem;text-align:right"><span class="badge b-${grade==='high'?'high':grade==='moderate'?'mod':'low'}">${grade}</span></div>
+      </div></div>`;
+  }).join('');
+
+  const styleRows = s.map(c => {
+    const def = CONSTRUCTS.shipped.find(x => x.id === c.construct_id) || {};
+    return `<div class="style-row">
+      <div><div class="name">${label(c.construct_id)}</div>
+        <div class="claim">${def.claim||''}</div>
+        <div class="claim" style="color:var(--bone-500);margin-top:.4rem">
+          <span class="badge b-none">style · not ranked</span></div></div>
+      <div><div class="mono" style="font-size:.9rem">${(c.value*100).toFixed(0)}% of completed passes</div>
+        <div class="spectrum" style="margin-top:.5rem">${describe(c.construct_id, c.value)}</div></div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="phead">
+      <div><h1>${p.name}</h1>
+        <div class="sub">${p.team} · ${p.position} · ${p.competition} ${p.season}</div></div>
+      <div class="facts">
+        <div class="fact"><div class="k">Minutes</div><div class="v">${p.minutes.toLocaleString()}</div></div>
+        <div class="fact"><div class="k">Estimator</div><div class="v" style="font-size:.8rem">${p.regime}_v1</div></div>
+      </div>
+    </div>
+    <h2>Quality</h2><div class="cards">${qualityCards}</div>
+    <h2 style="margin-top:2.4rem">Style — spatial tendency, no good direction</h2>
+    <div class="cards">${styleRows}</div>
+    <div style="margin-top:1rem">${zoneBar(p.zone_shares)}</div>
+    <div class="spectrum">Share of completed passes by channel. LW / LH = left wide and left
+      half-space, C = centre, RH / RW = right.</div>
+    <details style="margin-top:2rem"><summary>View provenance</summary>
+      <div class="body"><dl>
+        <dt>construct set</dt><dd>${p.constructs.map(c=>c.construct_id).join(', ')}</dd>
+        <dt>estimator</dt><dd>${p.regime}_v1</dd>
+        <dt>source</dt><dd>Pappalardo/Wyscout open dataset, CC BY 4.0</dd>
+        <dt>season</dt><dd>${p.competition} ${p.season}</dd>
+        <dt>xT model</dt><dd>${META.xt_version}</dd>
+        <dt>dataset hash</dt><dd>${META.dataset_hash}</dd>
+        <dt>artifact version</dt><dd>${META.version_key}</dd>
+        <dt>generated</dt><dd>${META.generated_at}</dd>
+      </dl></div></details>`;
+  el.classList.remove('hidden');
+  $('#intro h1').textContent = 'Five constructs survived.';
+}
+
+const LABELS = {progression:"Progression", progression_per_action:"Progression per action",
+  chance_creation:"Chance creation", half_space_share:"Half-space share", width:"Width"};
+const label = k => LABELS[k] || k;
+
+function describe(id, v){
+  // Quantile-free descriptive bands, stated as thresholds so they are checkable.
+  if (id === 'width')
+    return v < .28 ? 'central — rarely operates in the wide channels'
+      : v < .42 ? 'balanced across channels'
+      : v < .55 ? 'wide-leaning' : 'very wide';
+  return v < .26 ? 'low half-space usage' : v < .38 ? 'moderate' : 'high half-space usage';
+}
+
+/* ---------- scatter ---------- */
+let scatterData = null;
+async function drawScatter(){
+  if (!scatterData) scatterData = await api('/api/scatter');
+  const cv = $('#scatter'), dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = 460;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0,0,w,h);
+  const pts = scatterData.points, pad = 54;
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const xr = [Math.min(...xs), Math.max(...xs)], yr = [Math.min(...ys), Math.max(...ys)];
+  const X = v => pad + (v - xr[0]) / (xr[1]-xr[0]) * (w - pad*1.5);
+  const Y = v => h - pad - (v - yr[0]) / (yr[1]-yr[0]) * (h - pad*1.6);
+  const mx = xs.reduce((a,b)=>a+b,0)/xs.length, my = ys.reduce((a,b)=>a+b,0)/ys.length;
+
+  g.strokeStyle = 'rgba(220,225,220,.10)'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(X(mx), pad*0.5); g.lineTo(X(mx), h-pad); g.stroke();
+  g.beginPath(); g.moveTo(pad, Y(my)); g.lineTo(w-pad*0.5, Y(my)); g.stroke();
+
+  pts.forEach(p => {
+    g.beginPath(); g.arc(X(p.x), Y(p.y), 2.6, 0, 7);
+    g.fillStyle = p.team === 'Real Madrid' ? '#c9a227' : 'rgba(184,178,164,.42)';
+    g.fill();
+  });
+  g.fillStyle = '#7d786d'; g.font = '10px ui-monospace,monospace';
+  g.fillText('progression per completed pass →', pad, h - 18);
+  g.save(); g.translate(16, h-pad); g.rotate(-Math.PI/2);
+  g.fillText('progression per 90 →', 0, 0); g.restore();
+  g.fillStyle = '#c9a227'; g.fillText('gold = Real Madrid', w - 150, 22);
+
+  cv.onmousemove = e => {
+    const r = cv.getBoundingClientRect(), mxp = e.clientX-r.left, myp = e.clientY-r.top;
+    const near = pts.find(p => Math.hypot(X(p.x)-mxp, Y(p.y)-myp) < 6);
+    cv.title = near ? `${near.name} — ${near.team} · ${near.position} · ${near.minutes}′` : '';
+  };
+}
+
+/* ---------- explore ---------- */
+let exploreInit = false;
+async function initExplore(){
+  if (exploreInit) return; exploreInit = true;
+  const tabs = $('#explore-tabs');
+  tabs.innerHTML = CONSTRUCTS.shipped.map((c,i) =>
+    `<button class="badge ${i===0?'b-high':'b-none'}" data-c="${c.id}"
+      style="cursor:pointer;background:none">${label(c.id)}</button>`).join('');
+  tabs.querySelectorAll('button').forEach(b => b.onclick = () => {
+    tabs.querySelectorAll('button').forEach(x=>x.className='badge b-none');
+    b.className = 'badge b-high'; loadExplore(b.dataset.c);
+  });
+  loadExplore(CONSTRUCTS.shipped[0].id);
+}
+async function loadExplore(id){
+  const d = await api('/api/explore/' + id);
+  const head = d.orderable_as_ranking
+    ? `<p class="lede">Ordered high to low. This is a quality construct, so the ordering is meaningful.</p>`
+    : `<p class="lede"><strong>Not a ranking.</strong> This is a style construct — there is no good
+       direction. The list is ordered only to show the distribution.</p>`;
+  const max = Math.max(...d.rows.map(r=>r.value));
+  $('#explore-body').innerHTML = head + `<div class="cards">` + d.rows.slice(0,40).map(r =>
+    `<div class="card" style="grid-template-columns:14rem 1fr 7rem;padding:.55rem 0">
+      <div><span>${r.name}</span> <span class="pctsub">${r.team}</span></div>
+      <div style="height:8px;background:var(--ink-700)"><i style="display:block;height:100%;
+        width:${(r.value/max*100).toFixed(1)}%;background:var(--gold-dim)"></i></div>
+      <div class="mono" style="text-align:right;font-size:.82rem">${r.value.toFixed(4)}</div>
+    </div>`).join('') + `</div>`;
+}
+
+/* ---------- compare ---------- */
+let cmpA = null, cmpB = null;
+async function runCompare(){
+  if (!cmpA || !cmpB) return;
+  const d = await api(`/api/compare?a=${cmpA}&b=${cmpB}`);
+  $('#cmp').innerHTML = `<div class="phead" style="border:0;padding:0;margin-bottom:1rem">
+      <div><h1 style="font-size:1.5rem">${d.left.name} <span style="color:var(--bone-500)">vs</span> ${d.right.name}</h1></div></div>` +
+    d.deltas.map(x => {
+      const m = Math.max(Math.abs(x.left), Math.abs(x.right)) || 1;
+      return `<div class="cmp">
+        <div class="bar-l"><i style="width:${Math.abs(x.left)/m*100}%"></i></div>
+        <div class="mid">${label(x.construct_id)}</div>
+        <div class="bar-r"><i style="width:${Math.abs(x.right)/m*100}%"></i></div>
+        <div class="lang ${x.material?'material':''}">
+          ${x.material ? `<strong>${x.leader}</strong> ${x.language}`
+            : x.interpretable ? `${x.leader} ${x.language}`
+            : x.language}
+          <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}</span>
+        </div></div>`;
+    }).join('');
+}
+
+/* ---------- why only five ---------- */
+function renderWhy(){
+  const ship = CONSTRUCTS.shipped.map(c => `<div>
+    <div class="tag t-ship">Shipped</div><h3>${label(c.id)}</h3>
+    <p>${c.claim}<br><span class="mono" style="font-size:.72rem">external replication: ${c.external_replication.replace(/_/g,' ')}</span></p></div>`);
+  const rej = CONSTRUCTS.rejected.map(c => `<div>
+    <div class="tag t-rej">Rejected</div><h3>${label(c.id)||c.id}</h3>
+    <p><strong style="color:var(--bone-300)">${c.headline}.</strong> ${c.detail}</p></div>`);
+  const res = CONSTRUCTS.research_only.map(c => `<div>
+    <div class="tag t-res">Research only</div><h3>Metronome fit</h3>
+    <p><strong style="color:var(--bone-300)">${c.headline}.</strong> ${c.detail}</p></div>`);
+  $('#why').innerHTML = [...ship, ...rej, ...res].join('');
+}
+
+/* ---------- boot ---------- */
+(async () => {
+  META = await api('/api/meta');
+  CONSTRUCTS = await api('/api/constructs');
+  $('#tier').textContent = `${META.tier} · ${META.competition==='Spain'?'La Liga':META.competition} ${META.season}`;
+  $('#foot').innerHTML =
+    `Historical laboratory. These estimators run on Pappalardo/Wyscout ${META.season} event data
+     (CC BY 4.0) — they are <strong>not</strong> the current season, and a LIVE regime would use a
+     different estimator with different uncertainty and different sample thresholds.<br>
+     ${META.player_count} players · ${META.minutes_floor}+ minutes · artifact ${META.version_key} ·
+     generated ${META.generated_at}`;
+  renderWhy();
+  wireSearch($('#q'), $('#results'), showPlayer);
+  wireSearch($('#qa'), $('#ra'), id => { cmpA = id; runCompare(); });
+  wireSearch($('#qb'), $('#rb'), id => { cmpB = id; runCompare(); });
+  const first = await api('/api/players?q=modric&limit=1');
+  if (first.players.length) showPlayer(first.players[0].player_id);
+})();
+</script>
+</body>
+</html>
