@@ -20,6 +20,16 @@ before possession ends,
 
 solved by iteration to a fixed point. The value a player adds by moving the ball
 from one cell to another is the difference in cell value.
+
+**Turnovers are not optional.** If ``p_move + p_shot = 1`` in every cell, the chain
+has no absorbing state other than a shot, so every possession eventually produces
+one and the fixed point is nearly uniform across the pitch — a flat surface on
+which no pass has value. Fitted that way on real La Liga data the own box and the
+centre circle come out within 0.0001 of each other, which is obviously wrong and
+is the failure this parameterisation exists to prevent. Actions that end
+possession must therefore be supplied, so that ``1 - p_move - p_shot`` is the
+per-cell probability of losing the ball and the surface decays with distance from
+goal.
 """
 
 from __future__ import annotations
@@ -91,6 +101,7 @@ def fit_expected_threat(
     move_end: np.ndarray,
     shot_start: np.ndarray,
     shot_goal: np.ndarray,
+    turnover_start: np.ndarray | None = None,
     grid: PitchGrid | None = None,
     max_iterations: int = 200,
     tolerance: float = 1e-7,
@@ -106,6 +117,11 @@ def fit_expected_threat(
         ``(m, 2)`` array of normalised shot locations.
     shot_goal:
         ``(m,)`` boolean array, whether each shot was a goal.
+    turnover_start:
+        ``(t, 2)`` array of locations where possession ended without a shot —
+        failed passes, failed touches, dispossessions. Required for a meaningful
+        surface; omitting it produces the degenerate flat fit described above and
+        raises a warning-free but wrong model.
 
     Notes
     -----
@@ -134,7 +150,17 @@ def fit_expected_threat(
     shot_counts = np.bincount(shot_cell, minlength=n).astype(float)
     goal_counts = np.bincount(shot_cell[shot_goal], minlength=n).astype(float)
 
-    total = move_counts + shot_counts
+    if turnover_start is None:
+        turnover_counts = np.zeros(n, dtype=float)
+    else:
+        turnovers = np.asarray(turnover_start, dtype=float).reshape(-1, 2)
+        turnover_cell = grid.cells(turnovers[:, 0], turnovers[:, 1])
+        turnover_counts = np.bincount(turnover_cell, minlength=n).astype(float)
+
+    # The denominator includes turnovers, so p_move + p_shot < 1 and the residual
+    # is the probability possession ends here. Without it the chain never
+    # terminates and the fixed point is flat.
+    total = move_counts + shot_counts + turnover_counts
     with np.errstate(invalid="ignore", divide="ignore"):
         p_move = np.where(total > 0, move_counts / total, 0.0)
         p_shot = np.where(total > 0, shot_counts / total, 0.0)
@@ -163,5 +189,5 @@ def fit_expected_threat(
         values=values,
         iterations=used,
         converged=converged,
-        n_actions=int(move_start.shape[0] + shot_start.shape[0]),
+        n_actions=int(move_start.shape[0] + shot_start.shape[0] + turnover_counts.sum()),
     )
