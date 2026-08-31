@@ -226,7 +226,17 @@ class ReliabilityGate:
     number_threshold: float = 0.70
     band_threshold: float = 0.50
 
-    def grade(self, reliability: float | None) -> Grade:
+    def grade(self, reliability: float | None,
+              evidence: EvidenceClass = EvidenceClass.ESTIMATED) -> Grade:
+        """Grade a value.
+
+        Reliability gating applies to estimates and weaker. A directly recorded
+        count is not an estimate of anything — a player either played 64 passes or
+        he did not — so asking for its split-half reliability is a category error
+        and would suppress a number that is simply true.
+        """
+        if evidence <= EvidenceClass.DERIVED:
+            return Grade.NUMBER
         if reliability is None:
             return Grade.BAND
         if reliability >= self.number_threshold:
@@ -235,13 +245,16 @@ class ReliabilityGate:
             return Grade.BAND
         return Grade.INSUFFICIENT
 
-    def optimizer_weight(self, reliability: float | None) -> float:
+    def optimizer_weight(self, reliability: float | None,
+                         evidence: EvidenceClass = EvidenceClass.ESTIMATED) -> float:
         """Weight this metric should carry in an objective function.
 
         Linear ramp across the band, chosen for transparency rather than derived
         from anything. A metric below the band threshold gets exactly zero, which
         is the part that matters.
         """
+        if evidence <= EvidenceClass.DERIVED:
+            return 1.0
         if reliability is None:
             return 0.0
         if reliability >= self.number_threshold:
@@ -300,11 +313,11 @@ class MetricResult:
 
     @property
     def grade(self) -> Grade:
-        return DEFAULT_GATE.grade(self.reliability)
+        return DEFAULT_GATE.grade(self.reliability, self.evidence)
 
     @property
     def optimizer_weight(self) -> float:
-        return DEFAULT_GATE.optimizer_weight(self.reliability)
+        return DEFAULT_GATE.optimizer_weight(self.reliability, self.evidence)
 
     def require(self, *, at_least: EvidenceClass) -> "MetricResult":
         """Assert this number is strong enough for the caller's purpose.

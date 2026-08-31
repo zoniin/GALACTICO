@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import math
 
 import numpy as np
@@ -221,3 +222,29 @@ def test_interval_is_symmetric_for_a_gaussian_and_covers_the_value() -> None:
     assert lo < 10.0 < hi
     assert math.isclose((hi + lo) / 2, 10.0, abs_tol=1e-9)
     assert math.isclose(hi - lo, 2 * 1.6448536 * 2.0, rel_tol=1e-4)
+
+
+# --- the gate does not apply to facts ------------------------------------
+
+def test_an_observed_count_is_not_gated_on_reliability() -> None:
+    """A player either played 64 passes or he did not. Asking for the split-half
+    reliability of a recorded count is a category error, and gating on it would
+    suppress a number that is simply true."""
+    passes = MetricResult.observed(64, source="statsbomb", definition="passes@1")
+    assert passes.reliability is None
+    assert passes.grade is Grade.NUMBER
+    assert passes.render() == "64"
+    assert passes.optimizer_weight == 1.0
+
+
+def test_derived_quantities_are_also_ungated() -> None:
+    per90 = MetricResult.observed(64, source="statsbomb", definition="passes@1") * (90 / 78)
+    derived = dataclasses.replace(per90, evidence=EvidenceClass.DERIVED)
+    assert derived.grade is Grade.NUMBER
+    assert derived.optimizer_weight == 1.0
+
+
+def test_estimates_are_still_gated() -> None:
+    weak = make(78.0, EvidenceClass.ESTIMATED, sd=6.0, reliability=0.2)
+    assert weak.grade is Grade.INSUFFICIENT
+    assert weak.optimizer_weight == 0.0
