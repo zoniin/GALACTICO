@@ -27,8 +27,15 @@ from fastapi.staticfiles import StaticFiles
 from ..domain.constructs import CONSTRUCTS
 from ..domain.precision import format_measurement, quantise
 from ..features.estimators import CHANNEL_GEOMETRY, describe_style
+from ..features.spec import SPECS
+from ..profiles.uncertainty import QUANTILE_LEVELS
 from ..identity import normalise_name
 from ..profiles import REJECTED, RESEARCH_ONLY
+
+# Constructs proposed with a claim and a registry entry but not yet through the
+# lifecycle. Counted in the hero, so 'proposed' has a machine-readable meaning
+# and cannot quietly include abandoned naming ideas.
+UNTESTED = ("carrying_value", "defensive_action_profile", "shot_profile")
 
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
 STATIC = Path(__file__).resolve().parent.parent.parent / "web"
@@ -86,7 +93,19 @@ def constructs() -> dict:
             "invalid_contexts": list(c.invalid_contexts),
             "notes": estimator.notes,
         })
+    # Hero counts are generated from the registry, never hardcoded. PROPOSED is
+    # anything with a claim and a registry entry; TESTED has completed the
+    # lifecycle; SURVIVING renders in at least one validated estimator regime.
+    proposed = len(shipped) + len(REJECTED) + len(RESEARCH_ONLY) + len(UNTESTED)
     return {
+        "counts": {
+            "proposed": proposed,
+            "tested": len(shipped) + len(REJECTED) + len(RESEARCH_ONLY),
+            "surviving": len(shipped),
+            "rejected": len(REJECTED),
+            "research_only": len(RESEARCH_ONLY),
+        },
+        "quantile_levels": list(QUANTILE_LEVELS),
         "channel_geometry": CHANNEL_GEOMETRY,
         "shipped": shipped,
         "rejected": [{"id": k, "headline": v[0], "detail": v[1]} for k, v in REJECTED.items()],
@@ -122,7 +141,13 @@ def _decorate(profile: dict) -> dict:
         # rather than colour-coded. A traffic light would make "we do not know"
         # read as "this player is bad".
         r = c["reliability"] or 0.0
-        row["grade"] = "number" if r >= 0.70 else "band" if r >= 0.50 else "insufficient"
+        # "Signal" describes the ESTIMATOR. "Grade" reads as a grade of the
+        # footballer, which is the opposite of what it means.
+        row["signal"] = "strong" if r >= 0.70 else "limited" if r >= 0.50 else "insufficient"
+        spec = SPECS.get(c["construct_id"])
+        if spec is not None:
+            row["definition"] = spec.describe()
+            row["semantic_fingerprint"] = spec.fingerprint
         if c["family"] == "style" and c["value"] is not None:
             band, neutral = describe_style(c["construct_id"], c["value"])
             row["style_band"] = band
@@ -163,7 +188,22 @@ def compare(a: int, b: int) -> dict:
         pct_gap = abs(lc["percentile"] - rc["percentile"]) if (
             lc["percentile"] is not None and rc["percentile"] is not None) else 0.0
         material = both_shown and reliability >= 0.80 and pct_gap >= 15.0
+
+        # The difference is an ESTIMATED OBJECT, not arithmetic decoration. Two
+        # different players are independent samples, so their bootstrap draws may
+        # be differenced — unlike reliability, which cannot be propagated through
+        # a subtraction at all. This generalises to XI changes, opponent
+        # conditioning and transfer deltas.
+        interval = None
+        excludes_zero = None
+        if lc.get("quantiles") and rc.get("quantiles"):
+            lq, rq = lc["quantiles"], rc["quantiles"]
+            interval = [lq[0] - rq[-1], lq[-1] - rq[0]]
+            excludes_zero = interval[0] > 0 or interval[1] < 0
+
         deltas.append({
+            "difference_interval": interval,
+            "excludes_zero": excludes_zero,
             "construct_id": lc["construct_id"], "family": lc["family"],
             "left": lc["value"], "right": rc["value"], "delta": delta,
             "left_percentile": lc["percentile"], "right_percentile": rc["percentile"],
@@ -171,7 +211,9 @@ def compare(a: int, b: int) -> dict:
             "interpretable": both_shown,
             "material": material,
             "language": (
-                "materially higher under this estimator" if material else
+                "materially higher under this estimator" if (material and excludes_zero) else
+                "higher, and the difference interval excludes zero" if excludes_zero else
+                "higher, but the difference interval includes zero" if interval else
                 "produced more in this sample, but the gap is within what the "
                 "measurement can separate" if both_shown else
                 "not comparable — one side is below its estimator's minutes floor"),

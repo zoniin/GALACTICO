@@ -113,8 +113,8 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
    measurement work spent months removing. */
 .badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;
   padding:.18em .5em;border:1px solid var(--ink-600);color:var(--bone-500);white-space:nowrap}
-.g-number{border-style:solid;color:var(--bone-300)}
-.g-band{border-style:dashed}
+.g-strong{border-style:solid;color:var(--bone-300)}
+.g-limited{border-style:dashed}
 .g-insufficient{border-style:dotted}
 .b-none{color:var(--bone-500)}
 
@@ -179,7 +179,7 @@ details dt{color:var(--bone-500)}
   <!-- PLAYER ------------------------------------------------------------ -->
   <div id="view-player">
     <section id="intro">
-      <h1>Five constructs survived.</h1>
+      <h1 id="hero">Five constructs survived.</h1>
       <p class="lede">Galáctico does not manufacture ratings. Eight candidate measures went
         through reliability, confound and incremental-information testing across five leagues
         and a second data provider. Four survived cleanly, one survives conditionally, and
@@ -341,7 +341,7 @@ async function showPlayer(id){
           <small>${p.minutes.toLocaleString()} of ${c.minutes_floor.toLocaleString()} minutes this
           estimator needs before a point estimate is shown.</small></div>
         <div></div></div>`;
-    const grade = c.grade;
+    const signal = c.signal;
     return `<div class="card">
       <div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div></div>
@@ -349,8 +349,12 @@ async function showPlayer(id){
         <div class="pctsub">${c.percentile===null?'':Math.round(c.percentile)+'th percentile among '}${c.reference_label} · n=${c.reference_n}</div></div>
       <div><div class="val">${c.display ?? '—'}</div>
         <div class="unit">${UNITS[c.construct_id]||''}</div>
-        <div style="margin-top:.4rem;text-align:right"><span class="badge g-${grade}"
-          title="Estimator reliability at this sample: r = ${(c.reliability||0).toFixed(2)}">${grade === 'number' ? 'point estimate' : grade}</span></div>
+        ${c.quantiles ? `<div style="height:12px;margin-top:.3rem"
+          title="Match-level block bootstrap over this player's ${c.n_matches} matches — the uncertainty in HIS estimate, not the estimator's reliability">${
+          quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
+          <div class="unit" style="opacity:.7">90% ${c.quantiles[0].toFixed(3)}–${c.quantiles[c.quantiles.length-1].toFixed(3)}</div>` : ''}
+        <div style="margin-top:.4rem;text-align:right"><span class="badge g-${signal}"
+          title="How repeatable this ESTIMATOR is over comparable samples: r = ${(c.reliability||0).toFixed(2)}. This is not the uncertainty in this player's own estimate.">signal: ${signal}</span></div>
       </div></div>`;
   }).join('');
 
@@ -395,7 +399,7 @@ async function showPlayer(id){
         <dt>generated</dt><dd>${META.generated_at}</dd>
       </dl></div></details>`;
   el.classList.remove('hidden');
-  $('#intro h1').textContent = 'Five constructs survived.';
+  
 }
 
 /* Style shares are geometry-dominated. Wide is 42% of the pitch's width by
@@ -413,6 +417,20 @@ function geoBar(v, neutral){
 }
 
 let POPULATION = {};
+
+/* The player's OWN uncertainty, from a match-level block bootstrap. Drawn as
+   discrete quantile dots rather than a violin or a whisker: dots show asymmetry,
+   are countable, imply no Gaussian, and do not over-weight the endpoints the way
+   an error bar does. Deliberately unlike the population rug beneath the
+   percentile strip, because these are different quantities. */
+function quantileDots(quantiles, lo, hi){
+  if (!quantiles || hi <= lo) return '';
+  const x = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
+  return '<svg viewBox="0 0 100 12" preserveAspectRatio="none" role="img"' +
+    ' aria-label="Bootstrap distribution of this player\'s own estimate">' +
+    quantiles.map(q => '<circle cx="' + x(q) + '" cy="6" r="2.2" fill="var(--gold)" opacity=".75"/>').join('') +
+    '</svg>';
+}
 
 const LABELS = {progression:"Progression", progression_per_action:"Progression per action",
   chance_creation:"Chance creation", half_space_share:"Half-space share", width:"Width"};
@@ -511,7 +529,8 @@ async function runCompare(){
           ${x.material ? `<strong>${x.leader}</strong> ${x.language}`
             : x.interpretable ? `${x.leader} ${x.language}`
             : x.language}
-          <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}</span>
+          <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}${
+            x.difference_interval ? ` · difference 90% ${x.difference_interval[0].toFixed(4)} to ${x.difference_interval[1].toFixed(4)}` : ''}</span>
         </div></div>`;
     }).join('');
 }
@@ -534,6 +553,9 @@ function renderWhy(){
 (async () => {
   META = await api('/api/meta');
   CONSTRUCTS = await api('/api/constructs');
+  const k = CONSTRUCTS.counts;
+  $('#hero').textContent =
+    `${k.proposed} proposed. ${k.tested} tested. ${k.surviving} survive.`;
   $('#tier').textContent = `${META.tier} · ${META.competition==='Spain'?'La Liga':META.competition} ${META.season}`;
   $('#foot').innerHTML =
     `Historical laboratory. These estimators run on Pappalardo/Wyscout ${META.season} event data

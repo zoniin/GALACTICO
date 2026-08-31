@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from experiments.run_external_replication import fit_xt  # noqa: E402
 from galactico.features.estimators import harmonised_axes  # noqa: E402
 from galactico.profiles import build_profiles, write_bundle  # noqa: E402
+from galactico.profiles.uncertainty import bootstrap_players  # noqa: E402
 from galactico.reliability import split_half_reliability  # noqa: E402
 
 ROOT = Path("data/public/parquet/pappalardo")
@@ -47,13 +48,18 @@ def main() -> int:
         for axis in axes.columns
     }
 
+    print('bootstrapping player uncertainty (match-level blocks)...', flush=True)
+    uncertainty = bootstrap_players(actions=actions, lineups=lineups, xt=xt,
+                                    players=keep, replicates=200)
+    print(f'  {len(uncertainty)} players with interval estimates')
+
     digest = hashlib.sha256()
     for name in sorted(p.name for p in d.glob("*.parquet")):
         digest.update((d / name).read_bytes()[:1_000_000])
 
     bundle = build_profiles(
         actions=actions, lineups=lineups, players=players, teams=teams,
-        axes=axes, reliabilities=reliabilities,
+        axes=axes, reliabilities=reliabilities, uncertainty=uncertainty,
         competition=COMPETITION, season=SEASON, regime=REGIME,
         xt_version=f"xt-grid16x12-{COMPETITION}-{SEASON}",
         dataset_hash=digest.hexdigest()[:16], minutes_floor=MINUTES_FLOOR,

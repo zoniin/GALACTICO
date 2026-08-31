@@ -28,6 +28,7 @@ import numpy as np
 import pandas as pd
 
 from ..models.xt import ExpectedThreat
+from .spec import SPECS, evaluate_all
 
 __all__ = ["harmonised_axes", "CHANNEL_GEOMETRY", "describe_style", "ESTIMATOR_DENOMINATORS"]
 
@@ -39,22 +40,30 @@ CHANNEL_GEOMETRY = {
     "centre": 0.26,
 }
 
+# Generated from the specs, never maintained by hand. The registry is asserted
+# against this, so a declared denominator cannot drift from the computed one.
 ESTIMATOR_DENOMINATORS = {
-    "progression": "per 90 minutes",
-    "progression_per_action": "completed passes",
-    "chance_creation": "per 90 minutes",
-    "half_space_share": "completed passes",
-    "width": "completed passes",
+    key: ("per 90 minutes" if spec.scaling.value.startswith("per 90")
+          else "completed passes")
+    for key, spec in SPECS.items()
 }
 
 
 def harmonised_axes(actions: pd.DataFrame, xt: ExpectedThreat,
                     minutes: pd.Series) -> pd.DataFrame:
-    """Estimator v2 — completed passes only, identical across providers.
+    """Estimator v2 — evaluated from the executable specifications.
 
-    Every input exists with the same meaning in both ontologies: a pass, its
-    start, its end, whether it completed, and whether it set up a shot.
+    This function no longer contains the definitions; it delegates to
+    :mod:`galactico.features.spec`, so the number and the published sentence come
+    from one object and cannot diverge. Every input exists with the same meaning in
+    both ontologies: a pass, its start, its end, whether it completed, and whether
+    it set up a shot.
     """
+    return evaluate_all(actions, xt, minutes)
+
+
+def _superseded_inline_implementation(actions, xt, minutes):
+    """Kept only as the reference the spec evaluator is checked against."""
     passes = actions[(actions["type"] == "pass") & (actions["success"] == True)].copy()  # noqa: E712
     passes["xt_delta"] = (xt.values[xt.grid.cells(passes["end_x"], passes["end_y"])]
                           - xt.values[xt.grid.cells(passes["start_x"], passes["start_y"])])

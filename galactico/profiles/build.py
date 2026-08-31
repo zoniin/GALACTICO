@@ -106,6 +106,11 @@ class ConstructResult:
     minutes_floor: int | None
     evidence: str
     notes: str = ""
+    quantiles: tuple[float, ...] | None = None
+    """Match-level block-bootstrap quantiles of THIS player's estimate. A
+    different quantity from reliability, which describes the estimator over a
+    population, and never derived from it."""
+    n_matches: int | None = None
 
     @property
     def shows_number(self) -> bool:
@@ -154,9 +159,13 @@ class ProfileBundle:
 
     @property
     def version_key(self) -> str:
+        from ..features.spec import SPECS
         payload = json.dumps({
             "estimators": self.estimator_ids,
             "constructs": self.construct_versions,
+            # Semantic fingerprints, so a change to WHAT is computed invalidates
+            # the artifact whether or not anyone remembers to bump a version.
+            "semantics": {k: v.fingerprint for k, v in SPECS.items()},
             "xt": self.xt_version,
             "dataset": self.dataset_hash,
         }, sort_keys=True)
@@ -239,6 +248,7 @@ def build_profiles(
     teams: pd.DataFrame,
     axes: pd.DataFrame,
     reliabilities: dict[str, float],
+    uncertainty: dict | None = None,
     competition: str,
     season: str,
     regime: str,
@@ -298,6 +308,9 @@ def build_profiles(
                 render_state=state.value,
                 reliability=reliability_at(construct_id, player_minutes,
                                            reliabilities.get(construct_id)),
+                quantiles=(tuple(u.quantiles) if (u := (uncertainty or {})
+                           .get(int(player_id), {}).get(construct_id)) else None),
+                n_matches=(u.n_matches if u else None),
                 minutes=player_minutes,
                 minutes_floor=floor,
                 evidence="Estimated",
