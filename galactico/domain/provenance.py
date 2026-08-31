@@ -36,6 +36,8 @@ from typing import Iterable, Sequence
 
 import numpy as np
 
+from .precision import format_exact, format_interval, format_measurement, quantise
+
 __all__ = [
     "EvidenceClass",
     "Grade",
@@ -270,28 +272,6 @@ class ReliabilityGate:
 DEFAULT_GATE = ReliabilityGate()
 
 
-def _uncertainty_scale(spread: float | None) -> tuple[float, int] | None:
-    """Quantum and decimal places justified by an uncertainty.
-
-    Quoting 78.43 when the standard deviation is 6 is a lie about precision. So is
-    quoting 78 when the standard deviation is 30 — the truthful rendering there is
-    80 +/- 30, because the units digit carries no information either. Both cases
-    are handled by rounding to the place of the uncertainty's leading significant
-    digit rather than merely limiting the decimals.
-    """
-    if spread is None or not math.isfinite(spread) or spread <= 0:
-        return None
-    exponent = math.floor(math.log10(spread))
-    return 10.0 ** exponent, max(0, -exponent)
-
-
-def _significant(value: float) -> str:
-    """Render an exact value without inventing precision it does not have."""
-    if value == int(value) and abs(value) < 1e15:
-        return str(int(value))
-    return f"{value:.3g}"
-
-
 @dataclass(frozen=True)
 class MetricResult:
     """A number that knows what kind of number it is.
@@ -451,18 +431,12 @@ class MetricResult:
         if grade is Grade.INSUFFICIENT:
             return "insufficient signal"
         spread = self.uncertainty.spread
-        scale = _uncertainty_scale(spread)
         if grade is Grade.BAND:
             band = self.uncertainty.interval(self.value)
             if band is None:
                 return "reliability unknown"
-            lo, hi = band
-            q, dp = scale if scale else (1.0, 1)
-            return f"{_q(lo, q):.{dp}f}–{_q(hi, q):.{dp}f}"
-        if scale is None:
-            return _significant(self.value)
-        q, dp = scale
-        return f"{_q(self.value, q):.{dp}f} ± {_q(spread, q):.{dp}f}"
+            return format_interval(band[0], band[1], spread)
+        return format_measurement(self.value, spread)
 
     def lineage(self) -> str:
         return self.provenance.lineage()
@@ -490,11 +464,6 @@ class MetricResult:
     def __repr__(self) -> str:
         return (f"MetricResult({self.render(allow_experimental=True)!r}, "
                 f"{self.evidence.name}, {self.provenance.definition!r})")
-
-
-def _q(value: float, quantum: float) -> float:
-    """Snap a value to the place the uncertainty justifies."""
-    return round(value / quantum) * quantum
 
 
 def _min_or_none(a: float | int | None, b: float | int | None):
