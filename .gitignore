@@ -1,0 +1,26 @@
+# Data never enters version control. See LICENSING.md.
+data/licensed/
+data/trial/
+data/public/*
+!data/public/.gitkeep
+*.parquet
+*.duckdb
+*.jsonl
+*.csv
+!tests/fixtures/*.csv
+
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+.env
+.env.*
+!.env.example
