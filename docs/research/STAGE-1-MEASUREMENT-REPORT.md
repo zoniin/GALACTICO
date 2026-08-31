@@ -49,6 +49,22 @@ version, because the synthetic generator also had no turnovers. That is worth
 recording: the test suite was self-consistent and wrong, and only real data caught
 it.
 
+### Grid sensitivity
+
+An arbitrary grid must not become invisible doctrine, so the per-player
+progression ranking was recomputed across five grids against the 16×12 reference:
+
+| Grid | ρ | Top-10 kept | Top-25 kept |
+|---|---:|---:|---:|
+| 10×6 | 0.985 | 9/10 | 21/25 |
+| 12×8 | 0.989 | 9/10 | 21/25 |
+| 20×15 | 0.993 | 10/10 | 23/25 |
+| 24×16 | 0.991 | 8/10 | 20/25 |
+| 32×24 | 0.995 | 10/10 | 23/25 |
+
+The ordering is robust to the choice. 16×12 is a convention here rather than a
+finding, and nothing downstream depends on it.
+
 ---
 
 ## The gauntlet

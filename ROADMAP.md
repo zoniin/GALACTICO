@@ -14,12 +14,22 @@ Running status, updated as stages land.
 - [x] Repository skeleton, tooling, 67 tests passing
 - [x] Ten foundation documents
 
-## Stage 1 - Historical event laboratory - NEXT
+## Stage 1 - Historical event laboratory - MOSTLY COMPLETE
 
-- [ ] Pappalardo 2017/18 ingestion to Parquet via a provider-neutral schema
-- [ ] StatsBomb 2015/16 ingestion (local tier)
-- [ ] Fit xT on the full corpus; compare against the published CC BY 4.0 grids
-- [ ] Compute the reliability table over real players and publish it
+- [x] Pappalardo ingestion, reproducible via `scripts/fetch_pappalardo.py`
+- [x] Provider-neutral action schema; Wyscout quirks terminate at the adapter
+- [x] Corpus audit: La Liga 2017/18 clean on every structural check
+- [x] xT fitted on real data, turnover absorbing state added, grid sensitivity run
+- [x] Seven candidate axes through reliability, confound audit and a baseline battery
+- [x] Metric lifecycle and confound taxonomy in code
+- [x] Precision policy centralised
+- [x] Stage 1 measurement report published, including the rejection
+- [ ] StatsBomb 2015/16 ingestion (local tier) - not started
+- [ ] Internal derivation lineage (RAW_OBSERVATION -> ... -> COMPOSITE) - not started
+- [ ] Remaining four Pappalardo leagues ingested - not started
+
+Exit criteria: 13 of 15 met. The two outstanding are the internal derivation
+taxonomy and multi-league replication.
 
 ## Stage 2 - Player Lab v0
 Quality and style panels, intervals, shrinkage, role-normalised percentiles.
