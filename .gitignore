@@ -1,5 +1,6 @@
 # Data never enters version control. See LICENSING.md.
 data/licensed/
+data/public/profiles/
 data/trial/
 data/public/*
 !data/public/.gitkeep
