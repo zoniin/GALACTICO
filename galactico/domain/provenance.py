@@ -288,6 +288,9 @@ class MetricResult:
     sample_size: int | None = None
     reliability: float | None = None
     assumptions: frozenset[str] = frozenset()
+    derivation: "DerivationChain | None" = None
+    """Internal transformation lineage. The public ``evidence`` class is a coarse
+    summary of this; the chain is never flattened into it internally."""
 
     # ---- construction -----------------------------------------------------
 
@@ -350,6 +353,8 @@ class MetricResult:
             reliability=None,
             assumptions=(self.assumptions | other.assumptions
                          | frozenset(extra_assumptions) | {"reliability-not-propagated"}),
+            derivation=(self.derivation.merged_with(other.derivation)
+                        if self.derivation and other.derivation else None),
         )
 
     def _shares_replicates(self, other: "MetricResult") -> bool:
@@ -441,6 +446,12 @@ class MetricResult:
     def lineage(self) -> str:
         return self.provenance.lineage()
 
+    def derived_by(self, step) -> "MetricResult":
+        """Record a transformation, and degrade the public class if it demands it."""
+        chain = (self.derivation or _empty_chain()).then(step)
+        return replace(self, derivation=chain,
+                       evidence=EvidenceClass(max(self.evidence, chain.public_class)))
+
     def explain(self) -> str:
         """Everything a reader needs to judge the number, in a few lines."""
         lines = [
@@ -454,6 +465,10 @@ class MetricResult:
             lines.append(f"sample       n = {self.sample_size}")
         if self.assumptions:
             lines.append(f"assumes      {', '.join(sorted(self.assumptions))}")
+        if self.derivation:
+            lines.append("derivation")
+            for line in self.derivation.describe().splitlines():
+                lines.append(f"  {line}")
         lines.append("lineage")
         lines.append(self.provenance.lineage(1))
         return "\n".join(lines)
@@ -464,6 +479,11 @@ class MetricResult:
     def __repr__(self) -> str:
         return (f"MetricResult({self.render(allow_experimental=True)!r}, "
                 f"{self.evidence.name}, {self.provenance.definition!r})")
+
+
+def _empty_chain():
+    from .derivation import DerivationChain
+    return DerivationChain()
 
 
 def _min_or_none(a: float | int | None, b: float | int | None):
