@@ -47,9 +47,31 @@ Exit criteria: 15 of 15 met.
 Outstanding: cross-provider replication against StatsBomb 2015/16, and the
 entity-resolution layer (specified, not yet built).
 
+## Stage 1C - External replication - COMPLETE (11 of 12)
+
+Wyscout 2017/18 -> StatsBomb 2015/16. Provider and season shift together.
+
+- [x] StatsBomb populations audited from the manifest: 380/380/380/377, 20 teams each
+- [x] xT refit under StatsBomb; turnover semantics re-checked
+- [x] Provider semantic mapping audit (6 concepts, one NOT_COMPARABLE)
+- [x] All five surviving constructs externally evaluated
+- [x] External verdicts recorded on every construct
+- [x] chance_creation minutes curve independently estimated under StatsBomb
+- [x] Construct vs estimator represented in code
+- [x] Entity resolution foundation with regression tests
+- [ ] UEFA physical-data status - verification still running
+- [x] 129 tests pass
+- [x] Licence guard passes, now as a pre-commit hook
+- [x] Working tree clean
+
+Result: nothing failed. Reliability equal or better under StatsBomb on every
+axis, confounding lower on every axis. Stage 2 gate passed.
+
 ## Stage 2 - Player Lab - NEXT
 
-Four axes as numbers, one as a band above 1,800 minutes. Historical first.
+Four axes as numbers, one gated by an estimator-specific minutes floor. The
+surface should represent what is actually known, including the rejections -
+2 rejected, 1 research-only - rather than filling five radar slots.
 
 ## Stage 2 - Player Lab v0
 Quality and style panels, intervals, shrinkage, role-normalised percentiles.
