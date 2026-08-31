@@ -84,6 +84,19 @@ def test_the_unmeasurable_axes_are_absent_on_purpose() -> None:
         assert banned not in REGISTRY
 
 
+def test_ball_retention_stays_rejected() -> None:
+    """Rejected at Stage 1: reliability 0.90 but a 0.95 correlation with plain
+    pass completion, failing the negative control it declared beforehand. It must
+    not creep back in because the name sounds useful."""
+    assert "ball_retention" not in REGISTRY
+
+
+def test_the_stage_1_survivors_are_registered() -> None:
+    for survivor in ("progression", "progression_per_action", "chance_creation",
+                     "half_space_share", "width"):
+        assert survivor in REGISTRY
+
+
 def test_every_metric_declares_its_inputs() -> None:
     for definition in REGISTRY:
         assert definition.inputs, f"{definition.key} declares no inputs"

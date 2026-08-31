@@ -144,6 +144,12 @@ REGISTRY = MetricRegistry()
 # point. See METRICS.md and KNOWN_LIMITATIONS.md.
 # --------------------------------------------------------------------------
 
+# ball_retention was registered here and was REJECTED at Stage 1. Reliability 0.90,
+# and a 0.95 correlation with plain pass completion percentage — it failed the
+# negative control it declared before it was computed. The threat-weighting that
+# justified it moves ~5% of its variance. Pass completion already exists and is
+# simpler. See docs/research/STAGE-1-MEASUREMENT-REPORT.md.
+
 PROGRESSION = REGISTRY.register(MetricDefinition(
     key="progression",
     family=Family.QUALITY,
@@ -161,6 +167,21 @@ PROGRESSION = REGISTRY.register(MetricDefinition(
     notes="Carry definitions differ materially between providers; see ADR-0004.",
 ))
 
+PROGRESSION_PER_ACTION = REGISTRY.register(MetricDefinition(
+    key="progression_per_action",
+    family=Family.QUALITY,
+    unit="xT per on-ball action",
+    summary="Threat gained per action, independent of how often the player has the ball.",
+    formula="sum of positive xT delta over completed passes / on-ball actions",
+    inputs=("event.type", "event.location", "event.end_location", "event.outcome"),
+    normalisation="per_action",
+    best_evidence=EvidenceClass.ESTIMATED,
+    comparable_across=frozenset({"statsbomb", "wyscout"}),
+    notes="Strongest Stage 1 result: reliability 0.86, confound R^2 0.06 against "
+          "touch volume and team, 12 of 12 leaderboard survivors. Declares touch "
+          "volume a NUISANCE confound, and does not track it.",
+))
+
 CHANCE_CREATION = REGISTRY.register(MetricDefinition(
     key="chance_creation",
     family=Family.QUALITY,
@@ -169,18 +190,6 @@ CHANCE_CREATION = REGISTRY.register(MetricDefinition(
     formula="sum of xT delta over passes terminating a possession in a shot, per 90",
     inputs=("event.type", "event.location", "event.end_location", "possession", "minutes"),
     normalisation="per_90",
-    best_evidence=EvidenceClass.ESTIMATED,
-    comparable_across=frozenset({"statsbomb", "wyscout"}),
-))
-
-BALL_RETENTION = REGISTRY.register(MetricDefinition(
-    key="ball_retention",
-    family=Family.QUALITY,
-    unit="share",
-    summary="Share of on-ball actions that keep possession, weighted by the xT at risk.",
-    formula="1 - (xT-weighted losses / xT-weighted on-ball actions)",
-    inputs=("event.type", "event.outcome", "event.location", "minutes"),
-    normalisation="per_action",
     best_evidence=EvidenceClass.ESTIMATED,
     comparable_across=frozenset({"statsbomb", "wyscout"}),
 ))
