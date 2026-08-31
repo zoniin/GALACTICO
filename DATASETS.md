@@ -48,10 +48,11 @@ positional error rather than an opinion about whether the animation looks right.
 
 ## The Bridge calibration corpus
 
-Five complete women's league seasons sit inside both StatsBomb open data and
-API-Football's free 2022-2024 window: Liga F 2023/24 (240 matches, 30 per team),
-FA WSL 2023/24, Frauen-Bundesliga 2023/24, NWSL 2023 and one further season. Full
-round-robin, full population, real provider pairing, zero cost.
+Four complete round-robin women's league seasons sit inside both StatsBomb open
+data and API-Football's free 2022-2024 window — Liga F 2023/24 (240 matches, 30
+per team), FA WSL 2023/24 and Frauen-Bundesliga 2023/24 (132 each, 22 per team) —
+plus NWSL 2023, which is 137 matches but *not* a clean round robin (22-25 per
+team) and needs its schedule imbalance handled rather than assumed away.
 
 This works where the men's equivalent does not: every StatsBomb men's club season
 in that window is a single-team slice.

@@ -35,7 +35,7 @@ Bootstrap, stable core, contested slots, objective distributions.
 Real Madrid 2026/27 on a paid aggregate feed plus UEFA physical metrics.
 
 ## Stage 6 - The Bridge
-Calibrated on the five complete women's league seasons present in both StatsBomb
+Calibrated on the four complete women's league seasons, plus NWSL 2023 present in both StatsBomb
 open data and API-Football's free window. Promote only what passes.
 
 ## Stages 7-10

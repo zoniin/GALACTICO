@@ -32,6 +32,18 @@ stops being true, that is a research result and belongs in `/research`.
 - **A one-player-swap effect is out of statistical reach.** Detecting a 0.05 xGD
   effect needs roughly 14,700 team-matches; the corpus supplies about 3,650.
 
+## The reliability gate is not sufficient
+
+Metronome Fit reached split-half 0.94-0.95, higher than expected threat, with a
+leaderboard of Kroos, Iniesta, Busquets and Modric — and was measuring touch
+volume. Reliability says a measurement is repeatable, not what is being repeated.
+Every candidate axis must also clear discriminant validity against touch volume
+and team identity. See `docs/research/E-01-metronome-fit.md`.
+
+The 90% stable-core threshold is itself uncertain by roughly +/- 4 points at
+realistic bootstrap sizes, so "locked" and "contested" are a presentational
+convenience rather than a sharp boundary.
+
 ## Modelling
 
 - Defensive quality is not measurable at the event tier.

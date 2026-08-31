@@ -55,7 +55,7 @@ performance.
 
 ## Phase 4 — The Bridge
 
-Calibrated on five complete women's league seasons that sit in both StatsBomb open
+Calibrated on four complete women's league seasons, plus NWSL 2023 that sit in both StatsBomb open
 data and API-Football's free 2022-2024 window. Per target axis, report: naive
 baseline, bridge model, held-out error, rank correlation, calibration, interval,
 failure modes. Where it fails, LIVE does not show the metric.
