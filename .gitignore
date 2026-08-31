@@ -28,3 +28,6 @@ build/
 .env.*
 !.env.example
 .gstack/
+
+# scratch from review agents poking at the repo
+.tmpprobe/
