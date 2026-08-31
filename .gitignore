@@ -6,6 +6,8 @@ data/public/*
 *.parquet
 *.duckdb
 *.jsonl
+*.pkl
+*.npy
 *.csv
 !tests/fixtures/*.csv
 

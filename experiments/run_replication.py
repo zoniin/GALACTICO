@@ -216,9 +216,14 @@ def main() -> None:
           "baseline": r.closest_baseline, "baseline_r": r.baseline_r,
           "status": r.status.value} for r in all_results], indent=1), encoding="utf-8")
 
+    # Cache under data/, which is gitignored. Writing derived artefacts into a
+    # tracked directory is how a 418 MB pickle reached HEAD once already.
     import pickle
-    with open("experiments/_league_cache.pkl", "wb") as fh:
-        pickle.dump({l: {k: v for k, v in e.items() if k != "xt"} for l, e in per_league.items()}, fh)
+    cache = Path("data/licensed/cache")
+    cache.mkdir(parents=True, exist_ok=True)
+    with (cache / "league_axes.pkl").open("wb") as fh:
+        pickle.dump({l: {k: v for k, v in e.items() if k != "xt"}
+                     for l, e in per_league.items()}, fh)
 
 
 def _ab(status: Status) -> str:
