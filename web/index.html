@@ -304,9 +304,12 @@ function wireSearch(input, box, onPick){
 function strip(pct, population){
   if (pct === null || pct === undefined) return '';
   const x = Math.max(0, Math.min(100, pct));
-  const rug = (population || []).map(p =>
-    '<line x1="' + p + '" y1="20" x2="' + p + '" y2="26" stroke="var(--bone-500)" ' +
-    'stroke-width="1" opacity=".28" vector-effect="non-scaling-stroke"/>').join('');
+  // The rug used to plot other players' PERCENTILES on a percentile axis,
+  // which is uniform by definition and therefore carried exactly zero
+  // information while looking like a distribution. Removed rather than
+  // redrawn: a value-space distribution belongs on a value axis, and this
+  // strip is a position axis.
+  const rug = '';
   return `<svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img">
     <line x1="0" y1="17" x2="100" y2="17" stroke="var(--ink-600)" stroke-width="1"
       vector-effect="non-scaling-stroke"/>
@@ -414,12 +417,17 @@ async function showPlayer(id){
    the deviation from it is the mark. */
 function geoBar(v, neutral){
   const x = Math.max(0, Math.min(100, v*100)), n = neutral*100;
-  return '<svg viewBox="0 0 100 18" preserveAspectRatio="none" role="img"' +
+  // The marker sits in an absolutely-positioned overlay rather than inside the
+  // stretched SVG, so it stays a point instead of becoming a lozenge.
+  return '<span style="position:relative;display:block">' +
+    '<span style="position:absolute;left:' + x + '%;top:5px;width:7px;height:7px;' +
+    'margin-left:-3.5px;border-radius:50%;background:var(--gold);z-index:2"></span>' +
+    '<svg viewBox="0 0 100 18" preserveAspectRatio="none" role="img"' +
     ' aria-label="Channel share against the pitch own geometry">' +
     '<line x1="0" y1="9" x2="100" y2="9" stroke="var(--ink-600)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
     '<line x1="' + n + '" y1="2" x2="' + n + '" y2="16" stroke="var(--bone-500)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>' +
     '<line x1="' + Math.min(n,x) + '" y1="9" x2="' + Math.max(n,x) + '" y2="9" stroke="var(--bone-300)" stroke-width="3" vector-effect="non-scaling-stroke"/>' +
-    '<circle cx="' + x + '" cy="9" r="2.8" fill="var(--gold)"/></svg>';
+    '</svg></span>';
 }
 
 let POPULATION = {};
@@ -441,15 +449,6 @@ function quantileDots(quantiles, lo, hi){
 const LABELS = {progression:"Progression", progression_per_action:"Progression per action",
   chance_creation:"Chance creation", half_space_share:"Half-space share", width:"Width"};
 const label = k => LABELS[k] || k;
-
-function describe(id, v){
-  // Quantile-free descriptive bands, stated as thresholds so they are checkable.
-  if (id === 'width')
-    return v < .28 ? 'central — rarely operates in the wide channels'
-      : v < .42 ? 'balanced across channels'
-      : v < .55 ? 'wide-leaning' : 'very wide';
-  return v < .26 ? 'low half-space usage' : v < .38 ? 'moderate' : 'high half-space usage';
-}
 
 /* ---------- scatter ---------- */
 let scatterData = null;
@@ -494,11 +493,11 @@ async function initExplore(){
   if (exploreInit) return; exploreInit = true;
   const tabs = $('#explore-tabs');
   tabs.innerHTML = CONSTRUCTS.shipped.map((c,i) =>
-    `<button class="badge ${i===0?'b-high':'b-none'}" data-c="${c.id}"
+    `<button class="badge ${i===0?'g-strong':'b-none'}" data-c="${c.id}"
       style="cursor:pointer;background:none">${label(c.id)}</button>`).join('');
   tabs.querySelectorAll('button').forEach(b => b.onclick = () => {
     tabs.querySelectorAll('button').forEach(x=>x.className='badge b-none');
-    b.className = 'badge b-high'; loadExplore(b.dataset.c);
+    b.className = 'badge g-strong'; loadExplore(b.dataset.c);
   });
   loadExplore(CONSTRUCTS.shipped[0].id);
 }
@@ -586,13 +585,6 @@ function renderWhy(){
   wireSearch($('#q'), $('#results'), showPlayer);
   wireSearch($('#qa'), $('#ra'), id => { cmpA = id; runCompare(); });
   wireSearch($('#qb'), $('#rb'), id => { cmpB = id; runCompare(); });
-  // Reference-population rug: the between-player distribution each percentile
-  // is computed against, sampled so the strip shows shape without implying one.
-  for (const c of CONSTRUCTS.shipped){
-    const d = await api('/api/explore/' + c.id);
-    POPULATION[c.id] = d.rows.map(r => r.percentile)
-      .filter(v => v !== null).filter((_, i) => i % 4 === 0);
-  }
   const first = await api('/api/players?q=modric&limit=1');
   if (first.players.length) showPlayer(first.players[0].player_id);
 })();

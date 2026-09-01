@@ -106,6 +106,14 @@ class ConstructResult:
     minutes_floor: int | None
     evidence: str
     notes: str = ""
+    draws: tuple[float, ...] | None = None
+    """A thinned set of bootstrap draws. Kept because a difference distribution
+    cannot be recovered from quantiles: differencing them pairwise gives the
+    interval-overlap bound, which is far wider than a 90% interval for A-B."""
+    degenerate: bool | None = None
+    """True when every replicate returned the same value — the player's matches
+    carry no variation in this construct, so the interval is zero-width and must
+    not be shown as if it were a precise estimate."""
     quantiles: tuple[float, ...] | None = None
     """Match-level block-bootstrap quantiles of THIS player's estimate. A
     different quantity from reliability, which describes the estimator over a
@@ -280,6 +288,13 @@ def build_profiles(
         for construct_id, construct in CONSTRUCTS.items():
             if construct_id not in axes.columns:
                 continue
+            # invalid_contexts was declared on every quality construct and
+            # enforced nowhere, so 26 goalkeepers shipped with full point
+            # estimates reachable from search, explore, scatter and compare.
+            # A declared invalid context that nothing checks is a comment.
+            if position == "GK" and any("goalkeeper" in c
+                                        for c in construct.invalid_contexts):
+                continue
             estimator = construct.estimators.get(estimator_key)
             if estimator is None:
                 continue
@@ -311,6 +326,8 @@ def build_profiles(
                 quantiles=(tuple(u.quantiles) if (u := (uncertainty or {})
                            .get(int(player_id), {}).get(construct_id)) else None),
                 n_matches=(u.n_matches if u else None),
+                draws=(tuple(round(d, 6) for d in u.draws) if u and u.draws else None),
+                degenerate=(bool(u.degenerate) if u else None),
                 minutes=player_minutes,
                 minutes_floor=floor,
                 evidence="Estimated",

@@ -32,7 +32,7 @@ MAX_BYTES = 512 * 1024
 DATA_SUFFIXES = {".parquet", ".duckdb", ".db", ".jsonl", ".csv", ".feather", ".arrow",
                  ".h5", ".hdf5", ".npz", ".npy", ".pkl", ".mp4", ".mkv", ".avi"}
 
-FIXTURE_DIRS = {"tests/fixtures"}
+FIXTURE_DIRS = {"tests/fixtures", "docs/screenshots"}
 
 # Providers whose data must never be committed, per LICENSING.md.
 RESTRICTED_DIRS = {"data/licensed", "data/trial"}

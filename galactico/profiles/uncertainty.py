@@ -60,6 +60,15 @@ class PlayerUncertainty:
     quantiles: tuple[float, ...]
     n_matches: int
     n_replicates: int
+    draws: tuple[float, ...] = ()
+    """Thinned replicate values. Quantiles alone cannot produce a difference
+    distribution, and pairwise-differencing them yields the overlap bound rather
+    than an interval for the difference."""
+    degenerate: bool = False
+    """Every replicate identical. Happens where a player's per-match components
+    are constant — 64 players have a fully degenerate chance-creation bootstrap
+    because almost every match contributes zero. A zero-width interval there means
+    'no variation to resample', not 'measured precisely'."""
     method: str = "match_block_bootstrap"
 
     @property
@@ -154,11 +163,14 @@ def bootstrap_players(
             draws = draws[np.isfinite(draws)]
             if draws.size < replicates // 2:
                 continue
+            thinned = draws[:: max(1, draws.size // 100)][:100]
             out.setdefault(int(player_id), {})[construct_id] = PlayerUncertainty(
                 construct_id=construct_id,
                 quantiles=tuple(float(q) for q in np.quantile(draws, QUANTILE_LEVELS)),
                 n_matches=n,
                 n_replicates=int(draws.size),
+                draws=tuple(float(d) for d in thinned),
+                degenerate=bool(np.ptp(draws) < 1e-12),
             )
     return out
 

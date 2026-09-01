@@ -184,22 +184,33 @@ def compare(a: int, b: int) -> dict:
         # A split-half reliability describes a population, so it bounds how much of
         # an individual gap is signal. Below 0.80 the gap is reported and explicitly
         # not called material.
-        reliability = min(lc["reliability"] or 0.0, rc["reliability"] or 0.0)
-        pct_gap = abs(lc["percentile"] - rc["percentile"]) if (
-            lc["percentile"] is not None and rc["percentile"] is not None) else 0.0
-        material = both_shown and reliability >= 0.80 and pct_gap >= 15.0
-
         # The difference is an ESTIMATED OBJECT, not arithmetic decoration. Two
-        # different players are independent samples, so their bootstrap draws may
-        # be differenced — unlike reliability, which cannot be propagated through
-        # a subtraction at all. This generalises to XI changes, opponent
-        # conditioning and transfer deltas.
+        # players are independent samples, so their bootstrap draws can be paired
+        # to give the distribution of A-B directly. This generalises to XI
+        # changes, opponent conditioning and transfer deltas.
+        #
+        # Three defects were repaired here at once:
+        #  - the previous interval was [loA-hiB, hiA-loB], the interval-OVERLAP
+        #    bound, which is far wider than a 90% interval for the difference;
+        #  - materiality subtracted percentiles computed in DIFFERENT reference
+        #    populations, so a midfielder's percentile was compared to a
+        #    defender's;
+        #  - the reliability >= 0.80 gate made chance_creation impossible to
+        #    declare material for any pair at any separation, because its
+        #    reliability curve tops out at 0.756.
+        # Materiality is now one thing: does the difference distribution exclude
+        # zero. No thresholds, no cross-population arithmetic, no dead branch.
         interval = None
         excludes_zero = None
-        if lc.get("quantiles") and rc.get("quantiles"):
-            lq, rq = lc["quantiles"], rc["quantiles"]
-            interval = [lq[0] - rq[-1], lq[-1] - rq[0]]
-            excludes_zero = interval[0] > 0 or interval[1] < 0
+        ld, rd = lc.get("draws"), rc.get("draws")
+        if ld and rd and not (lc.get("degenerate") or rc.get("degenerate")):
+            n = min(len(ld), len(rd))
+            diffs = sorted(ld[i] - rd[i] for i in range(n))
+            lo = diffs[int(0.05 * (n - 1))]
+            hi = diffs[int(0.95 * (n - 1))]
+            interval = [lo, hi]
+            excludes_zero = lo > 0 or hi < 0
+        material = both_shown and bool(excludes_zero)
 
         deltas.append({
             "difference_interval": interval,
@@ -216,9 +227,11 @@ def compare(a: int, b: int) -> dict:
                 f"{left['name']} {lc['value']:.0%}, {right['name']} {rc['value']:.0%} — "
                 f"different channel preference, no better direction"
                 if lc["family"] == "style" else
-                "materially higher under this estimator" if (material and excludes_zero) else
-                "higher, and the difference interval excludes zero" if excludes_zero else
+                "materially higher — the difference interval excludes zero"
+                if material else
                 "higher, but the difference interval includes zero" if interval else
+                "higher, but this player's matches carry no variation to resample"
+                if (lc.get("degenerate") or rc.get("degenerate")) else
                 "produced more in this sample, but the gap is within what the "
                 "measurement can separate" if both_shown else
                 "not comparable — one side is below its estimator's minutes floor"),

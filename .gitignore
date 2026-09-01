@@ -31,3 +31,7 @@ build/
 
 # scratch from review agents poking at the repo
 .tmpprobe/
+node_modules/
+test-results/
+playwright-report/
+package-lock.json
