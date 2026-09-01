@@ -99,13 +99,17 @@ def describe_style(construct_id: str, value: float) -> tuple[str, float]:
     """
     neutral = CHANNEL_GEOMETRY.get(construct_id, 0.5)
     delta = value - neutral
+    # "in this sample" is load-bearing. These are observed pass origins over one
+    # season, not a disposition. "High half-space usage" invited the reading that
+    # the player seeks the half-spaces; he may simply have been played there.
     if construct_id == "width":
-        band = ("markedly central" if delta < -0.14 else
-                "central-leaning" if delta < -0.05 else
-                "at the pitch's own balance" if delta <= 0.05 else
-                "wide-leaning" if delta <= 0.14 else "markedly wide")
+        band = ("far more central-oriented" if delta < -0.14 else
+                "more central-oriented" if delta < -0.05 else
+                "close to the pitch-area reference" if delta <= 0.05 else
+                "more wide-oriented" if delta <= 0.14 else "far more wide-oriented")
     else:
-        band = ("low half-space usage" if delta < -0.08 else
-                "at the pitch's own balance" if delta <= 0.06 else
-                "half-space leaning" if delta <= 0.14 else "high half-space usage")
-    return band, neutral
+        band = ("less half-space-oriented" if delta < -0.08 else
+                "close to the pitch-area reference" if delta <= 0.06 else
+                "more half-space-oriented" if delta <= 0.14 else
+                "far more half-space-oriented")
+    return f"{band} in this sample", neutral

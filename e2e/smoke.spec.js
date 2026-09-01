@@ -45,8 +45,8 @@ test.describe('player profile', () => {
       await expect(profile).toContainText(label);
     }
     // And the style section must be present and labelled as style.
-    await expect(profile).toContainText('Half-space share');
-    await expect(profile).toContainText('not ranked');
+    await expect(profile).toContainText('Half-space pass-origin share');
+    await expect(profile).toContainText('observed location · not ranked');
 
     expect(errors, 'uncaught page errors').toEqual([]);
   });
@@ -61,12 +61,18 @@ test.describe('player profile', () => {
   test('style shows the pitch geometry reference, not a merit bar', async ({ page }) => {
     await openPlayer(page, 'marcelo');
     const style = page.locator('#profile');
-    await expect(style).toContainText('the pitch itself is');
+    await expect(style).toContainText('originated in the');
+    await expect(style).toContainText('Pitch-area reference');
+    // Both references, answering different questions, neither called expected.
+    await expect(style).toContainText('median');
+    const body = await page.locator('main').innerText();
+    expect(body).not.toContain('Expected');
     // The neutral tick is a dashed line in the geo bar.
     expect(await page.locator('#profile svg line[stroke-dasharray]').count()).toBeGreaterThan(0);
     // No merit language anywhere on the page.
     const text = (await page.locator('main').innerText()).toLowerCase();
-    for (const word of ['elite', 'excellent', 'poor at', 'world class']) {
+    for (const word of ['elite', 'excellent', 'poor at', 'world class',
+                        'preference for', 'prefers ']) {
       expect(text, `merit word "${word}"`).not.toContain(word);
     }
   });

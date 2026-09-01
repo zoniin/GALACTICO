@@ -84,7 +84,7 @@ def constructs() -> dict:
         if estimator is None:
             continue
         shipped.append({
-            "id": key, "claim": c.claim, "family": c.family.value,
+            "id": key, "label": c.label, "claim": c.claim, "family": c.family.value,
             "estimator": estimator.key, "denominator": estimator.denominator,
             "minutes_floor": estimator.minutes_floor,
             "external_replication": c.external_replication.value,

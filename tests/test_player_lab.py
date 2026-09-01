@@ -153,9 +153,24 @@ def test_style_bands_are_anchored_to_pitch_geometry() -> None:
     from galactico.features.estimators import CHANNEL_GEOMETRY, describe_style
     band, neutral = describe_style("width", CHANNEL_GEOMETRY["width"])
     assert neutral == 0.42
-    assert "balance" in band
-    assert "markedly central" in describe_style("width", 0.25)[0]
-    assert "wide" in describe_style("width", 0.60)[0]
+    assert "pitch-area reference" in band
+    assert "central-oriented" in describe_style("width", 0.25)[0]
+    assert "wide-oriented" in describe_style("width", 0.60)[0]
+    # "in this sample" is load-bearing: these are observed pass origins over one
+    # season, not a disposition. Position is CONSTITUTIVE for these constructs.
+    assert all("in this sample" in describe_style("width", v)[0]
+               for v in (0.20, 0.42, 0.70))
+
+
+def test_spatial_constructs_do_not_claim_a_preference() -> None:
+    """Verticality was rejected because its behavioural reading vanished under
+    conditioning. These survive only because their claim is narrow enough to be
+    true: they describe where passes originated, which includes deployment."""
+    for key in ("half_space_share", "width"):
+        construct = CONSTRUCTS[key]
+        assert "originating" in construct.claim
+        assert "preference" not in construct.claim.lower()
+        assert "pass-origin" in construct.label
 
 
 def test_channel_geometry_sums_to_the_whole_pitch() -> None:

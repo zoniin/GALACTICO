@@ -105,11 +105,24 @@ class ConstructDefinition:
     family: Family
     estimators: Mapping[str, Estimator]
     reference_estimator: str
+    display_name: str = ""
+    """Shown in the product. Defaults to a title-cased id.
+
+    The spatial constructs carry an explicit one because "Width" silently reads as
+    an intrinsic desire to occupy wide areas, and the statistic establishes no such
+    thing — position is CONSTITUTIVE here, so deployment is part of the
+    measurement rather than a confound to be removed. The name says what enters
+    the numerator instead. A conditional spatial preference, which is what the word
+    would need to mean, is E-04 and is not shipped."""
 
     known_confounds: tuple[str, ...] = ()
     valid_contexts: tuple[str, ...] = ()
     invalid_contexts: tuple[str, ...] = ()
     external_replication: ExternalVerdict = ExternalVerdict.UNTESTED
+
+    @property
+    def label(self) -> str:
+        return self.display_name or self.id.replace("_", " ").capitalize()
 
     def estimator_for(self, regime: str) -> Estimator | None:
         for estimator in self.estimators.values():
@@ -222,7 +235,8 @@ _register(ConstructDefinition(
 
 _register(ConstructDefinition(
     id="half_space_share",
-    claim="Preference for operating in the half-space channels.",
+    display_name="Half-space pass-origin share",
+    claim="Share of completed passes originating in the defined half-space channels.",
     family=Family.STYLE,
     reference_estimator="wyscout_event_v1",
     estimators={
@@ -251,7 +265,8 @@ _register(ConstructDefinition(
 
 _register(ConstructDefinition(
     id="width",
-    claim="Preference for operating in the wide channels.",
+    display_name="Wide-channel pass-origin share",
+    claim="Share of completed passes originating in the defined wide channels.",
     family=Family.STYLE,
     reference_estimator="wyscout_event_v1",
     estimators={

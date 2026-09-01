@@ -373,11 +373,16 @@ async function showPlayer(id){
       <div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div>
         <div class="claim" style="color:var(--bone-500);margin-top:.4rem">
-          <span class="badge b-none">style · not ranked</span></div></div>
-      <div><div class="mono" style="font-size:.9rem">${(c.value*100).toFixed(0)}% of completed passes
-          <span style="color:var(--bone-500)"> · the pitch itself is ${(c.geometric_neutral*100).toFixed(0)}%</span></div>
+          <span class="badge b-none">observed location · not ranked</span></div></div>
+      <div><div class="mono" style="font-size:.95rem">${(c.value*100).toFixed(0)}% of completed passes
+          originated in the ${c.construct_id === 'width' ? 'wide channels' : 'half-spaces'}</div>
         <div class="strip" style="height:18px">${geoBar(c.value, c.geometric_neutral)}</div>
-        <div class="spectrum">${c.style_band} — ${c.departure >= 0 ? '+' : ''}${(c.departure*100).toFixed(0)} points against pitch geometry</div></div>
+        <div class="spectrum">
+          Pitch-area reference ${(c.geometric_neutral*100).toFixed(0)}%
+          &nbsp;·&nbsp; ${c.departure >= 0 ? '+' : ''}${(c.departure*100).toFixed(0)} pts${
+            c.population_median != null ? `<br>Comparable ${p.position} median ${(c.population_median*100).toFixed(0)}%
+            &nbsp;·&nbsp; ${c.value - c.population_median >= 0 ? '+' : ''}${((c.value - c.population_median)*100).toFixed(0)} pts` : ''}
+          <br><span style="color:var(--bone-300)">${c.style_band}</span></div></div>
     </div>`;
   }).join('');
 
@@ -391,11 +396,12 @@ async function showPlayer(id){
       </div>
     </div>
     <h2>Quality</h2><div class="cards">${qualityCards}</div>
-    <h2 style="margin-top:2.4rem">Style — spatial tendency, no good direction</h2>
+    <h2 style="margin-top:2.4rem">Observed location — descriptive, no good direction</h2>
     <div class="cards">${styleRows}</div>
     <div style="margin-top:1rem">${zoneBar(p.zone_shares)}</div>
-    <div class="spectrum">Share of completed passes by channel. LW / LH = left wide and left
-      half-space, C = centre, RH / RW = right.</div>
+    <div class="spectrum">Share of completed passes by origin channel. LW / LH = left wide and left
+      half-space, C = centre, RH / RW = right. Where a player's passes started is
+      partly where he was deployed; this describes the season, not a disposition.</div>
     <details style="margin-top:2rem"><summary>View provenance</summary>
       <div class="body"><dl>
         <dt>construct set</dt><dd>${p.constructs.map(c=>c.construct_id).join(', ')}</dd>
@@ -446,9 +452,10 @@ function quantileDots(quantiles, lo, hi){
     '</svg>';
 }
 
-const LABELS = {progression:"Progression", progression_per_action:"Progression per action",
-  chance_creation:"Chance creation", half_space_share:"Half-space share", width:"Width"};
-const label = k => LABELS[k] || k;
+// Display names come from the registry, so a narrowed claim cannot leave the
+// interface still using the stronger word.
+const label = k => (CONSTRUCTS.shipped.find(c => c.id === k) || {}).label
+  || k.replace(/_/g, ' ').replace(/^./, m => m.toUpperCase());
 
 /* ---------- scatter ---------- */
 let scatterData = null;

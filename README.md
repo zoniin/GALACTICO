@@ -1,136 +1,164 @@
 # Galáctico
 
-Football analytics is good at describing players and surprisingly weak at
-answering decisions.
+An open football decision laboratory.
 
-Who should start? Which role should a player occupy? What does this team lack?
-Which signing actually fixes it? How should any of those answers change against a
-particular opponent?
+<!-- generated:counts -->
+**11 proposed. 8 tested. 5 survive.**
 
-Galáctico is an attempt to turn football data into explicit, testable decision
-models — and to publish the cases where those models fail.
+2 rejected, 1 research-only, 3 proposed but not yet through the lifecycle.
+<!-- /generated:counts -->
 
-That second part is not modesty. It is the design.
+![Player Lab](docs/screenshots/01-profile.png)
 
----
+Most football analytics projects ask what statistics they can calculate.
+Galáctico first asks whether the statistic means what its name implies.
 
-## The constraint everything else follows from
-
-**Every number knows what kind of number it is.**
-
-A pass count, an estimated progression score, and an optimiser's objective delta
-are three different kinds of object. Most analytics tools render them identically,
-which is how a model output ends up being read as a measurement.
-
-Here, evidence class is a property of the value and it survives arithmetic:
-
-```python
->>> passes = MetricResult.observed(64, source="statsbomb", definition="passes")
->>> projected = role_model.project(player, Role.DEEP_CONTROLLER)   # PREDICTIVE
->>> (passes + projected).evidence
-<EvidenceClass.PREDICTIVE: 3>
-```
-
-Composition takes the *weakest* input. There is no operation in this codebase
-that can launder a prediction into an observation.
-
-Seven classes: `OBSERVED`, `DERIVED`, `ESTIMATED`, `PREDICTIVE`, `OPTIMIZED`,
-`HEURISTIC`, `EXPERIMENTAL`. Uncertainty propagates alongside — element-wise when
-two values come from the same bootstrap replicate set, by quadrature otherwise,
-and the fallback records that it assumed independence, because for metrics derived
-from the same events that assumption is usually false.
-
-And precision follows the uncertainty rather than the float:
-
-```python
->>> progression.render()
-'78 ± 6'          # not 78.4327
->>> finishing.render()
-'insufficient signal'
-```
+That question has killed more metrics here than noise has.
 
 ---
 
-## Three worlds
+## Three ways a football metric fails
 
-**LIVE** — current football, centred on Real Madrid 2026/27. Aggregate player
-data from a paid feed, plus free official sources including UEFA's physical
-metrics. It sacrifices granularity where it must and never manufactures what it
-does not have.
+**Metronome Fit** — reliable, and measuring the wrong thing. Split-half **0.94**,
+higher than expected threat, with a leaderboard of Kroos, Iniesta, Busquets and
+Modrić. Exactly the players you would name. It was measuring touch volume: among
+deep players it correlated **0.93** with raw touch count, and touch volume plus
+team identity explained ~90% of its variance. A preregistered replication on a
+different provider and season did not reject it either — two of five tests failed
+and the frozen rule required a different combination. It is not shipped, and it is
+not closed. [E-01](docs/research/E-01-metronome-fit.md) ·
+[E-02](experiments/preregistered/E-02-metronome-confirmatory/analysis.md)
 
-**LAB** — the scientific core. Event-level corpora where metric development,
-reliability testing, backtesting and validation actually happen. Real Madrid
-2017/18 is the flagship, because its central selection question — the BBC front
-three against an Isco-led shape — is both genuinely contested and retrospectively
-evaluable. A 2026/27 optimal XI is neither.
+**Ball retention** — reliable, honest, and redundant. Reliability 0.87–0.90 in all
+five leagues, and a **0.93–0.95** correlation with plain pass completion
+percentage in every one of them. The threat-weighting that justified its existence
+moved about 5% of its variance. Pass completion already exists and is simpler.
+[E-03](docs/research/E-03-ball-retention-incremental-value.md)
 
-**VISION** — team geometry recovered from broadcast video. Not a replacement for
-event data. Line height, width, compactness, block type — the things that survive
-averaging over eleven players, feeding opponent characterisation.
+**Verticality** — reliable, and mostly geometry. Reliability 0.97, and roughly
+**83%** of its variance is where the player receives the ball. Within a
+field-position stratum the relationship largely vanishes.
 
-Between LIVE and LAB sits **the Bridge**: can lower-granularity aggregates
-reconstruct the richer profile? That is a research question with a measurable
-answer, not an assumption. Where the answer is no, LIVE does not show the metric.
+Reliability tells you a measurement is repeatable. It does not tell you what is
+being repeated.
 
 ---
 
-## What is built
+## What survives
 
-Stage 0 is complete and tested.
+<!-- generated:claims -->
+- **Progression** — Realised possession value added through territorial advancement.
+- **Progression per action** — Efficiency of territorial advancement, independent of ball-touching opportunity.
+- **Chance creation** — Creating shooting opportunities for team-mates, weighted by threat added.
+- **Half-space pass-origin share** — Share of completed passes originating in the defined half-space channels.
+- **Wide-channel pass-origin share** — Share of completed passes originating in the defined wide channels.
+<!-- /generated:claims -->
 
-| Component | State |
-|---|---|
-| Evidence algebra and provenance DAG | done, 24 tests |
-| Metric registry with content-addressed versions | done |
-| Cross-provider comparability enforcement | done |
-| Role taxonomy with fuzzy membership | done |
-| Reliability gate and empirical-Bayes shrinkage | done |
-| Expected threat, fitted and validated | done |
-| Licence posture enforced in code + CI guard | done |
-| Ingestion, optimiser, bridge, vision | not started |
+<!-- generated:constructs -->
+| Construct | Family | Denominator | Minutes floor | External replication |
+|---|---|---|---:|---|
+| `progression` — Progression | quality | per 90 minutes | — | robust with shift |
+| `progression_per_action` — Progression per action | quality | completed passes | — | robust with shift |
+| `chance_creation` — Chance creation | quality | per 90 minutes | 1800 | robust with shift |
+| `half_space_share` — Half-space pass-origin share | style | completed passes | — | robust with shift |
+| `width` — Wide-channel pass-origin share | style | completed passes | — | robust |
+<!-- /generated:constructs -->
+
+The two spatial constructs are deliberately named after what enters the numerator.
+They describe **where completed passes originated**, which includes where the
+player was deployed. They do not establish a preference — that would need
+[E-04](experiments/preregistered/E-04-conditional-spatial-tendency/preregistration.md),
+which has not been run. Calling them "width" and "half-space preference" would
+repeat the verticality error with a different name.
+
+<!-- generated:rejected -->
+| Construct | Status | Why |
+|---|---|---|
+| `ball_retention` | rejected | Too similar to ordinary pass completion |
+| `verticality` | rejected | Mostly explained by starting field position |
+| `metronome_fit` | research only | Construct validity unresolved after preregistered replication |
+<!-- /generated:rejected -->
+
+**There is no overall rating**, and a test fails the build if one appears.
+
+---
+
+## Running it
 
 ```bash
-make install
-make check      # licence guard, lint, 67 tests
+make install     # venv, deps, git hooks, playwright
+make serve       # builds profile artifacts, serves Player Lab on :8090
+make check       # licence guard, lint, unit + render tests
+make e2e         # browser tests against a Playwright-managed server
 ```
 
----
-
-## Findings so far
-
-These came out of the research that preceded the code, and they shaped it.
-
-- **Expected threat reaches split-half `ρ = 0.89`; VAEP reaches `0.25`.** xT is
-  the value primitive. VAEP is not implemented.
-- **The player × role interaction is at most 9% of variance**, and
-  indistinguishable from zero for anything shooting-related, measured across 1,517
-  matches and 486 role-movers. Persistence beats a role-mean baseline on all ten
-  per-90 metrics tested. Role fit is real, small, and mostly mechanical.
-- **The single optimal XI is not statistically identified.** A 200-replicate
-  bootstrap leaves three to five of eleven players above 90% selection frequency.
-  So the output is a stable core and a set of contested slots.
-- **Pairwise chemistry is unidentifiable.** 2,461 of 2,689 distinct starting XIs
-  in the corpus appear exactly once.
-- **Finishing, pressing and defensive coverage are absent from the metric
-  registry**, and a test asserts they stay absent.
-
-See [`DECISIONS.md`](DECISIONS.md) for what was decided and what would reverse it,
-and [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for what this cannot do.
+The repository contains **no football data**. Corpora are downloaded at runtime
+into a gitignored cache under each provider's own terms, and a CI guard fails on
+any attempt to commit one.
 
 ---
 
-## Documents
+## Where the data comes from, and what it costs
 
-[VISION](VISION.md) · [ARCHITECTURE](ARCHITECTURE.md) ·
-[METRICS](METRICS.md) · [VALIDATION](VALIDATION.md) ·
-[DATASETS](DATASETS.md) · [LICENSING](LICENSING.md) ·
-[RESEARCH QUESTIONS](RESEARCH_QUESTIONS.md) · [ROADMAP](ROADMAP.md) ·
-[DECISIONS](DECISIONS.md) · [KNOWN LIMITATIONS](KNOWN_LIMITATIONS.md)
+| Tier | Source | Licence |
+|---|---|---|
+| LAB, public | Pappalardo/Wyscout 2017/18, five leagues | CC BY 4.0 |
+| LAB, local only | StatsBomb open 2015/16, four leagues | restrictive EULA |
+| VISION | SkillCorner, DFL/Sportec | MIT, CC BY 4.0 |
+
+Player Lab is **historical**. It runs on 2017/18 event data and is badged `LAB` in
+the interface. A LIVE regime would use a different estimator with different
+uncertainty and different sample thresholds, which is why constructs and
+estimators are separate objects in the registry.
+
+Two things verified and closed: **FotMob** exposes a season-scope shotmap with
+coordinates, and its terms and `robots.txt` forbid the use — it is Opta underneath,
+unhidden. **UEFA** publishes exactly the physical metrics this project wanted,
+through keyless JSON, and clause 6.2 of its terms bars systematic collection,
+scripted access, and using the content to develop or train any model. Both are
+`REFERENCE_ONLY`. Neither has an adapter, and **the LIVE player model ships
+without a physical axis.**
+[FotMob](docs/research/FOTMOB-RECON.md) ·
+[UEFA](docs/research/UEFA-PHYSICAL-DATA.md) ·
+[gap matrix](docs/LIVE-DATA-GAP-MATRIX.md)
+
+---
+
+## State
+
+| Stage | | |
+|---|---|---|
+| 0 | Foundations | complete |
+| 1 | Measurement — five leagues | complete |
+| 1B | Replication + reconnaissance | complete |
+| 1C | External provider + season shift | complete |
+| 2 | Player Lab | release candidate |
+| 3 | XI Lab | next |
+
+Stage 2 is a release candidate, not released: the automated gates pass and human
+review is outstanding. `make release-check` prints what remains and refuses to say
+READY.
+
+---
+
+## Method notes
+
+The failures were more instructive than the successes, so they are kept.
+
+- [M-01](docs/research/M-01-self-consistent-tests-can-be-wrong.md) — a test suite can be consistent with the code while both are wrong about reality
+- [M-02](docs/research/M-02-definition-code-divergence.md) — a metric can be validated and stable while its public definition describes a different quantity
+- [M-03](docs/research/M-03-shell-is-not-product.md) — a 200 response is not a working application
+
+Every one is the same shape: **verification placement matters as much as
+verification existence.**
+
+Full results: [Stage 1](docs/research/STAGE-1-MEASUREMENT-REPORT.md) ·
+[Stage 1B](docs/research/STAGE-1B-REPLICATION-REPORT.md) ·
+[Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md) ·
+[decisions](DECISIONS.md) · [limitations](KNOWN_LIMITATIONS.md)
 
 ---
 
 ## Licence
 
-MIT, for the code. The repository contains no football data and never will —
-corpora are downloaded at runtime into a gitignored cache under the terms each
-provider sets. See [LICENSING.md](LICENSING.md); a CI guard enforces it.
+MIT, for the code.

@@ -114,6 +114,11 @@ class ConstructResult:
     """True when every replicate returned the same value — the player's matches
     carry no variation in this construct, so the interval is zero-width and must
     not be shown as if it were a precise estimate."""
+    population_median: float | None = None
+    """Median among the same broad position group. Answers a DIFFERENT question
+    from the geometric reference: that one asks what share of the pitch is
+    designated half-space, this one asks what comparable footballers actually did.
+    Neither is an expected value and neither is labelled one."""
     quantiles: tuple[float, ...] | None = None
     """Match-level block-bootstrap quantiles of THIS player's estimate. A
     different quantity from reliability, which describes the estimator over a
@@ -316,6 +321,8 @@ def build_profiles(
                 value=value,
                 sd=None,
                 percentile=None if value is None else _percentile(peers, value),
+                population_median=(float(peers.median())
+                                   if peers.notna().any() else None),
                 reference_population=ReferencePopulation.BROAD_POSITION.value,
                 reference_label=(f"{position} players with {minutes_floor}+ minutes "
                                  f"in {competition} {season}"),
