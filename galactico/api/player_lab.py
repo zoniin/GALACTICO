@@ -137,6 +137,15 @@ def _decorate(profile: dict) -> dict:
     decorated = []
     for c in profile["constructs"]:
         row = {**c, "display": _fmt(c["value"], c["sd"])}
+        # A number cannot be both unavailable and published. The profile renders
+        # INSUFFICIENT SIGNAL for these; the payload used to carry the estimate
+        # anyway, so anything reading the API saw what the page refused to show.
+        if c["render_state"] == "insufficient_signal":
+            row["value"] = None
+            row["percentile"] = None
+            row["display"] = None
+            row["quantiles"] = None
+            row["draws"] = None
         # Grade is a statement about the ESTIMATOR, not the player, so it is named
         # rather than colour-coded. A traffic light would make "we do not know"
         # read as "this player is bad".
@@ -206,11 +215,15 @@ def compare(a: int, b: int) -> dict:
         if ld and rd and not (lc.get("degenerate") or rc.get("degenerate")):
             n = min(len(ld), len(rd))
             diffs = sorted(ld[i] - rd[i] for i in range(n))
-            lo = diffs[int(0.05 * (n - 1))]
-            hi = diffs[int(0.95 * (n - 1))]
+            # Symmetric order statistics: floor-indexing both ends made the
+            # verdict depend on which player occupied slot A.
+            k = int(round(0.05 * (n - 1)))
+            lo, hi = diffs[k], diffs[n - 1 - k]
             interval = [lo, hi]
             excludes_zero = lo > 0 or hi < 0
-        material = both_shown and bool(excludes_zero)
+        degenerate = bool(lc.get("degenerate") or rc.get("degenerate"))
+        tied = lc["value"] == rc["value"]
+        material = both_shown and bool(excludes_zero) and not degenerate and not tied
 
         deltas.append({
             "difference_interval": interval,
@@ -219,16 +232,19 @@ def compare(a: int, b: int) -> dict:
             "left": lc["value"], "right": rc["value"], "delta": delta,
             "left_percentile": lc["percentile"], "right_percentile": rc["percentile"],
             # A style construct has no better direction, so it gets no winner.
-            "leader": None if lc["family"] == "style" else (
+            "leader": None if (lc["family"] == "style" or tied) else (
                 left["name"] if delta > 0 else right["name"]),
+            "tied": tied,
+            "degenerate": degenerate,
             "interpretable": both_shown,
             "material": material,
             "language": (
                 f"{left['name']} {lc['value']:.0%}, {right['name']} {rc['value']:.0%} — "
-                f"different channel preference, no better direction"
+                f"different observed pass-origin shares, no better direction"
                 if lc["family"] == "style" else
                 "materially higher — the difference interval excludes zero"
                 if material else
+                "identical in this sample" if tied else
                 "higher, but the difference interval includes zero" if interval else
                 "higher, but this player's matches carry no variation to resample"
                 if (lc.get("degenerate") or rc.get("degenerate")) else
@@ -272,8 +288,10 @@ def explore(construct_id: str, position: str = "", team: str = "",
                      "value": c["value"], "percentile": c["percentile"],
                      "render_state": c["render_state"]})
     rows.sort(key=lambda r: -r["value"])
+    values = [r["value"] for r in rows]
     return {
         "construct_id": construct_id, "family": family,
+        "population_range": [min(values), max(values)] if values else None,
         # Style constructs have no good direction, so the client is told not to
         # present the ordering as a ranking.
         "orderable_as_ranking": family == "quality",

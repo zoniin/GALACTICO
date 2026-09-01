@@ -358,7 +358,8 @@ async function showPlayer(id){
         <div class="pctsub">${c.percentile===null?'':Math.round(c.percentile)+'th percentile among '}${c.reference_label} · n=${c.reference_n}</div></div>
       <div><div class="val">${c.display ?? '—'}</div>
         <div class="unit">${UNITS[c.construct_id]||''}</div>
-        ${c.quantiles ? `<div style="height:12px;margin-top:.3rem"
+        ${c.quantiles ? `<div class="unit" style="opacity:.7;margin-top:.35rem">uncertainty in this estimate</div>
+          <div style="height:12px" 
           title="Match-level block bootstrap over this player's ${c.n_matches} matches — the uncertainty in HIS estimate, not the estimator's reliability">${
           quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
           <div class="unit" style="opacity:.7">90% ${c.quantiles[0].toFixed(3)}–${c.quantiles[c.quantiles.length-1].toFixed(3)}</div>` : ''}
@@ -543,7 +544,32 @@ async function runCompare(){
   const d = await api(`/api/compare?a=${cmpA}&b=${cmpB}`);
   $('#cmp').innerHTML = `<div class="phead" style="border:0;padding:0;margin-bottom:1rem">
       <div><h1 style="font-size:1.5rem">${d.left.name} <span style="color:var(--bone-500)">vs</span> ${d.right.name}</h1></div></div>` +
-    d.deltas.map(x => {
+    (() => {
+      const q = d.deltas.filter(x => x.family !== 'style');
+      const st = d.deltas.filter(x => x.family === 'style');
+      const section = (title, note) =>
+        `<h2 style="margin:2rem 0 .6rem">${title}</h2>` +
+        (note ? `<p class="lede" style="margin-bottom:.8rem">${note}</p>` : '');
+      return section('Quality') + q.map(row).join('') +
+        section('Observed location',
+          'Descriptive shares. Neither player is ahead here — the marks show where each ' +
+          'one\'s completed passes started, against the same pitch-area reference.') +
+        st.map(row).join('');
+    })();
+
+  function row(x){
+      // Style rows must not reuse the quality grammar. A full bar for the higher
+      // value sat directly beneath captions reading "materially higher", so a
+      // blind reader concluded one player edged the other on half-space.
+      if (x.family === 'style') {
+        const n = (CONSTRUCTS.channel_geometry||{})[x.construct_id];
+        return `<div class="cmp" style="grid-template-columns:1fr 12rem 1fr">
+          <div>${geoBar(x.left, n)}</div>
+          <div class="mid">${label(x.construct_id)}<br>
+            <span class="badge b-none" style="margin-top:.3rem">not ranked</span></div>
+          <div>${geoBar(x.right, n)}</div>
+          <div class="lang">${x.language}</div></div>`;
+      }
       const m = Math.max(Math.abs(x.left), Math.abs(x.right)) || 1;
       return `<div class="cmp">
         <div class="bar-l"><i style="width:${Math.abs(x.left)/m*100}%"></i></div>
@@ -557,7 +583,7 @@ async function runCompare(){
           <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}${
             x.difference_interval ? ` · difference 90% ${x.difference_interval[0].toFixed(4)} to ${x.difference_interval[1].toFixed(4)}` : ''}</span>
         </div></div>`;
-    }).join('');
+  }
 }
 
 /* ---------- why only five ---------- */

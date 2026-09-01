@@ -102,14 +102,14 @@ def describe_style(construct_id: str, value: float) -> tuple[str, float]:
     # "in this sample" is load-bearing. These are observed pass origins over one
     # season, not a disposition. "High half-space usage" invited the reading that
     # the player seeks the half-spaces; he may simply have been played there.
-    if construct_id == "width":
-        band = ("far more central-oriented" if delta < -0.14 else
-                "more central-oriented" if delta < -0.05 else
-                "close to the pitch-area reference" if delta <= 0.05 else
-                "more wide-oriented" if delta <= 0.14 else "far more wide-oriented")
-    else:
-        band = ("less half-space-oriented" if delta < -0.08 else
-                "close to the pitch-area reference" if delta <= 0.06 else
-                "more half-space-oriented" if delta <= 0.14 else
-                "far more half-space-oriented")
-    return f"{band} in this sample", neutral
+    # The band may only describe the axis being measured. An earlier version
+    # mapped a low wide-origin share onto the word "central", but the complement
+    # of wide is centre PLUS half-space: Modric was called "far more
+    # central-oriented" while his centre share sat at +3 points and his half-space
+    # share at +13. No centre construct ships, so no centre claim may be made.
+    channel = "wide-channel" if construct_id == "width" else "half-space"
+    band = ("far below" if delta < -0.14 else
+            "below" if delta < -0.05 else
+            "close to" if delta <= 0.05 else
+            "above" if delta <= 0.14 else "far above")
+    return f"{band} the pitch-area {channel} reference in this sample", neutral

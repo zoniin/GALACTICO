@@ -153,9 +153,15 @@ def test_style_bands_are_anchored_to_pitch_geometry() -> None:
     from galactico.features.estimators import CHANNEL_GEOMETRY, describe_style
     band, neutral = describe_style("width", CHANNEL_GEOMETRY["width"])
     assert neutral == 0.42
-    assert "pitch-area reference" in band
-    assert "central-oriented" in describe_style("width", 0.25)[0]
-    assert "wide-oriented" in describe_style("width", 0.60)[0]
+    assert "close to" in band and "pitch-area" in band
+    assert "far below" in describe_style("width", 0.25)[0]
+    assert "above" in describe_style("width", 0.60)[0]
+    # The band may only describe the axis measured. "Central" was a claim about a
+    # channel no construct measures: wide's complement is centre PLUS half-space,
+    # and 70 of 345 players called "central-oriented" had a centre share at or
+    # below its own reference. That is the verticality error, regenerated.
+    for v in (0.10, 0.25, 0.42, 0.60, 0.90):
+        assert "central" not in describe_style("width", v)[0]
     # "in this sample" is load-bearing: these are observed pass origins over one
     # season, not a disposition. Position is CONSTITUTIVE for these constructs.
     assert all("in this sample" in describe_style("width", v)[0]
