@@ -85,7 +85,9 @@ def _superseded_inline_implementation(actions, xt, minutes):
     y = passes["start_y"]
     half = (y.between(0.21, 0.37)) | (y.between(0.63, 0.79))
     wide = (y < 0.21) | (y > 0.79)
-    out["half_space_share"] = passes[half].groupby("player_id").size().reindex(idx).fillna(0) / n_passes
+    out["half_space_share"] = (
+        passes[half].groupby("player_id").size().reindex(idx).fillna(0) / n_passes
+    )
     out["width"] = passes[wide].groupby("player_id").size().reindex(idx).fillna(0) / n_passes
     return out
 

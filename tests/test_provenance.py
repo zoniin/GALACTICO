@@ -211,8 +211,10 @@ def test_require_rejects_evidence_that_is_too_weak() -> None:
 # --- provenance ----------------------------------------------------------
 
 def test_lineage_reaches_every_root() -> None:
-    a = MetricResult.observed(3.0, source="statsbomb", definition="passes", period="La Liga 2015/16")
-    b = MetricResult.observed(2.0, source="pappalardo", definition="passes", period="La Liga 2017/18")
+    a = MetricResult.observed(
+        3.0, source="statsbomb", definition="passes", period="La Liga 2015/16")
+    b = MetricResult.observed(
+        2.0, source="pappalardo", definition="passes", period="La Liga 2017/18")
     combined = a + b
     roots = combined.provenance.roots()
     assert {r.source for r in roots} == {"statsbomb", "pappalardo"}
@@ -272,7 +274,8 @@ def test_wide_uncertainty_shortens_the_number() -> None:
     either, so the truthful rendering rounds the value to the uncertainty's own
     leading digit."""
     assert make(78.4327, EvidenceClass.ESTIMATED, sd=30.0, reliability=0.85).render() == "80 ± 30"
-    assert make(1234.0, EvidenceClass.ESTIMATED, sd=400.0, reliability=0.85).render() == "1200 ± 400"
+    assert (make(1234.0, EvidenceClass.ESTIMATED, sd=400.0, reliability=0.85).render()
+            == "1200 ± 400")
 
 
 def test_estimates_are_still_gated() -> None:

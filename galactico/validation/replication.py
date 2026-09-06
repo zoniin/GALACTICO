@@ -136,7 +136,9 @@ def classify_replication(results: tuple[LeagueResult, ...]) -> tuple[Replication
             return ReplicationStatus.PARTIAL_REPLICATION, (
                 f"{_abbrev(modal)} in {modal_count} of {total}, reliable in all"
             )
-        return ReplicationStatus.PARTIAL_REPLICATION, f"{_abbrev(modal)} in {modal_count} of {total}"
+        return ReplicationStatus.PARTIAL_REPLICATION, (
+            f"{_abbrev(modal)} in {modal_count} of {total}"
+        )
     if reliable_everywhere:
         return ReplicationStatus.CONTEXT_DEPENDENT, (
             "reliable in every league, verdict varies — the measurement is "

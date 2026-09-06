@@ -1,4 +1,5 @@
 from .derivation import Derivation, DerivationChain
+from .metrics import REGISTRY, ComparabilityError, Family, MetricDefinition
 from .provenance import (
     DEFAULT_GATE,
     EvidenceClass,
@@ -9,7 +10,6 @@ from .provenance import (
     ReliabilityGate,
     Uncertainty,
 )
-from .metrics import REGISTRY, ComparabilityError, Family, MetricDefinition
 from .roles import OUTFIELD_ROLES, Line, Role, RoleDistribution
 
 __all__ = [

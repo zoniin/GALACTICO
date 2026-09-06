@@ -126,7 +126,7 @@ def test_own_box_to_dangerous_central_area_is_materially_positive(fitted) -> Non
 def test_advancing_is_monotone_along_the_centre(fitted) -> None:
     """Value must not fall while moving straight at the goal."""
     line = [fitted.value_at(x, 0.5) for x in (0.1, 0.3, 0.5, 0.7, 0.9)]
-    assert all(b >= a for a, b in zip(line, line[1:]))
+    assert all(b >= a for a, b in zip(line, line[1:], strict=False))
 
 
 def test_a_surface_without_turnovers_collapses_to_near_uniform() -> None:

@@ -30,13 +30,17 @@ Three things propagate through every computation:
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from enum import Enum, IntEnum
-from typing import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .precision import format_exact, format_interval, format_measurement, quantise
+from .precision import format_interval, format_measurement
+
+if TYPE_CHECKING:
+    from .derivation import DerivationChain
 
 __all__ = [
     "EvidenceClass",
@@ -124,7 +128,7 @@ class Provenance:
     model_version: str | None = None
     """Version of the model, if a model was involved."""
 
-    parents: tuple["Provenance", ...] = ()
+    parents: tuple[Provenance, ...] = ()
 
     def lineage(self, _depth: int = 0) -> str:
         """Render the full derivation tree as indented text."""
@@ -138,7 +142,7 @@ class Provenance:
         rest = [p.lineage(_depth + 1) for p in self.parents]
         return "\n".join([head, *rest])
 
-    def roots(self) -> tuple["Provenance", ...]:
+    def roots(self) -> tuple[Provenance, ...]:
         """Every leaf of the DAG: the original sources this number rests on."""
         if not self.parents:
             return (self,)
@@ -288,7 +292,7 @@ class MetricResult:
     sample_size: int | None = None
     reliability: float | None = None
     assumptions: frozenset[str] = frozenset()
-    derivation: "DerivationChain | None" = None
+    derivation: DerivationChain | None = None
     """Internal transformation lineage. The public ``evidence`` class is a coarse
     summary of this; the chain is never flattened into it internally."""
 
@@ -296,7 +300,7 @@ class MetricResult:
 
     @classmethod
     def observed(cls, value: float, *, source: str, definition: str,
-                 period: str | None = None, sample_size: int | None = None) -> "MetricResult":
+                 period: str | None = None, sample_size: int | None = None) -> MetricResult:
         """A directly recorded quantity. No uncertainty, because none was introduced."""
         return cls(
             value=float(value),
@@ -315,7 +319,7 @@ class MetricResult:
     def optimizer_weight(self) -> float:
         return DEFAULT_GATE.optimizer_weight(self.reliability, self.evidence)
 
-    def require(self, *, at_least: EvidenceClass) -> "MetricResult":
+    def require(self, *, at_least: EvidenceClass) -> MetricResult:
         """Assert this number is strong enough for the caller's purpose.
 
         The optimiser uses this to refuse experimental inputs rather than
@@ -330,9 +334,9 @@ class MetricResult:
 
     # ---- arithmetic -------------------------------------------------------
 
-    def _combined(self, other: "MetricResult", value: float, sd: float | None,
+    def _combined(self, other: MetricResult, value: float, sd: float | None,
                   draws: np.ndarray | None, op: str,
-                  extra_assumptions: Iterable[str] = ()) -> "MetricResult":
+                  extra_assumptions: Iterable[str] = ()) -> MetricResult:
         key = self.uncertainty.draw_key if draws is not None else None
         return MetricResult(
             value=value,
@@ -357,7 +361,7 @@ class MetricResult:
                         if self.derivation and other.derivation else None),
         )
 
-    def _shares_replicates(self, other: "MetricResult") -> bool:
+    def _shares_replicates(self, other: MetricResult) -> bool:
         a, b = self.uncertainty, other.uncertainty
         return (
             a.draws is not None
@@ -366,13 +370,13 @@ class MetricResult:
             and a.draws.shape == b.draws.shape
         )
 
-    def __add__(self, other: "MetricResult | float") -> "MetricResult":
+    def __add__(self, other: MetricResult | float) -> MetricResult:
         return self._linear(other, +1.0, "+")
 
-    def __sub__(self, other: "MetricResult | float") -> "MetricResult":
+    def __sub__(self, other: MetricResult | float) -> MetricResult:
         return self._linear(other, -1.0, "-")
 
-    def _linear(self, other: "MetricResult | float", sign: float, op: str) -> "MetricResult":
+    def _linear(self, other: MetricResult | float, sign: float, op: str) -> MetricResult:
         if isinstance(other, (int, float)):
             return replace(self, value=self.value + sign * float(other))
         if self._shares_replicates(other):
@@ -383,7 +387,7 @@ class MetricResult:
         note = () if sd is None else ("independence-assumed",)
         return self._combined(other, self.value + sign * other.value, sd, None, op, note)
 
-    def __mul__(self, k: float) -> "MetricResult":
+    def __mul__(self, k: float) -> MetricResult:
         """Scale by a constant. Multiplying two MetricResults is a separate call."""
         if not isinstance(k, (int, float)):
             return NotImplemented
@@ -403,7 +407,7 @@ class MetricResult:
 
     __rmul__ = __mul__
 
-    def times(self, other: "MetricResult") -> "MetricResult":
+    def times(self, other: MetricResult) -> MetricResult:
         """Product of two uncertain numbers.
 
         Exact when both carry draws from the same replicate set. Otherwise a
@@ -446,7 +450,7 @@ class MetricResult:
     def lineage(self) -> str:
         return self.provenance.lineage()
 
-    def derived_by(self, step) -> "MetricResult":
+    def derived_by(self, step) -> MetricResult:
         """Record a transformation, and degrade the public class if it demands it."""
         chain = (self.derivation or _empty_chain()).then(step)
         return replace(self, derivation=chain,

@@ -19,7 +19,6 @@ from galactico.domain import (
 )
 from galactico.domain.metrics import MetricDefinition
 
-
 # --- versioning ----------------------------------------------------------
 
 def test_version_hash_changes_when_the_formula_changes() -> None:

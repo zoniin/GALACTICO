@@ -20,9 +20,9 @@ less than the football vernacular implies.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Mapping
 
 __all__ = ["Line", "Role", "RoleDistribution", "OUTFIELD_ROLES"]
 

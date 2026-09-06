@@ -77,7 +77,7 @@ class DerivationChain:
 
     steps: tuple[Derivation, ...] = ()
 
-    def then(self, step: Derivation) -> "DerivationChain":
+    def then(self, step: Derivation) -> DerivationChain:
         return DerivationChain(self.steps + (step,))
 
     @property
@@ -87,7 +87,7 @@ class DerivationChain:
             return EvidenceClass.OBSERVED
         return EvidenceClass(max(step.public_class for step in self.steps))
 
-    def merged_with(self, other: "DerivationChain") -> "DerivationChain":
+    def merged_with(self, other: DerivationChain) -> DerivationChain:
         """Two chains combining become a composite, not a concatenation.
 
         Concatenating would imply an ordering between branches that does not

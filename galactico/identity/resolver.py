@@ -32,10 +32,10 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
-from typing import Iterable, Mapping
 
 from ..domain.provenance import EvidenceClass
 
@@ -156,7 +156,7 @@ class PlayerIdentity:
     nationality: str | None = None
     provider_ids: Mapping[str, str] = field(default_factory=dict)
 
-    def with_alias(self, provider: str, provider_id: str) -> "PlayerIdentity":
+    def with_alias(self, provider: str, provider_id: str) -> PlayerIdentity:
         merged = dict(self.provider_ids)
         existing = merged.get(provider)
         if existing is not None and existing != provider_id:

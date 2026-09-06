@@ -176,7 +176,7 @@ def fit_expected_threat(
     values = np.zeros(n, dtype=float)
     converged = False
     used = 0
-    for used in range(1, max_iterations + 1):
+    for used in range(1, max_iterations + 1):  # noqa: B007 - recorded after the loop
         updated = shot_value + p_move * (transition @ values)
         delta = float(np.max(np.abs(updated - values)))
         values = updated

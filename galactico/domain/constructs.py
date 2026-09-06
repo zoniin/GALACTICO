@@ -27,8 +27,8 @@ estimators agreeing.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Mapping
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 from ..providers.statsbomb import Equivalence
 from .metrics import Family
@@ -91,7 +91,7 @@ class Estimator:
     global gate would be over-cautious in one regime and falsely reassuring in
     the other."""
 
-    external_verdict: "ExternalVerdict | None" = None
+    external_verdict: ExternalVerdict | None = None
 
     notes: str = ""
 
@@ -286,5 +286,6 @@ _register(ConstructDefinition(
     },
     known_confounds=("position (CONSTITUTIVE)", "team (CONTEXT)"),
     valid_contexts=("outfield players",),
-    invalid_contexts=("ranking as quality — this is style",),    external_replication=ExternalVerdict.ROBUST,
+    invalid_contexts=("ranking as quality — this is style",),
+    external_replication=ExternalVerdict.ROBUST,
 ))
