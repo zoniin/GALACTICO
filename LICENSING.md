@@ -15,7 +15,8 @@ attempt to commit into them.
 
 **PUBLIC** — redistributable and hostable. The public demo runs on these and
 nothing else: Pappalardo/Wyscout (CC BY 4.0), SkillCorner (MIT), DFL/Sportec
-(CC BY 4.0), plus UEFA, ClubElo and FPL as hostable-derived-but-not-redistributable.
+(CC BY 4.0), plus ClubElo and FPL under their typed provider postures.
+UEFA is REFERENCE_ONLY: systematic collection and model use are prohibited.
 
 **LOCAL_LICENSED** — runtime download into a gitignored cache, readable locally,
 never served to a third party. StatsBomb open data and any paid API feed.
@@ -40,7 +41,7 @@ number. `assert_may_host("statsbomb")` raises.
 
 Pappalardo requires citing the constituent figshare articles individually plus the
 2019 Scientific Data paper. SkillCorner requires the MIT copyright line.
-DFL/Sportec requires CC BY 4.0 attribution. UEFA and ClubElo require credit.
+DFL/Sportec requires CC BY 4.0 attribution. ClubElo requires credit.
 Attribution text lives in `galactico/providers/base.py` next to the posture it
 belongs to.
 

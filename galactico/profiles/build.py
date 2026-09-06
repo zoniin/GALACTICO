@@ -22,7 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
@@ -30,7 +30,6 @@ import numpy as np
 import pandas as pd
 
 from ..domain.constructs import CONSTRUCTS, ConstructDefinition
-from ..domain.metrics import Family
 from ..identity import normalise_name
 
 __all__ = [
@@ -106,7 +105,7 @@ class ConstructResult:
     minutes_floor: int | None
     evidence: str
     notes: str = ""
-    draws: tuple[float, ...] | None = None
+    draws: tuple[float | None, ...] | None = None
     """A thinned set of bootstrap draws. Kept because a difference distribution
     cannot be recovered from quantiles: differencing them pairwise gives the
     interval-overlap bound, which is far wider than a 90% interval for A-B."""
@@ -124,6 +123,8 @@ class ConstructResult:
     different quantity from reliability, which describes the estimator over a
     population, and never derived from it."""
     n_matches: int | None = None
+    world_ids: tuple[int, ...] = ()
+    world_namespace: str = ""
 
     @property
     def shows_number(self) -> bool:
@@ -169,16 +170,18 @@ class ProfileBundle:
     dataset_hash: str
     minutes_floor: int
     profiles: list[PlayerProfile]
+    semantic_versions: dict[str, str] = field(default_factory=dict)
+    bootstrap: dict = field(default_factory=dict)
 
     @property
     def version_key(self) -> str:
-        from ..features.spec import SPECS
         payload = json.dumps({
             "estimators": self.estimator_ids,
             "constructs": self.construct_versions,
             # Semantic fingerprints, so a change to WHAT is computed invalidates
             # the artifact whether or not anyone remembers to bump a version.
-            "semantics": {k: v.fingerprint for k, v in SPECS.items()},
+            "semantics": self.semantic_versions,
+            "bootstrap": self.bootstrap,
             "xt": self.xt_version,
             "dataset": self.dataset_hash,
         }, sort_keys=True)
@@ -333,7 +336,9 @@ def build_profiles(
                 quantiles=(tuple(u.quantiles) if (u := (uncertainty or {})
                            .get(int(player_id), {}).get(construct_id)) else None),
                 n_matches=(u.n_matches if u else None),
-                draws=(tuple(round(d, 6) for d in u.draws) if u and u.draws else None),
+                draws=(tuple(d for d in u.draws) if u and u.draws else None),
+                world_ids=(u.world_ids if u else ()),
+                world_namespace=(u.world_namespace if u else ""),
                 degenerate=(bool(u.degenerate) if u else None),
                 minutes=player_minutes,
                 minutes_floor=floor,
@@ -358,18 +363,25 @@ def build_profiles(
             zone_shares=_zone_shares(passes[passes.player_id == player_id]),
         ))
 
+    from ..features.spec import SPECS
+    shared = next((u for values in (uncertainty or {}).values() for u in values.values()), None)
     return ProfileBundle(
-        generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        generated_at=datetime.now(UTC).isoformat(timespec="seconds"),
         competition=competition,
         season=season,
         regime=regime,
         estimator_ids={c: f"{regime}_v1" for c in CONSTRUCTS if c in axes.columns},
-        construct_versions={c: CONSTRUCTS[c].external_replication.value
-                            for c in CONSTRUCTS if c in axes.columns},
+        construct_versions={c: hashlib.sha256(
+            repr(CONSTRUCTS[c]).encode()).hexdigest()[:12]
+            for c in CONSTRUCTS if c in axes.columns},
         xt_version=xt_version,
         dataset_hash=dataset_hash,
         minutes_floor=minutes_floor,
         profiles=profiles,
+        semantic_versions={k: v.fingerprint for k, v in SPECS.items()},
+        bootstrap=({"method": shared.method, "seed": shared.seed,
+                    "world_namespace": shared.world_namespace,
+                    "stored_world_ids": list(shared.world_ids)} if shared else {}),
     )
 
 

@@ -55,7 +55,10 @@ def main() -> int:
 
     digest = hashlib.sha256()
     for name in sorted(p.name for p in d.glob("*.parquet")):
-        digest.update((d / name).read_bytes()[:1_000_000])
+        digest.update(name.encode())
+        with (d / name).open("rb") as source:
+            while chunk := source.read(1_000_000):
+                digest.update(chunk)
 
     bundle = build_profiles(
         actions=actions, lineups=lineups, players=players, teams=teams,

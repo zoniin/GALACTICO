@@ -20,6 +20,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -28,9 +29,9 @@ from ..domain.constructs import CONSTRUCTS
 from ..domain.precision import format_measurement, quantise
 from ..features.estimators import CHANNEL_GEOMETRY, describe_style
 from ..features.spec import SPECS
-from ..profiles.uncertainty import QUANTILE_LEVELS
 from ..identity import normalise_name
 from ..profiles import REJECTED, RESEARCH_ONLY
+from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
 
 # Constructs proposed with a claim and a registry entry but not yet through the
 # lifecycle. Counted in the hero, so 'proposed' has a machine-readable meaning
@@ -47,7 +48,11 @@ app = FastAPI(title="Galáctico Player Lab", version="0.2.0")
 def bundle() -> dict[str, Any]:
     if not BUNDLE.exists():
         raise HTTPException(503, "profile artifacts not built; run scripts/build_profiles.py")
-    return json.loads(BUNDLE.read_text(encoding="utf-8"))
+    data = json.loads(BUNDLE.read_text(encoding="utf-8"))
+    if (data.get("semantic_versions") != {k: s.fingerprint for k, s in SPECS.items()}
+            or data.get("bootstrap", {}).get("method") != BOOTSTRAP_VERSION):
+        raise HTTPException(503, "stale profile artifact; run scripts/build_profiles.py")
+    return data
 
 
 @lru_cache(maxsize=1)
@@ -140,12 +145,9 @@ def _decorate(profile: dict) -> dict:
         # A number cannot be both unavailable and published. The profile renders
         # INSUFFICIENT SIGNAL for these; the payload used to carry the estimate
         # anyway, so anything reading the API saw what the page refused to show.
-        if c["render_state"] == "insufficient_signal":
-            row["value"] = None
-            row["percentile"] = None
-            row["display"] = None
-            row["quantiles"] = None
-            row["draws"] = None
+        if c["render_state"] != "point_estimate":
+            for key in ("value", "percentile", "display", "quantiles", "draws", "sd"):
+                row[key] = None
         # Grade is a statement about the ESTIMATOR, not the player, so it is named
         # rather than colour-coded. A traffic light would make "we do not know"
         # read as "this player is bad".
@@ -189,61 +191,54 @@ def compare(a: int, b: int) -> dict:
         both_shown = (lc["render_state"] == "point_estimate"
                       and rc["render_state"] == "point_estimate")
         delta = lc["value"] - rc["value"]
-        # Interpretability is decided here, not by whether two bars look different.
-        # A split-half reliability describes a population, so it bounds how much of
-        # an individual gap is signal. Below 0.80 the gap is reported and explicitly
-        # not called material.
-        # The difference is an ESTIMATED OBJECT, not arithmetic decoration. Two
-        # players are independent samples, so their bootstrap draws can be paired
-        # to give the distribution of A-B directly. This generalises to XI
-        # changes, opponent conditioning and transfer deltas.
-        #
-        # Three defects were repaired here at once:
-        #  - the previous interval was [loA-hiB, hiA-loB], the interval-OVERLAP
-        #    bound, which is far wider than a 90% interval for the difference;
-        #  - materiality subtracted percentiles computed in DIFFERENT reference
-        #    populations, so a midfielder's percentile was compared to a
-        #    defender's;
-        #  - the reliability >= 0.80 gate made chance_creation impossible to
-        #    declare material for any pair at any separation, because its
-        #    reliability curve tops out at 0.756.
-        # Materiality is now one thing: does the difference distribution exclude
-        # zero. No thresholds, no cross-population arithmetic, no dead branch.
+        # A-B must pair the same historical match worlds. Excluding zero is a
+        # statement about uncertainty, never a practical-importance threshold.
         interval = None
         excludes_zero = None
         ld, rd = lc.get("draws"), rc.get("draws")
-        if ld and rd and not (lc.get("degenerate") or rc.get("degenerate")):
-            n = min(len(ld), len(rd))
-            diffs = sorted(ld[i] - rd[i] for i in range(n))
-            # Symmetric order statistics: floor-indexing both ends made the
-            # verdict depend on which player occupied slot A.
-            k = int(round(0.05 * (n - 1)))
-            lo, hi = diffs[k], diffs[n - 1 - k]
-            interval = [lo, hi]
-            excludes_zero = lo > 0 or hi < 0
+        n_paired = 0
+        if both_shown and ld and rd and not (lc.get("degenerate") or rc.get("degenerate")):
+            try:
+                diffs = paired_differences(
+                    ld, rd, lc.get("world_ids", ()), rc.get("world_ids", ()),
+                    lc.get("world_namespace"), rc.get("world_namespace"),
+                )
+                lo, hi = (float(v) for v in np.quantile(diffs, [0.05, 0.95]))
+                interval = [lo, hi]
+                excludes_zero = lo > 0 or hi < 0
+                n_paired = len(diffs)
+            except ValueError:
+                pass  # Missing shared worlds are unavailable, never independent by assumption.
         degenerate = bool(lc.get("degenerate") or rc.get("degenerate"))
         tied = lc["value"] == rc["value"]
-        material = both_shown and bool(excludes_zero) and not degenerate and not tied
+        directional = both_shown and bool(excludes_zero) and not degenerate and not tied
 
         deltas.append({
             "difference_interval": interval,
             "excludes_zero": excludes_zero,
+            "paired_worlds": n_paired,
+            "comparison_method": BOOTSTRAP_VERSION,
             "construct_id": lc["construct_id"], "family": lc["family"],
-            "left": lc["value"], "right": rc["value"], "delta": delta,
-            "left_percentile": lc["percentile"], "right_percentile": rc["percentile"],
+            "left": lc["value"] if both_shown else None,
+            "right": rc["value"] if both_shown else None,
+            "delta": delta if both_shown else None,
+            "left_percentile": lc["percentile"] if both_shown else None,
+            "right_percentile": rc["percentile"] if both_shown else None,
             # A style construct has no better direction, so it gets no winner.
-            "leader": None if (lc["family"] == "style" or tied) else (
+            "leader": None if (not both_shown or lc["family"] == "style" or tied) else (
                 left["name"] if delta > 0 else right["name"]),
             "tied": tied,
             "degenerate": degenerate,
             "interpretable": both_shown,
-            "material": material,
+            "directional_difference": directional,
             "language": (
+                "not comparable — one side is below its estimator's minutes floor"
+                if not both_shown else
                 f"{left['name']} {lc['value']:.0%}, {right['name']} {rc['value']:.0%} — "
                 f"different observed pass-origin shares, no better direction"
                 if lc["family"] == "style" else
-                "materially higher — the difference interval excludes zero"
-                if material else
+                "higher in this sample — the paired difference interval excludes zero"
+                if directional else
                 "identical in this sample" if tied else
                 "higher, but the difference interval includes zero" if interval else
                 "higher, but this player's matches carry no variation to resample"
@@ -309,6 +304,8 @@ def scatter(x: str = "progression_per_action", y: str = "progression",
         cx = next((c for c in p["constructs"] if c["construct_id"] == x), None)
         cy = next((c for c in p["constructs"] if c["construct_id"] == y), None)
         if not cx or not cy or cx["value"] is None or cy["value"] is None:
+            continue
+        if cx["render_state"] != "point_estimate" or cy["render_state"] != "point_estimate":
             continue
         points.append({"player_id": p["player_id"], "name": p["name"], "team": p["team"],
                        "position": p["position"], "minutes": p["minutes"],

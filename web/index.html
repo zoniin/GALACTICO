@@ -207,10 +207,10 @@ details dt{color:var(--bone-500)}
         these into one rating would destroy the only interesting thing about the pair.</p>
       <canvas id="scatter" aria-label="Scatter of progression per 90 against progression per action"></canvas>
       <div class="quad">
-        <span>↖ low volume · high efficiency — selective, used sparingly</span>
+        <span>↖ high volume · low efficiency</span>
         <span>↗ high volume · high efficiency — the rare corner</span>
         <span>↙ low volume · low efficiency</span>
-        <span>↘ high volume · low efficiency — high responsibility, ordinary return</span>
+        <span>↘ low volume · high efficiency — selective, used sparingly</span>
       </div>
     </section>
   </div>
@@ -479,14 +479,14 @@ async function drawScatter(){
 
   pts.forEach(p => {
     g.beginPath(); g.arc(X(p.x), Y(p.y), 2.6, 0, 7);
-    g.fillStyle = p.team === 'Real Madrid' ? '#c9a227' : 'rgba(184,178,164,.42)';
+    g.fillStyle = p.team === 'Real Madrid' ? '#b8b2a4' : 'rgba(184,178,164,.42)';
     g.fill();
   });
   g.fillStyle = '#7d786d'; g.font = '10px ui-monospace,monospace';
   g.fillText('progression per completed pass →', pad, h - 18);
   g.save(); g.translate(16, h-pad); g.rotate(-Math.PI/2);
   g.fillText('progression per 90 →', 0, 0); g.restore();
-  g.fillStyle = '#c9a227'; g.fillText('gold = Real Madrid', w - 150, 22);
+  g.fillStyle = '#b8b2a4'; g.fillText('solid = Real Madrid', w - 150, 22);
 
   cv.onmousemove = e => {
     const r = cv.getBoundingClientRect(), mxp = e.clientX-r.left, myp = e.clientY-r.top;
@@ -558,6 +558,7 @@ async function runCompare(){
     })();
 
   function row(x){
+      if (!x.interpretable) return `<div class="cmp"><div class="mid">${label(x.construct_id)}</div><div class="lang">${x.language}</div></div>`;
       // Style rows must not reuse the quality grammar. A full bar for the higher
       // value sat directly beneath captions reading "materially higher", so a
       // blind reader concluded one player edged the other on half-space.
@@ -575,10 +576,10 @@ async function runCompare(){
         <div class="bar-l"><i style="width:${Math.abs(x.left)/m*100}%"></i></div>
         <div class="mid">${label(x.construct_id)}</div>
         <div class="bar-r"><i style="width:${Math.abs(x.right)/m*100}%"></i></div>
-        <div class="lang ${x.material && x.family !== 'style' ? 'material':''}">
+        <div class="lang ${x.directional_difference && x.family !== 'style' ? 'material':''}">
           ${x.family === 'style' ? x.language
-            : x.material ? `<strong>${x.leader}</strong> ${x.language}`
-            : x.interpretable ? `${x.leader} ${x.language}`
+            : x.directional_difference ? `<strong>${x.leader}</strong> ${x.language}`
+            : x.interpretable ? `${x.leader || ''} ${x.language}`
             : x.language}
           <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}${
             x.difference_interval ? ` · difference 90% ${x.difference_interval[0].toFixed(4)} to ${x.difference_interval[1].toFixed(4)}` : ''}</span>
