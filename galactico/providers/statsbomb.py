@@ -32,10 +32,10 @@ divided down to the unit square here and never touched again.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Iterable, Iterator
 
 import pandas as pd
 
@@ -256,13 +256,14 @@ class StatsBombProvider(Provider):
                     "subtype": kind,
                     "start_x": float(location[0]) / 120.0,
                     "start_y": float(location[1]) / 80.0,
-                    "end_x": float(end[0]) / 120.0 if isinstance(end, list) else float(location[0]) / 120.0,
-                    "end_y": float(end[1]) / 80.0 if isinstance(end, list) else float(location[1]) / 80.0,
+                    "end_x": float(end[0] if isinstance(end, list) else location[0]) / 120.0,
+                    "end_y": float(end[1] if isinstance(end, list) else location[1]) / 80.0,
                     "success": success,
                     "goal": outcome == "Goal",
                     "assist": bool(detail.get("goal_assist")),
                     "key_pass": bool(detail.get("shot_assist")) or bool(detail.get("goal_assist")),
-                    "counter_attack": (event.get("play_pattern") or {}).get("name") == "From Counter",
+                    "counter_attack": (
+                        (event.get("play_pattern") or {}).get("name") == "From Counter"),
                     "interception": kind == "Interception",
                     "clearance": kind == "Clearance",
                     "dangerous_loss": kind in ("Miscontrol", "Dispossessed"),

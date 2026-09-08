@@ -20,9 +20,9 @@ works in the unit square regardless of provider.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Iterator
 
 import pandas as pd
 
@@ -103,12 +103,14 @@ class PappalardoProvider(Provider):
         frame = pd.DataFrame(self._load("players.json"))
         frame["player_id"] = frame["wyId"].astype("int64")
         frame["name"] = frame["shortName"].str.encode("utf-8").str.decode("unicode_escape")
-        frame["position"] = frame["role"].apply(lambda r: r.get("code2") if isinstance(r, dict) else None)
+        frame["position"] = frame["role"].apply(
+            lambda r: r.get("code2") if isinstance(r, dict) else None)
         frame["foot"] = frame["foot"].replace({"": None, "null": None})
         # Wyscout writes the string "null" rather than JSON null in several
         # columns. Coerce rather than letting it reach the storage layer as an
         # object column that silently defeats the schema.
-        frame["current_team_id"] = pd.to_numeric(frame["currentTeamId"], errors="coerce").astype("Int64")
+        frame["current_team_id"] = pd.to_numeric(
+            frame["currentTeamId"], errors="coerce").astype("Int64")
         frame["birth_date"] = frame["birthDate"].replace({"null": None})
         return frame[["player_id", "name", "position", "foot", "birth_date", "current_team_id"]]
 
@@ -116,7 +118,8 @@ class PappalardoProvider(Provider):
         frame = pd.DataFrame(self._load("teams.json"))
         frame["team_id"] = frame["wyId"].astype("int64")
         frame["team_name"] = frame["name"].str.encode("utf-8").str.decode("unicode_escape")
-        frame["country"] = frame["area"].apply(lambda a: a.get("name") if isinstance(a, dict) else None)
+        frame["country"] = frame["area"].apply(
+            lambda a: a.get("name") if isinstance(a, dict) else None)
         return frame[["team_id", "team_name", "country", "type"]]
 
     def matches(self, competition: str) -> pd.DataFrame:
