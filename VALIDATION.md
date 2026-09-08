@@ -1,7 +1,60 @@
 # Validation
 
-Pre-registered. Written before running, so a disappointing result cannot be
-quietly reframed as a different experiment.
+Protocols and results have different statuses. A protocol written before a run
+does not make every subsequent development diagnostic preregistered. The records
+below distinguish correctness, measurement validity and decision usefulness.
+
+## Current release evidence
+
+The final local verification run for this milestone passed 220 Python tests and
+11 Playwright tests. Ruff and the licensing guard passed. Desktop/mobile product
+screenshots were inspected, and fresh adversarial findings were repaired: shared
+worlds and gates; substitution chronology; dismissal exposure; infeasible minima
+controls; certified-only tie claims; and sensitivity lineage/policy preservation.
+This is recorded run evidence, not a promise that future test counts stay fixed.
+
+| Layer | Evidence | What it does not establish |
+|---|---|---|
+| Player Lab | Shared-match covariance/world-identity tests, complete API gate checks, actual browser interactions | Practical materiality from a nonzero difference; external human acceptance |
+| Match Lab | Synthetic clocks, shots, network and value-accounting checks; real Madrid match rendering | Causal contribution, momentum or persistent ability in one match |
+| XI correctness | Independent exhaustive oracle on tiny instances; eligibility, uniqueness, ties, locks and infeasibility cases | That the objective measures good football |
+| Temporal integrity | Future and same-day data poisoning leaves historical inputs unchanged | Verified historical fitness or suspension availability |
+| XI uncertainty | Joint match-world recomputation and necessary/possible membership across tied optima | A probability of being the best XI; risk-robust or optimism-corrected utility |
+| Product | Playwright interactions and manually inspected desktop/mobile screenshots | Football usefulness from HTTP success alone |
+
+Player Lab's implementation is frozen after the shared-world and gate repairs
+([M-04](docs/research/M-04-shared-match-worlds.md)); no independent human football
+acceptance is claimed. Test counts belong to the executable run, not a roadmap.
+
+### Executed research: nulls remain visible
+
+- **Match-score audit:** Spain 9,722 and England 9,579 outfield player-matches.
+  Accounting is exactly positive pass xT. Broad-role standardization correlates
+  .988/.982 with it, so neither candidate ships as an overall rating. This is an
+  incremental-meaning audit, not supervised performance validation
+  ([E-05](docs/research/E-05-match-score.md)).
+- **Selection development diagnostic:** 12 Madrid league fixtures from March
+  2018; mean actual-starter overlap 6.00/11 for the requirement-model representative,
+  **6.83/11 for prior minutes**, 5.00/11 for the previous league XI. Candidate
+  gates limit maximum achievable overlap to 9.17/11. The engine loses to prior
+  minutes. The window is not an external/preregistered test and the previous
+  league XI is not necessarily the previous all-competition XI. Agreement measures
+  resemblance to manager choices, not their correctness
+  ([E-06](docs/research/E-06-lineup-requirements.md)).
+- **Optimizer's curse:** a known-latent-value synthetic requirement model shows
+  increasing reported-versus-true shortfall optimism as noise rises. Oracle
+  shrinkage reduces, but does not eliminate, it. This is not a calibrated Madrid
+  correction ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
+
+The current XI model is an explicit-requirement thinking aid. No team-outcome,
+causal lineup superiority, role-transition value or external decision-utility
+claim has passed a validation gate.
+
+## Original staged validation agenda
+
+The phases below preserve the original research agenda. They are not a claim
+that every target is now available or every experiment has run. Any revised target,
+coefficient or split needs a new protocol before a confirmatory experiment.
 
 ## Phase 0 — Reliability, as a gate
 
@@ -22,15 +75,22 @@ Baselines in ascending difficulty:
 3. Top eleven by single rating
 4. **The same XI as last match**
 
-The fourth is the one this literature almost never reports, and it is brutal:
-managers change one to three players a game, so persistence scores eight or nine
-out of eleven. The only published external validation to calibrate against reached
-35% exact and 60% near-miss agreement on *formation alone* across 760 matches.
+The prior expectation was that persistence would score eight or nine out of
+eleven. That is not a result from this corpus: the current late-season league-only
+diagnostic scores 5.00/11. Rotation and missing non-league fixtures matter. The
+single-rating baseline also awaits an identified scalar; none is invented to fill
+that row. Random-feasible and a full all-competition persistence baseline remain
+unrun here.
 
 If Galactico cannot beat persistence, the README says so and the tool is described
 as a thinking aid.
 
 ## Phase 2 — The falsifiable claim
+
+**Proposed, not implemented.** The original system-rating formulation below is
+not the current requirement objective. Pappalardo has no supplied xG, and no
+validated universal XI rating ships. A future association study must define an
+available target and revised lineup representation before fitting it.
 
 Compute system-level ratings for the XI that was **actually played**, then predict
 that match's xG for and against with team, opponent and home random effects,
@@ -48,15 +108,18 @@ run underpowered.
 
 ## Phase 3 — Injuries and red cards
 
-Forced absences are the only quasi-exogenous variation in lineup composition
-available. The manager's hand is forced, so the change is far less confounded with
-his private read on form. Restricted to absences with causes unrelated to
-performance.
+**Not run.** Forced absences are candidates for quasi-exogenous variation, not
+automatically valid instruments. Injury risk, disciplinary behavior, opponent,
+fixture congestion and selection can share causes with performance. The current
+historical availability reconstruction does not establish those causes. Restrict
+to verified cases and state identification assumptions before estimating effects.
 
 ## Phase 4 — The Bridge
 
-Calibrated on four complete women's league seasons, plus NWSL 2023 that sit in both StatsBomb open
-data and API-Football's free 2022-2024 window. Per target axis, report: naive
+**Not run.** The proposed paired sample was four complete women's league seasons
+plus NWSL 2023. Reverify API-Football coverage and both providers' licensed uses
+before collection; a historical free-window observation is not a durable data
+contract. Per target axis, report: naive
 baseline, bridge model, held-out error, rank correlation, calibration, interval,
 failure modes. Where it fails, LIVE does not show the metric.
 

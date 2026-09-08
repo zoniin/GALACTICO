@@ -1,104 +1,96 @@
 # Roadmap
 
-Running status, updated as stages land.
+Implementation status, checked against code, executable experiments and rendered
+product. A working surface does not establish the validity of every decision claim.
 
-## Stage 0 - Foundations - COMPLETE
+## Verified complete: foundations and measurement laboratory
 
-- [x] Research council reports, provider matrix, licensing map
-- [x] Evidence algebra with provenance DAG (`domain/provenance.py`)
-- [x] Metric registry, content-addressed versions, comparability guard
-- [x] Role taxonomy with fuzzy membership
-- [x] Reliability gate and empirical-Bayes shrinkage
-- [x] Expected threat, validated against a synthetic pitch
-- [x] Licence posture enforced in code plus a CI guard
-- [x] Repository skeleton, tooling, 67 tests passing
-- [x] Ten foundation documents
+- Typed evidence/provenance, construct and estimator registry, comparability guards.
+- Pappalardo ingestion and five-league replication; StatsBomb local-only ingestion
+  and external replication. Provider and season change together in that comparison.
+- Internal derivation lineage, identity-resolution foundation, reliability gates,
+  executable feature specifications, xT implementation and independent invariants.
+- Licensing guard in CI and pre-commit. UEFA model use is prohibited, not pending.
 
-## Stage 1 - Historical event laboratory - MOSTLY COMPLETE
+The surviving player constructs and their qualifications are recorded in the
+[registry](galactico/domain/constructs.py) and the Stage 1 research reports.
+Rejected constructs remain rejected; replication is not decision-utility validation.
 
-- [x] Pappalardo ingestion, reproducible via `scripts/fetch_pappalardo.py`
-- [x] Provider-neutral action schema; Wyscout quirks terminate at the adapter
-- [x] Corpus audit: La Liga 2017/18 clean on every structural check
-- [x] xT fitted on real data, turnover absorbing state added, grid sensitivity run
-- [x] Seven candidate axes through reliability, confound audit and a baseline battery
-- [x] Metric lifecycle and confound taxonomy in code
-- [x] Precision policy centralised
-- [x] Stage 1 measurement report published, including the rejection
-- [ ] StatsBomb 2015/16 ingestion (local tier) - not started
-- [ ] Internal derivation lineage (RAW_OBSERVATION -> ... -> COMPOSITE) - not started
-- [ ] Remaining four Pappalardo leagues ingested - not started
+## Player Lab: implementation frozen
 
-Exit criteria: 15 of 15 met.
+The historical API and browser expose quality/style separately, estimator-specific
+sample gates, uncertainty, comparison and scatter. The Stage 2 blocking statistical
+defect was repaired: all players and constructs now use shared match-resampling
+worlds, with identity checks and explicit missing exposure. Comparison and scatter
+respect the same gates. See [M-04](docs/research/M-04-shared-match-worlds.md).
 
-## Stage 1B - Replication and reconnaissance - COMPLETE
+Automated and rendered-browser checks cover the release behavior. This freeze does
+not claim an independent human football-review sign-off. Further cosmetic work is
+not a prerequisite for the decision laboratory.
 
-- [x] All five domestic leagues ingested; audits pass
-- [x] Gauntlet run independently per league, thresholds frozen
-- [x] Replication status per metric (REPLICATED / PARTIAL / FAILED)
-- [x] Ball-retention rejection independently confirmed 5/5 (E-03)
-- [x] Verticality field-position issue resolved: 83% is geometry, rejected
-- [x] Chance-creation instability diagnosed as sample size; curve published
-- [x] E-02 executed exactly as preregistered - did NOT reject; RESEARCH_ONLY
-- [x] Internal derivation taxonomy implemented
-- [x] xT failure postmortem preserved (M-01) with independent invariants
-- [x] FotMob reconnaissance complete; no endpoint touched, no adapter built
-- [x] LIVE data gap matrix and spend analysis
+## Match Lab: historical v1 implemented
 
-Outstanding: cross-provider replication against StatsBomb 2015/16, and the
-entity-resolution layer (specified, not yet built).
+`/match` opens public Pappalardo matches: actual lineups, KEY/TACTICAL/ALL timeline,
+shots, period-aware positive pass-xT flow, inferred passing network, team
+pass-origin descriptors and player-match contribution vectors. Madrid's 38 league
+matches are the default collection. Data availability and provenance are explicit.
 
-## Stage 1C - External replication - COMPLETE (11 of 12)
+No Wyscout xG is invented. Threat flow is not momentum. Recipients are inferred,
+not directly observed. StatsBomb Match Lab and LIVE Match Lab are not shipped.
 
-Wyscout 2017/18 -> StatsBomb 2015/16. Provider and season shift together.
+The first scalar candidates failed the incremental-meaning audit in Spain and
+England: role standardization mostly renames positive pass xT. No overall match
+rating ships. See [E-05](docs/research/E-05-match-score.md) and the
+[capability matrix](docs/research/MATCH-INTELLIGENCE-CAPABILITY-MATRIX.md).
 
-- [x] StatsBomb populations audited from the manifest: 380/380/380/377, 20 teams each
-- [x] xT refit under StatsBomb; turnover semantics re-checked
-- [x] Provider semantic mapping audit (6 concepts, one NOT_COMPARABLE)
-- [x] All five surviving constructs externally evaluated
-- [x] External verdicts recorded on every construct
-- [x] chance_creation minutes curve independently estimated under StatsBomb
-- [x] Construct vs estimator represented in code
-- [x] Entity resolution foundation with regression tests
-- [ ] UEFA physical-data status - verification still running
-- [x] 129 tests pass
-- [x] Licence guard passes, now as a pre-commit hook
-- [x] Working tree clean
+## XI Lab: experimental requirement model implemented
 
-Result: nothing failed. Reliability equal or better under StatsBomb on every
-axis, confounding lower on every axis. Stage 2 gate passed.
+`/xi` offers pre-match Madrid snapshots before 8 April and 6 May 2018, with 4-3-3
+and 4-3-1-2 slot templates. It finds assignments with the least declared structural
+shortfall, not a universally best XI.
 
-## Stage 2 - Player Lab - NEXT
+- Exact CP-SAT assignment, eligibility, locks/exclusions, BALANCE and SATISFY.
+- Lexicographic worst then total normalized deficit; actual status, bounds,
+  quantization and complete requirement inputs recorded.
+- Editable minima, requirement ledger, server-derived change explanations and
+  removal-sensitivity endpoint; candidate-injection primitive for future transfers.
+- Strict prior-calendar-date events, xT fit, rates and threshold construction.
+- Shared team-match worlds and equally optimal necessity/possibility checks.
+  The browser's 12-world bands are exploratory, not calibrated selection chances.
+- Independent exhaustive tiny-instance oracle, synthetic failure cases,
+  temporal leakage checks and real browser coverage.
 
-Four axes as numbers, one gated by an estimator-specific minutes floor. The
-surface should represent what is actually known, including the rejections -
-2 rejected, 1 research-only - rather than filling five radar slots.
+The May 6 snapshot has 16 eligible players under manual football rules and sample
+gates. Fitness/suspension availability is unknown. Only progression and experimental
+side-specific pass-origin rates enter; chance creation, rest defense and keeper
+quality remain unmeasured. Historical rates need not survive changed deployment.
 
-## Stage 2 - Player Lab v0
-Quality and style panels, intervals, shrinkage, role-normalised percentiles.
+The 12-match development diagnostic averages **6.00/11** actual starters, losing
+to the same-eligibility prior-minutes baseline at **6.83/11**. This is a thinking
+aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-requirements.md).
 
-## Stage 3 - XI optimiser
-CP-SAT, role slots, soft constraints with deficit variables, primary structural
-weakness as the largest penalised deficit, sensitivity by re-solve.
+## Partially complete / research-only
 
-## Stage 4 - Uncertainty
-Bootstrap, stable core, contested slots, objective distributions.
+- Optimizer's curse quantified in a synthetic requirement model; oracle shrinkage
+  reduces but does not eliminate it. No football-calibrated correction ships
+  ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
+- Opponent foundation: descriptive match/team aggregates exist; no validated
+  opponent-to-requirement mapping or conditioned solver is implemented.
+- Transfer foundation: candidate injection and re-solve exist; style similarity,
+  functional replacement and marginal system value are not validated products.
 
-## Stage 5 - LIVE
-Real Madrid 2026/27 on a paid aggregate feed plus UEFA physical metrics.
+## Not started or not validated
 
-## Stage 6 - The Bridge
-Calibrated on the four complete women's league seasons, plus NWSL 2023 present in both StatsBomb
-open data and API-Football's free window. Promote only what passes.
+- Pareto alternatives, robust/CVaR/minimax-regret modes, continuity utility,
+  role-transition value models and automatic formation identification.
+- External lineup-utility validation, team-outcome association and forced-change
+  quasi-experiments. No backtest observes the unplayed counterfactual XI.
+- LIVE ingestion and its licensed availability contract; no event coordinates or
+  physical metrics may be fabricated from aggregate inputs.
+- Bridge estimation and paired-corpus validation; candidate sources require a
+  fresh coverage/licensing check before use.
+- Full Opponent/Transfer Labs, learned embeddings, squad construction and VISION.
 
-## Stages 7-10
-Opponent Lab, Transfer Lab, Role Fit research, embeddings and functional
-similarity.
-
-## Stages 11-12 - VISION
-Benchmark first, product second. Measure calibration, tracking, positional error
-and team-shape error before anything renders.
-
-## Stage 13+
-Metronome Fit, transfer retrospectives, tactical presets, squad construction,
-robust optimisation, time machine, command layer.
-
+The next research gates are identification and out-of-sample decision validation,
+not adding more tactical labels. Exact continuation state lives in
+[ASTRA-CHECKPOINT](docs/ASTRA-CHECKPOINT.md).

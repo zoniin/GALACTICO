@@ -2,7 +2,42 @@
 
 ## Layers
 
+The tree below is the long-term module map, not a completeness claim. `bridge`,
+VISION, learned role fit, embeddings and opponent utility remain research/stubs.
+
 ```
+
+## Implemented historical decision path
+
+`api/player_lab.py` serves the frozen Player Lab and registers `api/decision_lab.py`.
+The API renders three code-native pages under `web/`; JavaScript presents server
+decisions and never computes eligibility, coverage or an objective.
+
+| Module | Responsibility |
+|---|---|
+| `profiles/` | Versioned season estimates, gates and shared-match uncertainty |
+| `match_lab/service.py` | Public Pappalardo-only loading, retained provider tags, retrospective xT and file hashes |
+| `match_lab/model.py` | Provider-neutral `MatchIntelligence`: timelines, shot locations, positive pass-xT flow, inferred networks and contribution vectors |
+| `optimization/historical.py` | Strict prior-date snapshot, independent pre-cutoff xT fit, versioned eligibility, heuristic minima and coherent team-match worlds |
+| `optimization/xi/domain.py` | Typed candidates, role-slot templates, requirements, assessments and `XIResult` |
+| `optimization/xi/solver.py` | Exact quantized CP-SAT; lexicographic deficits, certification, tie-aware membership, removal and candidate-injection re-solves |
+
+`GET /api/matches` and `/api/matches/{id}` expose the historical match artifacts;
+`/{id}/{timeline,shots,network,players,flow,teams}` expose individual sections.
+`GET /api/xi/scenarios`, `POST /api/xi/solve` and `POST /api/xi/sensitivity`
+serve the decision model. There is no persistent XI store or separate explain
+service: the solve returns the contributions, requirements, changes and provenance.
+
+Match Lab's full-season xT is retrospective and cannot feed a historical decision
+backtest. XI snapshots refit only on earlier calendar dates. All world inputs,
+requirement inputs, formation rules, solver versions and seeds enter provenance;
+missing exposure stays missing. Necessary–possible membership bounds include
+equivalent optima; a deterministic displayed XI does not resolve those ties.
+
+Opponent conditioning is designed to change requirements, not player ratings.
+Only its descriptive team inputs exist. Candidate injection is a transfer
+foundation, not a validated recruitment ranking. No universal utility, overall
+match rating, learned role adjustment or robust-risk product mode is implemented.
 providers/   adapters; provider quirks terminate here
 ingestion/   raw -> provider-neutral schema -> Parquet
 storage/     DuckDB over Parquet, three tiers kept apart

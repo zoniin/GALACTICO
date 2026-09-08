@@ -154,6 +154,11 @@ Hudl Wyscout both sell one; neither publishes a hobbyist price.
 
 ## ADR-0007 — Stable core and contested slots replace the single optimal XI
 
+**Historical scope.** The rating-noise simulation below motivated the original
+plan; its three-to-five core players and percentage inflation are not results from
+the shipped requirement solver. ADR-0012 supersedes the original frequency-only
+labeling with shared-world, equally-optimal necessity/possibility bounds.
+
 **Problem.** Presenting one XI as the answer overstates what the data supports.
 
 **Decision.** Bootstrap player estimates, re-solve, and report per-player
@@ -230,3 +235,126 @@ and the vendor reads it as covering model weights.
 **Confidence.** High.
 
 **Reversal.** None expected.
+
+---
+
+## ADR-0011 — Freeze Player Lab after repairing shared-world inference
+
+**Problem.** Individually plausible player bootstrap intervals were being paired
+as though independently sampled teammates represented coherent historical worlds.
+Some comparison/scatter paths also bypassed estimator gates.
+
+**Decision.** Use one match-count resample across every player and construct;
+preserve world identities and zero-exposure holes. Require matching world
+namespaces for paired differences and invalidate artifacts when semantics change.
+Apply gates on every public path. A difference interval excluding zero is a
+directional inference, not established practical materiality. Freeze the Player
+Lab implementation after these repairs; do not claim external human acceptance.
+
+**Evidence.** Independent covariance, world-order and missing-exposure regression
+tests, API gate tests and rendered-browser checks. See
+[M-04](docs/research/M-04-shared-match-worlds.md).
+
+**Alternatives rejected.** Independent teammate bootstraps, subtracting interval
+endpoints, and frontend-only suppression of inadmissible estimates.
+
+**Confidence.** High on the repair; conditional on exchangeability of historical
+matches and the fixed estimator. Shared resampling does not cover every uncertainty.
+
+**Reversal.** A validated temporal/dependence-aware resampling design can replace
+the multinomial worlds while retaining their joint identity contract.
+
+---
+
+## ADR-0012 — Optimize explicit structural requirements, not universal XI quality
+
+**Decision.** XI Lab identifies eligible assignments with the least declared
+structural shortfall. BALANCE minimizes the largest normalized deficit, then total
+deficit. SATISFY makes active minima hard. Normalizers and priority order are
+inspectable tactical policy, not learned football utility. There is no weighted
+quality sum, chemistry uplift or continuity bonus.
+
+CP-SAT solves a discretized model and reports status, bounds and quantization.
+Only certified optima are called optimal. An independent exhaustive oracle checks
+tiny instances. Equal optima remain equal: opposite-membership solves identify
+necessary and possible players, including otherwise indistinguishable keepers.
+Shared-world frequency bands preserve that ambiguity. The browser defaults to 12
+worlds; CORE/FAVORED/CONTESTED/FRINGE are descriptive policy labels, not universal
+scientific boundaries or probabilities of being the better footballer.
+
+**Evidence.** [E-06](docs/research/E-06-lineup-requirements.md) records formulation,
+oracle checks and a temporal development diagnostic: 6.00/11 actual-starter overlap
+versus 6.83 for prior minutes. [M-05](docs/research/M-05-optimizer-selection-bias.md)
+shows that deficit minimization still selects estimation noise. No calibrated
+optimism correction, Pareto frontier or robust risk mode is claimed.
+
+**Alternatives rejected.** Treating measurement validity as utility, arbitrary
+quality weights, independent player worlds and stable-core claims based solely on
+the solver's administrative representative of tied optima.
+
+**Confidence.** High on the conditional decision claim and exactness contract;
+low on predictive or causal football usefulness, which is not established.
+
+**Reversal.** Preregistered temporal and external validation against strong simple
+baselines could justify a separately named predictive utility model. It would not
+retroactively make the current requirements causal.
+
+---
+
+## ADR-0013 — Match Lab ships a contribution vector, not an overall rating
+
+**Decision.** Describe recorded match events and expose exact component filters,
+units, availability and provenance. Positive completed-pass xT is named as such;
+it is not momentum or conserved possession contribution. Missing Wyscout xG is
+unavailable, and pass recipients reconstructed by adjacency are labeled inferred.
+No commercial rating collection or imitation is used.
+
+**Evidence.** The scalar audit covers 9,722 Spain and 9,579 England outfield
+player-matches. Accounting is exactly the existing pass-xT baseline; role-relative
+standardization correlates .988 and .982 with it. This earns neither a new
+construct nor an overall contribution claim. See
+[E-05](docs/research/E-05-match-score.md).
+
+**Alternatives rejected.** Renaming xT as a rating, adding its key-pass subset a
+second time, arbitrary weights over incomparable components and transferring
+season reliability to confidence in an individual match performance.
+
+**Confidence.** High that these candidates do not identify an overall rating.
+This does not prove every possible scalar is useless.
+
+**Reversal.** A declared utility or legally available target, discriminant and
+temporal/external validation, baseline improvements and a mathematically faithful
+decomposition could support a narrowly named contribution index.
+
+---
+
+## ADR-0014 — Historical selection uses strict decision-day cutoffs and declared eligibility
+
+**Decision.** Build Madrid candidates from prior appearances, not current-team
+metadata. Exclude the entire decision day from events, xT training and historical
+rates. Use versioned manual broad-slot rules and a 900-minute outfield floor.
+Eligibility is separate from value: the formation changes assignment, not a
+player's estimated rate. Historical rates are carried forward additively as an
+explicit, deployment-dependent assumption.
+
+Default minima and normalizers are median prior starting-XI sums of pre-cutoff
+player rates. Editing a minimum does not change its original normalizer. Side
+pass-origin rates are experimental descriptors, not validated team width. The
+May 6 snapshot contains 16 eligible players; chance creation, rest defense and
+goalkeeping quality are unmeasured, and injury/suspension/fitness is unverified.
+
+**Evidence.** Tests poison future and same-day rows and verify unchanged inputs.
+Isco and Modrić have 1,638 and 1,733 prior league minutes respectively, below the
+Wyscout creation floor. Hiding that limitation would predetermine the flagship
+BBC-versus-Isco comparison without measuring its crucial creative dimension.
+
+**Alternatives rejected.** Full-season Player Lab inputs in historical backtests,
+same-day matches assumed complete, current squad metadata as historical truth,
+and mechanically inferred romantic role labels.
+
+**Confidence.** High on leakage prevention; manual roles and thresholds remain
+heuristics. This is not a complete historical availability reconstruction.
+
+**Reversal.** Licensed historical availability, validated formation evidence and
+temporally validated role-transition estimates can replace individual assumptions
+with separately versioned evidence.
