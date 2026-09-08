@@ -108,25 +108,66 @@ test.describe('comparison', () => {
     const read = async (a, b) => {
       await page.goto(BASE, { waitUntil: 'networkidle' });
       await page.click('button[data-view="compare"]');
+      const response = page.waitForResponse(r => r.url().includes('/api/compare?') && r.ok());
       for (const [sel, box, name] of [['#qa', '#ra', a], ['#qb', '#rb', b]]) {
         await page.fill(sel, name);
         await page.waitForSelector(`${box} button[data-id]`, { timeout: 10000 });
         await page.click(`${box} button[data-id]`);
       }
+      const data = await (await response).json();
       await page.waitForSelector('#cmp .cmp', { timeout: 10000 });
-      return page.locator('#cmp').innerText();
+      const ordered = [
+        ...data.deltas.filter(row => row.family !== 'style'),
+        ...data.deltas.filter(row => row.family === 'style'),
+      ];
+      await expect(page.locator('#cmp .cmp')).toHaveCount(ordered.length);
+      for (const [index, row] of ordered.entries()) {
+        const rendered = page.locator('#cmp .cmp').nth(index).locator('.lang');
+        // Compare the actual interpretation, excluding the numeric audit suffix.
+        const caption = await rendered.evaluate(element => {
+          const copy = element.cloneNode(true);
+          copy.querySelectorAll('span').forEach(node => node.remove());
+          return copy.textContent.replace(/\s+/g, ' ').trim();
+        });
+        const leader = row.family !== 'style' && row.interpretable && !row.tied
+          ? (row.delta > 0 ? data.left.name : data.right.name) : null;
+        expect(row.leader, row.construct_id + ' names the measured leader').toBe(leader);
+        const expected = row.family !== 'style' && row.interpretable
+          ? `${leader || ''} ${row.language}`.trim() : row.language;
+        expect(caption, row.construct_id + ' renders its API interpretation').toBe(expected);
+        await expect(rendered.locator('strong')).toHaveCount(
+          row.family !== 'style' && row.directional_difference ? 1 : 0);
+      }
+      return data.deltas;
     };
 
     const forward = await read('modric', 'kroos');
     const reverse = await read('kroos', 'modric');
 
-    // Style must never name a winner in either ordering.
-    for (const text of [forward, reverse]) {
-      expect(text).toContain('no better direction');
+    // Non-vacuous: this real pair has an interval excluding zero in at least one
+    // quality construct. Counting retired "materially higher" wording passed 0=0.
+    for (const rows of [forward, reverse]) {
+      expect(rows.filter(row => row.family !== 'style' && row.directional_difference).length)
+        .toBeGreaterThan(0);
+      for (const row of rows.filter(row => row.family === 'style')) {
+        expect(row.leader).toBeNull();
+        expect(row.language).toContain('no better direction');
+      }
     }
-    // The same constructs must be judged material in both directions.
-    const materialCount = t => (t.match(/materially higher/g) || []).length;
-    expect(materialCount(forward)).toBe(materialCount(reverse));
+    // Normalize by player identity, not left/right order. The higher measured
+    // player and uncertainty interpretation must survive reversing the pair.
+    const interpretation = rows => rows.filter(row => row.family !== 'style').map(row => ({
+      construct: row.construct_id,
+      leader: row.leader,
+      interpretable: row.interpretable,
+      directional: row.directional_difference,
+      language: row.language,
+    }));
+    expect(interpretation(forward)).toEqual(interpretation(reverse));
+    for (const row of forward) {
+      const swapped = reverse.find(other => other.construct_id === row.construct_id);
+      if (row.delta !== null) expect(row.delta).toBeCloseTo(-swapped.delta, 12);
+    }
   });
 });
 

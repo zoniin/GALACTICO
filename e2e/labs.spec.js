@@ -84,6 +84,18 @@ test('XI Lab renders eleven unique players and lock/reoptimize preserves the ins
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(overflow).toBe(false);
   await page.screenshot({ path: path.join('docs', 'screenshots', '12-xi-mobile.png'), fullPage: true });
+  // Linux exposed a native-select min-content width that Segoe UI happened to
+  // fit. Stress the real scenario label with wider glyphs on every platform.
+  await page.locator('#scenario').evaluate(select => { select.style.fontFamily = 'monospace'; });
+  const controlBounds = await page.locator('#scenario').evaluate(select => ({
+    width: select.getBoundingClientRect().width,
+    available: select.parentElement.getBoundingClientRect().width,
+    right: select.getBoundingClientRect().right,
+    viewport: innerWidth,
+  }));
+  expect(controlBounds.width).toBeLessThanOrEqual(controlBounds.available);
+  expect(controlBounds.right).toBeLessThanOrEqual(controlBounds.viewport);
+  await page.locator('#scenario').evaluate(select => { select.style.fontFamily = ''; });
 });
 
 test('infeasible hard minima remain visible and editable without silent relaxation', async ({ page }) => {
