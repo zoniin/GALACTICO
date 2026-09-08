@@ -1,0 +1,20 @@
+{
+  "version": "opening-lineup-transport-v1",
+  "xt_training_league": "Spain",
+  "xt_cutoff": "2017-11-01",
+  "development_start": "2017-11-01",
+  "test_start": "2018-03-01",
+  "end": "2018-07-01",
+  "window_seconds": 1800,
+  "minimum_prior_minutes": 900,
+  "minimum_opening_starts": 3,
+  "minimum_team_windows": 5,
+  "minimum_development_rows": 50,
+  "minimum_test_rows": 50,
+  "minimum_test_weeks": 8,
+  "bootstrap_replicates": 2000,
+  "seed": 20260908,
+  "primary_loss": "squared_error",
+  "negative_predictions": "clip_to_zero",
+  "interval_quantiles": [0.025, 0.975]
+}
