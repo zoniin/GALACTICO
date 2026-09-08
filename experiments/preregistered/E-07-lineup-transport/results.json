@@ -27,10 +27,10 @@
     "config_hash": "70f75d67adaaa5434137e21217d6c33ef8958c1f0116e83d4c22461f37385b11",
     "protocol_hash": "6dd5005c8a3503045bfee3eb929e93adf0f5cdbf0fa09841804ee954ddf07e08",
     "source_hashes": {
-      "experiments\\run_lineup_transport.py": "ecc55da651ed051f7c30443aef68eb1e41cebec75c10a784743eedebf957f8f7",
+      "experiments\\run_lineup_transport.py": "7b9a99fdc908c5c0157b0a78b75e3acb910c96cbe069e86ba07507b18952ffe2",
       "galactico\\validation\\transport.py": "1773f7d06256c5f944105402cc324b584324f6707d3a857a33aace2f343d4102",
       "galactico\\validation\\transport_forecast.py": "a07899da65e7a4191c3173891d586539abe7a11de8a011301e729d8e508c3101",
-      "galactico\\validation\\forecast_evaluation.py": "2af98f243b8b5c1d63c902f3d0c35e08b658a3e92cec9310032356f8919a7590",
+      "galactico\\validation\\forecast_evaluation.py": "d011620cb70caa39d7c505cb9ba018dba7002aa3151a412b582a5d0206056136",
       "galactico\\optimization\\historical.py": "93ddaf2d4f77a4bf632cd9a304c45121a4eb3ee704fd2590305b483ba8718ee5",
       "galactico\\models\\xt\\__init__.py": "1a6ce82a047f65d035a33b13f62fcefbc0b9c9ac9f84485d96baebd7f92bd8b8",
       "galactico\\models\\xt\\grid.py": "51be0c6eab709783055227bf6aa7389366d5b6cc010e01f164af4a79e8be1ce9"
@@ -128,6 +128,97 @@
       "counts_can_overlap": true
     }
   },
+  "unfitted_holdout_metrics": {
+    "Spain": {
+      "team_mean": {
+        "mse": 0.08210694368005027,
+        "rmse": 0.2865430921869349,
+        "mae": 0.2217229793226358,
+        "mean_prediction": 0.5915018591107621,
+        "mean_observation": 0.6444530869205719
+      },
+      "team_recent": {
+        "mse": 0.08548988002238761,
+        "rmse": 0.2923865250355899,
+        "mae": 0.23889388602600237,
+        "mean_prediction": 0.6369666618749756,
+        "mean_observation": 0.6444530869205719
+      },
+      "opponent_mean": {
+        "mse": 0.11291033130781364,
+        "rmse": 0.33602132567415066,
+        "mae": 0.2660173303678425,
+        "mean_prediction": 0.575262062995264,
+        "mean_observation": 0.6444530869205719
+      },
+      "role_sum": {
+        "mse": 0.09645837365471405,
+        "rmse": 0.31057748413997116,
+        "mae": 0.2479997898414065,
+        "mean_prediction": 0.5813317250801009,
+        "mean_observation": 0.6444530869205719
+      },
+      "lineup_sum": {
+        "mse": 0.08453625998480072,
+        "rmse": 0.29075119945548067,
+        "mae": 0.22978689994286844,
+        "mean_prediction": 0.6128460996278897,
+        "mean_observation": 0.6444530869205719
+      },
+      "operational_sum": {
+        "mse": 0.07180502634807204,
+        "rmse": 0.2679645990575472,
+        "mae": 0.22129380339391794,
+        "mean_prediction": 0.6433624479298385,
+        "mean_observation": 0.6444530869205719
+      }
+    },
+    "England": {
+      "team_mean": {
+        "mse": 0.10428281089314964,
+        "rmse": 0.3229284919191084,
+        "mae": 0.2540027303446437,
+        "mean_prediction": 0.5609116058432742,
+        "mean_observation": 0.582304215602889
+      },
+      "team_recent": {
+        "mse": 0.11291651151190923,
+        "rmse": 0.33603052169692743,
+        "mae": 0.26567789663852354,
+        "mean_prediction": 0.5231333842590706,
+        "mean_observation": 0.582304215602889
+      },
+      "opponent_mean": {
+        "mse": 0.12905931763325856,
+        "rmse": 0.3592482674046718,
+        "mae": 0.27524812521767356,
+        "mean_prediction": 0.5359994865805355,
+        "mean_observation": 0.582304215602889
+      },
+      "role_sum": {
+        "mse": 0.1339157170317285,
+        "rmse": 0.3659449644847275,
+        "mae": 0.28867196290477803,
+        "mean_prediction": 0.585342280335779,
+        "mean_observation": 0.582304215602889
+      },
+      "lineup_sum": {
+        "mse": 0.10327626428535772,
+        "rmse": 0.3213662463379714,
+        "mae": 0.2601676598739542,
+        "mean_prediction": 0.5839866702561489,
+        "mean_observation": 0.582304215602889
+      },
+      "operational_sum": {
+        "mse": 0.1166844543702296,
+        "rmse": 0.3415910630713714,
+        "mae": 0.2935606546712125,
+        "mean_prediction": 0.6602108147553476,
+        "mean_observation": 0.582304215602889
+      }
+    }
+  },
+  "unfitted_interpretation": "Descriptive errors of fixed comparators; insufficient cohorts cannot establish incremental lineup prediction. No fitted-model errors are implied.",
   "verdict": "INCONCLUSIVE",
   "reason": "insufficient development rows: 3 < 50"
 }

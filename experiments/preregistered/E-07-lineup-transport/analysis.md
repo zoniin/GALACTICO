@@ -1,12 +1,15 @@
 # E-07 result: joint lineup evidence is too sparse
 
-**INCONCLUSIVE — no forecast coefficients were fitted and no held-out forecast
-errors were evaluated.** The frozen development minimum was 50 team observations;
-only 3 qualified. Neither the nominal-minute floor nor the dates were relaxed.
+**INCONCLUSIVE — no forecast coefficients were fitted and no fitted context-versus-
+lineup comparison was evaluated.** The frozen development minimum was 50 team
+observations; only 3 qualified. Neither the nominal-minute floor nor the dates
+were relaxed. Unfitted comparator errors are reported descriptively below.
 
 The protocol was committed at `1de6939` before forecast evaluation. The implementation
-was committed at `8f6f65a`; subsequent repairs corrected a provenance file path and
-completed the specified coverage fields, not the sample rules or scoring target.
+was committed at `8f6f65a`; subsequent repairs corrected a provenance file path,
+completed coverage fields, and restored the protocol's unfitted comparator report
+after independent review found it was omitted by the early model-fitting gate.
+These repairs change neither the sample rules nor the scoring target.
 The complete aggregate artifact is `results.json`; raw panels are not committed.
 
 | Cohort | Candidate team observations | Clean opening matches | Eligible team observations |
@@ -27,6 +30,23 @@ is conservatively excluded. Exact event clocks catch a dismissal at 1798.98 seco
 whose rounded lineup metadata says minute 31. Unattributed completed passes are
 not assigned to a guessed player. All valid early histories inform later estimates,
 even when their own lineups fail the evaluation exposure floor.
+
+## Unfitted comparator errors
+
+These mean squared errors use the same eligible holdout rows (41 Spain, 32 England).
+They require no fitted coefficients. Both samples fall below the frozen 50-row
+minimum: these are descriptive comparisons, not a confirmatory ranking or the
+preregistered incremental context-versus-lineup test. All MAE/RMSE and prediction
+means remain in `results.json`.
+
+| Unfitted comparator | Spain MSE | England MSE |
+|---|---:|---:|
+| Prior team mean | 0.082107 | 0.104283 |
+| Prior team last five | 0.085490 | 0.112917 |
+| Opponent's prior conceded mean | 0.112910 | 0.129059 |
+| Sum of broad-role means | 0.096458 | 0.133916 |
+| Sum of player opening-window means | 0.084536 | 0.103276 |
+| Prior full-match player xT/minute, scaled to 30 minutes | 0.071805 | 0.116684 |
 
 ## What this establishes
 

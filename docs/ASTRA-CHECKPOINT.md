@@ -4,8 +4,9 @@
 
 Follow-through: `8f6f65a` implements E-07's research pipeline; protocol `1de6939`
 was pushed before evaluation. Linux mobile repair `b4c60cb` is also pushed, and
-GitHub Actions run `34244854096` passed both core and browser jobs. The final
-E-07 result/provenance documentation commit is the current HEAD after this update.
+GitHub Actions runs `34244854096` and `34278076355` passed both core and browser
+jobs (the latter for E-07 result commit `8158f6b`). The final report correction
+is the current HEAD after this update; verify its push/CI with the commands below.
 
 Release code: `f86e520` — connected historical Match/XI UI, APIs and browser tests.
 `6392598` — exact XI/shared-world core. `95b9904` — Match Lab/scalar null.
@@ -49,9 +50,13 @@ No credentials or proprietary data are needed or committed.
   intrinsic width, not hiding overflow. Added font-fallback regression. Repaired
   a vacuous comparison E2E assertion to check actual API interpretation/leader.
 - E-07 prospectively committed analysis plan, clean first-30 panel, prior-date
-  histories, fixed-reference xT, paired calendar-week evaluation and 25 tests.
+  histories, fixed-reference xT, paired calendar-week evaluation and 27 tests.
   Both public leagues executed; INCONCLUSIVE at the frozen development sample gate.
   Aggregate results/code/data/config hashes are preserved beside the protocol.
+- Fresh review repaired an early-return reporting omission: all six unfitted
+  holdout comparators now report descriptive errors even when fitting is gated.
+  No protocol, evidence floor, cohort or fitted-model decision changed. CI now
+  explicitly reports that no registered research tests is not a validation pass.
 
 ## CURRENT STATE MAP
 
@@ -65,7 +70,7 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation within this milestone. Final evidence: **245 Python
+No unfinished implementation within this milestone. Final evidence: **247 Python
 tests passed**, Ruff clean (including all new experiment/preparation scripts),
 **11 Playwright tests passed** after the mobile repair; Linux CI independently passed.
 Screenshots 10/11/12 were inspected, including actual dismissed-player exposure,
@@ -83,8 +88,9 @@ One upstream TestClient/httpx deprecation warning remains; it is not a test fail
 - E-07: only 3/314 development team observations passed the joint per-player
   evidence gates (50 required); holdouts had 41 Spain /32 England observations.
   Independent cumulative-minutes calculation confirmed the 3 complete development
-  XIs above 900 prior nominal minutes. No OLS coefficients or forecast errors were
-  evaluated. Do not label this a failure of predictive lineup information.
+  XIs above 900 prior nominal minutes. No OLS coefficients or fitted-model error
+  comparison were evaluated. Six unfitted comparators have descriptive errors;
+  do not label this a failure of predictive lineup information.
 
 ## OPEN BLOCKERS
 
@@ -103,6 +109,8 @@ npx playwright test e2e/smoke.spec.js e2e/labs.spec.js
 uv run python scripts/check_licensing.py
 git diff --check
 git status --short
+git log origin/main..HEAD
+gh run list --branch main --limit 3
 uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090
 ```
 

@@ -6,7 +6,7 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-Follow-through verification adds 25 opening-window/forecast tests (245 total locally)
+Follow-through verification adds 27 opening-window/forecast tests (247 total locally)
 and a Linux font-fallback overflow regression. GitHub Actions run
 [34244854096](https://github.com/zoniin/GALACTICO/actions/runs/34244854096) passed
 both core checks and actual historical browser tests after the mobile repair.
@@ -58,7 +58,8 @@ claim has passed a validation gate.
 E-07's preregistered incremental-lineup forecast experiment is **INCONCLUSIVE**:
 only 3 Spain development team observations survive the joint individual evidence
 gates, below the fixed minimum of 50. The 41/32 eligible Spain/England holdout rows
-also fall below their minima. No coefficients or holdout errors were evaluated.
+also fall below their minima. No coefficients or fitted context-versus-lineup
+comparison were evaluated. Unfitted comparator errors are descriptive only.
 The gates were not relaxed; see [the result](experiments/preregistered/E-07-lineup-transport/analysis.md).
 
 ## Original staged validation agenda

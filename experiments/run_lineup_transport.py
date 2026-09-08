@@ -14,7 +14,12 @@ import pandas as pd
 
 from galactico.optimization.historical import PUBLIC, ROOT, fit_prior_xt
 from galactico.providers.base import assert_may_host
-from galactico.validation.forecast_evaluation import evaluate_period, fit_forecasts, joint_verdict
+from galactico.validation.forecast_evaluation import (
+    evaluate_period,
+    fit_forecasts,
+    joint_verdict,
+    unfitted_metrics,
+)
 from galactico.validation.transport import build_transport_panel
 from galactico.validation.transport_forecast import forecast_rows
 
@@ -145,6 +150,16 @@ def run():
             league: coverage(audits[league], qualities[league], config["test_start"], config["end"])
             for league in forecasts
         },
+        "unfitted_holdout_metrics": {
+            league: unfitted_metrics(
+                rows[(rows.date >= config["test_start"]) & (rows.date < config["end"])]
+            )
+            for league, rows in forecasts.items()
+        },
+        "unfitted_interpretation": (
+            "Descriptive errors of fixed comparators; insufficient cohorts cannot "
+            "establish incremental lineup prediction. No fitted-model errors are implied."
+        ),
     }
     try:
         fitted = fit_forecasts(development, minimum_rows=config["minimum_development_rows"])

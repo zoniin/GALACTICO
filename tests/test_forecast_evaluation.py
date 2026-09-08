@@ -10,6 +10,7 @@ from galactico.validation.forecast_evaluation import (
     fit_forecasts,
     joint_verdict,
     paired_week_interval,
+    unfitted_metrics,
 )
 
 
@@ -118,3 +119,21 @@ def test_clipping_and_primary_squared_loss_are_explicit():
     assert result["metrics"]["context"]["mae"] == 2
     assert result["paired_mse_difference"] == 0
     assert result["status"] == "NOT_ESTABLISHED"
+    assert unfitted_metrics(data) == {name: result["metrics"][name] for name in BASELINES}
+
+
+def test_unfitted_empty_cohort_is_unavailable_not_zero_error():
+    metrics = unfitted_metrics(rows(0))
+    assert set(metrics) == set(BASELINES)
+    for values in metrics.values():
+        assert set(values) == {"mse", "rmse", "mae", "mean_prediction", "mean_observation"}
+        assert all(value is None for value in values.values())
+
+
+def test_unfitted_comparators_reject_nonfinite_common_rows():
+    for column in (*BASELINES, "target"):
+        for invalid in (np.nan, np.inf, -np.inf):
+            data = rows(2)
+            data.loc[0, column] = invalid
+            with pytest.raises(ValueError, match="common finite"):
+                unfitted_metrics(data)

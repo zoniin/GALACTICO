@@ -155,3 +155,22 @@ def joint_verdict(results: dict) -> str:
         if all(s == "INCREMENTAL_PREDICTION" for s in statuses)
         else "NOT_ESTABLISHED"
     )
+
+
+def unfitted_metrics(rows: pd.DataFrame) -> dict:
+    """Descriptive comparator errors remain reportable when model fitting is gated."""
+    target = rows.target.to_numpy(dtype=float)
+    output = {}
+    for name in BASELINES:
+        forecast = rows[name].to_numpy(dtype=float)
+        if not np.isfinite(target).all() or not np.isfinite(forecast).all():
+            raise ValueError("unfitted comparison needs common finite targets and forecasts")
+        error = forecast - target
+        output[name] = {
+            "mse": float(np.mean(error**2)) if len(rows) else None,
+            "rmse": float(np.sqrt(np.mean(error**2))) if len(rows) else None,
+            "mae": float(np.mean(np.abs(error))) if len(rows) else None,
+            "mean_prediction": float(np.mean(forecast)) if len(rows) else None,
+            "mean_observation": float(np.mean(target)) if len(rows) else None,
+        }
+    return output
