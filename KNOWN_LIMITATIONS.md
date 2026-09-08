@@ -67,6 +67,10 @@ When a limitation changes, preserve the experiment in `docs/research/`.
 - The development backtest loses to prior minutes: 6.00 versus 6.83 actual starters
   out of 11. Manager agreement is not correctness, and tied representative choice
   can change overlap. See [E-06](docs/research/E-06-lineup-requirements.md).
+- Joint evidence availability is restrictive: E-07's temporal forecast study had
+  only 3 eligible development lineups when all ten outfield starters had to meet
+  the 900-minute floor. No forecast model could be fitted under the frozen rules.
+  This is a coverage failure, not proof that lineup information is useless.
 
 ## Uncertainty and selection bias
 

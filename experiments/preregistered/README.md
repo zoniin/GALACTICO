@@ -18,4 +18,6 @@ the contradiction is the finding.
 | Experiment | Status |
 |---|---|
 | E-01 metronome fit | exploratory, complete — `docs/research/E-01-metronome-fit.md` |
-| E-02 metronome confirmatory | preregistered, not yet run |
+| E-02 metronome confirmatory | executed; frozen rejection rule not met; research-only |
+| E-04 conditional spatial tendency | preregistered, not run |
+| E-07 lineup transport | executed; INCONCLUSIVE at the preregistered development sample gate |

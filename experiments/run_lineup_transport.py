@@ -62,9 +62,15 @@ def load_corpus(league):
 def coverage(audit, quality, start, end):
     selected = audit[(pd.to_datetime(audit.date) >= start) & (pd.to_datetime(audit.date) < end)]
     games = quality[(pd.to_datetime(quality.date) >= start) & (pd.to_datetime(quality.date) < end)]
+    accepted = selected[selected.accepted]
     return {
         "candidate_team_rows": len(selected),
         "accepted_team_rows": int(selected.accepted.sum()),
+        "accepted_clubs": int(accepted.team_id.nunique()),
+        "accepted_weeks": int(pd.to_datetime(accepted.date).dt.to_period("W-SUN").nunique()),
+        "maximum_accepted_club_share": (
+            float(accepted.team_id.value_counts().max() / len(accepted)) if len(accepted) else None
+        ),
         "candidate_games": len(games),
         "clean_opening_games": int(games.opening_valid.sum()),
         "team_row_exclusion_counts": dict(
@@ -94,7 +100,8 @@ def run():
         ROOT / "galactico/validation/transport_forecast.py",
         ROOT / "galactico/validation/forecast_evaluation.py",
         ROOT / "galactico/optimization/historical.py",
-        ROOT / "galactico/models/xt.py",
+        ROOT / "galactico/models/xt/__init__.py",
+        ROOT / "galactico/models/xt/grid.py",
     ]
     provenance = {
         "experiment": config["version"],

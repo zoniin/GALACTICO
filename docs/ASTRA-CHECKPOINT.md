@@ -2,11 +2,18 @@
 
 ## CURRENT COMMIT
 
+Follow-through: `8f6f65a` implements E-07's research pipeline; protocol `1de6939`
+was pushed before evaluation. Linux mobile repair `b4c60cb` is also pushed, and
+GitHub Actions run `34244854096` passed both core and browser jobs. The final
+E-07 result/provenance documentation commit is the current HEAD after this update.
+
 Release code: `f86e520` — connected historical Match/XI UI, APIs and browser tests.
 `6392598` — exact XI/shared-world core. `95b9904` — Match Lab/scalar null.
 Earlier milestones: `470907a` decision/falsification plan; `c28ebfc` shared-match
 uncertainty and Player Lab gates; `b9652c6` baseline lint repair.
-Entry was clean `f0ed51a`. Commits are local; no push has been performed.
+Entry was clean `f0ed51a`. The original release through `05e7d9f` was pushed to
+main at the user's request. Follow-through work is being committed/pushed as well;
+use `git log origin/main..HEAD` to verify the exact remaining local commits.
 
 Workspace: `C:/Users/Owner/galactico`; PowerShell; use the local `.venv`.
 Permissions are unrestricted with approval disabled; omit sandbox_permissions.
@@ -38,6 +45,13 @@ No credentials or proprietary data are needed or committed.
   fresh certification/hash/bounds, no stale bootstrap metadata.
 - README/roadmap/decisions/validation/limitations rewritten from actual state;
   all linked research files exist.
+- Fixed Linux-only native-select overflow by constraining the grid/control's
+  intrinsic width, not hiding overflow. Added font-fallback regression. Repaired
+  a vacuous comparison E2E assertion to check actual API interpretation/leader.
+- E-07 prospectively committed analysis plan, clean first-30 panel, prior-date
+  histories, fixed-reference xT, paired calendar-week evaluation and 25 tests.
+  Both public leagues executed; INCONCLUSIVE at the frozen development sample gate.
+  Aggregate results/code/data/config hashes are preserved beside the protocol.
 
 ## CURRENT STATE MAP
 
@@ -51,9 +65,9 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation within this milestone. Final evidence: **220 Python
+No unfinished implementation within this milestone. Final evidence: **245 Python
 tests passed**, Ruff clean (including all new experiment/preparation scripts),
-**11 Playwright tests passed** against freshly prepared data in 55.5 seconds.
+**11 Playwright tests passed** after the mobile repair; Linux CI independently passed.
 Screenshots 10/11/12 were inspected, including actual dismissed-player exposure,
 BBC/Isco inclusion, selected-player gold and 390px layout. Licensing guard is clean.
 One upstream TestClient/httpx deprecation warning remains; it is not a test failure.
@@ -66,6 +80,11 @@ One upstream TestClient/httpx deprecation warning remains; it is not a test fail
   fixtures. Development diagnostic, not causal/external validation.
 - Exact deficit minimization selects noise. Oracle Gaussian shrinkage helps in
   simulation but is not calibrated for Madrid; no correction ships.
+- E-07: only 3/314 development team observations passed the joint per-player
+  evidence gates (50 required); holdouts had 41 Spain /32 England observations.
+  Independent cumulative-minutes calculation confirmed the 3 complete development
+  XIs above 900 prior nominal minutes. No OLS coefficients or forecast errors were
+  evaluated. Do not label this a failure of predictive lineup information.
 
 ## OPEN BLOCKERS
 
@@ -98,6 +117,7 @@ uv run python experiments/run_xi_backtest.py --since 2018-03-01
 uv run python experiments/run_match_score.py --competition Spain
 uv run python experiments/run_match_score.py --competition England
 uv run python experiments/run_optimizer_curse.py
+uv run python experiments/run_lineup_transport.py
 ```
 
 England requires its public corpus. New learned utility or role-transition models
@@ -105,9 +125,15 @@ need a protocol before confirmatory evaluation; do not tune to the 12-match wind
 
 ## EXACT NEXT FILES
 
-`docs/research/STAGE-3-QUESTIONS.md`, `docs/research/E-06-lineup-requirements.md`,
-`experiments/run_xi_backtest.py`: decide/preregister the next temporal role/value
-baseline experiment. The current requirement model loses to prior minutes.
+`experiments/preregistered/E-07-lineup-transport/analysis.md` and `results.json`:
+read the coverage failure before planning E-08. Do not amend E-07's thresholds.
+The most defensible next study is separately preregistered aggregate forecasting
+with partially pooled sparse player histories, or genuinely longer permitted data.
+This is NOT permission to bypass individual Player Lab evidence gates.
+`galactico/validation/transport.py`, `transport_forecast.py`, `forecast_evaluation.py`:
+reuse pure tested windows/scoring; new evidence pooling needs a new implementation
+and protocol. Existing opening histories intentionally include early observations
+that did not themselves pass the later evaluation floor.
 `galactico/optimization/historical.py`: deployment transport, sample/availability
 limits and fixed-xT uncertainty require research, not undocumented coefficients.
 `galactico/optimization/xi/solver.py`: candidate injection and removal foundations
@@ -117,5 +143,5 @@ experiment only after a reliability/meaning audit. No automatic opponent adjustm
 
 ## AGENT RESULTS NOT YET INTEGRATED
 
-None. All earlier council and fresh review findings are integrated. Completed or
-errored agents hold no exclusive work requiring recovery.
+None. Two follow-through agents hit their usage boundary; root completed the
+forecast module and collected green remote CI. No exclusive unfinished work remains.

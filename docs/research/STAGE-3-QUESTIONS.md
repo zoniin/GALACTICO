@@ -1,5 +1,13 @@
 # Stage 3 — questions only
 
+Historical entry document, preserved below. Stage 3 now has an implemented
+conditional requirement engine: see [E-06](E-06-lineup-requirements.md).
+The first incremental lineup-forecast study, [E-07](../../experiments/preregistered/E-07-lineup-transport/analysis.md),
+stopped at its preregistered sample gate. The original questions remain useful;
+claims below that no implementation or decision work exists describe the earlier
+entry state, not the current repository. Old rating-noise/stable-core examples
+are not measurements from the shipped requirement engine.
+
 **No implementation. No answers. This document exists so Stage 3 begins with a
 council rather than with a solver.**
 

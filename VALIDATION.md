@@ -6,6 +6,11 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
+Follow-through verification adds 25 opening-window/forecast tests (245 total locally)
+and a Linux font-fallback overflow regression. GitHub Actions run
+[34244854096](https://github.com/zoniin/GALACTICO/actions/runs/34244854096) passed
+both core checks and actual historical browser tests after the mobile repair.
+
 The final local verification run for this milestone passed 220 Python tests and
 11 Playwright tests. Ruff and the licensing guard passed. Desktop/mobile product
 screenshots were inspected, and fresh adversarial findings were repaired: shared
@@ -49,6 +54,12 @@ acceptance is claimed. Test counts belong to the executable run, not a roadmap.
 The current XI model is an explicit-requirement thinking aid. No team-outcome,
 causal lineup superiority, role-transition value or external decision-utility
 claim has passed a validation gate.
+
+E-07's preregistered incremental-lineup forecast experiment is **INCONCLUSIVE**:
+only 3 Spain development team observations survive the joint individual evidence
+gates, below the fixed minimum of 50. The 41/32 eligible Spain/England holdout rows
+also fall below their minima. No coefficients or holdout errors were evaluated.
+The gates were not relaxed; see [the result](experiments/preregistered/E-07-lineup-transport/analysis.md).
 
 ## Original staged validation agenda
 

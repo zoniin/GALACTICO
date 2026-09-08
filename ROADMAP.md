@@ -85,6 +85,10 @@ aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-re
   role-transition value models and automatic formation identification.
 - External lineup-utility validation, team-outcome association and forced-change
   quasi-experiments. No backtest observes the unplayed counterfactual XI.
+- E-07's first observed-opening forecast protocol was executed but remained
+  inconclusive at its development sample gate (3 qualifying observations versus
+  50 required). Next: separately preregister aggregate partial-evidence prediction
+  or obtain longer permitted history; do not retrofit lower floors into E-07.
 - LIVE ingestion and its licensed availability contract; no event coordinates or
   physical metrics may be fabricated from aggregate inputs.
 - Bridge estimation and paired-corpus validation; candidate sources require a

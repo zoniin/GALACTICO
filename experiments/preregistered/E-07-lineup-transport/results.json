@@ -1,0 +1,133 @@
+{
+  "provenance": {
+    "experiment": "opening-lineup-transport-v1",
+    "config": {
+      "version": "opening-lineup-transport-v1",
+      "xt_training_league": "Spain",
+      "xt_cutoff": "2017-11-01",
+      "development_start": "2017-11-01",
+      "test_start": "2018-03-01",
+      "end": "2018-07-01",
+      "window_seconds": 1800,
+      "minimum_prior_minutes": 900,
+      "minimum_opening_starts": 3,
+      "minimum_team_windows": 5,
+      "minimum_development_rows": 50,
+      "minimum_test_rows": 50,
+      "minimum_test_weeks": 8,
+      "bootstrap_replicates": 2000,
+      "seed": 20260908,
+      "primary_loss": "squared_error",
+      "negative_predictions": "clip_to_zero",
+      "interval_quantiles": [
+        0.025,
+        0.975
+      ]
+    },
+    "config_hash": "70f75d67adaaa5434137e21217d6c33ef8958c1f0116e83d4c22461f37385b11",
+    "protocol_hash": "6dd5005c8a3503045bfee3eb929e93adf0f5cdbf0fa09841804ee954ddf07e08",
+    "source_hashes": {
+      "experiments\\run_lineup_transport.py": "ecc55da651ed051f7c30443aef68eb1e41cebec75c10a784743eedebf957f8f7",
+      "galactico\\validation\\transport.py": "1773f7d06256c5f944105402cc324b584324f6707d3a857a33aace2f343d4102",
+      "galactico\\validation\\transport_forecast.py": "a07899da65e7a4191c3173891d586539abe7a11de8a011301e729d8e508c3101",
+      "galactico\\validation\\forecast_evaluation.py": "2af98f243b8b5c1d63c902f3d0c35e08b658a3e92cec9310032356f8919a7590",
+      "galactico\\optimization\\historical.py": "93ddaf2d4f77a4bf632cd9a304c45121a4eb3ee704fd2590305b483ba8718ee5",
+      "galactico\\models\\xt\\__init__.py": "1a6ce82a047f65d035a33b13f62fcefbc0b9c9ac9f84485d96baebd7f92bd8b8",
+      "galactico\\models\\xt\\grid.py": "51be0c6eab709783055227bf6aa7389366d5b6cc010e01f164af4a79e8be1ce9"
+    },
+    "packages": {
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "pyarrow": "25.0.1"
+    },
+    "xt_surface_hash": "caa56022d4a84564ea8e668667fb9969c54c20981e93f59dd7f7006195f82fba",
+    "xt_training_matches": 100,
+    "xt_latest_training_date": "2017-10-30 20:00:00",
+    "xt_training_frame_hash": "4c3b3225bbc75f2045f929082a6c3479dcc6f0c2113db122912b3b001b38bb1c",
+    "dataset_manifests": {
+      "Spain": {
+        "actions": "60f876a435f34ad5ada57fea2ad09a94f4b48babfb2b4c9676238b974845ab90",
+        "matches": "a6c1ca1ac42b0d12e7492a19d2940a616dff44afe0c61c1469f2900c7eba52bb",
+        "lineups": "a3d18e2d0379f58ccf9fb80fefb737c503cc612760e4a82e2c1b15be6df6ff58",
+        "players": "607ffb621da6390084c550f746a723582d1656bd63656a999df8b81b954f9602",
+        "raw_matches": "9787475e64c496d44dc394f98def2610cc31809637fc10c13ec151b37b6118ce",
+        "raw_events": "b55fabec6624e469b9396100de915eaca334d4457de2c61a887a7a67de79a154"
+      },
+      "England": {
+        "actions": "f2332cfa82d7fc64c147d97982edcbf8892eb0cf92928d090f25af1d7e682332",
+        "matches": "f34bd586fb3dfea1e7b30afb5910dfcae829c89e56633851e8d1f4df84f839f4",
+        "lineups": "f9f9eef2ba15e6fe269dde37c042f1e8087b9217444a209c209474c48e32eb66",
+        "players": "607ffb621da6390084c550f746a723582d1656bd63656a999df8b81b954f9602",
+        "raw_matches": "620725c2e6a58b4db3e574ed6c559136477451d81af543f8a06bd85c3da3fe29",
+        "raw_events": "301599543aa1a7fa457bb8ef33c9fe860bf81dca65d418d618d68abcda3defad"
+      }
+    },
+    "data_license": "Public Pappalardo/Wyscout CC BY 4.0; no proprietary sources"
+  },
+  "development_coverage": {
+    "candidate_team_rows": 314,
+    "accepted_team_rows": 3,
+    "accepted_clubs": 3,
+    "accepted_weeks": 2,
+    "maximum_accepted_club_share": 0.3333333333333333,
+    "candidate_games": 157,
+    "clean_opening_games": 136,
+    "team_row_exclusion_counts": {
+      "below_prior_minutes_floor": 311,
+      "insufficient_player_openings": 202,
+      "invalid_opening": 42
+    },
+    "game_quality_exclusion_counts": {
+      "early_substitution": 17,
+      "nonstarting_opening_actor": 16,
+      "early_dismissal": 2,
+      "unattributed_opening_pass": 2
+    },
+    "counts_can_overlap": true
+  },
+  "test_coverage": {
+    "Spain": {
+      "candidate_team_rows": 246,
+      "accepted_team_rows": 41,
+      "accepted_clubs": 16,
+      "accepted_weeks": 10,
+      "maximum_accepted_club_share": 0.17073170731707318,
+      "candidate_games": 123,
+      "clean_opening_games": 108,
+      "team_row_exclusion_counts": {
+        "below_prior_minutes_floor": 203,
+        "insufficient_player_openings": 81,
+        "invalid_opening": 30
+      },
+      "game_quality_exclusion_counts": {
+        "early_dismissal": 3,
+        "early_substitution": 11,
+        "nonstarting_opening_actor": 8,
+        "unattributed_opening_pass": 1
+      },
+      "counts_can_overlap": true
+    },
+    "England": {
+      "candidate_team_rows": 202,
+      "accepted_team_rows": 32,
+      "accepted_clubs": 12,
+      "accepted_weeks": 9,
+      "maximum_accepted_club_share": 0.1875,
+      "candidate_games": 101,
+      "clean_opening_games": 87,
+      "team_row_exclusion_counts": {
+        "below_prior_minutes_floor": 166,
+        "insufficient_player_openings": 67,
+        "invalid_opening": 28
+      },
+      "game_quality_exclusion_counts": {
+        "early_substitution": 12,
+        "nonstarting_opening_actor": 12,
+        "early_dismissal": 3
+      },
+      "counts_can_overlap": true
+    }
+  },
+  "verdict": "INCONCLUSIVE",
+  "reason": "insufficient development rows: 3 < 50"
+}

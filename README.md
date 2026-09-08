@@ -179,6 +179,11 @@ Two important negative results accompany this release:
 - A role-standardized match-score candidate correlated **0.988 / 0.982** with ordinary positive pass-xT in Spain / England. It is a renamed reference scale, not an identified overall contribution score. Match Lab stays vector-valued. [E-05](docs/research/E-05-match-score.md)
 - In 12 late-season Madrid fixtures, the requirement engine's representative XI matched **6.00** actual starters on average, below the eligible prior-minutes baseline's **6.83**. This development diagnostic measures manager agreement, not counterfactual quality. [E-06](docs/research/E-06-lineup-requirements.md)
 
+The next preregistered forecast study could not fit its model: requiring all ten
+starters to meet the current evidence floor left **3 development observations**, below
+the frozen minimum of 50. No forecast skill or failure is inferred from that lack of
+coverage. [E-07](experiments/preregistered/E-07-lineup-transport/analysis.md)
+
 ![Historical Match Lab](docs/screenshots/10-match-lab.png)
 
 Shots have no invented xG. Networks identify inferred rather than observed
