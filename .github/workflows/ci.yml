@@ -25,7 +25,15 @@ jobs:
       # they fail the model is wrong, not the code, so they report separately.
       - name: research acceptance
         continue-on-error: true
-        run: uv run pytest -q -m research
+        run: |
+          set +e
+          uv run pytest -q -m research
+          research_exit=$?
+          if [ "$research_exit" -eq 5 ]; then
+            echo "No registered research acceptance tests; this is not a research validation pass."
+            exit 0
+          fi
+          exit "$research_exit"
 
   historical-browser:
     runs-on: ubuntu-latest
