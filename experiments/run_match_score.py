@@ -86,9 +86,13 @@ def run(competition="Spain"):
         "player_matches": len(sample),
         "correlations": correlations,
         "unavailable": ["tracking touches", "xG + xA", "licensed external performance target"],
-        "verdict": "No overall contribution scalar identified; accounting is exactly the xT baseline.",
-        "limits": "Descriptive whole-season audit. Role z-scoring is a reference change, not utility. "
-        "No held-out predictive or causal validation was performed.",
+        "verdict": (
+            "No overall contribution scalar identified; accounting is exactly the xT baseline."
+        ),
+        "limits": (
+            "Descriptive whole-season audit. Role z-scoring is a reference change, not utility. "
+            "No held-out predictive or causal validation was performed."
+        ),
     }
 
 

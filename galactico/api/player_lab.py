@@ -32,6 +32,7 @@ from ..features.spec import SPECS
 from ..identity import normalise_name
 from ..profiles import REJECTED, RESEARCH_ONLY
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
+from .decision_lab import router as decision_router
 
 # Constructs proposed with a claim and a registry entry but not yet through the
 # lifecycle. Counted in the hero, so 'proposed' has a machine-readable meaning
@@ -41,7 +42,8 @@ UNTESTED = ("carrying_value", "defensive_action_profile", "shot_profile")
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
 STATIC = Path(__file__).resolve().parent.parent.parent / "web"
 
-app = FastAPI(title="Galáctico Player Lab", version="0.2.0")
+app = FastAPI(title="Galáctico Historical Decision Laboratory", version="0.3.0")
+app.include_router(decision_router)
 
 
 @lru_cache(maxsize=1)

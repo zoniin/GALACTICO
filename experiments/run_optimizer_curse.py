@@ -4,8 +4,8 @@ Synthetic experiment, not football calibration. Exhaustive sets avoid reliance
 on the solver being audited. Oracle shrinkage assumes known population variance.
 """
 
-from itertools import combinations
 import json
+from itertools import combinations
 
 import numpy as np
 

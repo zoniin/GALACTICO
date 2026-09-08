@@ -11,12 +11,28 @@ from galactico.optimization.xi import (
     Formation,
     Slot,
     TacticalRequirement,
+    removal_sensitivity,
     solve_xi,
 )
 
 
 def formation(n=2):
     return Formation("tiny", tuple(Slot(str(i), str(i), ("MF",), 0.5, 0.5) for i in range(n)))
+
+
+def test_removal_keeps_hard_policy_seed_scale_and_template_without_fake_swaps():
+    players = [Candidate(i, str(i), "MF", {"p": value}) for i, value in ((1, 2), (2, 1), (3, 0))]
+    requirements = [TacticalRequirement("p", "Progression", "p", 3, 3)]
+    base = solve_xi(players, requirements, formation(), mode="SATISFY", seed=17, quantization=10)
+    assert base.solution_status == "OPTIMAL"
+    removed = removal_sensitivity(base, players, requirements, player_ids=[1])[1]
+    assert removed["solution_status"] == "INFEASIBLE"
+    assert removed["comparison_available"] is False
+    assert removed["in"] == removed["out"] == []
+    assert removed["provenance"]["mode"] == "SATISFY"
+    assert removed["provenance"]["seed"] == 17
+    assert removed["provenance"]["quantization"] == 10
+    assert removed["provenance"]["formation_inputs"] == base.provenance["formation_inputs"]
 
 
 def oracle(players, requirements, shape, scale=100_000, locked=(), excluded=()):

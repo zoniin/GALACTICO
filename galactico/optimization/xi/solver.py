@@ -26,6 +26,7 @@ from .domain import (
     Formation,
     RequirementAssessment,
     SelectionFrequency,
+    Slot,
     TacticalRequirement,
     XIResult,
 )
@@ -131,6 +132,7 @@ def solve_xi(
             "requirement_version": _fingerprint([asdict(r) for r in requirements]),
             "tactical_requirement_inputs": [asdict(r) for r in requirements],
             "formation_version": _fingerprint(asdict(formation)),
+            "formation_inputs": asdict(formation),
             "seed": seed,
             "mode": mode,
             "decision_claim": "Feasible XIs favored under explicit tactical requirements",
@@ -555,8 +557,17 @@ def removal_sensitivity(
     """Model sensitivity to excluding a player; not causal player importance."""
     output = {}
     old_ids = {a.player_id for a in base.assignments}
+    template = base.provenance.get("formation_inputs")
+    shape = (
+        Formation(template["formation_id"], tuple(Slot(**s) for s in template["slots"]))
+        if template
+        else base.formation
+    )
     for pid in sorted(player_ids if player_ids is not None else old_ids):
         options = dict(solve_options)
+        options.setdefault("mode", base.provenance.get("mode", "BALANCE"))
+        options.setdefault("seed", base.provenance.get("seed", 20260906))
+        options.setdefault("quantization", base.provenance.get("quantization", QUANTIZATION))
         inherited = dict(base.provenance)
         # A re-solve retains its evidence lineage, not the previous solve's
         # certification or resampling results. solve_xi records fresh hashes,
@@ -575,20 +586,26 @@ def removal_sensitivity(
         options["locked"] = tuple(p for p in base.locked if p != pid)
         options["excluded"] = tuple(sorted(set(base.excluded) | {pid}))
         options["analyze_ties"] = False
-        result = solve_xi(candidates, requirements, base.formation, **options)
+        result = solve_xi(candidates, requirements, shape, **options)
         new_ids = {a.player_id for a in result.assignments}
+        comparison_available = bool(old_ids and new_ids)
         output[pid] = {
             "solution_status": result.solution_status,
             "objective_vector": result.objective_vector,
             "objective_change": tuple(
                 b - a for a, b in zip(base.objective_vector, result.objective_vector, strict=False)
             ),
-            "in": sorted(new_ids - old_ids),
-            "out": sorted(old_ids - new_ids),
+            "comparison_available": comparison_available,
+            "in": sorted(new_ids - old_ids) if comparison_available else [],
+            "out": sorted(old_ids - new_ids) if comparison_available else [],
             "requirements": [asdict(r) for r in result.requirements],
             "provenance": dict(result.provenance),
             "infeasibility_reasons": list(result.infeasibility_reasons),
-            "claim": "Sensitivity of this requirement model to excluding the player",
+            "claim": (
+                "Sensitivity of this requirement model to excluding the player"
+                if comparison_available
+                else "No comparison: the baseline or removal scenario has no feasible XI."
+            ),
         }
     return output
 
