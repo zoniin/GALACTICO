@@ -2,6 +2,10 @@
 
 ## CURRENT COMMIT
 
+Current entry: clean `946bf4a`, verified on 13 September. E-08 partial-history
+aggregate forecast protocol is being frozen before new error evaluation. Do not
+amend E-07 or promote aggregate findings into individual/decision evidence gates.
+
 Follow-through: `8f6f65a` implements E-07's research pipeline; protocol `1de6939`
 was pushed before evaluation. Linux mobile repair `b4c60cb` is also pushed, and
 GitHub Actions runs `34244854096` and `34278076355` passed both core and browser
@@ -70,7 +74,14 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation within this milestone. Final evidence: **247 Python
+E-08 implementation is now in progress: root owns protocol, CLI, provenance and
+result integration; `e08_history_implementation` owns partial_history.py and tests;
+`partial_evidence_council` owns partial_evaluation.py and tests. Both use only
+synthetic outcomes until the protocol is committed. Independent adversarial design
+review integrated: strong baseline, finite tuning with context-only boundary,
+strict temporal folds, and identity-link stress tests without permutation p-values.
+
+Previous release evidence: **247 Python
 tests passed**, Ruff clean (including all new experiment/preparation scripts),
 **11 Playwright tests passed** after the mobile repair; Linux CI independently passed.
 Screenshots 10/11/12 were inspected, including actual dismissed-player exposure,
@@ -133,6 +144,14 @@ need a protocol before confirmatory evaluation; do not tune to the 12-match wind
 
 ## EXACT NEXT FILES
 
+`experiments/preregistered/E-08-partial-history/preregistration.md` and config.json:
+commit before E-08 errors are evaluated. Root adds experiments/run_partial_history.py,
+then execute, preserve aggregate results and publish the actual verdict. Expected
+pure interfaces: partial_history.partial_rows(panel, config) -> (rows, audit);
+partial_evaluation.evaluate_study({league: rows}, config) -> aggregate diagnostics.
+Run `.venv\Scripts\python.exe -m pytest -q` plus Ruff/licensing before committing
+implementation/results. Reviewers must check protocol fidelity and provenance.
+
 `experiments/preregistered/E-07-lineup-transport/analysis.md` and `results.json`:
 read the coverage failure before planning E-08. Do not amend E-07's thresholds.
 The most defensible next study is separately preregistered aggregate forecasting
@@ -151,5 +170,5 @@ experiment only after a reliability/meaning audit. No automatic opponent adjustm
 
 ## AGENT RESULTS NOT YET INTEGRATED
 
-None. Two follow-through agents hit their usage boundary; root completed the
-forecast module and collected green remote CI. No exclusive unfinished work remains.
+E-08 history/evaluation implementation agents active; see IN PROGRESS. Statistical
+council and adversarial design advice are integrated into the written protocol.
