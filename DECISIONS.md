@@ -358,3 +358,34 @@ heuristics. This is not a complete historical availability reconstruction.
 **Reversal.** Licensed historical availability, validated formation evidence and
 temporally validated role-transition estimates can replace individual assumptions
 with separately versioned evidence.
+
+---
+
+## ADR-0015 — Aggregate partial evidence does not certify individuals or XI utility
+
+**Decision.** Keep the conditional-requirement engine separate from predictive
+research. E-08 admits sparse player histories only inside an aggregate forecast;
+it does not lower Player Lab or historical XI eligibility gates. Unknown histories
+receive declared prior broad-position references, not invented observed zeros.
+Development-only tuning includes a context-only boundary, and compares against
+team context, broad-position composition and evidence-coverage controls.
+
+**Evidence.** E-07's joint individual floor left only three development observations.
+E-08's distinct aggregate cohort provides 272, but the frozen forward selection
+prefers context only over every finite pooling strength. Its incremental signal is
+NOT_ESTABLISHED. Spain/England evaluation periods were reused, and identity-link
+stress controls are not exchangeable permutation tests. See
+[E-08](experiments/preregistered/E-08-partial-history/analysis.md).
+
+**Alternatives rejected.** Lowering product evidence gates to rescue a validation
+sample, interpreting pooled sparse histories as posterior player quality, tuning
+the chosen model against evaluation outcomes, and treating a zero loss-difference
+interval between identical models as proof of no player effects.
+
+**Confidence.** High on implementation and the frozen selection outcome; limited
+on generality. This rejects neither all lineup forecasting nor causal player value.
+
+**Reversal.** A separately specified model with a credible new rationale and fresh
+permitted evaluation evidence may establish predictive information. Turning that
+into decision utility still needs its own claim and validation. Meanwhile, useful
+product development can expose alternative XIs under explicit requirements.

@@ -21,3 +21,4 @@ the contradiction is the finding.
 | E-02 metronome confirmatory | executed; frozen rejection rule not met; research-only |
 | E-04 conditional spatial tendency | preregistered, not run |
 | E-07 lineup transport | executed; INCONCLUSIVE at the preregistered development sample gate |
+| E-08 partial opening histories | executed; NOT_ESTABLISHED, development selection chose context only |

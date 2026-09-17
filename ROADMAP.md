@@ -87,8 +87,10 @@ aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-re
   quasi-experiments. No backtest observes the unplayed counterfactual XI.
 - E-07's first observed-opening forecast protocol was executed but remained
   inconclusive at its development sample gate (3 qualifying observations versus
-  50 required). Next: separately preregister aggregate partial-evidence prediction
-  or obtain longer permitted history; do not retrofit lower floors into E-07.
+  50 required). E-08's separately preregistered partial-history study reached 272
+  development rows but selected context only; incremental prediction was not
+  established. No learned XI utility is promoted. Next product work: inspectable
+  alternative feasible XIs; renewed prediction claims need fresh permitted evidence.
 - LIVE ingestion and its licensed availability contract; no event coordinates or
   physical metrics may be fabricated from aggregate inputs.
 - Bridge estimation and paired-corpus validation; candidate sources require a

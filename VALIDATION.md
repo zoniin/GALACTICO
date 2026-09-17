@@ -6,6 +6,12 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
+E-08 follow-through adds 33 synthetic history/selection/reporting checks. The local
+run on 17 September passed **280 Python tests**, including full empty-cohort,
+future-poisoning, fixed-fold selection, identity-link and same-subset comparator
+checks. Independent pre-outcome code review passed; these prove implementation
+properties, not the forecast claim.
+
 Follow-through verification adds 27 opening-window/forecast tests (247 total locally)
 and a Linux font-fallback overflow regression. GitHub Actions run
 [34244854096](https://github.com/zoniin/GALACTICO/actions/runs/34244854096) passed
@@ -61,6 +67,13 @@ gates, below the fixed minimum of 50. The 41/32 eligible Spain/England holdout r
 also fall below their minima. No coefficients or fitted context-versus-lineup
 comparison were evaluated. Unfitted comparator errors are descriptive only.
 The gates were not relaxed; see [the result](experiments/preregistered/E-07-lineup-transport/analysis.md).
+
+E-08 reached its gates with 272 Spain development rows and 216/174 evaluation rows
+in Spain/England, but development tuning selected `context_only` over all finite
+regularization candidates. **NOT_ESTABLISHED**: no incremental player-history signal.
+The selected-minus-baseline [0, 0] interval is identical predictions, not absence of
+player effects. Reused periods and nonexchangeable identity-link controls preclude
+confirmatory/causal interpretation. See [E-08](experiments/preregistered/E-08-partial-history/analysis.md).
 
 ## Original staged validation agenda
 

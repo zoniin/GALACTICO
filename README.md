@@ -184,6 +184,11 @@ starters to meet the current evidence floor left **3 development observations**,
 the frozen minimum of 50. No forecast skill or failure is inferred from that lack of
 coverage. [E-07](experiments/preregistered/E-07-lineup-transport/analysis.md)
 
+The partial-history follow-up reached **272 development observations**, but
+development-only tuning selected **context only**, not any player-history variant.
+Incremental prediction was not established; no learned XI rating ships.
+[E-08](experiments/preregistered/E-08-partial-history/analysis.md)
+
 ![Historical Match Lab](docs/screenshots/10-match-lab.png)
 
 Shots have no invented xG. Networks identify inferred rather than observed

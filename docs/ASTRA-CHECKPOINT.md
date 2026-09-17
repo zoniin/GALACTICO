@@ -2,9 +2,12 @@
 
 ## CURRENT COMMIT
 
-Current entry: clean `946bf4a`, verified on 13 September. E-08 partial-history
-aggregate forecast protocol is being frozen before new error evaluation. Do not
-amend E-07 or promote aggregate findings into individual/decision evidence gates.
+Current entry: clean `946bf4a`, verified on 13 September; resumed 17 September.
+E-08 protocol `68454bf` was committed/pushed before errors were evaluated.
+History implementation `b5b1fe9` and evaluator/CLI `61fe186` are pushed to main.
+Do not amend E-07 or promote aggregate findings into individual/decision gates.
+E-08 completed: NOT_ESTABLISHED, context-only selected; result publication is the
+HEAD after this update. Code CI `35263719118` passed both jobs.
 
 Follow-through: `8f6f65a` implements E-07's research pipeline; protocol `1de6939`
 was pushed before evaluation. Linux mobile repair `b4c60cb` is also pushed, and
@@ -61,6 +64,10 @@ No credentials or proprietary data are needed or committed.
   holdout comparators now report descriptive errors even when fitting is gated.
   No protocol, evidence floor, cohort or fitted-model decision changed. CI now
   explicitly reports that no registered research tests is not a validation pass.
+- E-08 executed twice unchanged; full aggregate artifact saved and independently
+  audited (source/data/config/protocol/xT hashes and all 21 selection procedures).
+  272 development rows, 216 Spain /174 England evaluation rows. Context-only won
+  development selection; NOT_ESTABLISHED. No product evidence gates changed.
 
 ## CURRENT STATE MAP
 
@@ -74,12 +81,12 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-E-08 implementation is now in progress: root owns protocol, CLI, provenance and
-result integration; `e08_history_implementation` owns partial_history.py and tests;
-`partial_evidence_council` owns partial_evaluation.py and tests. Both use only
-synthetic outcomes until the protocol is committed. Independent adversarial design
-review integrated: strong baseline, finite tuning with context-only boundary,
-strict temporal folds, and identity-link stress tests without permutation p-values.
+E-08 is complete and published. Root ran all **280 Python tests**, including 33
+E-08 checks; Ruff clean and Linux CI green. The next product increment is now in
+progress: exact, diverse equivalent-XI witnesses under unchanged certified maximum
+and total deficits. `xi_diverse_core` owns core solver/domain/tests; root owns API
+and integration. Do not call this Pareto, robust or maximum-diversity optimization.
+The API/browser must show witness search status and preserve eligibility/locks.
 
 Previous release evidence: **247 Python
 tests passed**, Ruff clean (including all new experiment/preparation scripts),
@@ -102,6 +109,10 @@ One upstream TestClient/httpx deprecation warning remains; it is not a test fail
   XIs above 900 prior nominal minutes. No OLS coefficients or fitted-model error
   comparison were evaluated. Six unfitted comparators have descriptive errors;
   do not label this a failure of predictive lineup information.
+- E-08: coverage increased to 272 development observations, but forward tuning
+  selected context only (MSE .071181 vs .071671 for best finite k=3). Incremental
+  prediction NOT_ESTABLISHED. The zero loss-difference interval compares identical
+  predictions, not proof of absent player effects. No rescue tuning is authorized.
 
 ## OPEN BLOCKERS
 
@@ -137,6 +148,7 @@ uv run python experiments/run_match_score.py --competition Spain
 uv run python experiments/run_match_score.py --competition England
 uv run python experiments/run_optimizer_curse.py
 uv run python experiments/run_lineup_transport.py
+uv run python experiments/run_partial_history.py
 ```
 
 England requires its public corpus. New learned utility or role-transition models
@@ -144,9 +156,9 @@ need a protocol before confirmatory evaluation; do not tune to the 12-match wind
 
 ## EXACT NEXT FILES
 
-`experiments/preregistered/E-08-partial-history/preregistration.md` and config.json:
-commit before E-08 errors are evaluated. Root adds experiments/run_partial_history.py,
-then execute, preserve aggregate results and publish the actual verdict. Expected
+`experiments/preregistered/E-08-partial-history/analysis.md` and results.json:
+completed and independently reviewed; do not rerun to resume or tune after the null.
+Implemented
 pure interfaces: partial_history.partial_rows(panel, config) -> (rows, audit);
 partial_evaluation.evaluate_study({league: rows}, config) -> aggregate diagnostics.
 Run `.venv\Scripts\python.exe -m pytest -q` plus Ruff/licensing before committing
@@ -170,5 +182,5 @@ experiment only after a reliability/meaning audit. No automatic opponent adjustm
 
 ## AGENT RESULTS NOT YET INTEGRATED
 
-E-08 history/evaluation implementation agents active; see IN PROGRESS. Statistical
-council and adversarial design advice are integrated into the written protocol.
+E-08 council, code and artifact audit fully integrated. New `xi_diverse_core` agent
+is implementing exact equivalent-XI witnesses; see IN PROGRESS.

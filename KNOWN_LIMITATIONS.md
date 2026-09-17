@@ -71,6 +71,11 @@ When a limitation changes, preserve the experiment in `docs/research/`.
   only 3 eligible development lineups when all ten outfield starters had to meet
   the 900-minute floor. No forecast model could be fitted under the frozen rules.
   This is a coverage failure, not proof that lineup information is useless.
+- E-08's aggregate partial-history follow-up solved the coverage problem, but
+  development-only selection preferred context without individual-history residuals.
+  This specified model did not establish incremental prediction. It does not show
+  that players have no effect; reused evaluation periods are not fresh validation.
+  No sparse-player certification or learned XI weights follow from aggregate coverage.
 
 ## Uncertainty and selection bias
 
