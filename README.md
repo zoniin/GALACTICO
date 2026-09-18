@@ -14,7 +14,7 @@ Three connected historical workstations now run locally:
 
 - **Player Lab** — five surviving season constructs, with shared-match uncertainty and evidence gates.
 - **Match Lab** — actual lineups, key/tactical timelines, positive pass-xT flow, shot locations, inferred passing networks and player-match contribution vectors.
-- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, and tie-aware selection stability. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
+- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability and personnel-diverse equivalent XIs. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
 
 XI Lab does **not** identify the best football XI. It finds feasible XIs with the
 least shortfall against declared progression and pass-origin requirements.
@@ -22,6 +22,11 @@ Thresholds and eligibility are inspectable rules; finishing, defensive structure
 goalkeeping quality and fitness are not modeled.
 
 ![Historical XI Lab](docs/screenshots/11-xi-lab.png)
+
+Click **Explore equivalent XIs** to inspect different personnel with the same
+certified shortfall objective. Each alternative replaces at least two players;
+the search is not a ranking or exhaustive catalogue of every optimum.
+[Search contract](docs/research/XI-EQUIVALENT-ALTERNATIVES.md)
 
 Most football analytics projects ask what statistics they can calculate.
 Galáctico first asks whether the statistic means what its name implies.

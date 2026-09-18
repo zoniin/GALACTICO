@@ -50,7 +50,7 @@ jobs:
       # Public CC BY 4.0 only. Runtime corpus is never uploaded as an artifact.
       - run: uv run python scripts/fetch_pappalardo.py --only Spain
       - run: uv run python scripts/prepare_lab.py
-      - run: npx playwright test e2e/smoke.spec.js e2e/labs.spec.js
+      - run: npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -89,8 +89,8 @@ aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-re
   inconclusive at its development sample gate (3 qualifying observations versus
   50 required). E-08's separately preregistered partial-history study reached 272
   development rows but selected context only; incremental prediction was not
-  established. No learned XI utility is promoted. Next product work: inspectable
-  alternative feasible XIs; renewed prediction claims need fresh permitted evidence.
+  established. No learned XI utility is promoted. Inspectable personnel-diverse
+  equivalent XIs are now implemented; renewed prediction claims need fresh evidence.
 - LIVE ingestion and its licensed availability contract; no event coordinates or
   physical metrics may be fabricated from aggregate inputs.
 - Bridge estimation and paired-corpus validation; candidate sources require a

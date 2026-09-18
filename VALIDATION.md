@@ -6,6 +6,14 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
+Equivalent-XI exploration is verified with **308 local Python tests** and **12
+Playwright tests** across all three labs. New independent brute-force cases check
+both lexicographic objectives, pairwise personnel diversity, conditional exhaustion,
+deadline/status honesty and isolation from bootstrap/tie analysis. API tests retain
+locks, exclusions and unavailable dimensions. Real Madrid browser checks compare
+the actual response rosters with the rendered ledger and discard delayed responses
+after a lock changes. Desktop and 390px screenshots were manually inspected.
+
 E-08 follow-through adds 33 synthetic history/selection/reporting checks. The local
 run on 17 September passed **280 Python tests**, including full empty-cohort,
 future-poisoning, fixed-fold selection, identity-link and same-subset comparator

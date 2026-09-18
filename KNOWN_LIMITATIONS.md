@@ -67,6 +67,10 @@ When a limitation changes, preserve the experiment in `docs/research/`.
 - The development backtest loses to prior minutes: 6.00 versus 6.83 actual starters
   out of 11. Manager agreement is not correctness, and tied representative choice
   can change overlap. See [E-06](docs/research/E-06-lineup-requirements.md).
+- Equivalent alternatives share the certified quantized objective, not necessarily
+  identical raw requirement values or football value. Sequential diversity cuts
+  do not enumerate all optima or find the largest possible diverse set. Search
+  timeouts are incomplete, not evidence that no more alternatives exist.
 - Joint evidence availability is restrictive: E-07's temporal forecast study had
   only 3 eligible development lineups when all ten outfield starters had to meet
   the 900-minute floor. No forecast model could be fitted under the frozen rules.

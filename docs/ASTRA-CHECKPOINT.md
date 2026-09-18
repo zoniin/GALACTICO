@@ -6,14 +6,15 @@ Current entry: clean `946bf4a`, verified on 13 September; resumed 17 September.
 E-08 protocol `68454bf` was committed/pushed before errors were evaluated.
 History implementation `b5b1fe9` and evaluator/CLI `61fe186` are pushed to main.
 Do not amend E-07 or promote aggregate findings into individual/decision gates.
-E-08 completed: NOT_ESTABLISHED, context-only selected; result publication is the
-HEAD after this update. Code CI `35263719118` passed both jobs.
+E-08 completed: NOT_ESTABLISHED, context-only selected; published/pushed `4ce4d5d`.
+Code CI `35263719118` passed both jobs. Equivalent-XI core/API is `abe548c`;
+browser/docs release is HEAD after this update. Verify final push/CI below.
 
 Follow-through: `8f6f65a` implements E-07's research pipeline; protocol `1de6939`
 was pushed before evaluation. Linux mobile repair `b4c60cb` is also pushed, and
 GitHub Actions runs `34244854096` and `34278076355` passed both core and browser
-jobs (the latter for E-07 result commit `8158f6b`). The final report correction
-is the current HEAD after this update; verify its push/CI with the commands below.
+jobs (the latter for E-07 result commit `8158f6b`). Final E-07 report correction
+`946bf4a` also passed CI `34278961603` before the E-08 continuation.
 
 Release code: `f86e520` — connected historical Match/XI UI, APIs and browser tests.
 `6392598` — exact XI/shared-world core. `95b9904` — Match Lab/scalar null.
@@ -68,6 +69,13 @@ No credentials or proprietary data are needed or committed.
   audited (source/data/config/protocol/xT hashes and all 21 selection procedures).
   272 development rows, 216 Spain /174 England evaluation rows. Context-only won
   development selection; NOT_ESTABLISHED. No product evidence gates changed.
+- Equivalent-XI search: typed witnesses with both certified objective values fixed,
+  pairwise personnel-distance cuts, explicit incomplete/exhausted statuses and
+  parent/constraint fingerprints. Cuts never enter tie analysis or bootstrap worlds.
+- `/api/xi/alternatives` and actual browser ledger ship. Default Madrid returns
+  three witnesses, each replacing two players, under original nonzero minima.
+  Delayed-response/lock invalidation, dirty-minima guard and mobile layout tested.
+  Screenshots 13/14 manually inspected. No alternative receives a quality rank.
 
 ## CURRENT STATE MAP
 
@@ -81,12 +89,12 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-E-08 is complete and published. Root ran all **280 Python tests**, including 33
-E-08 checks; Ruff clean and Linux CI green. The next product increment is now in
-progress: exact, diverse equivalent-XI witnesses under unchanged certified maximum
-and total deficits. `xi_diverse_core` owns core solver/domain/tests; root owns API
-and integration. Do not call this Pareto, robust or maximum-diversity optimization.
-The API/browser must show witness search status and preserve eligibility/locks.
+No unfinished implementation in this milestone. Full local verification passed
+**308 Python tests** and **12 Playwright tests**; Ruff clean. The additional oracle
+checks both lexicographic stages, pairwise diversity and conditional exhaustion.
+One initial test sat on an integer-rounding boundary; its eligibility fixture was
+corrected, not the solver's hard constraints. Core/API/UI agent work is integrated.
+Final release push/CI is the only handoff check if resuming before its completion.
 
 Previous release evidence: **247 Python
 tests passed**, Ruff clean (including all new experiment/preparation scripts),
@@ -127,7 +135,7 @@ To run the committed product from the prepared workspace:
 ```powershell
 uv run ruff check galactico tests
 uv run pytest -q
-npx playwright test e2e/smoke.spec.js e2e/labs.spec.js
+npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js
 uv run python scripts/check_licensing.py
 git diff --check
 git status --short
@@ -136,8 +144,8 @@ gh run list --branch main --limit 3
 uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090
 ```
 
-Open `/`, `/match?id=2565907` or `/xi` on that server. The final session starts a
-local server on port 8090; check it before starting another. For a fresh checkout,
+Open `/`, `/match?id=2565907` or `/xi` on that server. Check whether a local server
+already listens on port 8090 before starting another. For a fresh checkout,
 follow README's fetch/prepare steps. Do not redownload/rebuild merely to resume.
 
 Next research reproductions (not unfinished release work):
@@ -161,26 +169,27 @@ completed and independently reviewed; do not rerun to resume or tune after the n
 Implemented
 pure interfaces: partial_history.partial_rows(panel, config) -> (rows, audit);
 partial_evaluation.evaluate_study({league: rows}, config) -> aggregate diagnostics.
-Run `.venv\Scripts\python.exe -m pytest -q` plus Ruff/licensing before committing
-implementation/results. Reviewers must check protocol fidelity and provenance.
+Future predictive claims require a new rationale and fresh permitted evidence;
+these coefficients/estimates do not enter Player Lab or XI Lab.
 
 `experiments/preregistered/E-07-lineup-transport/analysis.md` and `results.json`:
-read the coverage failure before planning E-08. Do not amend E-07's thresholds.
-The most defensible next study is separately preregistered aggregate forecasting
-with partially pooled sparse player histories, or genuinely longer permitted data.
-This is NOT permission to bypass individual Player Lab evidence gates.
+retain the coverage failure and unchanged thresholds. E-08 is already executed;
+do not repeat its design stage or bypass individual Player Lab evidence gates.
 `galactico/validation/transport.py`, `transport_forecast.py`, `forecast_evaluation.py`:
 reuse pure tested windows/scoring; new evidence pooling needs a new implementation
 and protocol. Existing opening histories intentionally include early observations
 that did not themselves pass the later evaluation floor.
 `galactico/optimization/historical.py`: deployment transport, sample/availability
 limits and fixed-xT uncertainty require research, not undocumented coefficients.
-`galactico/optimization/xi/solver.py`: candidate injection and removal foundations
-are available; future alternatives/robust policies need explicit preferences.
+`docs/research/XI-EQUIVALENT-ALTERNATIVES.md`, `galactico/optimization/xi/solver.py`,
+`web/xi.html`: exact diverse-equivalence exploration is complete. A possible next
+product increment is explicit epsilon/Pareto exploration, but it needs separately
+declared tradeoffs; do not label current equality witnesses Pareto or robust.
 `galactico/match_lab/model.py`: team descriptors can feed an opponent requirement
 experiment only after a reliability/meaning audit. No automatic opponent adjustment.
 
 ## AGENT RESULTS NOT YET INTEGRATED
 
-E-08 council, code and artifact audit fully integrated. New `xi_diverse_core` agent
-is implementing exact equivalent-XI witnesses; see IN PROGRESS.
+None. E-08 council/code/artifact review and equivalent-XI core/API/UI work are
+integrated. Several agents hit usage boundaries; root completed testing, repaired
+the unfinished fixture, inspected screenshots and owns final push/CI verification.

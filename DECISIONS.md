@@ -389,3 +389,30 @@ on generality. This rejects neither all lineup forecasting nor causal player val
 permitted evaluation evidence may establish predictive information. Turning that
 into decision utility still needs its own claim and validation. Meanwhile, useful
 product development can expose alternative XIs under explicit requirements.
+
+---
+
+## ADR-0016 — Explore diverse witnesses without inventing another objective
+
+**Decision.** Show different personnel sets inside a certified optimum region.
+Fix both lexicographic shortfalls and sequentially require at least two replaced
+players versus the comparison XI and each prior witness. Keep search status,
+raw requirements and exact constraint provenance visible. The diversity cuts live
+in a clone, never in stable-core/tie analysis or bootstrap worlds.
+
+**Evidence.** Exhaustive tiny-instance oracles check membership and both objectives.
+The real default Madrid snapshot returns three distinct personnel alternatives
+with the same [0, 0] objective. This is a property of declared requirements, not
+evidence that those teams are equally good at football. See the
+[search contract](docs/research/XI-EQUIVALENT-ALTERNATIVES.md).
+
+**Alternatives rejected.** Returning slot permutations as new teams, labeling
+greedy exhaustion as all optima enumerated, adding a new arbitrary diversity or
+quality utility, relaxing locks/minima to fill cards, or reusing stale results
+after the decision inputs change.
+
+**Confidence.** High on the conditional search contract; no predictive or causal
+claim. Pairwise distance is an explicit presentation policy, not tactical value.
+
+**Reversal.** A separately specified epsilon/Pareto or robust exploration policy
+can expand the frontier later. It must not silently replace objective equality.

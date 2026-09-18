@@ -25,7 +25,7 @@ serve: profiles
 	uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090 --reload
 
 e2e:
-	npx playwright test e2e/smoke.spec.js e2e/labs.spec.js
+	npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js
 
 check: licence lint test
 
