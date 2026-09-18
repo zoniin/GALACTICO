@@ -9,6 +9,7 @@ from .domain import (
     SelectionFrequency,
     Slot,
     TacticalRequirement,
+    XIAlternative,
     XIResult,
 )
 from .solver import (
@@ -31,6 +32,7 @@ __all__ = [
     "SelectionFrequency",
     "Slot",
     "TacticalRequirement",
+    "XIAlternative",
     "XIResult",
     "bootstrap_selection",
     "candidate_injection",

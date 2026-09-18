@@ -152,6 +152,25 @@ class SelectionFrequency:
 
 
 @dataclass(frozen=True)
+class XIAlternative:
+    """A diverse witness within the baseline's certified objective level set.
+
+    ``solution_status`` certifies the constrained witness search, not a fresh
+    football objective. Equal objectives mean equal *quantized* shortfalls;
+    the raw requirement contributions can still differ.
+    """
+
+    assignments: tuple[Assignment, ...]
+    requirements: tuple[RequirementAssessment, ...]
+    objective_vector: tuple[float, ...]
+    solution_status: str
+    incoming_player_ids: tuple[int, ...]
+    outgoing_player_ids: tuple[int, ...]
+    player_changes: int
+    provenance: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class XIResult:
     formation: str
     assignments: tuple[Assignment, ...]
@@ -162,7 +181,7 @@ class XIResult:
     excluded: tuple[int, ...] = ()
     selection_frequencies: tuple[SelectionFrequency, ...] = ()
     equivalent_players: dict[int, dict[str, bool | None]] = field(default_factory=dict)
-    alternatives: tuple[dict, ...] = ()
+    alternatives: tuple[XIAlternative, ...] = ()
     provenance: dict = field(default_factory=dict)
     warnings: tuple[str, ...] = ()
     infeasibility_reasons: tuple[str, ...] = ()

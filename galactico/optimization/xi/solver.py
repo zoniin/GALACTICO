@@ -28,11 +28,13 @@ from .domain import (
     SelectionFrequency,
     Slot,
     TacticalRequirement,
+    XIAlternative,
     XIResult,
 )
 
 SOLVER_VERSION = "explicit-requirements-cpsat-v1"
 QUANTIZATION = 100_000
+ALTERNATIVE_VERSION = "sequential-optimal-level-set-v1"
 
 
 def _eligible(player: Candidate, slot) -> bool:
@@ -90,6 +92,8 @@ def solve_xi(
     analyze_ties: bool = True,
     provenance: Mapping | None = None,
     worlds: Mapping[int, Mapping[int, Mapping[str, float | None]]] | None = None,
+    alternative_count: int = 0,
+    minimum_player_changes: int = 2,
 ) -> XIResult:
     """Solve one policy, optionally repeat it in coherent externally built worlds.
 
@@ -113,6 +117,12 @@ def solve_xi(
         raise ValueError("time limit must be finite and positive")
     if mode not in {"BALANCE", "SATISFY"}:
         raise ValueError("mode must be BALANCE or SATISFY")
+    if type(alternative_count) is not int or not 0 <= alternative_count <= 5:
+        raise ValueError("alternative count must be an integer between 0 and 5")
+    if type(minimum_player_changes) is not int or minimum_player_changes < 1:
+        raise ValueError("minimum player changes must be a positive integer")
+    if alternative_count and minimum_player_changes > len(formation.slots):
+        raise ValueError("minimum player changes cannot exceed the formation size")
     slots = {s.slot_id: s for s in formation.slots}
     for requirement in requirements:
         if set(requirement.slot_ids) - slots.keys():
@@ -151,6 +161,27 @@ def solve_xi(
             ),
         }
     )
+    exploration_policy = {
+        "version": ALTERNATIVE_VERSION,
+        "requested": alternative_count,
+        "minimum_player_changes": minimum_player_changes,
+        "parent_input_fingerprint": metadata["input_fingerprint"],
+        "seed": seed,
+    }
+    alternative_search = {
+        "requested": alternative_count,
+        "returned": 0,
+        "minimum_player_changes": minimum_player_changes,
+        "status": "UNCERTIFIED_BASELINE" if alternative_count else "NOT_REQUESTED",
+        "exploration_fingerprint": _fingerprint(exploration_policy),
+        "claim": (
+            "Sequential diverse witnesses with the same certified quantized objective. "
+            "EXHAUSTED means no further witness satisfies the chosen diversity cuts; "
+            "not all optimal XIs enumerated or a maximum-cardinality diverse set. "
+            "LIMIT_REACHED leaves further alternatives untested."
+        ),
+    }
+    metadata["alternative_search"] = alternative_search
     warnings = [
         "Optimal means optimal for the quantized requirement model, not the best football XI.",
         "Summed historical player rates assume those rates persist when selected together.",
@@ -320,57 +351,50 @@ def solve_xi(
         )
 
     chosen = {(pid, sid) for (pid, sid), var in variables.items() if solution.value(var)}
-    assignments = []
     by_id = {p.player_id: p for p in candidates}
-    for slot in formation.slots:
-        pid = next(pid for pid, sid in chosen if sid == slot.slot_id)
-        player = by_id[pid]
-        contributions = {
-            r.requirement_id: float(player.values[r.metric])
-            for r in active
-            if _applies(r, slot.slot_id)
-        }
-        assignments.append(
-            Assignment(
-                slot.slot_id,
-                slot.label,
-                pid,
-                player.name,
-                player.position,
-                slot.x,
-                slot.y,
-                pid in locked,
-                contributions,
+
+    def describe(witness):
+        assignments = []
+        for slot in formation.slots:
+            pid = next(pid for (pid, sid), var in variables.items()
+                       if sid == slot.slot_id and witness.value(var))
+            player = by_id[pid]
+            contributions = {
+                r.requirement_id: float(player.values[r.metric])
+                for r in active
+                if _applies(r, slot.slot_id)
+            }
+            assignments.append(
+                Assignment(
+                    slot.slot_id, slot.label, pid, player.name, player.position,
+                    slot.x, slot.y, pid in locked, contributions,
+                )
             )
-        )
-    assessments = []
-    for requirement in requirements:
-        if not requirement.active:
-            achieved = deficit = normalized = None
-            label = "UNMEASURED"
-        else:
-            achieved = sum(
-                a.contributions.get(requirement.requirement_id, 0.0) for a in assignments
+        assessments = []
+        for requirement in requirements:
+            if not requirement.active:
+                achieved = deficit = normalized = None
+                label = "UNMEASURED"
+            else:
+                achieved = sum(
+                    a.contributions.get(requirement.requirement_id, 0.0) for a in assignments
+                )
+                deficit = max(0.0, requirement.minimum - achieved)
+                normalized = deficit / requirement.normalizer
+                # Status uses raw values, not rounded solver coefficients.
+                label = "COVERED" if deficit <= 1e-12 else "DEFICIT"
+            assessments.append(
+                RequirementAssessment(
+                    requirement.requirement_id, requirement.label, requirement.metric,
+                    requirement.evidence_class, label, requirement.minimum, achieved,
+                    deficit, normalized,
+                    requirement.active and (requirement.hard or mode == "SATISFY"),
+                    requirement.source,
+                )
             )
-            deficit = max(0.0, requirement.minimum - achieved)
-            normalized = deficit / requirement.normalizer
-            # Status is based on raw values, not rounded solver coefficients.
-            label = "COVERED" if deficit <= 1e-12 else "DEFICIT"
-        assessments.append(
-            RequirementAssessment(
-                requirement.requirement_id,
-                requirement.label,
-                requirement.metric,
-                requirement.evidence_class,
-                label,
-                requirement.minimum,
-                achieved,
-                deficit,
-                normalized,
-                requirement.active and (requirement.hard or mode == "SATISFY"),
-                requirement.source,
-            )
-        )
+        return tuple(assignments), tuple(assessments)
+
+    assignments, assessments = describe(solution)
     objective = (
         solution.value(max_deficit) / quantization,
         solution.value(total_deficit) / quantization,
@@ -384,8 +408,11 @@ def solve_xi(
             in_xi = any(chosen_pid == pid for chosen_pid, _ in chosen)
             opposite = model.clone()
             opposite.add(selected[pid] == (0 if in_xi else 1))
-            tie_solver = _solver(deadline, seed)
-            tie_status = tie_solver.solve(opposite)
+            if time.monotonic() >= deadline:
+                tie_status = cp_model.UNKNOWN
+            else:
+                tie_solver = _solver(deadline, seed)
+                tie_status = tie_solver.solve(opposite)
             witness = tie_status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
             ruled_out = tie_status == cp_model.INFEASIBLE
             equivalents[pid] = {
@@ -397,6 +424,65 @@ def solve_xi(
     metadata["tie_analysis_complete"] = bool(equivalents) and all(
         value is not None for row in equivalents.values() for value in row.values()
     )
+    alternatives = []
+    if alternative_count and status == cp_model.OPTIMAL:
+        # Isolate diversity cuts from the optimum-region membership analysis.
+        diverse = model.clone()
+        optimum = (solution.value(max_deficit), solution.value(total_deficit))
+        diverse.add(max_deficit == optimum[0])
+        diverse.add(total_deficit == optimum[1])
+        diverse.clear_objective()
+        baseline_ids = {a.player_id for a in assignments}
+        prior_sets = [sorted(baseline_ids)]
+        alternative_search["status"] = "LIMIT_REACHED"
+        while len(alternatives) < alternative_count:
+            diverse.add(
+                sum(selected[pid] for pid in prior_sets[-1])
+                <= len(slots) - minimum_player_changes
+            )
+            if time.monotonic() >= deadline:
+                alternative_search["status"] = "TIME_LIMIT"
+                break
+            witness = _solver(deadline, seed)
+            witness_status = witness.solve(diverse)
+            if witness_status == cp_model.INFEASIBLE:
+                alternative_search["status"] = "EXHAUSTED"
+                break
+            if witness_status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+                # UNKNOWN is never evidence that alternatives do not exist.
+                alternative_search["status"] = (
+                    "MODEL_INVALID" if witness_status == cp_model.MODEL_INVALID else "TIME_LIMIT"
+                )
+                break
+            alt_assignments, alt_assessments = describe(witness)
+            alt_ids = {a.player_id for a in alt_assignments}
+            constraints = {
+                **exploration_policy,
+                "fixed_quantized_objective": optimum,
+                "diversity_reference_player_sets": list(prior_sets),
+            }
+            alternatives.append(
+                XIAlternative(
+                    alt_assignments, alt_assessments,
+                    (witness.value(max_deficit) / quantization,
+                     witness.value(total_deficit) / quantization),
+                    _status(witness_status),
+                    tuple(sorted(alt_ids - baseline_ids)),
+                    tuple(sorted(baseline_ids - alt_ids)),
+                    len(alt_ids - baseline_ids),
+                    {
+                        "parent_input_fingerprint": metadata["input_fingerprint"],
+                        "constraints_fingerprint": _fingerprint(constraints),
+                        "constraint_inputs": constraints,
+                        "objective_certification": "BASELINE_OPTIMAL",
+                        "objective_interpretation": (
+                            "Equal quantized max/total shortfalls, not equal football value"
+                        ),
+                    },
+                )
+            )
+            prior_sets.append(sorted(alt_ids))
+        alternative_search["returned"] = len(alternatives)
     metadata["elapsed_seconds"] = time_limit - max(0, deadline - time.monotonic())
     if any(r.hard and r.deficit and r.deficit > 0 for r in assessments):
         warnings.append(
@@ -411,6 +497,7 @@ def solve_xi(
         locked,
         excluded,
         equivalent_players=equivalents,
+        alternatives=tuple(alternatives),
         provenance=metadata,
         warnings=tuple(warnings),
     )
@@ -446,6 +533,10 @@ def bootstrap_selection(
     stored per-player quantiles. Every world's ID and content enter provenance.
     """
     formation = FORMATIONS[formation] if isinstance(formation, str) else formation
+    # Exploration is a baseline presentation search, never repeated in worlds.
+    solve_options = dict(solve_options)
+    solve_options.pop("alternative_count", None)
+    solve_options.pop("minimum_player_changes", None)
     active = [r for r in requirements if r.active]
     excluded = set(solve_options.get("excluded", ()))
     counts = {p.player_id: [0, 0, 0] for p in candidates}

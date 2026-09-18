@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from functools import lru_cache
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -139,6 +140,13 @@ class SolveRequest(BaseModel):
     bootstrap_worlds: int = Field(default=12, ge=0, le=80)
     mode: str = Field(default="BALANCE", pattern="^(BALANCE|SATISFY)$")
     minimums: dict[str, float] = Field(default_factory=dict)
+
+
+class AlternativesRequest(SolveRequest):
+    # Witnesses belong to one point-estimate optimum, not bootstrap frequencies.
+    bootstrap_worlds: Literal[0] = 0
+    alternative_count: int = Field(default=3, ge=1, le=5, strict=True)
+    minimum_player_changes: int = Field(default=2, ge=1, le=11, strict=True)
 
 
 @lru_cache(maxsize=12)
@@ -330,6 +338,46 @@ def solve(request: SolveRequest):
         }
     )
     return payload
+
+
+@router.post("/api/xi/alternatives")
+def alternatives(request: AlternativesRequest):
+    """Return diverse witnesses of one certified optimum; no new utility function."""
+    from ..optimization.xi import solve_xi
+
+    if request.scenario_id not in SCENARIOS:
+        raise HTTPException(404, "unknown historical scenario")
+    try:
+        snap = snapshot(SCENARIOS[request.scenario_id]["match_id"], 0)
+        candidates, requirements = decision_inputs(
+            snap, request.formation, request.mode, request.minimums
+        )
+        result = solve_xi(
+            candidates,
+            requirements,
+            formation=request.formation,
+            locked=tuple(request.locks),
+            excluded=tuple(request.excludes),
+            mode=request.mode,
+            seed=SEED,
+            analyze_ties=False,
+            alternative_count=request.alternative_count,
+            minimum_player_changes=request.minimum_player_changes,
+            provenance=snap.provenance,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(503, "historical corpus unavailable") from exc
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {
+        **asdict(result),
+        "scenario_id": request.scenario_id,
+        "scenario": SCENARIOS[request.scenario_id],
+        "candidates": snap.candidates,
+        "omitted_candidates": snap.omitted,
+        "mode": request.mode,
+        "match_url": f"/match?id={snap.match_id}",
+    }
 
 
 @router.post("/api/xi/sensitivity")

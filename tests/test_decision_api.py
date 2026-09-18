@@ -176,7 +176,7 @@ def test_invalid_decision_inputs_are_explicit_errors(client, body, status, messa
     assert message in response.json()["detail"]
 
 
-@pytest.mark.parametrize("endpoint", ["solve", "sensitivity"])
+@pytest.mark.parametrize("endpoint", ["solve", "sensitivity", "alternatives"])
 def test_missing_corpus_is_service_unavailable(client, monkeypatch, endpoint):
     def unavailable(*_args):
         raise FileNotFoundError("synthetic missing data")
@@ -185,6 +185,54 @@ def test_missing_corpus_is_service_unavailable(client, monkeypatch, endpoint):
     response = client.post(f"/api/xi/{endpoint}", json={"bootstrap_worlds": 0})
     assert response.status_code == 503
     assert response.json()["detail"] == "historical corpus unavailable"
+
+
+def test_alternatives_preserve_policy_locks_and_certificate_without_bootstrap(client):
+    snap = api.snapshot(2565907, 0)
+    # Add two independently replaceable measured candidates to the exact fixture.
+    for source, new_id in ((snap.candidates[1], 102), (snap.candidates[4], 105)):
+        snap.candidates.append({**source, "player_id": new_id, "name": f"P{new_id}"})
+    response = client.post("/api/xi/alternatives", json={"locks": [3563], "excludes": [7]})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["solution_status"] == "OPTIMAL"
+    assert result["selection_frequencies"] == []
+    assert result["provenance"]["dataset_manifest"] == "synthetic-no-corpus"
+    assert result["provenance"]["alternative_search"]["minimum_player_changes"] == 2
+    assert result["alternatives"]
+    base = {a["player_id"] for a in result["assignments"]}
+    for alternative in result["alternatives"]:
+        chosen = {a["player_id"] for a in alternative["assignments"]}
+        assert len(chosen) == 11
+        assert 3563 in chosen and 7 not in chosen
+        assert len(base - chosen) >= 2
+        assert alternative["objective_vector"] == result["objective_vector"]
+        assert set(alternative["incoming_player_ids"]) == chosen - base
+        assert set(alternative["outgoing_player_ids"]) == base - chosen
+        assert alternative["provenance"]["parent_input_fingerprint"] == result["provenance"][
+            "input_fingerprint"
+        ]
+
+
+@pytest.mark.parametrize("body", [
+    {"alternative_count": 0}, {"alternative_count": 6},
+    {"alternative_count": True}, {"minimum_player_changes": False},
+    {"minimum_player_changes": 0}, {"minimum_player_changes": 12},
+    {"bootstrap_worlds": 1}, {"unknown_field": True},
+])
+def test_alternative_requests_are_bounded_and_do_not_silently_bootstrap(client, body):
+    assert client.post("/api/xi/alternatives", json=body).status_code == 422
+
+
+def test_infeasible_alternatives_do_not_offer_repaired_or_relaxed_xis(client):
+    response = client.post("/api/xi/alternatives", json={
+        "mode": "SATISFY", "minimums": {"progression": 20},
+    })
+    assert response.status_code == 200
+    result = response.json()
+    assert result["solution_status"] == "INFEASIBLE"
+    assert result["alternatives"] == []
+    assert result["provenance"]["alternative_search"]["status"] == "UNCERTIFIED_BASELINE"
 
 
 def test_sensitivity_retains_evidence_and_fresh_removal_certificates(client):
