@@ -2,17 +2,40 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from functools import lru_cache
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..optimization.historical import PUBLIC, ROOT, SEED, load_snapshot
 
-router = APIRouter()
+
+class DecisionRoute(APIRoute):
+    """Keep validation errors JSON-safe without echoing arbitrary request values."""
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def validated(request):
+            try:
+                return await handler(request)
+            except RequestValidationError as exc:
+                # JSON numeric overflow parses as infinity. Pydantic rejects it,
+                # but the default error embeds that input and fails serialization.
+                raise HTTPException(422, detail=[
+                    {key: error[key] for key in ("loc", "msg", "type") if key in error}
+                    for error in exc.errors()
+                ]) from exc
+
+        return validated
+
+
+router = APIRouter(route_class=DecisionRoute)
 SCENARIOS = {
     "madrid-2018-05-06": {
         "match_id": 2565907,
@@ -147,6 +170,26 @@ class AlternativesRequest(SolveRequest):
     bootstrap_worlds: Literal[0] = 0
     alternative_count: int = Field(default=3, ge=1, le=5, strict=True)
     minimum_player_changes: int = Field(default=2, ge=1, le=11, strict=True)
+
+
+class TradeoffFloors(BaseModel):
+    """Every floor is explicit; no silent inheritance of soft minima."""
+
+    model_config = ConfigDict(extra="forbid")
+    progression: float = Field(ge=0, le=1000, strict=True, allow_inf_nan=False)
+    left_pass_origins: float = Field(ge=0, le=1000, strict=True, allow_inf_nan=False)
+    right_pass_origins: float = Field(ge=0, le=1000, strict=True, allow_inf_nan=False)
+
+
+class TradeoffRequest(BaseModel):
+    # Not SolveRequest: BALANCE, bootstrap and alternative policies do not
+    # describe a maximum-progression query and must not be silently ignored.
+    model_config = ConfigDict(extra="forbid")
+    scenario_id: str = "madrid-2018-05-06"
+    formation: str = "4-3-3"
+    locks: list[Annotated[int, Field(strict=True)]] = Field(default_factory=list, max_length=11)
+    excludes: list[Annotated[int, Field(strict=True)]] = Field(default_factory=list, max_length=30)
+    floors: TradeoffFloors
 
 
 @lru_cache(maxsize=12)
@@ -377,6 +420,67 @@ def alternatives(request: AlternativesRequest):
         "omitted_candidates": snap.omitted,
         "mode": request.mode,
         "match_url": f"/match?id={snap.match_id}",
+    }
+
+
+@router.post("/api/xi/tradeoff")
+def tradeoff(request: TradeoffRequest):
+    """Maximize one explicitly chosen descriptor; never an overall XI rating."""
+    from ..optimization.xi import maximize_requirement
+
+    if request.scenario_id not in SCENARIOS:
+        raise HTTPException(404, "unknown historical scenario")
+    try:
+        snap = snapshot(SCENARIOS[request.scenario_id]["match_id"], 0)
+        floors = request.floors.model_dump()
+        candidates, requirements = decision_inputs(
+            snap, request.formation, mode="SATISFY", minimums=floors
+        )
+        requirements = [
+            replace(r, source=(
+                "User-declared hard floor; fixed normalizer from prior starting-XI medians. "
+                "Additive historical per-90 accounting; "
+                + ("SPECS progression." if r.requirement_id == "progression"
+                   else "experimental deployment-dependent side-specific pass origins.")
+            )) if r.active else r
+            for r in requirements
+        ]
+        evidence = {
+            **snap.provenance,
+            "snapshot_requirement_policy": snap.provenance.get("requirement_policy"),
+            "requirement_policy": (
+                "Three user-declared hard floors; fixed historical starting-XI median normalizers"
+            ),
+        }
+        result = maximize_requirement(
+            candidates,
+            requirements,
+            formation=request.formation,
+            target_requirement_id="progression",
+            locked=request.locks,
+            excluded=request.excludes,
+            seed=SEED,
+            provenance=evidence,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(503, "historical corpus unavailable") from exc
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {
+        **asdict(result),
+        "scenario_id": request.scenario_id,
+        "scenario": SCENARIOS[request.scenario_id],
+        "candidates": snap.candidates,
+        "omitted_candidates": snap.omitted,
+        "floors": floors,
+        "match_url": f"/match?id={snap.match_id}",
+        "claim": (
+            "Maximize summed historical positive completed-pass xT per 90 under these "
+            "explicit hard floors, eligibility rules, locks and exclusions. This is a "
+            "passing-progression specialist query, not the strongest football XI, a team "
+            "performance forecast or a Pareto-frontier certificate. Finishing, chance "
+            "creation, defending, goalkeeping quality and fitness are not optimized."
+        ),
     }
 
 

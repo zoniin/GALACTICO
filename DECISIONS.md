@@ -416,3 +416,35 @@ claim. Pairwise distance is an explicit presentation policy, not tactical value.
 
 **Reversal.** A separately specified epsilon/Pareto or robust exploration policy
 can expand the frontier later. It must not silently replace objective equality.
+
+---
+
+## ADR-0017 — Explicit progression specialization is not universal XI utility
+
+**Decision.** Add a separate maximum-historical-pass-xT query under three explicit
+hard floors. The HTTP product maximizes progression only; side-specific pass-origin
+rates remain research/style constraints, not merit. Preserve BALANCE, SATISFY and
+equivalent witnesses unchanged. Return a response-owned XI and a distinct typed
+maximizing certificate, never the main solve's bootstrap frequencies.
+
+**Evidence.** Independent formulation and adversarial reviews agreed that covered
+shortfall ties and progression surplus answer different questions. A development
+diagnostic can omit Ronaldo, Benzema and Casemiro when progression alone is
+maximized. That is evidence of a narrow objective, not football superiority. See
+the [contract and verification](docs/research/XI-PROGRESSION-UNDER-FLOORS.md).
+
+**Numerical boundary.** Conservative floor coefficients and upward-rounded targets
+prevent raw-floor violations. This can exclude boundary-feasible raw assignments;
+INFEASIBLE applies only to that conservative integer model. Objective rounding,
+incumbents, maximizing bounds and requirement-specific allowances are separate.
+
+**Alternatives rejected.** Rewarding surplus inside BALANCE without a policy change,
+maximizing style as universal quality, silently promoting soft minima to hard
+constraints, calling one primary optimum Pareto-optimal, mixing numerical and
+sampling uncertainty, or weakening floors after infeasibility.
+
+**Confidence.** The claim is conditional numerical optimization, not prediction or
+causal football value. Passing capacity is an additive historical-rate assumption.
+
+**Reversal.** A genuinely supported broader utility would require fresh evidence
+and a separately reviewed decision claim. E-08's null is not reopened by this tool.

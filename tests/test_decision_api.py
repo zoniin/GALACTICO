@@ -295,3 +295,140 @@ def test_removal_merges_evidence_but_never_reuses_baseline_hash_or_world_certifi
     assert "bootstrap_used_worlds" not in provenance
     assert "bootstrap_world_fingerprint" not in provenance
     assert not provenance.get("tie_analysis_complete")
+
+
+TRADEOFF_FLOORS = {
+    "progression": 9.0,
+    "left_pass_origins": 9.0,
+    "right_pass_origins": 9.0,
+}
+
+
+def test_tradeoff_has_its_own_maximizing_certificate_and_explicit_floor_policy(client):
+    response = client.post("/api/xi/tradeoff", json={
+        "floors": TRADEOFF_FLOORS, "locks": [3563], "excludes": [7],
+    })
+    assert response.status_code == 200
+    result = response.json()
+    assert result["solution_status"] == "OPTIMAL"
+    assert result["floors"] == TRADEOFF_FLOORS
+    assert len({a["player_id"] for a in result["assignments"]}) == 11
+    assert 3563 in {a["player_id"] for a in result["assignments"]}
+    assert 7 not in {a["player_id"] for a in result["assignments"]}
+    assert result["objective"]["direction"] == "MAXIMIZE"
+    assert result["objective"]["requirement_id"] == "progression"
+    assert result["objective"]["achieved"] == 10.0
+    assert result["objective"]["certification"] == "QUANTIZED_OPTIMAL"
+    assert result["objective"]["quantized_upper_bound"] == pytest.approx(
+        result["objective"]["quantized_value"]
+    )
+    assert result["provenance"]["dataset_manifest"] == "synthetic-no-corpus"
+    for requirement in result["requirements"]:
+        if requirement["requirement_id"] in TRADEOFF_FLOORS:
+            assert requirement["hard"]
+            assert "User-declared hard floor" in requirement["source"]
+            assert requirement["minimum"] == TRADEOFF_FLOORS[requirement["requirement_id"]]
+            assert requirement["achieved"] >= requirement["minimum"]
+        else:
+            assert requirement["status"] == "UNMEASURED"
+            assert requirement["achieved"] is None
+    for absent in ("objective_vector", "selection_frequencies", "equivalent_players",
+                   "alternatives", "what_changed", "mode"):
+        assert absent not in result
+    assert "not the strongest football XI" in result["claim"]
+    assert "user-declared hard floors" in result["provenance"]["requirement_policy"]
+
+
+def test_tradeoff_loads_no_worlds_and_does_not_change_standard_solve(client, monkeypatch):
+    snap = api.snapshot(2565907, 0)
+    seen = []
+
+    def record(match_id, worlds):
+        seen.append((match_id, worlds))
+        return snap
+
+    monkeypatch.setattr(api, "snapshot", record)
+    before = client.post("/api/xi/solve", json={"bootstrap_worlds": 0}).json()
+    response = client.post("/api/xi/tradeoff", json={"floors": TRADEOFF_FLOORS})
+    after = client.post("/api/xi/solve", json={"bootstrap_worlds": 0}).json()
+    assert response.status_code == 200
+    assert all(worlds == 0 for _, worlds in seen)
+    assert before["provenance"]["input_fingerprint"] == after["provenance"]["input_fingerprint"]
+    assert before["assignments"] == after["assignments"]
+    assert before["objective_vector"] == after["objective_vector"]
+    assert not any(r["hard"] for r in after["requirements"])
+
+
+@pytest.mark.parametrize("key", tuple(TRADEOFF_FLOORS))
+def test_tradeoff_impossible_floors_are_not_relaxed(client, key):
+    floors = {**TRADEOFF_FLOORS, key: 1000}
+    response = client.post("/api/xi/tradeoff", json={"floors": floors})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["solution_status"] == "INFEASIBLE"
+    assert result["assignments"] == []
+    assert result["floors"] == floors
+    assert result["objective"]["achieved"] is None
+    assert result["objective"]["quantized_value"] is None
+    assert result["objective"]["certification"] == "NO_SOLUTION"
+    assert result["infeasibility_reasons"]
+    for requirement in result["requirements"]:
+        if requirement["requirement_id"] in floors:
+            assert requirement["status"] == "NOT_EVALUATED"
+            assert requirement["minimum"] == floors[requirement["requirement_id"]]
+
+
+@pytest.mark.parametrize("extra", [
+    {"bootstrap_worlds": 0}, {"bootstrap_worlds": 12}, {"mode": "BALANCE"},
+    {"alternative_count": 2}, {"minimums": {}}, {"objective": "left_pass_origins"},
+    {"locks": [True]}, {"locks": ["3563"]}, {"excludes": [False]},
+])
+def test_tradeoff_rejects_inapplicable_policy_inputs_instead_of_ignoring_them(client, extra):
+    response = client.post("/api/xi/tradeoff", json={"floors": TRADEOFF_FLOORS, **extra})
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("floors", [
+    {}, {"progression": 1},
+    {**TRADEOFF_FLOORS, "goalkeeping": 1},
+    {**TRADEOFF_FLOORS, "progression": -1},
+    {**TRADEOFF_FLOORS, "progression": 1001},
+    {**TRADEOFF_FLOORS, "left_pass_origins": True},
+    {**TRADEOFF_FLOORS, "right_pass_origins": "9"},
+    {**TRADEOFF_FLOORS, "progression": None},
+])
+def test_tradeoff_requires_complete_explicit_numeric_floors(client, floors):
+    assert client.post("/api/xi/tradeoff", json={"floors": floors}).status_code == 422
+
+
+def test_tradeoff_rejects_nonfinite_floor_at_boundary(client):
+    response = client.post("/api/xi/tradeoff", content=(
+        '{"floors":{"progression":1e999,"left_pass_origins":9,"right_pass_origins":9}}'
+    ), headers={"content-type": "application/json"})
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize(("extra", "status"), [
+    ({"scenario_id": "future"}, 404), ({"formation": "9-0-1"}, 422),
+    ({"locks": [999999]}, 422), ({"excludes": [999999]}, 422),
+])
+def test_tradeoff_scenario_and_eligibility_errors_remain_explicit(client, extra, status):
+    response = client.post("/api/xi/tradeoff", json={"floors": TRADEOFF_FLOORS, **extra})
+    assert response.status_code == status
+
+
+def test_tradeoff_missing_corpus_returns_service_unavailable(client, monkeypatch):
+    def unavailable(*_args):
+        raise FileNotFoundError("missing public corpus")
+
+    monkeypatch.setattr(api, "snapshot", unavailable)
+    response = client.post("/api/xi/tradeoff", json={"floors": TRADEOFF_FLOORS})
+    assert response.status_code == 503
+
+
+def test_tradeoff_floor_changes_invalidate_input_identity(client):
+    first = client.post("/api/xi/tradeoff", json={"floors": TRADEOFF_FLOORS}).json()
+    second = client.post("/api/xi/tradeoff", json={
+        "floors": {**TRADEOFF_FLOORS, "right_pass_origins": 9.5},
+    }).json()
+    assert first["provenance"]["input_fingerprint"] != second["provenance"]["input_fingerprint"]

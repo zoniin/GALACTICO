@@ -185,3 +185,45 @@ class XIResult:
     provenance: dict = field(default_factory=dict)
     warnings: tuple[str, ...] = ()
     infeasibility_reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RequirementObjectiveCertificate:
+    """One declared accounting objective, not a football-quality certificate.
+
+    Displayed quantized quantities use the original metric units. The integer
+    fields and scale preserve the exact finite-model certificate separately.
+    """
+
+    requirement_id: str
+    label: str
+    metric: str
+    direction: str
+    achieved: float | None
+    quantized_value: float | None
+    quantized_upper_bound: float | None
+    certification: str
+    raw_rounding_error_bound: float
+    integer_value: int | None
+    integer_upper_bound: int | None
+    quantization: int
+
+
+@dataclass(frozen=True)
+class RequirementTradeoffResult:
+    """Maximize one measured descriptor subject to explicit hard floors.
+
+    This is deliberately not XIResult: it has no balance objective vector,
+    bootstrap core, or claim to enumerate a Pareto frontier.
+    """
+
+    formation: str
+    assignments: tuple[Assignment, ...]
+    requirements: tuple[RequirementAssessment, ...]
+    solution_status: str
+    objective: RequirementObjectiveCertificate
+    locked: tuple[int, ...] = ()
+    excluded: tuple[int, ...] = ()
+    warnings: tuple[str, ...] = ()
+    infeasibility_reasons: tuple[str, ...] = ()
+    provenance: dict = field(default_factory=dict)

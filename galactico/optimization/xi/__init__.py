@@ -6,6 +6,8 @@ from .domain import (
     Candidate,
     Formation,
     RequirementAssessment,
+    RequirementObjectiveCertificate,
+    RequirementTradeoffResult,
     SelectionFrequency,
     Slot,
     TacticalRequirement,
@@ -20,15 +22,19 @@ from .solver import (
     removal_sensitivity,
     solve_xi,
 )
+from .tradeoffs import TRADEOFF_VERSION, maximize_requirement
 
 __all__ = [
     "FORMATIONS",
     "QUANTIZATION",
     "SOLVER_VERSION",
+    "TRADEOFF_VERSION",
     "Assignment",
     "Candidate",
     "Formation",
     "RequirementAssessment",
+    "RequirementObjectiveCertificate",
+    "RequirementTradeoffResult",
     "SelectionFrequency",
     "Slot",
     "TacticalRequirement",
@@ -36,6 +42,7 @@ __all__ = [
     "XIResult",
     "bootstrap_selection",
     "candidate_injection",
+    "maximize_requirement",
     "removal_sensitivity",
     "solve_xi",
 ]
