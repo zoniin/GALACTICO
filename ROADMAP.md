@@ -59,6 +59,10 @@ shortfall, not a universally best XI.
   The browser's 12-world bands are exploratory, not calibrated selection chances.
 - Independent exhaustive tiny-instance oracle, synthetic failure cases,
   temporal leakage checks and real browser coverage.
+- Personnel-diverse equivalent-XI witnesses inside the certified shortfall optimum.
+- Separate progression-under-explicit-hard-floors query, with conservative floor
+  quantization and its own maximizing certificate. No inherited bootstrap/core or
+  Pareto claim. [Contract](docs/research/XI-PROGRESSION-UNDER-FLOORS.md).
 
 The May 6 snapshot has 16 eligible players under manual football rules and sample
 gates. Fitness/suspension availability is unknown. Only progression and experimental
@@ -81,7 +85,7 @@ aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-re
 
 ## Not started or not validated
 
-- Pareto alternatives, robust/CVaR/minimax-regret modes, continuity utility,
+- Certified Pareto-frontier enumeration, robust/CVaR/minimax-regret modes, continuity utility,
   role-transition value models and automatic formation identification.
 - External lineup-utility validation, team-outcome association and forced-change
   quasi-experiments. No backtest observes the unplayed counterfactual XI.

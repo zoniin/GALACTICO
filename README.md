@@ -14,9 +14,9 @@ Three connected historical workstations now run locally:
 
 - **Player Lab** — five surviving season constructs, with shared-match uncertainty and evidence gates.
 - **Match Lab** — actual lineups, key/tactical timelines, positive pass-xT flow, shot locations, inferred passing networks and player-match contribution vectors.
-- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability and personnel-diverse equivalent XIs. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
+- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
 
-XI Lab does **not** identify the best football XI. It finds feasible XIs with the
+XI Lab does **not** identify the best football XI. Its default solve finds XIs with the
 least shortfall against declared progression and pass-origin requirements.
 Thresholds and eligibility are inspectable rules; finishing, defensive structure,
 goalkeeping quality and fitness are not modeled.
@@ -27,6 +27,14 @@ Click **Explore equivalent XIs** to inspect different personnel with the same
 certified shortfall objective. Each alternative replaces at least two players;
 the search is not a ranking or exhaustive catalogue of every optimum.
 [Search contract](docs/research/XI-EQUIVALENT-ALTERNATIVES.md)
+
+Ask **Maximize pass-xT under these floors** for a different, deliberately narrow
+question: how much summed historical passing progression can this squad accommodate
+while preserving your explicit hard floors? Its own XI, floor ledger and maximizing
+certificate stay separate from the main pitch and its uncertainty. Finishing,
+creation, defending and keeper quality do not enter this objective. This is neither
+a strongest-XI recommendation nor a complete Pareto frontier.
+[Hard-floor query contract](docs/research/XI-PROGRESSION-UNDER-FLOORS.md)
 
 Most football analytics projects ask what statistics they can calculate.
 Galáctico first asks whether the statistic means what its name implies.

@@ -42,7 +42,7 @@ When a limitation changes, preserve the experiment in `docs/research/`.
 
 ## XI Lab is a conditional requirement model
 
-- The objective minimizes declared structural shortfalls. It does not maximize
+- The default objective minimizes declared structural shortfalls. It does not maximize
   wins, forecast the counterfactual result or identify universal football quality.
 - Madrid slot eligibility is a versioned manual rule. No player-by-role uplift,
   learned formation inference, pair chemistry or continuity value enters the solve.
@@ -71,6 +71,15 @@ When a limitation changes, preserve the experiment in `docs/research/`.
   identical raw requirement values or football value. Sequential diversity cuts
   do not enumerate all optima or find the largest possible diverse set. Search
   timeouts are incomplete, not evidence that no more alternatives exist.
+- The separate hard-floor query maximizes historical positive-pass xT only, not
+  football quality or team output. It can omit famous finishers or defensive players
+  because those functions are absent from its objective. A maximum is not a
+  Pareto-frontier certificate; larger side-origin counts are not merit.
+- Its conservative floor rounding guarantees raw-floor satisfaction for returned
+  assignments but can reject raw-feasible boundary XIs. INFEASIBLE and OPTIMAL
+  concern that integer model, not the full unquantized problem. The numerical
+  rounding allowance is not statistical uncertainty; no stability bands transfer
+  from the main pitch to this separate response.
 - Joint evidence availability is restrictive: E-07's temporal forecast study had
   only 3 eligible development lineups when all ten outfield starters had to meet
   the 900-minute floor. No forecast model could be fitted under the frozen rules.

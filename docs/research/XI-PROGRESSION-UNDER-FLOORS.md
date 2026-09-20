@@ -141,5 +141,9 @@ Adversarial review found and repaired inherited provenance: prior solve certific
 are retained only as source input, not exposed as claims about this new query.
 The full-release run evidence belongs in [VALIDATION](../../VALIDATION.md).
 
+![Actual progression-under-floors query](../screenshots/15-xi-hard-floor-query.png)
+
+[390px mobile capture](../screenshots/16-xi-hard-floor-mobile.png).
+
 E-08 remains closed at its published context-only result. No learned coefficient,
 retuning, lower product evidence gate or predictive promotion enters this query.

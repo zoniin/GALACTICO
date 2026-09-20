@@ -6,7 +6,24 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-Equivalent-XI exploration is verified with **308 local Python tests** and **12
+The progression-under-hard-floors release passed **374 local Python tests** and
+**13 Playwright tests** on 20 September. Ruff and the licensing guard passed.
+Independent exhaustive enumeration checks 36 randomized assignments plus exact
+rounding boundaries, tightening-floor monotonicity, locks and missing measurements.
+A fresh agent independently ran 37 core/oracle tests and found no remaining release
+blocker. Real Madrid checks recover a lower attainable progression sum at tighter
+side floors, then infeasibility; this validates accounting behavior, not football
+quality. No E-08 model or utility coefficient is promoted.
+
+The actual browser checks the response-owned XI, exact floor values, impossible
+requests, and stale replies after both floor edits and locks. The main pitch stays
+unchanged. Desktop and 390px screenshots were manually inspected; displayed
+certificate values are rounded, with exact values retained in provenance. Review
+repaired stale inherited certificates and JSON-overflow error handling. Numerical
+rounding allowances are explicitly not statistical uncertainty. See the
+[method and test contract](docs/research/XI-PROGRESSION-UNDER-FLOORS.md).
+
+The preceding equivalent-XI release was verified with **308 local Python tests** and **12
 Playwright tests** across all three labs. New independent brute-force cases check
 both lexicographic objectives, pairwise personnel diversity, conditional exhaustion,
 deadline/status honesty and isolation from bootstrap/tie analysis. API tests retain

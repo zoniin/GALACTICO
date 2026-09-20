@@ -2,13 +2,25 @@
 
 ## CURRENT COMMIT
 
-Current entry: clean `946bf4a`, verified on 13 September; resumed 17 September.
+20 September: progression-under-hard-floors core/API is committed as `d99892b`;
+browser/docs release is HEAD after this update. All implementation is integrated:
+374 Python tests and 13 Playwright tests passed, Ruff/licensing clean, final
+desktop/mobile screenshots inspected. Verify final push/CI using commands below.
+Entry was clean, pushed `47ff5ae`, whose CI `35297823998` passed. E-08 stays closed.
+
+Recovery history: disk filled on 18 September and truncated API/domain/XI HTML
+before any new commit. All three were restored exactly from HEAD via apply_patch
+before reapplying edits; no files were deleted. More than 14 GB was free at the
+final verification. Disk interruption and agent usage boundaries left no missing
+implementation. Root independently verified and integrated all recovered work.
+
+Earlier entry: clean `946bf4a`, verified on 13 September; resumed 17 September.
 E-08 protocol `68454bf` was committed/pushed before errors were evaluated.
 History implementation `b5b1fe9` and evaluator/CLI `61fe186` are pushed to main.
 Do not amend E-07 or promote aggregate findings into individual/decision gates.
 E-08 completed: NOT_ESTABLISHED, context-only selected; published/pushed `4ce4d5d`.
 Code CI `35263719118` passed both jobs. Equivalent-XI core/API is `abe548c`;
-browser/docs release is HEAD after this update. Verify final push/CI below.
+browser/docs release `9207731` and screenshot refresh `47ff5ae` passed CI.
 
 Follow-through: `8f6f65a` implements E-07's research pipeline; protocol `1de6939`
 was pushed before evaluation. Linux mobile repair `b4c60cb` is also pushed, and
@@ -76,6 +88,19 @@ No credentials or proprietary data are needed or committed.
   three witnesses, each replacing two players, under original nonzero minima.
   Delayed-response/lock invalidation, dirty-minima guard and mobile layout tested.
   Screenshots 13/14 manually inspected. No alternative receives a quality rank.
+- Distinct `/api/xi/tradeoff` maximizes historical pass-xT under three explicit
+  hard floors. Exact-input Fraction floor/ceil constraints guarantee raw floors;
+  boundary-feasible raw XIs can be excluded. Independent objective coefficients,
+  integer bounds, numerical allowances, source hashes and typed certificates.
+- Independent oracle covers 36 randomized instances, exact-number boundaries,
+  monotonicity, eligibility/locks/missingness and actual Madrid tightening floors.
+  Fresh review independently ran 37 core/oracle tests. Prior-solve certificates
+  are stripped from active provenance, retained only as source input.
+- Separate browser XI/floor ledger, readable rounded summaries with exact
+  certificates, no inherited main-pitch frequencies. Default/impossible query,
+  stale floor-edit and lock replies, dirty minima, 390px and gold checks passed.
+  Screenshots 15/16 and refreshed 11/12 manually inspected. Numeric-overflow
+  request validation now returns 422, not a serialization failure.
 
 ## CURRENT STATE MAP
 
@@ -89,7 +114,12 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation in this milestone. Full local verification passed
+No unfinished implementation. **374 local Python tests and 13 Playwright tests**
+passed on 20 September, plus Ruff/licensing. All recovery/council/adversarial results
+are integrated. Final push/CI is the only remaining handoff check if resuming
+before it completes; do not rebuild the feature or reopen E-08.
+
+The PREVIOUS equivalent-XI milestone completed. Full local verification passed
 **308 Python tests** and **12 Playwright tests**; Ruff clean. The additional oracle
 checks both lexicographic stages, pairwise diversity and conditional exhaustion.
 One initial test sat on an integer-rounding boundary; its eligibility fixture was
@@ -135,7 +165,7 @@ To run the committed product from the prepared workspace:
 ```powershell
 uv run ruff check galactico tests
 uv run pytest -q
-npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js
+npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js
 uv run python scripts/check_licensing.py
 git diff --check
 git status --short
@@ -182,14 +212,17 @@ that did not themselves pass the later evaluation floor.
 `galactico/optimization/historical.py`: deployment transport, sample/availability
 limits and fixed-xT uncertainty require research, not undocumented coefficients.
 `docs/research/XI-EQUIVALENT-ALTERNATIVES.md`, `galactico/optimization/xi/solver.py`,
-`web/xi.html`: exact diverse-equivalence exploration is complete. A possible next
-product increment is explicit epsilon/Pareto exploration, but it needs separately
-declared tradeoffs; do not label current equality witnesses Pareto or robust.
+`web/xi.html`: exact diverse-equivalence exploration is complete.
+`docs/research/XI-PROGRESSION-UNDER-FLOORS.md`, `galactico/optimization/xi/tradeoffs.py`,
+`tests/test_tradeoff_oracle.py`, `e2e/tradeoff.spec.js`: the separate epsilon-constraint
+point query is now complete too. Neither feature certifies a full Pareto frontier,
+robustness or general football utility. Future policy comparisons/frontier work
+must declare their additional decision claim, not silently change these solvers.
 `galactico/match_lab/model.py`: team descriptors can feed an opponent requirement
 experiment only after a reliability/meaning audit. No automatic opponent adjustment.
 
 ## AGENT RESULTS NOT YET INTEGRATED
 
-None. E-08 council/code/artifact review and equivalent-XI core/API/UI work are
-integrated. Several agents hit usage boundaries; root completed testing, repaired
-the unfinished fixture, inspected screenshots and owns final push/CI verification.
+None. E-08, equivalent-XI and hard-floor query council/core/API/UI/oracle work is
+integrated. Recovery agents' work and fresh release review are complete. Root owns
+the final push/CI check; no agent retains an exclusive unfinished implementation.
