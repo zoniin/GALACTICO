@@ -72,7 +72,7 @@ __all__ = [
 BRIEF_VERSION = "residual-minimal-need-brief-v1"
 MAX_BRIEF_ROWS = 64
 INCOMPLETE_WARNING = (
-    "The brief is incomplete: {n} minimal rows were found before the limit. "
+    "The brief is incomplete: the limit was reached with {n} of its minimal rows found. "
     "A player who meets none of them may still meet a row that was not found."
 )
 
@@ -423,7 +423,8 @@ def _claim(
     count: BriefCount | None,
     quantization: int,
 ) -> str:
-    where = f"{slot.label} ({slot.slot_id})"
+    # A page prints this: the slot and the requirements are named by label, never by id.
+    where = slot.label
     if status == "BRIEF" and rows == 1:
         head = (
             f"For {where}: a player added there makes every declared minimum reachable if, "
@@ -445,7 +446,8 @@ def _claim(
     elif status == "NOT_ADDRESSABLE_AT_SLOT":
         head = (
             f"For {where}: no addition at this slot can make the declared minima reachable. "
-            f"{', '.join(fixed)} do not count this slot and the other slots cannot reach them."
+            f"{', '.join(fixed)} {'does' if len(fixed) == 1 else 'do'} not count this slot and "
+            f"the other slots cannot reach {'it' if len(fixed) == 1 else 'them'}."
         )
     elif status == "RESIDUAL_UNFIELDABLE":
         head = (
@@ -453,26 +455,30 @@ def _claim(
             "exclusions and locks; one addition at this slot does not make an XI fieldable."
         )
     elif status == "INCOMPLETE":
+        one = rows == 1
         head = (
-            f"For {where}: {rows} minimal rows were found before the limit. A player added "
-            "there whose rates meet one of them on every listed requirement makes every "
-            "declared minimum reachable; other rows may exist, so meeting none of them "
-            "decides nothing."
+            f"For {where}: {rows} minimal row{' was' if one else 's were'} found before the "
+            f"limit. A player added there whose rates meet {'it' if one else 'one of them'} on "
+            "every listed requirement makes every declared minimum reachable; other rows may "
+            f"exist, so meeting {'no row found' if one else 'none of them'} decides nothing."
         )
     else:
         head = f"For {where}: the solver rejected the model; no statement is made."
     counted = ""
+    if count is not None:
+        pool = (
+            f"of the {count.admissible} gated player{'s' * (count.admissible != 1)} admissible "
+            f"at {where} in the declared universe"
+        )
     if count is not None and count.meeting is not None:
         counted = (
-            f" {count.meeting} of the {count.admissible} gated players admissible at "
-            f"{slot.slot_id} in the declared universe make every declared minimum reachable, "
-            "each confirmed by an exact solve with him placed there."
+            f" {count.meeting} {pool} make{'s' * (count.meeting == 1)} every declared minimum "
+            "reachable, each confirmed by an exact solve with him placed there."
         )
     elif count is not None:
         counted = (
-            f" {count.undetermined} of the {count.admissible} gated players admissible at "
-            f"{slot.slot_id} in the declared universe were not resolved before the deadline; "
-            "no count is stated."
+            f" {count.undetermined} {pool} {'was' if count.undetermined == 1 else 'were'} not "
+            "resolved before the deadline; no count is stated."
         )
     return (
         f"{head}{counted} {_NON_CLAIM} With the squad as it is, the minima are "
@@ -652,7 +658,7 @@ def role_brief(
     if status == "BRIEF" and baseline.status == "SATISFIABLE":
         warnings.append(
             "With the squad as it is the minima are reachable, and the brief at "
-            f"{slot_id} is non-zero all the same: the rows describe an addition who takes this "
+            f"{slot.label} is non-zero all the same: the rows describe an addition who takes this "
             "slot, so whoever fills it now must play elsewhere or not at all."
         )
     if count is not None and count.row_test_agrees is False:
@@ -717,7 +723,8 @@ def role_brief(
         excluded=excluded_ids,
         warnings=tuple(warnings),
         claim=_claim(
-            slot, status, len(rows), fixed_ids, baseline.status, count, quantization
+            slot, status, len(rows), tuple(r.label for r in fixed), baseline.status, count,
+            quantization,
         ),
         provenance=record,
     )

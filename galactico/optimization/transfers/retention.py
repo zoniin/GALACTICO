@@ -400,8 +400,15 @@ def break_even_retention(
             "No value is implied."
         )
 
+    # A page prints these sentences: a rate is named by the label the caller gave its metric,
+    # and by its id only when there is none. The ids are the fields beside them.
+    labels = {metric.metric_id: metric.label for metric in metrics}
+
+    def named(metric_ids: tuple[str, ...]) -> str:
+        return ", ".join(labels.get(metric_id) or metric_id for metric_id in metric_ids)
+
     said = f'"{sentence}"'
-    what = f"{candidate.name}'s recorded {', '.join(scaled) or 'rates (none is scaled)'}"
+    what = f"{candidate.name}'s recorded {named(scaled) or 'rates (none is scaled)'}"
     percent = None if step_found is None else step_found * 100 // LAMBDA_STEPS
     if status == "BREAK_EVEN_FOUND" and by_theorem:
         claim = (
@@ -504,8 +511,8 @@ def break_even_retention(
         scaled_metrics=scaled,
         unscaled_metrics=unscaled,
         scaling_statements=(
-            f"Scaled by the carry-over fraction: {', '.join(scaled) or 'no metric'}.",
-            f"Held at the recorded value: {', '.join(unscaled) or 'no metric'}.",
+            f"Scaled by the carry-over fraction: {named(scaled) or 'none'}.",
+            f"Held at the recorded value: {named(unscaled) or 'none'}.",
         ),
         baseline_objective=None if base is None else (base[0] / scale, base[1] / scale),
         baseline_unfieldable=baseline is not None and baseline.status == "UNFIELDABLE",

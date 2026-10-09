@@ -14,6 +14,7 @@ import datetime
 import hashlib
 import math
 import random
+import re
 from collections import Counter
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -455,8 +456,9 @@ def test_own_squad_equals_the_snapshot_and_leagues_are_resampled_apart(corpus):
     # sentence may not describe every gated outfield player of the league while counting fewer.
     assert len(own.candidates) > len(plain.candidates)
     assert plain.banner[0].startswith(
-        f"{len(plain.candidates)} outfield players in Spain, not counting the squad's own, had ")
-    assert own.banner[0].startswith(f"{len(own.candidates)} outfield players in Spain had ")
+        f"{len(plain.candidates)} outfield players in La Liga, not counting the squad's own, "
+        "had ")
+    assert own.banner[0].startswith(f"{len(own.candidates)} outfield players in La Liga had ")
 
     # U7: opting a league in adds candidates and changes nothing about the home league.
     home = tuple(c for c in both.candidates if c.same_league)
@@ -467,9 +469,19 @@ def test_own_squad_equals_the_snapshot_and_leagues_are_resampled_apart(corpus):
         assert {pid: both.worlds[world][pid] for pid in plain.worlds[world]} == plain.worlds[world]
     assert both.world_namespaces[ABROAD] not in ("", both.world_namespaces[HOME])
     assert {c.world_namespace for c in abroad} == {both.world_namespaces[ABROAD]}
-    assert {c.flag for c in abroad} == {U.CROSS_LEAGUE_FLAG.format(destination=HOME)}
-    assert U.CROSS_LEAGUE_FLAG.format(destination=HOME) in both.banner
-    assert U.CROSS_LEAGUE_FLAG.format(destination=HOME) not in plain.banner
+    flag = U.CROSS_LEAGUE_FLAG.format(destination="La Liga")
+    assert flag.startswith("Other league. Valued on La Liga's surface so the units match;")
+    assert {c.flag for c in abroad} == {flag}
+    assert flag in both.banner and flag not in plain.banner
+    assert both.provenance["cross_league_flag"] == flag
+    # A page prints the banner and the flag: a league is named by its label there. The
+    # competition ids stay in the fields.
+    assert both.banner[0].startswith(
+        f"{len(both.candidates)} outfield players in La Liga, Serie A, not counting")
+    for text in (*both.banner, *plain.banner, flag):
+        assert not re.search(r"(Spain|Italy)", text), text
+    assert both.leagues == (HOME, ABROAD) and both.provenance["leagues"] == [HOME, ABROAD]
+    assert {c.competition for c in both.candidates} == {HOME, ABROAD}
     assert U.CORPUS_EXIT_STATEMENT in plain.banner
     assert plain.provenance["corpus_exit_statement"] == U.CORPUS_EXIT_STATEMENT
     assert both.provenance["cross_league_coupling"] == S.WORLD_STATEMENTS["CROSS_LEAGUE"]
@@ -601,7 +613,9 @@ def test_refusals_slots_and_an_empty_pool(corpus, hand_surface):
     backs = U.admissible_at(pool, "4-3-1-2", "lb")
     assert [c.player_id for c in backs] == sorted(
         c.player_id for c in pool.candidates if c.provider_position == "DF")
-    with pytest.raises(ValueError, match="goalkeeping is not measured here"):
+    with pytest.raises(
+        ValueError, match="applies to Goalkeeper; goalkeeping is not measured here"
+    ):
         U.admissible_at(pool, "4-3-3", "gk")
     with pytest.raises(ValueError, match="has no slot"):
         U.admissible_at(pool, "4-3-3", "am")
@@ -619,7 +633,17 @@ def test_refusals_slots_and_an_empty_pool(corpus, hand_surface):
     assert sum(early.omitted_counts.values()) == early.provenance[
         "players_with_a_prior_appearance"]
     assert early.banner[0].startswith(
-        "0 outfield players in Spain, Italy, not counting the squad's own, had at least 900")
+        "0 outfield players in La Liga, Serie A, not counting the squad's own, had at least 900")
+
+
+def test_every_league_has_the_label_the_pages_print():
+    from galactico.api import planning
+
+    assert tuple(U.LEAGUE_LABELS) == U.LEAGUES
+    assert dict(U.LEAGUE_LABELS) == {
+        "Spain": "La Liga", "England": "Premier League", "Italy": "Serie A",
+        "Germany": "Bundesliga", "France": "Ligue 1"}
+    assert dict(U.LEAGUE_LABELS) == dict(planning.LEAGUE_LABELS)
 
 
 def test_the_loader_path_reads_one_league_at_a_time_and_relaxes_nothing(corpus, monkeypatch):
@@ -752,7 +776,8 @@ def test_spain_pool_at_the_planning_cutoff(madrid_planning, thesis_guard):
     assert pool.banner[1] == U.CORPUS_EXIT_STATEMENT
     # 310 outfield players of the league pass the gate; 16 of them are the squad's own.
     assert pool.banner[0].startswith(
-        "294 outfield players in Spain, not counting the squad's own, had at least 900 minutes")
+        "294 outfield players in La Liga, not counting the squad's own, had at least 900 "
+        "minutes")
     thesis_guard({"candidates": [asdict(c) for c in pool.candidates[:50]],
                   "omitted_counts": dict(pool.omitted_counts), "provenance": pool.provenance,
                   "banner": list(pool.banner)})
@@ -782,7 +807,7 @@ def test_five_league_pool_and_a_mid_season_cutoff(madrid_planning):
     for world, values in spain.worlds.items():
         assert {pid: five.worlds[world][pid] for pid in values} == values
     assert len(set(five.world_namespaces.values())) == 5
-    flag = U.CROSS_LEAGUE_FLAG.format(destination="Spain")
+    flag = U.CROSS_LEAGUE_FLAG.format(destination="La Liga")
     assert {c.flag for c in five.candidates if not c.same_league} == {flag}
     assert flag in five.banner and five.provenance["providers"] == ["pappalardo"]
     assert all(c.minutes >= 900 and c.provider_position != "GK" for c in five.candidates)

@@ -11,6 +11,7 @@ from __future__ import annotations
 import itertools
 import math
 import random
+import re
 from dataclasses import asdict, replace
 from fractions import Fraction
 from types import SimpleNamespace
@@ -466,7 +467,8 @@ def test_two_incomparable_rows_a_candidate_on_a_row_and_one_unit_below_it():
     count = result.count
     assert (count.admissible, count.meeting, count.not_meeting, count.undetermined) == (4, 2, 2, 0)
     assert count.meeting_ids == (11, 12) and count.row_test_agrees is True
-    assert "2 of the 4 gated players admissible at x" in result.claim
+    assert "2 of the 4 gated players admissible at Slot x in the declared universe make " in (
+        result.claim)
     assert result.certificate.final_region_status == "INFEASIBLE"
     assert result.certificate.solves == result.provenance["brief_solver_calls"]["enumeration"] == 5
 
@@ -514,6 +516,7 @@ def test_two_incomparable_rows_a_candidate_on_a_row_and_one_unit_below_it():
     assert (limited.count.meeting, limited.count.meeting_ids) == (2, (11, 12))
     assert limited.count.row_test_agrees is None
     assert "other rows may exist" in limited.claim
+    assert "For Slot x: 1 minimal row was found before the limit." in limited.claim
     # A limit equal to the number of rows is not a limit: completeness is still proven.
     exact = role_brief(squad, requirements, formation, slot_id="x", quantization=100, max_rows=2)
     assert (exact.status, exact.certificate.completeness, exact.count) == (
@@ -559,7 +562,7 @@ def test_a_slot_no_requirement_counts_and_squads_that_cannot_fill_the_other_slot
     assert (unmet.count.meeting, unmet.count.not_meeting, unmet.count.row_test_agrees) == (
         0, 1, True)
     assert unmet.squad_satisfiable_without_addition == "NOT_SATISFIABLE"
-    assert "need_a do not count this slot" in unmet.claim
+    assert "A does not count this slot and the other slots cannot reach it." in unmet.claim
 
     # (5) The only player for x is the only player for y: the squad cannot field an XI, an
     # addition at x can, and the row is what the other slot leaves open.
@@ -1053,3 +1056,80 @@ def test_season_end_briefs_and_universe_counts_equal_a_slot_search(corpus_root, 
     assert seen[True, "gk"] == ("NO_NEED", 1)
     assert {seen[True, sid] for sid in ("lcb", "rcb", "dm", "lcm", "rcm", "lw", "rw")} == {
         ("NO_NEED", 1)}
+
+
+# ------------------------------------------- a page prints these sentences: labels, not ids
+
+
+def whole_word(token, text):
+    return re.search(rf"(?<![A-Za-z0-9_]){re.escape(token)}(?![A-Za-z0-9_])", text)
+
+
+def test_no_sentence_of_a_brief_names_a_slot_or_a_requirement_by_its_id():
+    slots = (Slot("zq1", "Left post", ("P",), 0.3, 0.5),
+             Slot("zq2", "Right post", ("P",), 0.7, 0.5),
+             Slot("zq0", "Keeper", ("G",), 0.5, 0.9), Slot("zq3", "Far post", ("P",), 0.5, 0.1))
+    formation = Formation("toy", slots[:3])
+    posts = Formation("toy", slots[:2])
+    three = Formation("toy", (*slots[:2], slots[3]))
+
+    def wanted(metric, label, minimum, slot_ids=()):
+        return TacticalRequirement(
+            f"rq_{metric}", label, metric, minimum, 1.0, slot_ids, "MEASURED")
+
+    both = [wanted("mxa", "Alpha per 90", 1.0), wanted("mxb", "Beta per 90", 1.0)]
+    squad = [man(1, ("zq2",), mxa=0.75, mxb=0.25), man(2, ("zq2",), mxa=0.25, mxb=0.75),
+             man(3, ("zq1",), mxa=0.875, mxb=0.875)]
+    pool = [man(11, ("zq1",), mxa=0.25, mxb=0.75), man(13, ("zq1",), mxa=0.125, mxb=0.125)]
+    with_keeper = [man(1, position="G", mxa=0.0), man(2, mxa=0.5), man(3, mxa=0.5)]
+    keeper = [man(11, ("zq0",), position="G")]
+    outfield = ("zq1", "zq2")
+    results = [
+        role_brief(squad, both, posts, slot_id="zq1", universe=pool, quantization=100),
+        role_brief(squad, both, posts, slot_id="zq1", universe=pool, quantization=100,
+                   max_rows=1),
+        role_brief(with_keeper, [wanted("mxa", "Alpha per 90", 1.0, outfield)], formation,
+                   slot_id="zq0", universe=keeper, quantization=100),
+        role_brief(with_keeper, [wanted("mxa", "Alpha per 90", 1.5, outfield)], formation,
+                   slot_id="zq0", universe=keeper, quantization=100),
+        role_brief([man(1, mxa=0.75), man(2, ("zq1",), mxa=0.75)],
+                   [wanted("mxa", "Alpha per 90", 1.0)], three, slot_id="zq1", quantization=100),
+    ]
+    assert [r.status for r in results] == [
+        "BRIEF", "INCOMPLETE", "NO_NEED", "NOT_ADDRESSABLE_AT_SLOT", "RESIDUAL_UNFIELDABLE"]
+    assert any("non-zero all the same" in text for text in results[0].warnings)
+    sentences = [text for r in results for text in (r.claim, *r.warnings)]
+    for token in ("zq0", "zq1", "zq2", "zq3", "rq_mxa", "rq_mxb", "mxa", "mxb"):
+        for text in sentences:
+            assert not whole_word(token, text), (token, text)
+    assert results[0].claim.startswith("For Left post: a player added there makes")
+    assert "Alpha per 90 does not count this slot" in results[3].claim
+
+
+def test_brief_sentences_agree_in_number_with_their_counts():
+    squad, requirements, formation = two_rows()
+    on_first, below = man(11, ("x",), a=0.25, b=0.75), man(13, ("x",), a=0.125, b=0.125)
+    one_of_two = role_brief(squad, requirements, formation, slot_id="x",
+                            universe=[on_first, below], quantization=100)
+    assert ("1 of the 2 gated players admissible at Slot x in the declared universe makes "
+            "every declared minimum reachable") in one_of_two.claim
+    alone = role_brief(squad, requirements, formation, slot_id="x", universe=[on_first],
+                       quantization=100)
+    assert "1 of the 1 gated player admissible at Slot x in the declared universe makes " in (
+        alone.claim)
+    neither = role_brief(squad, requirements, formation, slot_id="x", universe=[below],
+                         quantization=100)
+    assert "0 of the 1 gated player admissible at Slot x in the declared universe make " in (
+        neither.claim)
+    assert module._claim(
+        formation.slots[0], "BRIEF", 2, (), "SATISFIABLE",
+        module.BriefCount(3, None, 0, 1, (), "INJECTED_SATISFY_SOLVE", None), 100,
+    ).count("1 of the 3 gated players admissible at Slot x in the declared universe was not "
+            "resolved before the deadline") == 1
+    assert "A, B do not count this slot and the other slots cannot reach them." in module._claim(
+        formation.slots[0], "NOT_ADDRESSABLE_AT_SLOT", 0, ("A", "B"), "NOT_SATISFIABLE", None, 100)
+    limited = role_brief(squad, requirements, formation, slot_id="x", quantization=100,
+                         max_rows=1)
+    assert limited.warnings[-1] == (
+        "The brief is incomplete: the limit was reached with 1 of its minimal rows found. "
+        "A player who meets none of them may still meet a row that was not found.")

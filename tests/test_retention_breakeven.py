@@ -13,6 +13,7 @@ import inspect
 import itertools
 import math
 import random
+import re
 from dataclasses import asdict, replace
 from fractions import Fraction
 
@@ -424,6 +425,8 @@ def test_only_declared_additive_requirement_rates_are_scaled_and_the_rest_is_hel
     assert (held.scaled_metrics, held.unscaled_metrics) == (("r2",), ("r1",))
     assert held.scaling_statements == (
         "Scaled by the carry-over fraction: r2.", "Held at the recorded value: r1.")
+    assert nothing.scaling_statements == (
+        "Scaled by the carry-over fraction: none.", "Held at the recorded value: r1, r2.")
     # A requirement metric nobody declared an additive rate is never scaled: not by default,
     # not on request.
     undeclared = break_even_retention(candidate, squad, requirements, PAIR, slot_id="s1",
@@ -592,3 +595,54 @@ def test_no_sentence_says_every_grid_value_was_solved_unless_every_one_was(monke
     negative = solve_one(-0.5, squad=strong)
     assert (negative.reason, negative.certificate.scan) == ("SATURATED_BASELINE", "NONE")
     assert all("grid value was solved" not in warning for warning in negative.warnings)
+
+
+# ------------------------------------------- a page prints these sentences: labels, not ids
+
+
+def test_no_sentence_of_a_break_even_names_a_slot_a_requirement_or_a_metric_by_its_id():
+    formation = Formation("pair", (Slot("zs1", "Near side", ("X",), 0.3, 0.5),
+                                   Slot("zs2", "Far side", ("X",), 0.7, 0.5)))
+    requirements = [TacticalRequirement("rq_one", "Alpha per 90", "mx_one", 1.0, 1.0),
+                    TacticalRequirement("rq_two", "Beta per 90", "mx_two", 1.0, 1.0)]
+    squad = [Candidate(1, "A", "X", {"mx_one": 0.05, "mx_two": 0.30}, 900, ("zs1",)),
+             Candidate(2, "B1", "X", {"mx_one": 0.00, "mx_two": 0.80}, 900, ("zs2",)),
+             Candidate(3, "B3", "X", {"mx_one": 0.60, "mx_two": 0.70}, 900, ("zs2",))]
+    candidate = Candidate(9, "C", "X", {"mx_one": 1.00, "mx_two": 0.00}, 900, ("zs1",))
+    labelled = [
+        SnapshotMetric("mx_one", "Alpha per 90", "SPEC_PER_90", True, None, True, "HEURISTIC", "t"),
+        SnapshotMetric("mx_two", "Beta per 90", "SPEC_PER_90", True, None, True, "HEURISTIC", "t"),
+    ]
+
+    def solve(**options):
+        return break_even_retention(candidate, squad, requirements, formation, slot_id="zs1",
+                                    metrics=labelled, quantization=100, **options)
+
+    results = [solve(conclusion=conclusion) for conclusion in CONCLUSIONS]
+    results += [solve(scaled_metrics=("mx_two",), scan="FULL"), solve(scaled_metrics=()),
+                solve(excluded=(1,))]
+    unplaced = replace(candidate, values={"mx_one": None, "mx_two": None})
+    results.append(break_even_retention(unplaced, squad, requirements, formation, slot_id="zs1",
+                                        metrics=labelled, quantization=100))
+    assert {r.status for r in results} >= {"BREAK_EVEN_FOUND", "HOLDS_AT_ZERO", "NEVER_HOLDS"}
+    for result in results:
+        sentences = (result.claim, result.non_claim, result.conclusion_sentence, result.label,
+                     *result.warnings, *result.scaling_statements)
+        for token in ("zs1", "zs2", "rq_one", "rq_two", "mx_one", "mx_two"):
+            for text in sentences:
+                assert not re.search(
+                    rf"(?<![A-Za-z0-9_]){re.escape(token)}(?![A-Za-z0-9_])", text), (token, text)
+    assert results[0].scaling_statements == (
+        "Scaled by the carry-over fraction: Alpha per 90, Beta per 90.",
+        "Held at the recorded value: none.")
+    assert "of C's recorded Alpha per 90, Beta per 90 carry over" in results[0].claim
+    assert results[5].scaling_statements == (
+        "Scaled by the carry-over fraction: Beta per 90.",
+        "Held at the recorded value: Alpha per 90.")
+    # The ids stay in the fields beside the sentences.
+    assert (results[5].scaled_metrics, results[5].unscaled_metrics) == (("mx_two",), ("mx_one",))
+    # A metric the caller gave no label is named by its id: there is nothing else to print.
+    bare = [replace(metric, label="") for metric in labelled]
+    assert break_even_retention(
+        candidate, squad, requirements, formation, slot_id="zs1", metrics=bare, quantization=100
+    ).scaling_statements[0] == "Scaled by the carry-over fraction: mx_one, mx_two."

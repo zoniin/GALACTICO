@@ -297,6 +297,10 @@ def test_two_disjoint_pairs_tie_for_the_worst_and_both_are_returned():
     singles, pairs, triples = result.levels
     assert singles.worst_integer == (0, 0) and len(singles.worst_sets) == 6
     assert singles.positive_change_count == 0 and "No set among the 6 sets" in singles.claim
+    # A whole number is printed as one, the way the injection sentences print a pair.
+    assert "raises the least declared shortfall above (maximum 0, total 0); 0 sets" in (
+        singles.claim)
+    assert "rises from (maximum 0, total 0) to (maximum 0.4, total 0.4)." in pairs.claim
     assert pairs.worst_integer == (40, 40) and pairs.worst_sets == ((1, 2), (3, 4))
     assert pairs.worst_objective == (0.4, 0.4) and pairs.unfieldable_count == 0
     assert "any one of these 2 sets" in pairs.claim and "P1 and P2; P3 and P4" in pairs.claim
@@ -307,7 +311,14 @@ def test_two_disjoint_pairs_tie_for_the_worst_and_both_are_returned():
     assert row[(1, 2)].change_from_baseline == (0.4, 0.4)
     assert result.claim == triples.claim and result.completeness_statement.startswith(
         "Every inclusion-minimal set of at most 3 players")
-    assert "no fieldable XI reflect the evidence gate" in " ".join(result.warnings)
+    # Said once, in the fuller wording, and only when such a set exists.
+    said = [text for text in (result.non_claim, *result.warnings, result.completeness_statement)
+            if "no fieldable XI reflect the evidence gate" in text]
+    assert said == [
+        "Sets that leave no fieldable XI reflect the evidence gate and the eligibility rules, "
+        "not the real squad; the omitted players are listed beside this result."]
+    assert said[0] in result.warnings
+    assert result.non_claim.endswith("everything this model does not measure.")
 
 
 def test_levels_are_separate_when_every_larger_set_leaves_no_xi():
@@ -326,6 +337,7 @@ def test_levels_are_separate_when_every_larger_set_leaves_no_xi():
     assert {c.player_ids for c in pairs.minimal_unfieldable} == {(1, 2), (1, 3), (2, 3)}
     assert pairs.claim.startswith("All 3 sets of 2 players leave no fieldable XI")
     assert triples.unfieldable_count == 1 and triples.minimal_unfieldable == ()
+    assert triples.claim.startswith("The 1 set of 3 players leaves no fieldable XI in this model.")
     last = result.table[-1]
     assert (last.player_ids, last.resolution, last.inherited_from) == (
         (1, 2, 3), "INHERITED_UNFIELDABLE", (2, 3))
@@ -397,6 +409,16 @@ def test_a_narrowed_enumeration_does_not_claim_the_sets_it_never_formed():
         "Every inclusion-minimal set of at most 2 players whose absence leaves no fieldable XI "
         "is listed. Larger ones were not searched.")
     assert "removable" not in full.claim
+    # The sentence agrees in number with k and with the removable count.
+    assert absence_stress(players, NEED, TWO, k=1, quantization=100).completeness_statement == (
+        "Every inclusion-minimal set of at most 1 player whose absence leaves no fieldable XI "
+        "is listed. Larger ones were not searched.")
+    assert absence_stress(
+        players, NEED, TWO, k=1, quantization=100, removable=(3,)
+    ).completeness_statement == (
+        "Every inclusion-minimal set of at most 1 of the 1 removable player whose absence "
+        "leaves no fieldable XI is listed. Sets with any other player, and larger sets, were "
+        "not searched.")
     for narrowing in (dict(removable=(3, 4)), dict(locked=(1,))):
         result = absence_stress(players, NEED, TWO, k=2, quantization=100, **narrowing)
         count = len(result.certificate.removable_ids)
@@ -479,6 +501,8 @@ def test_a_forced_undecided_solve_withholds_the_worst_case_and_proves_nothing(mo
                 assert level.completeness == "DEADLINE"
                 assert level.worst_integer is None and level.worst_sets == ()
                 assert level.worst_objective is None and "no worst case is stated" in level.claim
+                assert level.unknown_count == 1 and level.claim.startswith("1 of the ")
+                assert " was not resolved, so no worst case is stated." in level.claim
                 truly_worst = max(v for a, v in table.items()
                                   if len(a) == level.k and v is not None)
                 # A8: what was certified bounds the true worst case from below.
@@ -489,7 +513,8 @@ def test_a_forced_undecided_solve_withholds_the_worst_case_and_proves_nothing(mo
                     table, level.k)
             else:
                 assert level.completeness == "EXACT"
-        assert any("absence sets were not resolved within 60 s" in w for w in result.warnings)
+        assert any(w.startswith("1 absence set was not resolved within 60 s.")
+                   for w in result.warnings)
     assert hit_levels == {1, 2}
 
 
@@ -523,8 +548,8 @@ def test_a_passed_deadline_leaves_sets_not_reached_and_a_valid_lower_bound(monke
                 bound = level.certified_lower_bound_integer
                 assert bound is None or bound <= max(
                     v for a, v in table.items() if len(a) == level.k and v is not None)
-        assert any(w.startswith(f"{len(late)} absence sets were not resolved within 5 s")
-                   for w in result.warnings)
+        unresolved = "1 absence set was" if len(late) == 1 else f"{len(late)} absence sets were"
+        assert any(w.startswith(f"{unresolved} not resolved within 5 s") for w in result.warnings)
     assert reached == {"no baseline", "partial"}
 
 

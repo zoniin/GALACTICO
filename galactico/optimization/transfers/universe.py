@@ -75,6 +75,7 @@ __all__ = [
     "CROSS_LEAGUE_FLAG",
     "CURRENT_CLUB_RULE",
     "LEAGUES",
+    "LEAGUE_LABELS",
     "OMISSION_REASONS",
     "OWN_SQUAD_RULE",
     "SHOWN_EVIDENCE",
@@ -95,6 +96,14 @@ __all__ = [
 
 UNIVERSE_VERSION = "gated-current-stint-universe-v1"
 LEAGUES: tuple[str, ...] = ("Spain", "England", "Italy", "Germany", "France")
+# What a sentence calls a league. The competition ids above stay in every field.
+LEAGUE_LABELS: Mapping[str, str] = {
+    "Spain": "La Liga",
+    "England": "Premier League",
+    "Italy": "Serie A",
+    "Germany": "Bundesliga",
+    "France": "Ligue 1",
+}
 PROVIDER = "pappalardo"
 XT_SURFACE = "DESTINATION_LEAGUE_PRIOR"
 # What the canonical sort, the xT fit, the two SPEC filters and the lane rule read. Nothing else
@@ -398,6 +407,7 @@ def build_universe(
 
     candidates: list[UniverseCandidate] = []
     sampled: dict[int, dict[int, dict[str, float | None]]] = {w: {} for w in range(world_count)}
+    cross_league_flag = CROSS_LEAGUE_FLAG.format(destination=LEAGUE_LABELS[destination])
     namespaces: dict[str, str] = {}
     dataset_hashes: dict[str, str] = {}
     prior_match_counts: dict[str, int] = {}
@@ -466,7 +476,7 @@ def build_universe(
         del stint_actions
 
         same_league = league == destination
-        flag = None if same_league else CROSS_LEAGUE_FLAG.format(destination=destination)
+        flag = None if same_league else cross_league_flag
 
         league_values: dict[int, dict[str, float | None]] = {}
         for row, position in gated[league]:
@@ -553,14 +563,15 @@ def build_universe(
     # it, so the sentence says who is left out instead of describing a larger set.
     own_left_out = "" if _include_own_squad else ", not counting the squad's own,"
     pool = (
-        f"{len(candidates)} outfield players in {', '.join(leagues)}{own_left_out} had at least "
+        f"{len(candidates)} outfield players in "
+        f"{', '.join(LEAGUE_LABELS[name] for name in leagues)}{own_left_out} had at least "
         f"{MINUTES_FLOOR} minutes for the club of their latest appearance before {cutoff_date}. "
         "That is the pool this corpus defines. It is not the market, and no role is inferred: "
         "lane shares, foot and age are shown for you to judge."
     )
     banner = [pool, CORPUS_EXIT_STATEMENT]
     if others:
-        banner.append(CROSS_LEAGUE_FLAG.format(destination=destination))
+        banner.append(cross_league_flag)
     provenance = {
         "universe_version": UNIVERSE_VERSION,
         "destination_team_id": team_id,
@@ -587,7 +598,7 @@ def build_universe(
         "current_club_rule": CURRENT_CLUB_RULE,
         "corpus_exit_statement": CORPUS_EXIT_STATEMENT,
         "cross_league_coupling": WORLD_STATEMENTS["CROSS_LEAGUE"] if others else None,
-        "cross_league_flag": CROSS_LEAGUE_FLAG.format(destination=destination) if others else None,
+        "cross_league_flag": cross_league_flag if others else None,
         "strength_adjusted": False,
         "world_scheme": "LEAGUE_MATCHES" if world_count else None,
         "world_statement": WORLD_STATEMENTS["LEAGUE_MATCHES"] if world_count else None,
@@ -714,7 +725,7 @@ def admissible_at(
         raise ValueError(f"formation {formation.formation_id} has no slot {slot_id!r}")
     allowed = slots[slot_id].allowed_positions
     if allowed == ("GK",):
-        raise ValueError(_GK_SLOT.format(slot=slot_id))
+        raise ValueError(_GK_SLOT.format(slot=slots[slot_id].label))
     return tuple(c for c in universe.candidates if c.provider_position in allowed)
 
 

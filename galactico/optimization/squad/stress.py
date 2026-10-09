@@ -7,8 +7,8 @@ from one that was."
 
 Non-claim: "Unavailability is a scenario you chose. No likelihood of injury or suspension is
 estimated, and a player whose absence changes nothing here may matter for everything this model
-does not measure. Sets that leave no fieldable XI reflect the evidence gate and the eligibility
-rules; the omitted players are listed beside this result."
+does not measure." When a set leaves no fieldable XI, one warning says that such sets reflect
+the evidence gate and the eligibility rules, not the real squad.
 
 Every set of 1..k removable players is enumerated. A set's value is the kernel's least
 (maximum, total) shortfall with those players excluded as well, in the shipped half-even
@@ -84,22 +84,21 @@ STRESS_CLAIM = (
 STRESS_NON_CLAIM = (
     "Unavailability is a scenario you chose. No likelihood of injury or suspension is "
     "estimated, and a player whose absence changes nothing here may matter for everything this "
-    "model does not measure. Sets that leave no fieldable XI reflect the evidence gate and the "
-    "eligibility rules; the omitted players are listed beside this result."
+    "model does not measure."
 )
 _COMPLETE = (
-    "Every inclusion-minimal set of at most {k} players whose absence leaves no fieldable XI "
+    "Every inclusion-minimal set of at most {k} player{s} whose absence leaves no fieldable XI "
     "is listed. Larger ones were not searched."
 )
 # When locks or a declared ``removable`` list keep some players out of the enumeration, the
 # sets that contain them were never formed and nothing is said about them.
 _COMPLETE_AMONG = (
-    "Every inclusion-minimal set of at most {k} of the {n} removable players whose absence "
+    "Every inclusion-minimal set of at most {k} of the {n} removable player{s} whose absence "
     "leaves no fieldable XI is listed. Sets with any other player, and larger sets, were not "
     "searched."
 )
 _DEADLINE = (
-    "{n} absence sets were not resolved within {t} s. The largest certified rise is a lower "
+    "{n} absence set{s} not resolved within {t} s. The largest certified rise is a lower "
     "bound on the worst case, and more sets may leave no fieldable XI. Unknown is not evidence "
     "either way."
 )
@@ -242,9 +241,16 @@ def _from_kernel(value: KernelValue) -> _Entry:
     )
 
 
+def _number(value: float) -> str:
+    """The value as the injection sentences print one: no ".0" on a whole number, and never
+    rounded a second time."""
+    short = f"{value:g}"
+    return short if float(short) == value else repr(value)
+
+
 def _phrase(integers: Pair, quantization: int) -> str:
     maximum, total = _floats(integers, quantization)
-    return f"(maximum {maximum!r}, total {total!r})"
+    return f"(maximum {_number(maximum)}, total {_number(total)})"
 
 
 def _level_claim(
@@ -270,11 +276,13 @@ def _level_claim(
     )
     if unknown:
         return (
-            f"{unknown} of the {sets} were not resolved, so no worst case is stated. "
+            f"{unknown} of the {sets} {'was' if unknown == 1 else 'were'} not resolved, so no "
+            "worst case is stated. "
             f"At least {unfieldable} leave{'s' if unfieldable == 1 else ''} no fieldable XI."
         )
     if worst is None:
-        return f"All {sets} leave no fieldable XI in this model. {proof}"
+        every = f"The {sets} leaves" if count == 1 else f"All {sets} leave"
+        return f"{every} no fieldable XI in this model. {proof}"
     if worst == baseline:
         return (
             f"No set among the {sets} that still leaves a fieldable XI raises the least declared "
@@ -544,7 +552,11 @@ def absence_stress(
             "set was evaluated. Unknown is not evidence either way."
         )
     if unresolved:
-        warnings.append(_DEADLINE.format(n=unresolved, t=f"{time_limit:g}"))
+        warnings.append(
+            _DEADLINE.format(
+                n=unresolved, s=" was" if unresolved == 1 else "s were", t=f"{time_limit:g}"
+            )
+        )
     if model_invalid and baseline is not None:
         warnings.append("The solver rejected a model; the affected sets are reported as UNKNOWN.")
     if any(level.unfieldable_count for level in levels):
@@ -611,7 +623,9 @@ def absence_stress(
         claim=claim,
         non_claim=STRESS_NON_CLAIM,
         completeness_statement=(
-            (_COMPLETE_AMONG if narrowed else _COMPLETE).format(k=k, n=len(pool))
+            (_COMPLETE_AMONG if narrowed else _COMPLETE).format(
+                k=k, n=len(pool), s="s" * ((len(pool) if narrowed else k) != 1)
+            )
             if exact
             else None
         ),
