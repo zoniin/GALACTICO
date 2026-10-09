@@ -43,6 +43,10 @@ class RenderState(Enum):
     BAND_ONLY = "band_only"
     INSUFFICIENT_SIGNAL = "insufficient_signal"
     UNAVAILABLE = "unavailable"
+    OUT_OF_CONTEXT = "out_of_context"
+    """The player is outside the context the construct's registry entry declares.
+    The row carries no estimate, no reference population and no minutes floor:
+    no sample size puts him inside. ``notes`` is the reason."""
 
 
 class ReferencePopulation(Enum):
@@ -112,6 +116,7 @@ class ConstructResult:
     minutes_floor: int | None
     evidence: str
     notes: str = ""
+    """The estimator's note. On an ``out_of_context`` row, the reason it is withheld."""
     draws: tuple[float | None, ...] | None = None
     """A thinned set of bootstrap draws. Kept because a difference distribution
     cannot be recovered from quantiles: differencing them pairwise gives the
@@ -163,6 +168,31 @@ class PlayerProfile:
         return None
 
 
+BUILD_RULES: tuple[str, ...] = (
+    "declared-context-gate-v1",
+    "channel-shares-follow-the-style-context-v1",
+    "reliability-on-the-declared-population-v1",
+)
+"""The rules of the builder that decide what a bundle holds. The semantic fingerprints say
+what each estimator computes; they do not move when the builder starts withholding a
+construct outside its declared context, so a bundle built before a rule changed would be
+served as current. The API refuses a bundle whose rules are not these."""
+
+
+def declared_population(construct_id: str, values: dict, positions: dict) -> dict:
+    """The entries of ``values`` (player id to value) for players inside the context the
+    construct declares. A column that is not a registered construct is returned whole.
+
+    Pooled reliability is taken over this population: a construct's reliability is a
+    statement about the players it is defined for.
+    """
+    construct = CONSTRUCTS.get(construct_id)
+    if construct is None:
+        return dict(values)
+    return {player_id: value for player_id, value in values.items()
+            if construct.context_excluding(positions.get(player_id)) is None}
+
+
 @dataclass(frozen=True)
 class ProfileBundle:
     """Everything Player Lab serves, plus the versions that produced it."""
@@ -179,6 +209,7 @@ class ProfileBundle:
     profiles: list[PlayerProfile]
     semantic_versions: dict[str, str] = field(default_factory=dict)
     bootstrap: dict = field(default_factory=dict)
+    build_rules: list[str] = field(default_factory=list)
 
     @property
     def version_key(self) -> str:
@@ -189,6 +220,7 @@ class ProfileBundle:
             # the artifact whether or not anyone remembers to bump a version.
             "semantics": self.semantic_versions,
             "bootstrap": self.bootstrap,
+            "rules": self.build_rules,
             "xt": self.xt_version,
             "dataset": self.dataset_hash,
         }, sort_keys=True)
@@ -236,6 +268,12 @@ ZONES = {
     "centre": (0.37, 0.63),
     "right_half": (0.63, 0.79), "right_wide": (0.79, 1.0),
 }
+
+
+def _style_withheld(results: list) -> bool:
+    style = [row for row in results if row.family == "style"]
+    return bool(style) and all(
+        row.render_state == RenderState.OUT_OF_CONTEXT.value for row in style)
 
 
 def _zone_shares(passes: pd.DataFrame) -> dict[str, float]:
@@ -296,22 +334,39 @@ def build_profiles(
 
     profiles: list[PlayerProfile] = []
     for player_id in eligible:
-        position = positions.get(player_id) or "??"
+        recorded = positions.get(player_id)
+        recorded = recorded if isinstance(recorded, str) and recorded else None
+        position = recorded or "??"
         player_minutes = int(minutes.loc[player_id])
         results: list[ConstructResult] = []
 
         for construct_id, construct in CONSTRUCTS.items():
             if construct_id not in axes.columns:
                 continue
-            # invalid_contexts was declared on every quality construct and
-            # enforced nowhere, so 26 goalkeepers shipped with full point
-            # estimates reachable from search, explore, scatter and compare.
-            # A declared invalid context that nothing checks is a comment.
-            if position == "GK" and any("goalkeeper" in c
-                                        for c in construct.invalid_contexts):
-                continue
             estimator = construct.estimators.get(estimator_key)
             if estimator is None:
+                continue
+            # A declared context that nothing checks is a comment. It was one
+            # twice: no context was enforced, then only ``invalid_contexts`` was,
+            # so 26 goalkeepers kept the two style constructs, which say
+            # "outfield players" under ``valid_contexts`` alone. The registry
+            # answers now, and the row is kept so the absence shows its reason.
+            declared = construct.context_excluding(recorded)
+            if declared is not None:
+                where = f"is recorded as {recorded}" if recorded else "has no recorded position"
+                results.append(ConstructResult(
+                    construct_id=construct_id,
+                    estimator_id=estimator.key,
+                    family=construct.family.value,
+                    value=None, sd=None, percentile=None,
+                    reference_population="", reference_label="", reference_n=0,
+                    render_state=RenderState.OUT_OF_CONTEXT.value,
+                    reliability=None,
+                    minutes=player_minutes,
+                    minutes_floor=None,
+                    evidence="Estimated",
+                    notes=f"{declared}; this player {where}.",
+                ))
                 continue
 
             raw = axes.loc[player_id, construct_id] if player_id in axes.index else np.nan
@@ -367,7 +422,10 @@ def build_profiles(
             minutes=player_minutes,
             regime=regime,
             constructs=results,
-            zone_shares=_zone_shares(passes[passes.player_id == player_id]),
+            # The channel shares are the pass-origin constructs under another name. Where
+            # every style construct is withheld, the breakdown is not shipped either.
+            zone_shares=({} if _style_withheld(results)
+                         else _zone_shares(passes[passes.player_id == player_id])),
         ))
 
     from ..features.spec import SPECS
@@ -386,6 +444,7 @@ def build_profiles(
         minutes_floor=minutes_floor,
         profiles=profiles,
         semantic_versions={k: v.fingerprint for k, v in SPECS.items()},
+        build_rules=list(BUILD_RULES),
         bootstrap=({"method": shared.method, "seed": shared.seed,
                     "world_namespace": shared.world_namespace,
                     "stored_world_ids": list(shared.world_ids)} if shared else {}),

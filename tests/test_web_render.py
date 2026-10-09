@@ -83,6 +83,79 @@ def test_quantile_dots_execute() -> None:
     assert out == "ok"
 
 
+KEEPER_PAGE = """
+const REASON = 'Defined for outfield players; this player is recorded as GK.';
+const shipped = [['progression','quality'], ['chance_creation','quality'],
+                 ['half_space_share','style'], ['width','style']]
+  .map(([id, family]) => ({id, family, label: 'Label ' + id, claim: 'Claim ' + id}));
+const row = (c, state, value) => ({construct_id: c.id, family: c.family, value,
+  display: value === null ? null : String(value), percentile: value === null ? null : 50,
+  sd: null, quantiles: null, draws: null, render_state: state, minutes_floor: null,
+  reference_label: value === null ? '' : 'MD players', reference_n: value === null ? 0 : 9,
+  reliability: value === null ? null : 0.9, signal: value === null ? null : 'strong',
+  population_median: value === null ? null : 0.3,
+  ...(c.family === 'style' && value !== null
+      ? {geometric_neutral: 0.42, departure: value - 0.42, style_band: 'a band'} : {}),
+  notes: state === 'out_of_context' ? REASON : 'estimator note'});
+const player = (id, position, state, value) => ({player_id: id, name: 'P' + id, team: 'T',
+  position, competition: 'C', season: 'S', minutes: 2000, regime: 'wyscout_event',
+  constructs: shipped.map(c => row(c, state, value)),
+  zone_shares: {left_wide: .1, left_half: .2, centre: .4, right_half: .2, right_wide: .1}});
+const replies = {
+  '/api/meta': {tier: 'LAB', competition: 'C', season: 'S', xt_version: 'x', dataset_hash: 'd',
+                version_key: 'v', generated_at: 'g', player_count: 2, minutes_floor: 900},
+  '/api/constructs': {shipped, rejected: [], research_only: [], counts: {}, channel_geometry: {}},
+  '/api/players/1': player(1, 'GK', 'out_of_context', null),
+  '/api/players/2': player(2, 'MD', 'point_estimate', 0.5),
+};
+const elements = {};
+const element = () => ({innerHTML: '', textContent: '', addEventListener(){}, setAttribute(){},
+  classList: {add(){}, remove(){}, toggle(){}}, querySelectorAll: () => []});
+globalThis.document.querySelector = s => (elements[s] ||= element());
+globalThis.fetch = url => Promise.resolve({ok: true,
+  json: () => replies[url.split('?')[0]] || {players: [], rows: []}});
+// The page's own boot is still awaiting the harness stub; let it finish first so
+// it cannot overwrite these afterwards.
+await new Promise(resolve => setTimeout(resolve, 0));
+META = replies['/api/meta']; CONSTRUCTS = replies['/api/constructs'];
+const page =async id => { await showPlayer(id); return elements['#profile'].innerHTML; };
+"""
+
+
+def test_a_goalkeeper_profile_reads_withheld_with_its_reason() -> None:
+    """A withheld construct is a row that says so. The style row multiplied a
+    null by 100, so a profile carrying a withheld style construct read "0% of
+    completed passes" beside a NaN reference."""
+    out = run_js(KEEPER_PAGE + """
+      const html = await page(1);
+      const text = html.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ');
+      for (const bad of ['NaN', 'undefined', 'null', '0% of completed passes', 'percentile among',
+                         'estimator signal', 'Pitch-area reference'])
+        if (text.includes(bad)) throw new Error('withheld row printed: ' + bad);
+      const reasons = text.split(REASON).length - 1;
+      if (reasons !== shipped.length) throw new Error('reasons printed: ' + reasons);
+      if (text.split('WITHHELD').length - 1 !== shipped.length) throw new Error('not marked');
+      for (const c of shipped)
+        if (!text.includes('Label ' + c.id)) throw new Error('row dropped: ' + c.id);
+      console.log('ok');
+    """)
+    assert out == "ok"
+
+
+def test_an_outfield_profile_is_not_marked_withheld() -> None:
+    out = run_js(KEEPER_PAGE + """
+      const html = await page(2);
+      const text = html.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ');
+      if (text.includes('WITHHELD') || text.includes(REASON)) throw new Error('marked withheld');
+      for (const good of ['50% of completed passes', '50th percentile among MD players',
+                          'estimator signal: strong', 'Pitch-area reference 42%'])
+        if (!text.includes(good)) throw new Error('missing: ' + good);
+      if (text.includes('NaN') || text.includes('undefined')) throw new Error('broken markup');
+      console.log('ok');
+    """)
+    assert out == "ok"
+
+
 # A static scope checker was tried here and removed: it could not see arrow-function
 # parameters and produced false positives. The four tests above actually execute the
 # functions, which subsumes it and cannot be fooled by a parsing limitation.

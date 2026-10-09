@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from experiments.run_external_replication import fit_xt  # noqa: E402
 from galactico.features.estimators import harmonised_axes  # noqa: E402
 from galactico.profiles import build_profiles, write_bundle  # noqa: E402
+from galactico.profiles.build import declared_population  # noqa: E402
 from galactico.profiles.uncertainty import bootstrap_players  # noqa: E402
 from galactico.reliability import split_half_reliability  # noqa: E402
 
@@ -42,9 +43,15 @@ def main() -> int:
         mh = lh[lh.player_id.isin(keep)].groupby("player_id")["minutes"].sum()
         mh = mh[mh >= HALF_FLOOR]
         halves[h] = harmonised_axes(ah[ah.player_id.isin(mh.index)], xt, mh)
+    # A construct's reliability is a statement about the players it is defined for.
+    # Goalkeepers sit far from every outfield player on the pass-origin shares, so pooling
+    # them in raised the between-player variance and with it the reliability printed on
+    # outfield rows.
+    position_of = players.set_index("player_id")["position"].to_dict()
     reliabilities = {
-        axis: split_half_reliability(halves[0][axis].dropna().to_dict(),
-                                     halves[1][axis].dropna().to_dict())[0]
+        axis: split_half_reliability(
+            declared_population(axis, halves[0][axis].dropna().to_dict(), position_of),
+            declared_population(axis, halves[1][axis].dropna().to_dict(), position_of))[0]
         for axis in axes.columns
     }
 

@@ -195,4 +195,122 @@ test.describe('gated values', () => {
     // Every quality construct declares invalid_contexts=("goalkeepers",).
     expect(bad, 'goalkeeper with quality point estimates').toEqual([]);
   });
+
+  // Every shipped construct declares outfield players as its valid context. The
+  // two pass-origin constructs said so under valid_contexts only, the builder
+  // read invalid_contexts only, and all 26 goalkeepers carried both as point
+  // estimates with a percentile among goalkeepers.
+  for (const width of [1400, 390]) {
+    test(`a goalkeeper reads every construct as withheld, with its reason, at ${width} px`,
+      async ({ page }) => {
+        const errors = watch(page);
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(BASE, { waitUntil: 'networkidle' });
+        const { keepers, shipped } = await page.evaluate(async () => ({
+          keepers: (await fetch('/api/players?position=GK&limit=400').then(r => r.json())).players,
+          shipped: (await fetch('/api/constructs').then(r => r.json())).shipped,
+        }));
+        expect(keepers.length, 'no goalkeeper in the bundle: nothing is tested').toBeGreaterThan(0);
+        expect(shipped.length).toBe(5);
+
+        // No goalkeeper is served an estimate of any construct, anywhere.
+        const served = await page.evaluate(async ids => {
+          const out = [];
+          for (const id of ids) {
+            const p = await fetch('/api/players/' + id).then(r => r.json());
+            for (const c of p.constructs) {
+              const carried = ['value', 'display', 'percentile', 'quantiles', 'draws',
+                'population_median', 'style_band', 'departure'].filter(k => c[k] != null);
+              out.push({ name: p.name, id: c.construct_id, state: c.render_state,
+                         reason: c.notes, carried });
+            }
+          }
+          return out;
+        }, keepers.map(k => k.player_id));
+        expect(served.filter(r => r.state !== 'out_of_context' || r.carried.length)).toEqual([]);
+        // Withheld is a row with a reason, not a row left out.
+        expect(served.length).toBe(keepers.length * shipped.length);
+        for (const row of served) expect(row.reason).toContain('outfield players');
+
+        // The page: the most-played goalkeeper, through the search box.
+        const keeper = keepers[0];
+        const reason = served.find(r => r.name === keeper.name).reason;
+        await page.fill('#q', keeper.name);
+        await page.click(`#results button[data-id="${keeper.player_id}"]`);
+        const profile = page.locator('#profile');
+        await expect(profile.locator('h1')).toHaveText(keeper.name);
+        await expect(profile.locator('.insufficient')).toHaveCount(shipped.length);
+        for (const construct of shipped) {
+          const row = profile.locator('.card, .style-row')
+            .filter({ has: page.locator('.name', { hasText: new RegExp(`^${construct.label}$`) }) });
+          await expect(row, construct.id + ' is one row').toHaveCount(1);
+          await expect(row).toContainText('WITHHELD');
+          await expect(row).toContainText(reason);
+          await expect(row.locator('svg'), construct.id + ' draws no bar').toHaveCount(0);
+        }
+        // The channel bar restates the pass-origin shares: withheld with them, with the reason.
+        await expect(profile.locator('.zones')).toHaveCount(0);
+        await expect(profile.locator('#zones-withheld')).toContainText(reason);
+        const text = await profile.innerText();
+        for (const wrong of ['NaN', 'undefined', 'null', '% of completed passes originated',
+                             'percentile among', 'Pitch-area reference', 'median',
+                             'INSUFFICIENT SIGNAL']) {
+          expect(text, `withheld row printed "${wrong}"`).not.toContain(wrong);
+        }
+        // Nothing overflows the page at this width.
+        expect(await page.evaluate(() => document.documentElement.scrollWidth
+          <= document.documentElement.clientWidth)).toBe(true);
+
+        // Explore and the map list no goalkeeper under any construct.
+        const ids = new Set(keepers.map(k => k.player_id));
+        const listed = await page.evaluate(async constructIds => {
+          const rows = [];
+          for (const id of constructIds) {
+            const d = await fetch(`/api/explore/${id}?limit=400`).then(r => r.json());
+            rows.push(...d.rows.map(r => r.player_id));
+          }
+          const s = await fetch('/api/scatter').then(r => r.json());
+          return { rows, points: s.points.map(p => p.player_id) };
+        }, shipped.map(c => c.id));
+        expect(listed.rows.length).toBeGreaterThan(0);
+        expect(listed.points.length).toBeGreaterThan(0);
+        expect(listed.rows.filter(id => ids.has(id))).toEqual([]);
+        expect(listed.points.filter(id => ids.has(id))).toEqual([]);
+
+        await page.click('button[data-view="explore"]');
+        const names = new Set(keepers.map(k => k.name));
+        await expect(page.locator('#explore-body .card').first()).toBeVisible();
+        for (const construct of shipped) {
+          // Mark the list on screen, so the names read below are this construct's.
+          await page.evaluate(() => document.querySelector('#explore-body .cards')
+            .setAttribute('data-previous', ''));
+          await page.click(`#explore-tabs button[data-c="${construct.id}"]`);
+          await expect(page.locator('#explore-body [data-previous]')).toHaveCount(0);
+          const shown = await page
+            .locator('#explore-body .card > div:first-child > span:first-child').allInnerTexts();
+          expect(shown.length).toBeGreaterThan(0);
+          expect(shown.filter(n => names.has(n.trim())), construct.id + ' lists a goalkeeper')
+            .toEqual([]);
+          expect(await page.locator('#explore-body').innerText()).not.toContain('NaN');
+        }
+        await page.click('button[data-view="map"]');
+        await expect(page.locator('#scatter')).toBeVisible();
+
+        // A comparison with an outfield player prints the reason on every row,
+        // not a blank section and not the minutes floor.
+        await page.click('button[data-view="compare"]');
+        for (const [sel, box, name] of [['#qa', '#ra', keeper.name], ['#qb', '#rb', 'modric']]) {
+          await page.fill(sel, name);
+          await page.waitForSelector(`${box} button[data-id]`, { timeout: 10000 });
+          await page.click(sel === '#qa' ? `${box} button[data-id="${keeper.player_id}"]`
+            : `${box} button[data-id]`);
+        }
+        await expect(page.locator('#cmp .cmp')).toHaveCount(shipped.length);
+        for (const line of await page.locator('#cmp .cmp .lang').allInnerTexts()) {
+          expect(line).toBe(`not comparable — withheld for ${keeper.name}. ${reason}`);
+        }
+
+        expect(errors, 'uncaught page errors').toEqual([]);
+      });
+  }
 });

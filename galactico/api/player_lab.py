@@ -30,8 +30,8 @@ from ..domain.precision import format_measurement, quantise
 from ..features.estimators import CHANNEL_GEOMETRY, describe_style
 from ..features.spec import SPECS
 from ..identity import normalise_name
-from ..profiles import REJECTED, RESEARCH_ONLY
-from ..profiles.build import UNTESTED
+from ..profiles import REJECTED, RESEARCH_ONLY, RenderState
+from ..profiles.build import BUILD_RULES, UNTESTED
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
 from .decision_lab import router as decision_router
 from .runtime import router as runtime_router
@@ -39,6 +39,7 @@ from .squad_lab import router as squad_router
 from .transfer_lab import router as transfer_router
 
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
+OUT_OF_CONTEXT = RenderState.OUT_OF_CONTEXT.value
 STATIC = Path(__file__).resolve().parent.parent.parent / "web"
 
 app = FastAPI(title="Galáctico Historical Decision Laboratory", version="0.3.0")
@@ -56,7 +57,8 @@ def bundle() -> dict[str, Any]:
         raise HTTPException(503, "profile artifacts not built; run scripts/build_profiles.py")
     data = json.loads(BUNDLE.read_text(encoding="utf-8"))
     if (data.get("semantic_versions") != {k: s.fingerprint for k, s in SPECS.items()}
-            or data.get("bootstrap", {}).get("method") != BOOTSTRAP_VERSION):
+            or data.get("bootstrap", {}).get("method") != BOOTSTRAP_VERSION
+            or data.get("build_rules") != list(BUILD_RULES)):
         raise HTTPException(503, "stale profile artifact; run scripts/build_profiles.py")
     return data
 
@@ -161,6 +163,11 @@ def _decorate(profile: dict) -> dict:
         # "Signal" describes the ESTIMATOR. "Grade" reads as a grade of the
         # footballer, which is the opposite of what it means.
         row["signal"] = "strong" if r >= 0.70 else "limited" if r >= 0.50 else "insufficient"
+        # Outside the declared context there is no estimator signal to describe.
+        # "insufficient" would say the estimator is weak for him; ``notes`` holds
+        # the reason the row is withheld, and that is the statement to print.
+        if c["render_state"] == OUT_OF_CONTEXT:
+            row["signal"] = None
         spec = SPECS.get(c["construct_id"])
         if spec is not None:
             row["definition"] = spec.describe()
@@ -192,7 +199,26 @@ def compare(a: int, b: int) -> dict:
     deltas = []
     for lc in left["constructs"]:
         rc = next((c for c in right["constructs"] if c["construct_id"] == lc["construct_id"]), None)
-        if rc is None or lc["value"] is None or rc["value"] is None:
+        if rc is None:
+            continue
+        # Withheld outside the declared context is a row with its reason, not a
+        # missing row and not "below its estimator's minutes floor".
+        outside = [(p["name"], c["notes"]) for p, c in ((left, lc), (right, rc))
+                   if c["render_state"] == OUT_OF_CONTEXT]
+        if outside:
+            names = " and ".join(dict.fromkeys(name for name, _ in outside))
+            deltas.append({
+                "difference_interval": None, "excludes_zero": None, "paired_worlds": 0,
+                "comparison_method": BOOTSTRAP_VERSION,
+                "construct_id": lc["construct_id"], "family": lc["family"],
+                "left": None, "right": None, "delta": None,
+                "left_percentile": None, "right_percentile": None,
+                "leader": None, "tied": False, "degenerate": False,
+                "interpretable": False, "directional_difference": False,
+                "language": f"not comparable — withheld for {names}. {outside[0][1]}",
+            })
+            continue
+        if lc["value"] is None or rc["value"] is None:
             continue
         both_shown = (lc["render_state"] == "point_estimate"
                       and rc["render_state"] == "point_estimate")

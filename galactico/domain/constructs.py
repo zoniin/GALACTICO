@@ -33,10 +33,29 @@ from dataclasses import dataclass
 from ..providers.statsbomb import Equivalence
 from .metrics import Family
 
-__all__ = ["Estimator", "ConstructDefinition", "CONSTRUCTS", "ExternalVerdict"]
+__all__ = ["Estimator", "ConstructDefinition", "CONSTRUCTS", "ExternalVerdict",
+           "OUTFIELD_PLAYERS", "GOALKEEPERS"]
 
 
 from enum import Enum
+
+# The two declared contexts that say who the player is. They are the only ones a
+# position decides, so they are the only ones ``context_excluding`` evaluates;
+# "900+ minutes" is the estimator's floor and "ranking as quality" is the page's.
+OUTFIELD_PLAYERS = "outfield players"
+GOALKEEPERS = "goalkeepers"
+
+# "GK" is the one position code every adapter and solver here shares. The outfield
+# codes are not (Wyscout writes MD where the XI domain writes MF), so an outfield
+# player is anyone with a recorded position that is not this one.
+_GOALKEEPER = "GK"
+
+
+def _population(position: object) -> str | None:
+    """The declared population a recorded position belongs to; ``None`` if unrecorded."""
+    if not isinstance(position, str) or not position:
+        return None
+    return GOALKEEPERS if position == _GOALKEEPER else OUTFIELD_PLAYERS
 
 
 class ExternalVerdict(Enum):
@@ -128,6 +147,23 @@ class ConstructDefinition:
         for estimator in self.estimators.values():
             if estimator.regime == regime:
                 return estimator
+        return None
+
+    def context_excluding(self, position: object) -> str | None:
+        """The declared context that leaves this position out, or ``None``.
+
+        A construct is published only inside the context this entry declares. The
+        profile builder asks here, so it holds no construct ids and no position
+        of its own. An unrecorded position is inside no declared population:
+        missing input withholds.
+        """
+        population = _population(position)
+        valid = [c for c in self.valid_contexts if c in (OUTFIELD_PLAYERS, GOALKEEPERS)]
+        invalid = [c for c in self.invalid_contexts if c in (OUTFIELD_PLAYERS, GOALKEEPERS)]
+        if valid and population not in valid:
+            return "Defined for " + " and ".join(valid)
+        if population in invalid or (population is None and invalid):
+            return "Not defined for " + " and ".join(invalid)
         return None
 
 

@@ -168,3 +168,112 @@ def test_spatial_constructs_do_not_claim_a_preference() -> None:
 def test_channel_geometry_sums_to_the_whole_pitch() -> None:
     total = sum(CHANNEL_GEOMETRY.values())
     assert total == pytest.approx(1.0, abs=1e-9)
+
+
+# --- a construct is published only inside its declared context ----------------
+
+ESTIMATE_KEYS = ("value", "sd", "percentile", "population_median", "quantiles", "draws",
+                 "reliability", "n_matches", "degenerate")
+
+
+def synthetic_bundle():
+    """One goalkeeper and two midfielders, every construct finite for all three.
+    No file is read: the gate is a property of the builder and the registry."""
+    import pandas as pd
+
+    from galactico.profiles import build_profiles
+
+    ids = [1, 2, 3]
+    axes = pd.DataFrame({key: [0.11, 0.22, 0.33] for key in CONSTRUCTS},
+                        index=pd.Index(ids, name="player_id"))
+    actions = pd.DataFrame({
+        "player_id": ids, "team_id": [7, 7, 7], "type": ["pass"] * 3,
+        "success": [True] * 3, "start_x": [0.1, 0.5, 0.6], "start_y": [0.5, 0.3, 0.9]})
+    return axes, build_profiles(
+        actions=actions,
+        lineups=pd.DataFrame({"player_id": ids, "minutes": [2400, 2400, 2400]}),
+        players=pd.DataFrame({"player_id": ids, "position": ["GK", "MD", "MD"],
+                              "name": ["Keeper", "First", "Second"]}),
+        teams=pd.DataFrame({"team_id": [7], "team_name": ["Club"]}),
+        axes=axes, reliabilities={key: 0.9 for key in CONSTRUCTS},
+        competition="Nowhere", season="0000/01", regime="wyscout_event",
+        xt_version="none", dataset_hash="none")
+
+
+def test_the_builder_carries_no_estimate_outside_a_declared_context() -> None:
+    """All five constructs declare outfield players as their valid context. The
+    builder read ``invalid_contexts`` only, and the two style constructs do not
+    repeat the exclusion there, so 26 goalkeepers shipped with both as point
+    estimates, percentiles among goalkeepers included."""
+    axes, bundle = synthetic_bundle()
+    keeper, first, _ = bundle.profiles
+    assert keeper.position == "GK" and first.position == "MD"
+
+    assert [row.construct_id for row in keeper.constructs if row.value is not None] == []
+    # Withheld, not dropped: the absence is shown with its reason.
+    assert [row.construct_id for row in keeper.constructs] == list(CONSTRUCTS)
+    for row in keeper.constructs:
+        assert row.render_state == "out_of_context", row.construct_id
+        assert not row.shows_number
+        for key in ESTIMATE_KEYS:
+            assert getattr(row, key) is None, f"{row.construct_id}.{key}"
+        assert row.reference_n == 0 and row.reference_label == ""
+        assert "outfield players" in row.notes and "GK" in row.notes
+
+    # Inside the context nothing is withheld and the number is the estimator's.
+    assert [row.construct_id for row in first.constructs] == list(CONSTRUCTS)
+    for row in first.constructs:
+        assert row.render_state == "point_estimate", row.construct_id
+        assert row.value == axes.loc[first.player_id, row.construct_id]
+        # The goalkeeper is not in a midfielder's reference population.
+        assert row.reference_n == 2
+
+
+def test_the_gate_reads_the_registry_and_not_a_list_of_constructs(monkeypatch) -> None:
+    """A construct that declares goalkeepers valid is published for one, so the
+    builder holds no construct ids and no position of its own."""
+    from dataclasses import replace
+
+    declared = replace(CONSTRUCTS["width"], valid_contexts=("goalkeepers", "outfield players"),
+                       invalid_contexts=())
+    monkeypatch.setitem(CONSTRUCTS, "width", declared)
+    _, bundle = synthetic_bundle()
+    keeper = bundle.profiles[0]
+    assert [row.construct_id for row in keeper.constructs if row.value is not None] == ["width"]
+
+
+def test_the_channel_breakdown_is_withheld_with_the_constructs_it_restates() -> None:
+    """The channel shares under a profile are the two pass-origin constructs under another
+    name: for one goalkeeper the wide share equalled the withheld width.
+    A row that says WITHHELD above a bar that draws the number is not a withheld number."""
+    _, bundle = synthetic_bundle()
+    keeper, first, _ = bundle.profiles
+    assert keeper.zone_shares == {}
+    assert first.zone_shares and abs(sum(
+        first.zone_shares[k] for k in ("left_wide", "left_half", "centre", "right_half",
+                                       "right_wide")) - 1.0) < 1e-9
+
+
+def test_reliability_is_pooled_over_the_players_a_construct_is_defined_for() -> None:
+    """Goalkeepers sit far from every outfield player on the pass-origin shares. Pooled in,
+    they raise the between-player variance and with it the reliability printed on outfield
+    rows. The pool is the declared population, read from the registry."""
+    from galactico.profiles.build import declared_population
+
+    half = {1: 0.01, 2: 0.30, 3: 0.35, 4: 0.40}
+    positions = {1: "GK", 2: "DF", 3: "MD", 4: "FW"}
+    assert declared_population("width", half, positions) == {2: 0.30, 3: 0.35, 4: 0.40}
+    # No recorded position is inside no declared population: missing input withholds.
+    assert declared_population("width", half, {2: "DF"}) == {2: 0.30}
+    # A column that is not a registered construct has no declared context to apply.
+    assert declared_population("not_a_construct", half, positions) == half
+
+
+def test_a_bundle_names_the_rules_it_was_built_under() -> None:
+    from galactico.profiles.build import BUILD_RULES
+
+    _, bundle = synthetic_bundle()
+    assert bundle.build_rules == list(BUILD_RULES) and len(BUILD_RULES) >= 2
+    # The artifact key covers them: a bundle built under other rules is another artifact.
+    from dataclasses import replace
+    assert replace(bundle, build_rules=["older"]).version_key != bundle.version_key

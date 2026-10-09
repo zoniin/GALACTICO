@@ -46,3 +46,56 @@ def test_cross_provider_pooling_of_raw_values_is_an_invalid_context() -> None:
 def test_style_constructs_refuse_to_be_ranked_as_quality() -> None:
     for key in ("half_space_share", "width"):
         assert any("style" in c for c in CONSTRUCTS[key].invalid_contexts)
+
+
+def test_every_construct_says_whether_a_goalkeeper_is_inside_its_context() -> None:
+    """The profile builder asks the registry, so an entry that says nothing about
+    who the player is would publish for everyone without anyone deciding it."""
+    for key, construct in CONSTRUCTS.items():
+        declared = set(construct.valid_contexts) | set(construct.invalid_contexts)
+        assert declared & {"outfield players", "goalkeepers"}, key
+        # Today all five are defined for outfield players, and say so.
+        assert construct.context_excluding("GK") == "Defined for outfield players", key
+        for position in ("DF", "MD", "FW"):
+            assert construct.context_excluding(position) is None, (key, position)
+
+
+def test_a_context_about_who_the_player_is_has_one_spelling() -> None:
+    """The gate matches the declaration exactly. "Outfield only" or "keepers"
+    would be a declaration nothing reads, which is the defect this guards."""
+    for key, construct in CONSTRUCTS.items():
+        for context in construct.valid_contexts + construct.invalid_contexts:
+            if "outfield" in context.lower() or "keeper" in context.lower():
+                assert context in ("outfield players", "goalkeepers"), (key, context)
+
+
+def test_a_construct_does_not_declare_one_population_valid_and_invalid() -> None:
+    for key, construct in CONSTRUCTS.items():
+        assert not set(construct.valid_contexts) & set(construct.invalid_contexts), key
+
+
+def test_the_context_gate_follows_the_declaration() -> None:
+    from dataclasses import replace
+
+    def declared(valid: tuple[str, ...], invalid: tuple[str, ...]):
+        return replace(CONSTRUCTS["width"], valid_contexts=valid, invalid_contexts=invalid)
+
+    both = declared(("goalkeepers", "outfield players"), ())
+    assert both.context_excluding("GK") is None and both.context_excluding("MD") is None
+    keepers_out = declared((), ("goalkeepers", "ranking as quality"))
+    assert keepers_out.context_excluding("GK") == "Not defined for goalkeepers"
+    assert keepers_out.context_excluding("FW") is None
+    keepers_only = declared(("goalkeepers", "900+ minutes"), ())
+    assert keepers_only.context_excluding("GK") is None
+    assert keepers_only.context_excluding("DF") == "Defined for goalkeepers"
+    # A context that is not about who the player is decides nothing here.
+    silent = declared(("900+ minutes",), ("ranking as quality",))
+    assert silent.context_excluding("GK") is None and silent.context_excluding(None) is None
+
+
+def test_an_unrecorded_position_is_inside_no_declared_population() -> None:
+    """Missing input withholds. A player with no position code cannot be shown
+    to be an outfield player, so the gate does not assume he is one."""
+    for key, construct in CONSTRUCTS.items():
+        for missing in (None, "", float("nan")):
+            assert construct.context_excluding(missing) == "Defined for outfield players", key

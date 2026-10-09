@@ -97,6 +97,41 @@ def test_the_gate_actually_bites_on_this_population(bundle) -> None:
     assert gated > 0
 
 
+def test_a_construct_is_an_estimate_only_inside_its_declared_context(bundle) -> None:
+    """Every shipped construct declares outfield players as its valid context.
+    All 26 goalkeepers carried the two pass-origin constructs as point estimates,
+    with a percentile among goalkeepers. The oracle here is the declaration read
+    directly, not the builder's own gate, and it covers every profile."""
+    estimate_keys = ("value", "sd", "percentile", "population_median", "quantiles",
+                     "draws", "reliability", "n_matches", "degenerate")
+    outside = inside = 0
+    leaked, dropped = [], []
+    for profile in bundle["profiles"]:
+        carried = {c["construct_id"]: c for c in profile["constructs"]}
+        if set(carried) != set(bundle["construct_versions"]):
+            dropped.append(profile["name"])
+        for construct_id, c in carried.items():
+            declared = CONSTRUCTS[construct_id].valid_contexts
+            assert "outfield players" in declared and "goalkeepers" not in declared
+            if profile["position"] in ("DF", "MD", "FW"):
+                inside += 1
+                assert c["render_state"] != "out_of_context", (profile["name"], construct_id)
+                continue
+            outside += 1
+            leaked += [(profile["name"], construct_id, key)
+                       for key in estimate_keys if c[key] is not None]
+            if c["render_state"] != "out_of_context":
+                leaked.append((profile["name"], construct_id, c["render_state"]))
+            elif "outfield players" not in c["notes"]:
+                leaked.append((profile["name"], construct_id, "no reason"))
+    assert leaked == []
+    # Withheld is shown, not dropped: every profile carries every construct.
+    assert dropped == []
+    goalkeepers = sum(1 for p in bundle["profiles"] if p["position"] == "GK")
+    assert goalkeepers > 0 and inside > 0, "no goalkeeper or no outfield player: untested"
+    assert outside == goalkeepers * len(bundle["construct_versions"])
+
+
 def test_style_constructs_are_labelled_style(bundle) -> None:
     families = {c["construct_id"]: c["family"]
                 for p in bundle["profiles"][:5] for c in p["constructs"]}
@@ -128,3 +163,16 @@ def test_zone_shares_are_a_distribution(bundle) -> None:
         thirds = sum(z[k] for k in ("own_third", "middle_third", "final_third"))
         assert channels == pytest.approx(1.0, abs=1e-6)
         assert thirds == pytest.approx(1.0, abs=1e-6)
+
+
+def test_no_channel_breakdown_is_shipped_where_the_style_constructs_are_withheld(bundle) -> None:
+    withheld = shown = 0
+    for profile in bundle["profiles"]:
+        style = [c for c in profile["constructs"] if c["family"] == "style"]
+        if style and all(c["render_state"] == "out_of_context" for c in style):
+            assert profile["zone_shares"] == {}, profile["name"]
+            withheld += 1
+        else:
+            assert profile["zone_shares"], profile["name"]
+            shown += 1
+    assert withheld == 26 and shown == 319

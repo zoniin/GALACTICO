@@ -338,6 +338,13 @@ function zoneBar(z){
     }).join('') + `</div>`;
 }
 
+/* ---------- withheld outside the declared context ---------- */
+/* A row that says so, with the server's reason. Not a zero and not a blank, and
+   not INSUFFICIENT SIGNAL either: more minutes would not change it. */
+const outOfContext = c => c.render_state === 'out_of_context';
+const withheld = c => `<div class="insufficient">WITHHELD · OUTSIDE DECLARED CONTEXT
+  <small>${c.notes}</small></div>`;
+
 /* ---------- profile ---------- */
 async function showPlayer(id){
   const p = await api('/api/players/' + id);
@@ -347,6 +354,12 @@ async function showPlayer(id){
 
   const qualityCards = q.map(c => {
     const def = CONSTRUCTS.shipped.find(x => x.id === c.construct_id) || {};
+    if (outOfContext(c))
+      return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
+        <div class="claim">${def.claim||''}</div></div>
+        ${withheld(c)}
+        <div><div class="val" style="color:var(--bone-500)">—</div>
+          <div class="unit">${UNITS[c.construct_id]||''}</div></div></div>`;
     if (c.render_state === 'insufficient_signal')
       return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div></div>
@@ -375,6 +388,11 @@ async function showPlayer(id){
 
   const styleRows = s.map(c => {
     const def = CONSTRUCTS.shipped.find(x => x.id === c.construct_id) || {};
+    if (outOfContext(c))
+      return `<div class="style-row">
+        <div><div class="name">${label(c.construct_id)}</div>
+          <div class="claim">${def.claim||''}</div></div>
+        ${withheld(c)}</div>`;
     return `<div class="style-row">
       <div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div>
@@ -404,10 +422,13 @@ async function showPlayer(id){
     <h2>Quality</h2><div class="cards">${qualityCards}</div>
     <h2 style="margin-top:2.4rem">Observed location — descriptive, no good direction</h2>
     <div class="cards">${styleRows}</div>
-    <div style="margin-top:1rem">${zoneBar(p.zone_shares)}</div>
+    ${Object.keys(p.zone_shares || {}).length
+      ? `<div style="margin-top:1rem">${zoneBar(p.zone_shares)}</div>
     <div class="spectrum">Share of completed passes by origin channel. LW / LH = left wide and left
       half-space, C = centre, RH / RW = right. Where a player's passes started is
-      partly where he was deployed; this describes the season, not a disposition.</div>
+      partly where he was deployed; this describes the season, not a disposition.</div>`
+      : `<div class="spectrum" id="zones-withheld">The channel breakdown is withheld with the
+      pass-origin shares above, which it restates. ${(s.find(outOfContext) || {}).notes || ''}</div>`}
     <details style="margin-top:2rem"><summary>View provenance</summary>
       <div class="body"><dl>
         <dt>construct set</dt><dd>${p.constructs.map(c=>c.construct_id).join(', ')}</dd>
