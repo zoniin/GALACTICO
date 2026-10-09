@@ -15,8 +15,17 @@ attempt to commit into them.
 
 **PUBLIC** — redistributable and hostable. The public demo runs on these and
 nothing else: Pappalardo/Wyscout (CC BY 4.0), SkillCorner (MIT), DFL/Sportec
-(CC BY 4.0), plus ClubElo and FPL under their typed provider postures.
-UEFA is REFERENCE_ONLY: systematic collection and model use are prohibited.
+(CC BY 4.0).
+
+**REFERENCE ONLY** — reachable and free, and not ours to use. Consulted by hand,
+never ingested, no adapter. UEFA: clause 6.2 of its terms bars systematic
+collection, scripted access and model use. The Premier League Fantasy API: the
+Premier League terms reserve database rights and bar building a database from the
+site without written approval. football-data.co.uk: the owner states that use is
+for private individuals and excludes automated and AI use. ClubElo publishes no
+licence at all, and unknown terms are not permission. FPL and ClubElo were listed
+PUBLIC and hostable here until 9 October 2026, when the terms were read again;
+no code ever used either.
 
 **LOCAL_LICENSED** — runtime download into a gitignored cache, readable locally,
 never served to a third party. StatsBomb open data and any paid API feed.
@@ -37,11 +46,19 @@ Consequence: no vendored events, no cached Parquet in git, no derived metric
 tables in the repository, and a hosted instance may never serve a StatsBomb-derived
 number. `assert_may_host("statsbomb")` raises.
 
+Published analysis formed from StatsBomb data names the source and carries the
+logo: the README, [E-01](docs/research/E-01-metronome-fit.md) and
+[Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md). The logo is the file
+the provider ships with the data, kept at `docs/assets/statsbomb/`. This paragraph
+stated the requirement for months while two of those reports carried no logo.
+`tests/test_licensing.py` now fails if one loses it, or if a new report whose
+corpus is StatsBomb is published without it.
+
 ## Attribution
 
 Pappalardo requires citing the constituent figshare articles individually plus the
 2019 Scientific Data paper. SkillCorner requires the MIT copyright line.
-DFL/Sportec requires CC BY 4.0 attribution. ClubElo requires credit.
+DFL/Sportec requires CC BY 4.0 attribution.
 Attribution text lives in `galactico/providers/base.py` next to the posture it
 belongs to.
 

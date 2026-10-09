@@ -119,9 +119,10 @@ PROVIDERS: dict[str, LicensePosture] = {
         may_commit=False,
         commercial_use=False,
         requires_attribution=True,
-        attribution="StatsBomb Public Data User Agreement requires the StatsBomb "
-                    "brand logo on any published analysis.",
-        terms_url="https://github.com/statsbomb/open-data/blob/master/LICENSE.pdf",
+        attribution="State the data source as StatsBomb and put the StatsBomb brand logo "
+                    "on any published analysis (clause 1.4). The logo the provider ships "
+                    "with the data is at docs/assets/statsbomb/statsbomb-logo.png.",
+        terms_url="https://github.com/hudl/open-data/blob/master/LICENSE.pdf",
         notes="Clause 1.2.1 bars providing the data to any third party. Clause 1.2.2 "
               "bars commercial exploitation of the data OR any derived analysis. "
               "Local-only, runtime download, gitignored cache. Never hosted.",
@@ -136,7 +137,8 @@ PROVIDERS: dict[str, LicensePosture] = {
         requires_attribution=True,
         attribution="SkillCorner, MIT License, Copyright (c) 2020 SkillCorner.",
         terms_url="https://github.com/SkillCorner/opendata",
-        notes="Ten A-League 2024/25 matches of broadcast tracking at 10fps.",
+        notes="Twenty A-League 2024/25 matches of broadcast tracking at 10fps "
+              "(counted 9 October 2026; ten when this entry was first written).",
     ),
     "dfl": LicensePosture(
         name="DFL/Sportec Solutions open Bundesliga release",
@@ -169,15 +171,22 @@ PROVIDERS: dict[str, LicensePosture] = {
               "See docs/research/UEFA-PHYSICAL-DATA.md.",
     ),
     "clubelo": LicensePosture(
-        name="ClubElo",
-        tier=DataTier.PUBLIC,
+        name="ClubElo (NO LICENCE PUBLISHED)",
+        tier=DataTier.LOCAL_LICENSED,
         may_redistribute=False,
-        may_host_derived=True,
+        may_host_derived=False,
         may_commit=False,
         commercial_use=False,
         requires_attribution=True,
         attribution="ClubElo, http://clubelo.com",
-        notes="Keyless CSV, current, complete history. Opponent-strength prior.",
+        terms_url="http://clubelo.com/API",
+        notes="UNKNOWN TERMS ARE NOT PERMISSION. Checked 9 October 2026: the API page "
+              "redirects to the home page, both API hosts answered 502, and an archived "
+              "copy of the API page carries no licence, no terms and no attribution "
+              "requirement. This entry used to say PUBLIC and hostable 'with credit'; no "
+              "primary source supports either. Not hosted, not ingested. If an "
+              "opponent-strength prior is ever needed, compute Elo in-repo from a CC0 "
+              "results source, which is also prior-date by construction.",
     ),
     "api_football": LicensePosture(
         name="API-Football",
@@ -192,17 +201,41 @@ PROVIDERS: dict[str, LicensePosture] = {
               "in this API. Free tier is capped at seasons 2022-2024.",
     ),
     "fpl": LicensePosture(
-        name="Premier League Fantasy API",
-        tier=DataTier.PUBLIC,
+        name="Premier League Fantasy API (REFERENCE ONLY)",
+        tier=DataTier.LOCAL_LICENSED,
         may_redistribute=False,
-        may_host_derived=True,
+        may_host_derived=False,
         may_commit=False,
         commercial_use=False,
         requires_attribution=True,
         attribution="Premier League / Fantasy Premier League.",
-        notes="Free, keyless, current, Opta-derived. 109 fields per player "
-              "including expected_goals and expected_assists, available per match. "
+        terms_url="https://www.premierleague.com/terms-and-conditions",
+        notes="TECHNICALLY OPEN, LEGALLY CLOSED. Free, keyless, current, Opta-derived: 109 "
+              "fields per player including expected_goals and expected_assists, per match. "
+              "The Premier League terms (read 9 October 2026) reserve copyright and "
+              "database rights and say the site may not be reproduced, re-utilised or "
+              "redistributed, 'including, by way of example, creating a database "
+              "(electronic or otherwise) that includes material downloaded or otherwise "
+              "obtained from the Website or App', without prior written approval. This "
+              "entry used to say PUBLIC and hostable. Consult by hand; never ingest. "
               "Premier League only; there is no La Liga equivalent.",
+    ),
+    "football_data": LicensePosture(
+        name="football-data.co.uk (REFERENCE ONLY)",
+        tier=DataTier.LOCAL_LICENSED,
+        may_redistribute=False,
+        may_host_derived=False,
+        may_commit=False,
+        commercial_use=False,
+        requires_attribution=True,
+        attribution="Football-Data.co.uk",
+        terms_url="https://www.football-data.co.uk/data.php",
+        notes="Team-level match aggregates; HxG and AxG columns from 2026/27. The owner "
+              "states (read 9 October 2026) that use 'is intended for private individuals "
+              "only, NOT commerical or data training products using automated "
+              "bots/scrapers/AI', and that the data are 'made available for the purposes "
+              "of league match prediction only'. An automated adapter feeding a validation "
+              "pipeline is the use the owner excludes. Consult by hand; never ingest.",
     ),
 }
 

@@ -79,6 +79,13 @@ corpus; FPL for current-season Opta xG/xA per gameweek (Premier League); ClubElo
 the opponent-strength covariate; football-data.co.uk for team-xG validation. **UEFA
 is not in this list** — see above.
 
+Correction, 9 October 2026: FPL, ClubElo and football-data.co.uk are not in it
+either. The Premier League terms bar building a database from the site without
+written approval, ClubElo publishes no licence, and the owner of
+football-data.co.uk excludes automated and AI use. All three are reference only in
+`galactico/providers/base.py`; none ever had an adapter. An opponent-strength
+covariate, if one is needed, is to be computed in-repo from a CC0 results source.
+
 Paid layer: current-season minutes, lineups, passes, injuries and transfers across
 ~1,100 competitions.
 

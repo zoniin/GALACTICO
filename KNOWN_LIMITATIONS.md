@@ -222,16 +222,13 @@ every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
 ## Found by the October reconnaissance and not repaired
 
-These need the owner's decision; none was changed.
+Two licence findings were repaired on 9 October and are recorded in
+[LICENSING](LICENSING.md): the README, E-01 and Stage 1C now name StatsBomb as
+their data source and carry its logo, as clause 1.4 of its agreement requires; and
+FPL, ClubElo and football-data.co.uk are reference only, since the terms read that
+day do not support the hostable posture two of them were given. The rest was not
+changed.
 
-- **StatsBomb logo.** Clause 1.4 of the Public Data User Agreement requires the
-  StatsBomb logo on published analysis formed from its data. The Stage 1C report
-  and E-01 are public without it.
-- **Three provider postures are not supported by the terms as read on 9 October
-  2026.** FPL is listed hostable, and the Premier League terms prohibit building a
-  database from the site. ClubElo is listed public "with credit" and publishes no
-  licence. football-data.co.uk is planned for validation and its owner excludes
-  automated and AI use. No adapter exists for any of them.
 - StatsBomb delisted 272 of 306 Bundesliga 2015/16 matches on 26 May 2026. The
   files still download. The four-league posture here is unaffected; a fetch that
   enumerated the events directory instead of the match index would ingest them.

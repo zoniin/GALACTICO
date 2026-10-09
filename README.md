@@ -189,6 +189,15 @@ any attempt to commit one.
 | LAB, local only | StatsBomb open 2015/16, four leagues | restrictive EULA |
 | VISION | SkillCorner, DFL/Sportec | MIT, CC BY 4.0 |
 
+<img src="docs/assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
+
+Data source for two things on this page: the Metronome Fit result
+([E-01](docs/research/E-01-metronome-fit.md)) and the external-replication column of
+the construct table ([Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md)) are
+analysis formed from **StatsBomb** open data, read locally under the StatsBomb Public
+Data User Agreement. No StatsBomb data and no table derived from it is in this
+repository, and nothing derived from it is served.
+
 All five shipped labs are **historical**. They run on 2017/18 event data and are badged `LAB` in
 the interface. A LIVE regime would use a different estimator with different
 uncertainty and different sample thresholds, which is why constructs and

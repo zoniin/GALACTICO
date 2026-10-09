@@ -26,9 +26,9 @@ single match, the final.
 | API-Football Pro | $19/mo | ~30 aggregate fields per player-season, lineups, injuries, transfers | none |
 | Sportmonks Starter + xG | EUR 29 + 15-29/mo | richer aggregates, xG per match/player | none |
 | UEFA open API | free | official physical metrics: distance, top speed, sprints, Champions League | n/a |
-| FPL API | free | 109 fields per player per match including xG and xA, Opta-derived | Premier League only |
-| football-data.co.uk | free | team-level match xG from 2026/27 | n/a |
-| ClubElo | free | club Elo, complete history, current | n/a |
+| FPL API | free to read, **reference only** (Premier League terms bar building a database from the site) | 109 fields per player per match including xG and xA, Opta-derived | Premier League only |
+| football-data.co.uk | free to read, **reference only** (owner excludes automated and AI use) | team-level match xG from 2026/27 | n/a |
+| ClubElo | free to read, **no licence published** | club Elo, complete history | n/a |
 
 `fixtures/events` on API-Football returns goals, cards and substitutions. It is not
 event data. Nothing under $50/month returns per-action pitch coordinates; that

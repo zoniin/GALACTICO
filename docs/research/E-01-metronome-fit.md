@@ -4,6 +4,13 @@
 **Corpus:** StatsBomb 2015/16, La Liga (380) + Premier League (380), 21,018
 player-match rows.
 
+<img src="../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
+
+Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
+User Agreement. This analysis is formed from StatsBomb data and carries the
+StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data and no
+table derived from it is in this repository.
+
 ---
 
 ## Why this one matters more than the result

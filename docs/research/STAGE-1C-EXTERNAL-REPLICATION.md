@@ -2,6 +2,13 @@
 
 **Wyscout/Pappalardo 2017/18 → StatsBomb 2015/16.**
 
+<img src="../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
+
+Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
+User Agreement. This analysis is formed from StatsBomb data and carries the
+StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data and no
+table derived from it is in this repository.
+
 Both change at once, so no discrepancy can be attributed uniquely to provider
 ontology. This is `EXTERNAL_REPLICATION_PROVIDER_SEASON_SHIFT`, and the question
 is not whether the numbers match — it is whether the football construct survives.

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
+from pathlib import Path
+
 import pytest
 
 from galactico.providers import (
@@ -42,7 +46,10 @@ def test_every_provider_requiring_attribution_supplies_one() -> None:
 def test_the_hostable_set_is_exactly_what_the_public_demo_may_use() -> None:
     hostable = {k for k, v in PROVIDERS.items() if v.may_host_derived}
     assert "statsbomb" not in hostable
-    assert {"pappalardo", "skillcorner", "dfl", "clubelo"} <= hostable
+    assert {"pappalardo", "skillcorner", "dfl"} <= hostable
+    # ClubElo publishes no licence; the Premier League and football-data.co.uk terms exclude
+    # this use. Each was once listed or planned as usable. Unknown terms are not permission.
+    assert hostable.isdisjoint({"clubelo", "fpl", "football_data"})
     assert "uefa" not in hostable, (
         "UEFA is technically open and legally closed: T&C 6.2 bars systematic "
         "collection, scripted access, and using the content to develop software "
@@ -51,14 +58,56 @@ def test_the_hostable_set_is_exactly_what_the_public_demo_may_use() -> None:
     )
 
 
-def test_non_redistributable_sources_are_not_marked_public_without_reason() -> None:
-    """UEFA, ClubElo and FPL are hostable-derived but not redistributable. That
-    combination is legitimate and deliberate; assert it stays deliberate."""
-    for provider_id in ("clubelo", "fpl"):
+def test_reference_only_sources_are_not_public_and_say_what_was_read() -> None:
+    """ClubElo, FPL and football-data.co.uk: reachable, free, and not ours to use.
+
+    None may be hosted, redistributed or committed, none is PUBLIC, and each entry names
+    the page that was read and the date, so the posture can be checked again.
+    """
+    for provider_id in ("clubelo", "fpl", "football_data", "uefa"):
         posture = PROVIDERS[provider_id]
-        assert posture.may_host_derived
-        assert not posture.may_redistribute
-        assert posture.notes, f"{provider_id} needs a note explaining the split"
+        assert posture.tier is not DataTier.PUBLIC, provider_id
+        assert not posture.may_host_derived and not posture.may_redistribute, provider_id
+        assert not posture.may_commit and not posture.commercial_use, provider_id
+        assert posture.notes, f"{provider_id} needs a note saying why"
+    for provider_id in ("clubelo", "fpl", "football_data"):
+        posture = PROVIDERS[provider_id]
+        assert posture.terms_url.startswith("http"), provider_id
+        assert "9 October 2026" in posture.notes, provider_id
+
+
+STATSBOMB_LOGO = "docs/assets/statsbomb/statsbomb-logo.png"
+STATSBOMB_LOGO_SHA256 = "8ba5480785f0dc4be2342ec47c70509483eb79287f85f92be1dfba36fc2872a7"
+FORMED_FROM_STATSBOMB = (
+    "README.md",
+    "docs/research/E-01-metronome-fit.md",
+    "docs/research/STAGE-1C-EXTERNAL-REPLICATION.md",
+)
+
+
+def test_published_analysis_formed_from_statsbomb_data_names_the_source_and_carries_the_logo():
+    # Clause 1.4 of the Public Data User Agreement. LICENSING.md stated the requirement for
+    # months while two public reports carried no logo: a rule in prose with no test.
+    root = Path(__file__).resolve().parents[1]
+    logo = root / STATSBOMB_LOGO
+    # The file the provider ships with the data, unaltered.
+    assert hashlib.sha256(logo.read_bytes()).hexdigest() == STATSBOMB_LOGO_SHA256
+    for name in FORMED_FROM_STATSBOMB:
+        document = root / name
+        text = document.read_text(encoding="utf-8")
+        relative = os.path.relpath(logo, document.parent).replace(os.sep, "/")
+        assert f'<img src="{relative}" alt="StatsBomb"' in text, name
+        assert "formed from StatsBomb data" in " ".join(text.split()) \
+            or "formed from **StatsBomb** open data" in " ".join(text.split()), name
+    # A report whose opening names StatsBomb 2015/16 as its corpus belongs on the list. So
+    # does any analysis of a LOCAL-tier experiment once one is published.
+    listed = {(root / name).resolve() for name in FORMED_FROM_STATSBOMB}
+    reports = [*root.glob("docs/research/*.md"),
+               *root.glob("experiments/preregistered/*/analysis.md")]
+    for report in reports:
+        opening = "\n".join(report.read_text(encoding="utf-8").splitlines()[:12])
+        if "StatsBomb 2015/16" in opening:
+            assert report.resolve() in listed, f"{report.name} needs the logo and the source"
 
 
 def test_trial_tier_is_reserved_and_unused() -> None:

@@ -235,10 +235,11 @@ Owner decisions the 9 October reconnaissance left open. None was changed; each i
 described in KNOWN_LIMITATIONS under "Found by the October reconnaissance":
 
 1. Push or merge `north-star`, and watch the first CI run of the changed workflow.
-2. The StatsBomb logo that clause 1.4 requires on the two published notes formed
-   from its data (Stage 1C, E-01).
-3. The FPL, ClubElo and football-data.co.uk postures in `providers/base.py`, which
-   the terms read on 9 October do not support. No adapter exists for any of them.
+2. Decided on 9 October, when the owner delegated these: the README, E-01 and
+   Stage 1C name StatsBomb as their data source and carry its logo (clause 1.4);
+   a test keeps it so.
+3. Decided the same day: FPL, ClubElo and football-data.co.uk are reference only
+   in `providers/base.py`. The terms read that day do not support more.
 4. Whether goalkeepers should carry the two pass-origin style constructs (26 do).
 5. Whether the published rank correlations move to average ranks for ties. The
    implementation is behind `ties="average"`; switching the default changes
