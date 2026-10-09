@@ -8,9 +8,13 @@ on the real corpus: who is in the flagship evidence set, and where each league's
 
 from __future__ import annotations
 
+import math
+import os
 import random
 import subprocess
 import sys
+import threading
+import time
 from fractions import Fraction
 from typing import get_args
 
@@ -24,6 +28,7 @@ from galactico.optimization import historical, reference, snapshots
 from galactico.optimization.squad import kernel
 from galactico.optimization.transfers import universe as universe_module
 from galactico.optimization.xi.domain import FORMATIONS
+from galactico.storage import public
 
 CLAIM = "For this squad and the minima you declared: who is eligible where."
 NON_CLAIM = "No player is judged here."
@@ -259,6 +264,214 @@ def test_loaders_hand_the_scenario_to_the_tools_and_refuse_an_off_menu_world_cou
     finally:
         for loader in (planning.planning_snapshot, planning.reference, planning.universe):
             loader.cache_clear()
+
+
+# --------------------------------------------------------------------- the build gate
+
+def _waiting(key) -> int:
+    flight = planning._BUILDS._flights.get(key)
+    return 0 if flight is None else flight.waiters
+
+
+def _until(condition) -> None:
+    """Wait for a state another thread is about to reach. No outcome depends on how long."""
+    deadline = time.monotonic() + 10
+    while not condition():
+        assert time.monotonic() < deadline
+        time.sleep(0.001)
+
+
+def test_one_build_per_key_two_builds_at_once_and_a_built_key_waits_for_nobody(monkeypatch):
+    flagship = planning.DEFAULT_PLANNING_SCENARIO
+    started = {worlds: threading.Event() for worlds in (0, 12, 40)}
+    release = threading.Event()
+    builds: list[int] = []
+
+    def load(**kw):
+        builds.append(kw["worlds"])
+        started[kw["worlds"]].set()
+        if kw["worlds"] != 40:
+            assert release.wait(10)
+        return f"SNAP-{kw['worlds']}"
+
+    monkeypatch.setattr(snapshots, "load_team_snapshot", load)
+    monkeypatch.setattr(reference, "load_league_reference",
+                        lambda **kw: builds.append(-1) or "REF")
+    monkeypatch.setattr(runtime, "LONG_JOB_WAIT_SECONDS", 0.01)
+    loaders = (planning.planning_snapshot, planning.reference, planning.universe)
+    for loader in loaders:
+        loader.cache_clear()
+    got: dict[int, list] = {0: [], 12: []}
+
+    def ask(worlds: int) -> None:
+        got[worlds].append(planning.planning_snapshot(flagship, worlds))
+
+    threads = [threading.Thread(target=ask, args=(worlds,)) for worlds in (0, 0, 0, 12)]
+    try:
+        built = planning.planning_snapshot(flagship, 40)
+        assert (built, builds) == ("SNAP-40", [40])
+        assert planning.planning_snapshot.cache_info().currsize == 1
+
+        threads[0].start()
+        assert started[0].wait(10)
+        for thread in threads[1:3]:
+            thread.start()
+        # Non-vacuity: both later callers of the key are waiting on the first one's build.
+        _until(lambda: _waiting(("planning_snapshot", (flagship, 0), (str, int))) == 3)
+        threads[3].start()
+        assert started[12].wait(10)
+        assert builds == [40, 0, 12]            # two builds are running; one key, one build
+
+        # A key that is already built is served at once, with both places taken.
+        assert planning.planning_snapshot(flagship, 40) is built
+        # A third build has no place: the gate is one for the three loaders together.
+        with pytest.raises(runtime.LongJobsBusy):
+            planning.reference(flagship, False)
+        assert builds == [40, 0, 12]
+        release.set()
+        for thread in threads:
+            thread.join(10)
+        # The waiters received the first caller's object. Nothing was built a second time.
+        assert len(got[0]) == 3 and all(snap is got[0][0] for snap in got[0])
+        assert (got[0][0], got[12]) == ("SNAP-0", ["SNAP-12"])
+        assert builds == [40, 0, 12] and planning._BUILDS._flights == {}
+        # Both places came back.
+        assert planning.reference(flagship, False) == "REF" and builds[-1] == -1
+    finally:
+        release.set()
+        for loader in loaders:
+            loader.cache_clear()
+
+
+def test_a_failed_build_keeps_nothing_and_a_build_inside_a_build_takes_one_place(monkeypatch):
+    flagship = planning.DEFAULT_PLANNING_SCENARIO
+    state = {"corpus": False}
+    seen: list[str] = []
+
+    def load(**kw):
+        seen.append("snapshot")
+        if not state["corpus"]:
+            raise FileNotFoundError("competition=Spain/actions.parquet")
+        return "SNAP"
+
+    monkeypatch.setattr(snapshots, "load_team_snapshot", load)
+    monkeypatch.setattr(universe_module, "load_universe",
+                        lambda **kw: seen.append("universe") or ("POOL", kw["snapshot"]))
+    monkeypatch.setattr(runtime, "LONG_JOB_WAIT_SECONDS", 0.01)
+    loaders = (planning.planning_snapshot, planning.reference, planning.universe)
+    for loader in loaders:
+        loader.cache_clear()
+    gate = planning._BUILDS
+    try:
+        for _ in range(2):  # a failure is not remembered, and it gives its place back
+            with pytest.raises(FileNotFoundError):
+                planning.planning_snapshot(flagship, 0)
+        assert seen == ["snapshot", "snapshot"] and gate._flights == {}
+        assert planning.planning_snapshot.cache_info().currsize == 0
+        state["corpus"] = True
+        # One place left: the pool's build takes it, and the snapshot it needs is built
+        # inside that place. Asking for a second one would wait on itself.
+        assert gate._places.acquire(blocking=False)
+        try:
+            assert planning.universe(flagship, (), 0) == ("POOL", "SNAP")
+            assert seen[2:] == ["snapshot", "universe"]
+        finally:
+            gate._places.release()
+        assert planning.planning_snapshot(flagship, 0) == "SNAP" and len(seen) == 4
+    finally:
+        for loader in loaders:
+            loader.cache_clear()
+
+
+# ------------------------------------------------------------ what a cache key is made of
+
+def _corpus(root, leagues) -> None:
+    for name in ("players", "teams"):
+        (root / f"{name}.parquet").write_bytes(b"not parquet: a token opens no file")
+    for league in leagues:
+        (root / f"competition={league}").mkdir()
+        for name in ("actions", "matches", "lineups"):
+            (root / f"competition={league}" / f"{name}.parquet").write_bytes(b"x" * 10)
+
+
+def test_corpus_token_reads_sizes_and_times_of_the_leagues_involved_and_opens_nothing(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(public, "PUBLIC", tmp_path)
+    _corpus(tmp_path, ("Spain", "England"))
+    token = planning.corpus_token(planning.FLAGSHIP, ())
+    assert len(token) == 64 and token == planning.corpus_token(planning.FLAGSHIP)
+    both = planning.corpus_token(planning.FLAGSHIP, ("England",))
+    assert both != token
+    # One identity per set of leagues, however it is spelt; the club's own league is always in.
+    assert both == planning.corpus_token(planning.FLAGSHIP, ["England", "Spain", "England"])
+
+    spain, england = (tmp_path / f"competition={league}" / "actions.parquet"
+                      for league in ("Spain", "England"))
+    info = spain.stat()
+    later = (info.st_atime_ns, info.st_mtime_ns + 2_000_000_000)
+    os.utime(spain, ns=later)
+    moved = planning.corpus_token(planning.FLAGSHIP)
+    assert moved != token                                     # same size, another time
+    spain.write_bytes(b"x" * 11)
+    os.utime(spain, ns=later)
+    grown = planning.corpus_token(planning.FLAGSHIP)
+    assert grown != moved                                     # same time, another size
+    england.write_bytes(b"y" * 99)
+    assert planning.corpus_token(planning.FLAGSHIP) == grown  # a league the request does not read
+    assert planning.corpus_token(planning.FLAGSHIP, ("England",)) != both
+    (tmp_path / "teams.parquet").write_bytes(b"z")
+    assert planning.corpus_token(planning.FLAGSHIP) != grown
+
+    with pytest.raises(FileNotFoundError):
+        planning.corpus_token(planning.FLAGSHIP, ("Italy",))
+    england.unlink()
+    with pytest.raises(FileNotFoundError):
+        planning.corpus_token(planning.FLAGSHIP, ("England",))
+
+
+class Pooled(planning.PlanningInputs):
+    """A planning question that names other leagues, as a pool question does."""
+
+    include_leagues: list[planning.League] = []
+
+
+def test_the_request_is_keyed_as_resolved_and_not_as_spelt():
+    def key(**sent) -> tuple[str, ...]:
+        request = Pooled(**sent)
+        scenario = planning.resolve_scenario(request.scenario_id)
+        return runtime.cache_key("squad.depth", planning.canonical_request(scenario, request), "t")
+
+    high = {"requirement_id": "progression", "source": "EXPLICIT", "value": 4.0}
+    side = {"requirement_id": "left_pass_origins", "source": "CLUB_MEDIAN"}
+    declared = dict(excludes=[3322, 8278], locks=[7, 6], include_leagues=["Italy", "England"],
+                    presets=["progression-league-p75", "exclude-3322"], requirements=[side, high])
+    base = key(**declared)
+    assert base == key(
+        excludes=[8278, 3322, 3322], locks=[6, 7, 7], include_leagues=["England", "Italy"],
+        presets=["exclude-3322", "progression-league-p75"], requirements=[high, side])
+    # Madrid's club spelling is the flagship problem.
+    assert base == key(**declared, scenario_id="spain-675-planning-2018-05-21")
+    assert key() == key(scenario_id="spain-675-planning-2018-05-21", formation="4-3-3")
+    canonical = planning.canonical_request(planning.FLAGSHIP, Pooled(
+        scenario_id="spain-675-planning-2018-05-21", excludes=[9, 3, 9], requirements=[side, high]))
+    assert canonical["scenario_id"] == planning.DEFAULT_PLANNING_SCENARIO
+    assert canonical["excludes"] == [3, 9]
+    assert [row["requirement_id"] for row in canonical["requirements"]] \
+        == ["left_pass_origins", "progression"]
+    different = {
+        base,
+        key(**{**declared, "excludes": [3322]}),
+        key(**{**declared, "requirements": [side, {**high, "value": 4.5}]}),
+        key(**declared, formation="4-3-1-2"),
+    }
+    assert len(different) == 4
+    # A preset and the same exclusion by hand are different declarations, so different keys.
+    assert key(presets=["exclude-3322"]) != key(excludes=[3322])
+    # A name the declaration refuses when it is repeated is not folded into the accepted one:
+    # the repeat is a 422, and it must not be answered from the other's stored reply.
+    assert key(presets=["exclude-3322"] * 2) != key(presets=["exclude-3322"])
+    assert key(include_leagues=["Italy", "Italy"]) != key(include_leagues=["Italy"])
+    assert key(requirements=[high, high]) != key(requirements=[high])
 
 
 # ----------------------------------------------------------------- the handler shape
@@ -506,6 +719,10 @@ def test_a_league_percentile_minimum_is_the_reference_value_and_names_its_sample
      "duplicate requirement declarations"),
     ({"presets": ["progression-league-p75", "progression-league-p90"]},
      "duplicate requirement declarations"),
+    # A contradiction is refused where it is declared, by hand or through a preset.
+    ({"locks": [3322], "excludes": [7, 3322]}, "a player cannot be both locked and excluded"),
+    ({"locks": [3322], "presets": ["exclude-3322"]},
+     "a player cannot be both locked and excluded"),
 ])
 def test_a_declaration_the_problem_cannot_hold_is_a_422_with_its_sentence(client, sent, detail):
     response = client.post("/probe", json=sent)
@@ -523,6 +740,9 @@ def test_a_declaration_the_problem_cannot_hold_is_a_422_with_its_sentence(client
     {"requirements": [{"requirement_id": "progression", "source": "CLUB_MEDIAN", "value": 1.0}]},
     {"requirements": [{"requirement_id": "progression", "source": "LEAGUE_PERCENTILE",
                        "percentile": 60}]},
+    # A menu value is an integer: a float that compares equal to one is not it.
+    {"requirements": [{"requirement_id": "progression", "source": "LEAGUE_PERCENTILE",
+                       "percentile": 75.0}]},
     # A JSON number too large for a float parses as infinity; it is refused, not echoed.
     '{"requirements": [{"requirement_id": "progression", "source": "EXPLICIT", "value": 1e400}]}',
 ])
@@ -531,6 +751,23 @@ def test_a_malformed_request_is_a_422_that_echoes_no_value(client, sent):
                                         else {"json": sent}))
     assert response.status_code == 422
     assert all(set(error) <= {"loc", "msg", "type"} for error in response.json()["detail"])
+
+
+def test_a_minimum_of_negative_zero_is_stored_and_printed_as_zero(client):
+    def sent(value: float) -> dict:
+        return {"requirements": [
+            {"requirement_id": "progression", "source": "EXPLICIT", "value": value}]}
+
+    body = client.post("/probe", json=sent(-0.0)).json()
+    row = next(r for r in body["inputs"]["requirements"] if r["requirement_id"] == "progression")
+    assert row["minimum"] == 0 and math.copysign(1.0, row["minimum"]) == 1.0
+    declared = {r["key"]: r["value_text"] for r in body["declared"]}
+    assert declared["declared-minimum-progression"] == "0.000. Entered by you."
+    # One declaration, one problem: zero by either sign has one fingerprint.
+    assert body["provenance"]["input_fingerprint"] \
+        == client.post("/probe", json=sent(0.0)).json()["provenance"]["input_fingerprint"]
+    assert math.copysign(1.0, planning.RequirementDeclaration(
+        requirement_id="progression", source="EXPLICIT", value=-0.0).value) == 1.0
 
 
 def test_unknown_scenario_is_404_no_corpus_is_503_and_other_clubs_are_unreviewed(
@@ -655,6 +892,8 @@ def test_flagship_resolves_and_builds_on_the_real_corpus(corpus_root):
     planning.planning_snapshot.cache_clear()
     try:
         scenario = planning.resolve_scenario(planning.DEFAULT_PLANNING_SCENARIO)
+        token = planning.corpus_token(scenario)
+        assert len(token) == 64 and token == planning.corpus_token(scenario, ("Spain",))
         problem = planning.declare(scenario, planning.PlanningInputs(presets=["exclude-3322"]))
         snap = problem.snapshot
         assert (len(snap.candidates), len(snap.omitted)) == (19, 5)

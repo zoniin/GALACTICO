@@ -10,13 +10,15 @@ test reads structure and exact computations on the real flagship scenario.
 from __future__ import annotations
 
 import itertools
+import threading
+import time
 from dataclasses import replace
 from fractions import Fraction
 from types import SimpleNamespace
 
 import pytest
 
-from galactico.api import planning, shell, squad_lab
+from galactico.api import planning, runtime, shell, squad_lab
 from galactico.optimization import historical, reference, snapshots
 
 # The synthetic squad, restated: provider position, reviewed roles, progression per 90.
@@ -131,15 +133,24 @@ def _no_corpus(*_args, **_kwargs):
     raise FileNotFoundError("competition=Spain/matches.parquet")
 
 
-@pytest.fixture
-def client(lab_client, synthetic_snapshot):
-    snap = _snapshot(synthetic_snapshot)
-    return lab_client(squad_lab.router, patches={
-        "galactico.api.planning.planning_snapshot": lambda scenario_id, worlds=0: snap,
+def _token(scenario, leagues=()) -> str:
+    return "synthetic-corpus"  # the files a key is taken from: none are read in these tests
+
+
+def _patches(snapshot_loader) -> dict:
+    return {
+        "galactico.api.planning.planning_snapshot": snapshot_loader,
         "galactico.api.planning.reference": _league,
         "galactico.api.planning.universe": _pool,
         "galactico.api.planning.league_clubs": _no_corpus,
-    })
+        "galactico.api.planning.corpus_token": _token,
+    }
+
+
+@pytest.fixture
+def client(lab_client, synthetic_snapshot):
+    snap = _snapshot(synthetic_snapshot)
+    return lab_client(squad_lab.router, patches=_patches(lambda scenario_id, worlds=0: snap))
 
 
 def _post(client, name, **body):
@@ -305,6 +316,156 @@ def test_three_absences_need_an_explicit_confirmation(client):
     assert [level["k"] for level in confirmed["levels"]] == [1, 2, 3]
     off_menu = _post(client, "stress", k=4)
     assert off_menu.status_code == 422 and "input" not in str(off_menu.json())
+    # A set size is an integer. True is not 1 and 2.0 is not 2, although each compares equal.
+    for not_an_integer in (True, 2.0, "2"):
+        refused = _post(client, "stress", k=not_an_integer)
+        assert refused.status_code == 422
+        assert refused.json()["detail"] == [
+            {"loc": ["body", "k"], "msg": "Input is not an integer", "type": "int_type"}]
+        assert shell.scan_labels(refused.json()) == []
+
+
+@pytest.mark.parametrize("name", list(POSTS))
+def test_a_player_both_locked_and_excluded_is_refused_on_every_route(client, name):
+    refused = _post(client, name, locks=[7], excludes=[3322, 7])
+    assert (refused.status_code, refused.json()) \
+        == (422, {"detail": "a player cannot be both locked and excluded"})
+    # Opposite case: the same two declarations about two players are a problem to solve.
+    assert _post(client, name, locks=[7], excludes=[3322]).status_code == 200
+
+
+# -------------------------------------------------------- the request under its budget
+
+def test_one_problem_is_one_stored_reply_however_spelt_and_a_refusal_stays_a_refusal(client):
+    first = _post(client, "depth", excludes=[3322, 8278])
+    assert (first.status_code, first.headers["X-Galactico-Cache"]) == (200, "miss")
+    for spelt in ({"excludes": [8278, 3322, 3322]},
+                  {"excludes": [3322, 8278], "scenario_id": "spain-675-planning-2018-05-21"},
+                  {"excludes": [3322, 8278], "formation": "4-3-3", "pinned_values": True}):
+        again = _post(client, "depth", **spelt)
+        assert again.headers["X-Galactico-Cache"] == "hit" and again.content == first.content
+    # A preset is another declaration of the same solve, and has its own reply.
+    by_preset = [_post(client, "depth", presets=["exclude-3322"]) for _ in range(2)]
+    assert [r.headers["X-Galactico-Cache"] for r in by_preset] == ["miss", "hit"]
+    # A refusal is not answered from the stored reply of the request it resembles, and a
+    # refusal that needs the snapshot is worked out each time and never stored.
+    twice = _post(client, "depth", presets=["exclude-3322", "exclude-3322"])
+    assert (twice.status_code, twice.json()["detail"]) == (422, "a preset is named twice")
+    for _ in range(2):
+        unknown = _post(client, "depth", excludes=[999])
+        assert (unknown.status_code, unknown.json()["detail"]) \
+            == (422, "unknown excluded player IDs: [999]")
+
+
+def test_a_stored_reply_builds_nothing_and_does_not_wait_for_another_clubs_build(
+        lab_client, synthetic_snapshot):
+    snap = _snapshot(synthetic_snapshot)
+    flagship, other = planning.DEFAULT_PLANNING_SCENARIO, "spain-676-planning-2018-05-21"
+    getafe = dict(scenario_id=other, competition="Spain", competition_label="La Liga",
+                  team_id=676, team_name="Getafe", cutoff="2018-05-21")
+    started, release = threading.Event(), threading.Event()
+    builds: list[str] = []
+
+    def load(scenario_id, worlds=0):
+        builds.append(scenario_id)
+        if scenario_id == other:
+            started.set()
+            assert release.wait(10)
+        return snap
+
+    client = lab_client(squad_lab.router, patches={
+        **_patches(load), "galactico.api.planning.league_clubs": lambda competition: (getafe,)})
+    first = _post(client, "depth")
+    assert first.headers["X-Galactico-Cache"] == "miss" and builds == [flagship]
+    replies: dict[str, object] = {}
+    slow = threading.Thread(
+        target=lambda: replies.update(other=_post(client, "depth", scenario_id=other)))
+    fast = threading.Thread(target=lambda: replies.update(again=_post(client, "depth")))
+    slow.start()
+    try:
+        assert started.wait(10)
+        # The other club's snapshot is being built. The stored reply does not wait for it.
+        fast.start()
+        fast.join(10)
+        assert not fast.is_alive() and not release.is_set()
+        again = replies["again"]
+        assert again.headers["X-Galactico-Cache"] == "hit" and again.content == first.content
+        assert builds == [flagship, other]      # and it built nothing
+    finally:
+        release.set()
+        slow.join(10)
+    assert replies["other"].status_code == 200
+    assert not hasattr(squad_lab, "_DECLARE")   # no lock every squad request stands behind
+
+
+def test_the_budget_starts_with_the_request_so_its_elapsed_time_covers_the_build(
+        lab_client, synthetic_snapshot, monkeypatch):
+    snap = _snapshot(synthetic_snapshot)
+    skew = [0.0]
+    # The runtime's clock, moved by the loader: no test waits on real time.
+    monkeypatch.setattr(runtime, "time",
+                        SimpleNamespace(monotonic=lambda: time.monotonic() + skew[0]))
+
+    def load(scenario_id, worlds=0):
+        skew[0] += 7.0  # the build takes seven seconds of the request's clock
+        return snap
+
+    client = lab_client(squad_lab.router, patches=_patches(load))
+    for name in POSTS:
+        budget = _post(client, name).json()["budget"]
+        assert 7.0 <= budget["elapsed_seconds"] < budget["budget_seconds"], name
+
+
+def test_no_build_place_in_time_is_a_429_and_a_stored_reply_is_still_served(
+        lab_client, synthetic_snapshot, monkeypatch):
+    snap = _snapshot(synthetic_snapshot)
+    monkeypatch.setattr(snapshots, "load_team_snapshot", lambda **kw: snap)
+    monkeypatch.setattr(runtime, "LONG_JOB_WAIT_SECONDS", 0.01)
+    # The real loader, so that the build gate is in the request's way.
+    client = lab_client(squad_lab.router,
+                        patches={"galactico.api.planning.corpus_token": _token})
+    gate = planning._BUILDS
+    planning.planning_snapshot.cache_clear()
+    try:
+        stored = _post(client, "snapshot")
+        assert (stored.status_code, stored.headers["X-Galactico-Cache"]) == (200, "miss")
+        planning.planning_snapshot.cache_clear()  # the reply is stored; the snapshot is gone
+        assert gate._places.acquire(blocking=False) and gate._places.acquire(blocking=False)
+        try:
+            busy = _post(client, "depth")
+            assert (busy.status_code, busy.json()) \
+                == (429, {"detail": "two long computations are already running"})
+            again = _post(client, "snapshot")
+            assert (again.status_code, again.headers["X-Galactico-Cache"]) == (200, "hit")
+        finally:
+            gate._places.release()
+            gate._places.release()
+        assert _post(client, "depth").status_code == 200  # nothing was kept from the refusal
+    finally:
+        planning.planning_snapshot.cache_clear()
+
+
+def test_with_both_long_computation_places_taken_the_stress_route_is_a_429(client, monkeypatch):
+    monkeypatch.setattr(runtime, "_LONG_JOBS", threading.BoundedSemaphore(runtime.LONG_JOB_LIMIT))
+    monkeypatch.setattr(runtime, "LONG_JOB_WAIT_SECONDS", 0.01)
+    with runtime.long_job("squad.stress"), runtime.long_job("transfer.injection"):
+        busy = _post(client, "stress")
+        assert (busy.status_code, busy.json()) \
+            == (429, {"detail": "two long computations are already running"})
+        assert _post(client, "depth").status_code == 200  # a route that enumerates nothing
+    served = _post(client, "stress")
+    assert (served.status_code, served.headers["X-Galactico-Cache"]) == (200, "miss")
+
+
+def test_a_damaged_corpus_file_is_a_503_with_no_library_sentence(client, monkeypatch, tmp_path):
+    import pandas as pd
+
+    damaged = tmp_path / "actions.parquet"
+    damaged.write_bytes(b"not parquet at all")
+    monkeypatch.setattr(planning, "planning_snapshot",
+                        lambda scenario_id, worlds=0: pd.read_parquet(damaged))
+    reply = _post(client, "snapshot")
+    assert (reply.status_code, reply.json()) == (503, {"detail": "historical corpus unavailable"})
 
 
 def test_a_large_tie_is_cut_with_its_count_and_never_silently(client, monkeypatch):
@@ -549,6 +710,9 @@ def test_flagship_on_the_real_corpus(corpus_root, lab_client):
     departure = {"excludes": [3322], "requirements": [
         {"requirement_id": "progression", "source": "EXPLICIT", "value": 4.0}]}
     depth = client.post("/api/squad/depth", json={}).json()
+    # Keyed on the real files and on the problem: Madrid's club spelling is the stored reply.
+    spelt = client.post("/api/squad/depth", json={"scenario_id": "spain-675-planning-2018-05-21"})
+    assert spelt.headers["X-Galactico-Cache"] == "hit" and spelt.json() == depth
     assert depth["baseline"]["kind"] == "NONE"
     assert depth["player_counts"] == {"available": 19, "below_gate": 5, "excluded": 0}
     assert {p["name"] for p in depth["omitted"]} == {

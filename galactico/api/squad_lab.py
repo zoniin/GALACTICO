@@ -19,14 +19,14 @@ Rows are returned once, by name then id. Every other order is data beside the ro
 by an exact categorical outcome, then by one declared key. A list that is a large tie is cut
 at ``LIST_CAP`` and its full count is stated in the same object; nothing is cut silently.
 
-Every handler is the runtime skeleton: resolve the scenario or 404, declare the problem
-inside ``runtime.lab_errors``, key the result cache on the request, spend at most the route's
-budget, ``runtime.finalize`` the payload, respond. Tools are imported when a handler runs.
+Every handler is the runtime skeleton: start the route's budget, resolve the scenario or 404,
+key the result cache on the request as resolved and on the corpus files it reads, and only
+for a reply that is not stored declare the problem, compute within what is left of the
+budget, ``runtime.finalize`` the payload. Tools are imported when a handler runs.
 """
 
 from __future__ import annotations
 
-import threading
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
@@ -150,10 +150,6 @@ REMOVAL_OUTCOMES: tuple[tuple[str, str], ...] = (
 _CARRY_OVER_EXPERIMENT = "E-12"
 """The draft protocol that would cover a rate recorded at another club. Unregistered."""
 
-_DECLARE = threading.Lock()
-"""One snapshot build at a time: the loader cache behind ``planning.declare`` is a plain
-``lru_cache``, so two first requests would each read the league's action frame."""
-
 
 # ---------------------------------------------------------------------------- requests
 
@@ -171,7 +167,7 @@ class SquadDepthRequest(planning.PlanningInputs):
 
 
 class SquadStressRequest(planning.PlanningInputs):
-    k: Literal[1, 2, 3] = 1
+    k: Annotated[Literal[1, 2, 3], planning.INTEGER_ONLY] = 1
     confirm_k3: Annotated[bool, Field(strict=True)] = False
 
 
@@ -186,22 +182,41 @@ class SquadBriefRequest(planning.PlanningInputs):
 Build = Callable[[planning.DeclaredProblem, runtime.Budget], dict]
 
 
-def _answer(route: str, request: planning.PlanningInputs, build: Build) -> Response:
-    """The skeleton every planning POST follows. ``build`` returns the whole payload."""
+def _answer(route: str, request: planning.PlanningInputs, build: Build, *,
+            pool: bool = False) -> Response:
+    """The skeleton every planning POST follows. ``build`` returns the whole payload.
+
+    The budget starts here, before anything is read, so the time a build takes and the time
+    spent waiting for a place are in ``elapsed_seconds``. The key is taken before the
+    problem is declared: a stored reply builds nothing. ``pool``: the reply counts the
+    candidate universe, which reads the match and lineup tables of every league.
+    """
+    budget = (runtime.Budget(RECORD_BUDGETS[route]) if route in RECORD_BUDGETS
+              else runtime.budget_for(route))
     scenario = planning.resolve_or_404(request.scenario_id)
     with runtime.lab_errors():
-        with _DECLARE:
-            problem = planning.declare(scenario, request)
-        key = runtime.cache_key(route, request, problem.snapshot.provenance["dataset_hash"])
+        key = runtime.cache_key(route, planning.canonical_request(scenario, request),
+                                _corpus_token(scenario, pool))
 
         def compute() -> dict:
+            problem = planning.declare(scenario, request)
             if route in RECORD_BUDGETS:
-                return runtime.finalize(build(problem, runtime.Budget(RECORD_BUDGETS[route])))
+                return runtime.finalize(build(problem, budget))
             with runtime.long_job(route):
-                return runtime.finalize(build(problem, runtime.budget_for(route)))
+                return runtime.finalize(build(problem, budget))
 
         data, hit = runtime.RESULTS.get_or_compute(key, compute, store=_storable)
         return runtime.respond(data, cache_hit=hit)
+
+
+def _corpus_token(scenario: planning.PlanningScenario, pool: bool) -> str:
+    if pool:
+        try:
+            return planning.corpus_token(scenario, tuple(planning.LEAGUE_LABELS))
+        except FileNotFoundError:
+            # Part of the corpus: the brief is served without a pool and is not stored.
+            pass
+    return planning.corpus_token(scenario)
 
 
 def _storable(data: Mapping[str, Any]) -> bool:
@@ -1315,4 +1330,4 @@ def squad_brief(request: SquadBriefRequest) -> Response:
         )
         return payload
 
-    return _answer("squad.brief", request, build)
+    return _answer("squad.brief", request, build, pool=request.count_pool)

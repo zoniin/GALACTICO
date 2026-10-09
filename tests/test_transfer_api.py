@@ -10,12 +10,15 @@ to 1e-5 as the shipped integer policy does.
 
 from __future__ import annotations
 
+import threading
+import time
 from dataclasses import replace
 from fractions import Fraction
+from types import SimpleNamespace
 
 import pytest
 
-from galactico.api import planning, shell, transfer_lab
+from galactico.api import planning, runtime, shell, transfer_lab
 from galactico.optimization import historical, snapshots
 from galactico.optimization.transfers import injection, retention
 from galactico.optimization.transfers import universe as universe_module
@@ -89,6 +92,10 @@ def _universe(include_leagues: tuple[str, ...], worlds: int) -> universe_module.
     )
 
 
+def _token(scenario, leagues=()) -> str:
+    return "synthetic-corpus"  # the files a key is taken from: none are read in these tests
+
+
 @pytest.fixture
 def client(lab_client, synthetic_snapshot):
     return lab_client(transfer_lab.router, patches={
@@ -96,6 +103,7 @@ def client(lab_client, synthetic_snapshot):
             lambda scenario_id, worlds=0: _snapshot(synthetic_snapshot, worlds),
         "galactico.api.planning.universe":
             lambda scenario_id, include_leagues=(), worlds=0: _universe(include_leagues, worlds),
+        "galactico.api.planning.corpus_token": _token,
     })
 
 
@@ -255,7 +263,22 @@ def test_goalkeeping_and_every_other_refusal_has_its_own_status(client, monkeypa
             assert _post(client, path, {**SHORT, "player_id": outsider}, 422)["detail"] \
                 == transfer_lab.NOT_ADMISSIBLE
     _post(client, "injection/detail", {**SHORT, "player_id": 101, "worlds": 13}, 422)
+    # A world count is an integer. False is not 0 and 12.0 is not 12, although each compares
+    # equal; the plain spellings are served.
+    for not_an_integer in (False, 12.0, "12"):
+        refused = _post(client, "injection/detail",
+                        {**SHORT, "player_id": 101, "worlds": not_an_integer}, 422)
+        assert all(set(error) <= {"loc", "msg", "type"} for error in refused["detail"])
+    for worlds in (0, 12):
+        _post(client, "injection/detail", {**SHORT, "player_id": 101, "worlds": worlds})
     _post(client, "retention", {**SHORT, "player_id": 101, "conclusion": "IS_GOOD"}, 422)
+    # A player both locked and excluded is a contradiction, refused on every route alike.
+    for path in ("universe", "injection", "injection/detail", "retention"):
+        contradiction = {**SHORT, "player_id": 101, "locks": [3322], "excludes": [3322]}
+        if path in ("universe", "injection"):
+            del contradiction["player_id"]
+        assert _post(client, path, contradiction, 422)["detail"] \
+            == "a player cannot be both locked and excluded"
 
     def no_corpus(*_args, **_kwargs):
         raise FileNotFoundError("competition=Spain/matches.parquet")
@@ -406,6 +429,160 @@ def test_a_baseline_that_was_not_certified_is_said_so_and_no_xi_is_denied(client
     search, cache = _twice(client, "injection", {**SHORT, "excludes": [8278]})
     assert (search["search_state"], search["rows"]) == ("NOT_CERTIFIED", [])
     assert search["budget"]["completeness"] == "DEADLINE" and cache == ["miss", "miss"]
+
+
+def test_a_pool_reply_whose_attained_sum_was_not_certified_is_a_deadline_and_is_not_stored(
+        client, monkeypatch):
+    solve = planning.attained
+
+    def late(problem, *, time_limit):  # the tool's own rows, as it answers at its deadline
+        return [
+            {**row, "status": "NOT_CERTIFIED", "reached": None, "ceiling": None,
+             "reached_text": None, "ceiling_text": None,
+             "statement": planning.ATTAINED_NOT_CERTIFIED.format(label=row["label"])}
+            for row in solve(problem, time_limit=time_limit)
+        ]
+
+    monkeypatch.setattr(planning, "attained", late)
+    pool, cache = _twice(client, "universe", MET)
+    # The baseline is proven. The reply is still not complete: one of its solves is open.
+    assert pool["baseline"]["status"] == "CERTIFIED"
+    (row,) = pool["deficiency"]["attained"]
+    assert (row["status"], row["reached"]) == ("NOT_CERTIFIED", None)
+    assert pool["budget"]["completeness"] == "DEADLINE" and cache == ["miss", "miss"]
+    assert not runtime.is_complete(pool)
+    ledger = {entry["row_id"]: entry for entry in pool["ledger"]}
+    assert ledger["attained-progression"]["value_text"] is None  # no number, and no zero
+    # Opposite case: certified, the same request is exact and is stored.
+    monkeypatch.setattr(planning, "attained", solve)
+    pool, cache = _twice(client, "universe", MET)
+    assert pool["deficiency"]["attained"][0]["status"] == "CERTIFIED"
+    assert pool["budget"]["completeness"] == "EXACT" and cache == ["miss", "hit"]
+
+
+# -------------------------------------------------------- the request under its budget
+
+def test_the_budget_starts_with_the_request_and_a_stored_reply_builds_nothing(
+        lab_client, synthetic_snapshot, monkeypatch):
+    skew = [0.0]
+    # The runtime's clock, moved by the loader: no test waits on real time.
+    monkeypatch.setattr(runtime, "time",
+                        SimpleNamespace(monotonic=lambda: time.monotonic() + skew[0]))
+    builds: list[str] = []
+
+    def squad(scenario_id, worlds=0):
+        builds.append("snapshot")
+        return _snapshot(synthetic_snapshot, worlds)
+
+    def pool(scenario_id, include_leagues=(), worlds=0):
+        builds.append("universe")
+        skew[0] += 7.0  # the build takes seven seconds of the request's clock
+        return _universe(include_leagues, worlds)
+
+    client = lab_client(transfer_lab.router, patches={
+        "galactico.api.planning.planning_snapshot": squad,
+        "galactico.api.planning.universe": pool,
+        "galactico.api.planning.corpus_token": _token,
+    })
+    bodies = {"universe": SHORT, "injection": SHORT,
+              "injection/detail": {**SHORT, "player_id": 101, "worlds": 0},
+              "retention": {**SHORT, "player_id": 101}}
+    for path, body in bodies.items():
+        builds.clear()
+        first = client.post(f"/api/transfer/{path}", json=body)
+        assert (first.status_code, first.headers["X-Galactico-Cache"]) == (200, "miss"), path
+        budget = first.json()["budget"]
+        assert 7.0 <= budget["elapsed_seconds"] < budget["budget_seconds"], path
+        assert builds == ["snapshot", "universe"]
+        again = client.post(f"/api/transfer/{path}", json=body)
+        assert again.headers["X-Galactico-Cache"] == "hit" and again.content == first.content
+        assert builds == ["snapshot", "universe"], path  # the stored reply built nothing
+    # A refusal that needs the pool is still a refusal, and it is worked out each time.
+    for _ in range(2):
+        builds.clear()
+        assert _post(client, "retention", {**SHORT, "player_id": 106}, 422)["detail"] \
+            == transfer_lab.NOT_ADMISSIBLE
+        assert builds == ["snapshot", "universe"]
+    # One problem, one stored reply: Madrid's club spelling and a repeated exclusion.
+    spelt = [{**SHORT, "excludes": [7, 8]},
+             {**SHORT, "excludes": [8, 7, 7], "scenario_id": "spain-675-planning-2018-05-21"}]
+    headers = [client.post("/api/transfer/universe", json=body).headers["X-Galactico-Cache"]
+               for body in spelt]
+    assert headers == ["miss", "hit"]
+
+
+def _until(condition) -> None:
+    """Wait for a state another thread is about to reach. No outcome depends on how long."""
+    deadline = time.monotonic() + 10
+    while not condition():
+        assert time.monotonic() < deadline
+        time.sleep(0.001)
+
+
+def test_first_requests_at_once_build_once_and_an_identical_one_computes_once(
+        lab_client, synthetic_snapshot, monkeypatch):
+    started, release = threading.Event(), threading.Event()
+    builds: list[str] = []
+
+    def load_snapshot(**kw):
+        builds.append("snapshot")
+        started.set()
+        assert release.wait(10)
+        return _snapshot(synthetic_snapshot, kw["worlds"])
+
+    def load_universe(**kw):
+        builds.append("universe")
+        return _universe(tuple(kw["include_leagues"]), 0)
+
+    # The real loaders of planning, so that the build gate is in the requests' way.
+    monkeypatch.setattr(snapshots, "load_team_snapshot", load_snapshot)
+    monkeypatch.setattr(universe_module, "load_universe", load_universe)
+    client = lab_client(transfer_lab.router,
+                        patches={"galactico.api.planning.corpus_token": _token})
+    loaders = (planning.planning_snapshot, planning.universe)
+    for loader in loaders:
+        loader.cache_clear()
+    replies: list = []
+
+    def ask(body: dict) -> None:
+        replies.append(client.post("/api/transfer/universe", json=body))
+
+    threads = [threading.Thread(target=ask, args=(body,))
+               for body in (SHORT, SHORT, {"slot_id": "lw"})]
+    try:
+        threads[0].start()
+        assert started.wait(10)
+        for thread in threads[1:]:
+            thread.start()
+        # Non-vacuity: the identical request waits for the first one's reply, and the other
+        # slot's request waits for the first one's snapshot.
+        _until(lambda: any(flight.waiters == 2 for flight in runtime.RESULTS._flights.values())
+               and any(flight.waiters == 2 for flight in planning._BUILDS._flights.values()))
+        release.set()
+        for thread in threads:
+            thread.join(10)
+    finally:
+        release.set()
+        for loader in loaders:
+            loader.cache_clear()
+    assert [reply.status_code for reply in replies] == [200, 200, 200]
+    assert builds == ["snapshot", "universe"]
+    assert sorted(reply.headers["X-Galactico-Cache"] for reply in replies) \
+        == ["hit", "miss", "miss"]
+    same = [reply.content for reply in replies if reply.json()["slot"]["slot_id"] == "st"]
+    assert len(same) == 2 and same[0] == same[1]
+
+
+def test_with_both_long_computation_places_taken_the_search_is_a_429(client, monkeypatch):
+    monkeypatch.setattr(runtime, "_LONG_JOBS", threading.BoundedSemaphore(runtime.LONG_JOB_LIMIT))
+    monkeypatch.setattr(runtime, "LONG_JOB_WAIT_SECONDS", 0.01)
+    with runtime.long_job("squad.stress"), runtime.long_job("transfer.injection"):
+        busy = client.post("/api/transfer/injection", json=SHORT)
+        assert (busy.status_code, busy.json()) \
+            == (429, {"detail": "two long computations are already running"})
+        _post(client, "universe", SHORT)  # a route that enumerates nothing needs no place
+    served = client.post("/api/transfer/injection", json=SHORT)
+    assert (served.status_code, served.headers["X-Galactico-Cache"]) == (200, "miss")
 
 
 def test_the_reading_promises_no_tolerated_loss_where_the_profile_fails_again(

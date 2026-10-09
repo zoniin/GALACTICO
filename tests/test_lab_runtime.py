@@ -38,11 +38,34 @@ def _envelope(**extra) -> dict:
     (ValueError("unknown lock id 99"), 422, "unknown lock id 99"),
     (runtime.LongJobsBusy(), 429, "two long computations are already running"),
 ])
-def test_lab_errors_maps_exactly_three_failures(raised, status, detail):
+def test_lab_errors_maps_each_failure_to_its_status(raised, status, detail):
     with pytest.raises(HTTPException) as caught, runtime.lab_errors():
         raise raised
     assert (caught.value.status_code, caught.value.detail) == (status, detail)
     assert caught.value.__cause__ is raised
+
+
+def test_a_damaged_or_unreadable_corpus_file_is_a_503_and_never_a_library_sentence(tmp_path):
+    import pandas as pd
+
+    damaged = tmp_path / "actions.parquet"
+    damaged.write_bytes(b"not parquet at all")
+    # Non-vacuity: what a loader raises on such a file is a ValueError carrying Arrow's text.
+    with pytest.raises(ValueError, match="Parquet") as arrow:
+        pd.read_parquet(damaged)
+    assert type(arrow.value).__module__.startswith("pyarrow")
+    for raised in (arrow.value, PermissionError(13, "Permission denied", str(damaged)),
+                   OSError("the device is not ready")):
+        with pytest.raises(HTTPException) as caught, runtime.lab_errors():
+            raise raised
+        assert (caught.value.status_code, caught.value.detail) \
+            == (503, "historical corpus unavailable")
+        assert caught.value.__cause__ is raised
+    # Opposite case: a refusal this repository wrote is still a 422 with its own sentence.
+    with pytest.raises(HTTPException) as caught, runtime.lab_errors():
+        runtime.Budget(0)
+    assert (caught.value.status_code, caught.value.detail) \
+        == (422, "a budget is a positive, finite number of seconds")
 
 
 def test_lab_errors_leaves_internal_faults_and_handler_statuses_alone():
@@ -280,6 +303,13 @@ def test_cache_key_is_route_dataset_and_canonical_request():
         runtime.cache_key("squad.stress", Query(locks=[3, 1], k=1), "abc"),
     }
     assert len(keys) == 5
+    # A mapping is keyed as the model that dumps to it, so a router can key a request as it
+    # resolved it and not as it was spelt.
+    resolved = {"locks": [3, 1], "scenario_id": "madrid-planning-2018-05-21", "k": 2}
+    assert runtime.cache_key("squad.stress", resolved, "abc") == runtime.cache_key(
+        "squad.stress", request, "abc")
+    assert runtime.cache_key("squad.stress", {**resolved, "locks": [1, 3]}, "abc") \
+        == runtime.cache_key("squad.stress", Query(locks=[1, 3]), "abc")
 
 
 # ---------------------------------------------------------------- precomputed results
@@ -474,13 +504,19 @@ def test_verdicts_endpoint_serves_the_registry(lab_client, thesis_guard, monkeyp
         "order": "experiment_id, subject_id ascending",
         "claim": "Registered protocols and their recorded verdicts. "
                  "A verdict labels a quantity; it is not a property of a player.",
+        "provenance": {"providers": ["pappalardo"]},
     }
     thesis_guard(body)
+    assert runtime.finalize(body) is body      # the boundary check of every other new response
     assert [route.path for route in runtime.router.routes] == ["/api/evidence/verdicts"]
 
     listed = [verdicts.as_payload(verdicts.verdict_for("E-10", "x"))]
     monkeypatch.setattr(verdicts, "all_payloads", lambda: listed)
     assert client.get("/api/evidence/verdicts").json()["verdicts"] == listed
+    # It is finalized, so a listing that named another provider would not leave the server.
+    monkeypatch.setattr(verdicts, "all_payloads", lambda: [{"provider": "statsbomb"}])
+    with pytest.raises(runtime.BoundaryViolation, match="provider"):
+        client.get("/api/evidence/verdicts")
 
 
 class _Query(BaseModel):

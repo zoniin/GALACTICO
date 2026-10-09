@@ -21,9 +21,11 @@ Other leagues are an opt-in, and every such row carries the not-strength-adjuste
 Nothing has been tested: the verdict registry is empty, so a recorded rate carries the
 NOT_REGISTERED badge and no sentence here says otherwise.
 
-Every handler follows the runtime skeleton: resolve the scenario (404), then inside
-``runtime.lab_errors`` declare the problem, key the cache, compute under the route's budget,
-build ``planning.envelope`` and ``runtime.finalize`` it. Tools are imported when called.
+Every handler follows the runtime skeleton: start the route's budget, resolve the scenario
+(404), then inside ``runtime.lab_errors`` key the cache on the request as resolved and on the
+corpus files it reads, and only for a reply that is not stored declare the problem, build the
+pool, compute within what is left of the budget, build ``planning.envelope`` and
+``runtime.finalize`` it. Tools are imported when called.
 """
 
 from __future__ import annotations
@@ -246,7 +248,7 @@ class TransferDetailRequest(planning.PlanningInputs):
     slot_id: SlotId
     include_leagues: list[planning.League] = Field(default_factory=list, max_length=4)
     player_id: planning.StrictId
-    worlds: Literal[0, 12, 40] = 12
+    worlds: Annotated[Literal[0, 12, 40], planning.INTEGER_ONLY] = 12
 
 
 class TransferRetentionRequest(planning.PlanningInputs):
@@ -609,11 +611,19 @@ def _candidate_of(pool: _Pool, player_id: int) -> Any:
     return found
 
 
-def _serve(route: str, request: BaseModel, pool: _Pool, compute: Any) -> Response:
-    """The cache step of the skeleton: an identical request in flight computes once."""
-    key = runtime.cache_key(route, request, pool.problem.snapshot.provenance["dataset_hash"])
-    data, hit = runtime.RESULTS.get_or_compute(key, compute, store=runtime.is_complete)
-    return runtime.respond(data, cache_hit=hit)
+def _serve(route: str, scenario: planning.PlanningScenario, request: BaseModel,
+           compute: Any) -> Response:
+    """The cache step of the skeleton: keyed before anything is built, computed once in flight.
+
+    ``compute`` declares the problem and builds the pool itself, so a stored reply builds
+    nothing and a refusal that needs the pool is still that refusal.
+    """
+    with runtime.lab_errors():
+        # The pool reads the match and lineup tables of every league, opted in or not.
+        token = planning.corpus_token(scenario, tuple(planning.LEAGUE_LABELS))
+        key = runtime.cache_key(route, planning.canonical_request(scenario, request), token)
+        data, hit = runtime.RESULTS.get_or_compute(key, compute, store=runtime.is_complete)
+        return runtime.respond(data, cache_hit=hit)
 
 
 # --------------------------------------------------------------------------- routes
@@ -685,57 +695,58 @@ def transfer_clubs() -> Response:
 @router.post("/api/transfer/universe")
 def transfer_universe(request: TransferUniverseRequest) -> Response:
     """The pool, counted before any name appears, and whether there is a shortfall to lower."""
+    budget = runtime.Budget(UNIVERSE_BUDGET_SECONDS)
     scenario = planning.resolve_or_404(request.scenario_id)
-    with runtime.lab_errors():
+
+    def compute() -> dict:
         pool = _resolve(scenario, request, filters=request.filters)
-        budget = runtime.Budget(UNIVERSE_BUDGET_SECONDS)
+        value = _baseline(pool, budget)
+        deficiency = _deficiency(pool, value)
+        attained: list[dict] = []
+        if deficiency["state"] == "NO_DECLARED_DEFICIENCY":
+            # Nothing to lower: say what this squad attains, so that a minimum worth
+            # declaring is a number the user can read and not one to guess.
+            attained = planning.attained(pool.problem, time_limit=budget.remaining())
+        deficiency["attained"] = attained
+        # Complete only when every solve in the reply was decided: an attained sum the
+        # deadline left open is not hidden under a baseline that was proven.
+        decided = value.status in ("CERTIFIED", "UNFIELDABLE") and all(
+            row["status"] in ("CERTIFIED", "UNFIELDABLE") for row in attained)
+        payload = planning.envelope(
+            pool.problem, route=ROUTE_UNIVERSE, claim=CLAIM_POOL, non_claim=NON_CLAIM_POOL,
+            budget=budget.report("EXACT" if decided else "DEADLINE"),
+            question=_question(pool, filters=request.filters.model_dump()),
+            declared=_declared(pool, request.filters),
+            ledger=[_baseline_ledger(pool, value), *_attained_ledger(pool, attained),
+                    _pool_ledger(pool)],
+            tools={"universe": pool.universe.provenance},
+        )
+        payload.update(
+            slot=_slot_payload(pool.slot),
+            squad=_squad(pool),
+            baseline=_baseline_payload(pool, value),
+            deficiency=deficiency,
+            pool=_pool_payload(pool, request.filters),
+            model_statement=_model_statement(pool),
+            carry_over_statement=CARRY_OVER_STATEMENT,
+        )
+        return runtime.finalize(payload)
 
-        def compute() -> dict:
-            value = _baseline(pool, budget)
-            proven = value.status in ("CERTIFIED", "UNFIELDABLE")
-            deficiency = _deficiency(pool, value)
-            attained: list[dict] = []
-            if deficiency["state"] == "NO_DECLARED_DEFICIENCY":
-                # Nothing to lower: say what this squad attains, so that a minimum worth
-                # declaring is a number the user can read and not one to guess.
-                attained = planning.attained(pool.problem, time_limit=budget.remaining())
-            deficiency["attained"] = attained
-            payload = planning.envelope(
-                pool.problem, route=ROUTE_UNIVERSE, claim=CLAIM_POOL, non_claim=NON_CLAIM_POOL,
-                budget=budget.report("EXACT" if proven else "DEADLINE"),
-                question=_question(pool, filters=request.filters.model_dump()),
-                declared=_declared(pool, request.filters),
-                ledger=[_baseline_ledger(pool, value), *_attained_ledger(pool, attained),
-                        _pool_ledger(pool)],
-                tools={"universe": pool.universe.provenance},
-            )
-            payload.update(
-                slot=_slot_payload(pool.slot),
-                squad=_squad(pool),
-                baseline=_baseline_payload(pool, value),
-                deficiency=deficiency,
-                pool=_pool_payload(pool, request.filters),
-                model_statement=_model_statement(pool),
-                carry_over_statement=CARRY_OVER_STATEMENT,
-            )
-            return runtime.finalize(payload)
-
-        return _serve(ROUTE_UNIVERSE, request, pool, compute)
+    return _serve(ROUTE_UNIVERSE, scenario, request, compute)
 
 
 @router.post("/api/transfer/injection")
 def transfer_injection(request: TransferInjectionRequest) -> Response:
     """Every listed candidate placed at the slot and re-solved. Point estimates: no worlds."""
+    budget = runtime.budget_for(ROUTE_INJECTION)
     scenario = planning.resolve_or_404(request.scenario_id)
-    with runtime.lab_errors():
+
+    def compute() -> dict:
         pool = _resolve(scenario, request, filters=request.filters)
-        budget = runtime.budget_for(ROUTE_INJECTION)
+        with runtime.long_job(ROUTE_INJECTION):
+            return runtime.finalize(_injection_payload(pool, request, budget))
 
-        def compute() -> dict:
-            with runtime.long_job(ROUTE_INJECTION):
-                return runtime.finalize(_injection_payload(pool, request, budget))
-
-        return _serve(ROUTE_INJECTION, request, pool, compute)
+    return _serve(ROUTE_INJECTION, scenario, request, compute)
 
 
 def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
@@ -841,17 +852,16 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
 @router.post("/api/transfer/injection/detail")
 def transfer_injection_detail(request: TransferDetailRequest) -> Response:
     """One candidate in full, with counts over resampled worlds when worlds are asked for."""
+    budget = runtime.budget_for(ROUTE_DETAIL)
     scenario = planning.resolve_or_404(request.scenario_id)
-    with runtime.lab_errors():
+
+    def compute() -> dict:
         pool = _resolve(scenario, request, worlds=request.worlds)
         candidate = _candidate_of(pool, request.player_id)
-        budget = runtime.budget_for(ROUTE_DETAIL)
+        with runtime.long_job(ROUTE_DETAIL):
+            return runtime.finalize(_detail_payload(pool, candidate, request, budget))
 
-        def compute() -> dict:
-            with runtime.long_job(ROUTE_DETAIL):
-                return runtime.finalize(_detail_payload(pool, candidate, request, budget))
-
-        return _serve(ROUTE_DETAIL, request, pool, compute)
+    return _serve(ROUTE_DETAIL, scenario, request, compute)
 
 
 def _world_counts(counts: Any) -> dict | None:
@@ -994,17 +1004,16 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
 @router.post("/api/transfer/retention")
 def transfer_retention(request: TransferRetentionRequest) -> Response:
     """How much of his recorded rates the declared conclusion can lose. It predicts nothing."""
+    budget = runtime.budget_for(ROUTE_RETENTION)
     scenario = planning.resolve_or_404(request.scenario_id)
-    with runtime.lab_errors():
+
+    def compute() -> dict:
         pool = _resolve(scenario, request)
         candidate = _candidate_of(pool, request.player_id)
-        budget = runtime.budget_for(ROUTE_RETENTION)
+        with runtime.long_job(ROUTE_RETENTION):
+            return runtime.finalize(_retention_payload(pool, candidate, request, budget))
 
-        def compute() -> dict:
-            with runtime.long_job(ROUTE_RETENTION):
-                return runtime.finalize(_retention_payload(pool, candidate, request, budget))
-
-        return _serve(ROUTE_RETENTION, request, pool, compute)
+    return _serve(ROUTE_RETENTION, scenario, request, compute)
 
 
 def _grid(result: Any) -> list[dict]:

@@ -22,25 +22,35 @@ outside this corpus.
 No verdict has been registered, so nothing here says a quantity was tested. The copy below is
 the branch that is true while ``verdicts.VERDICTS`` is empty, and a test ties it to that.
 
-No nav and no badge text (``api/shell.py``); no cache, budget or deadline machinery
+No nav and no badge text (``api/shell.py``); no result cache, budget or deadline machinery
 (``api/runtime.py``); no router. The module reads no data and imports no solver at import:
 loaders import their tool module when called, and every loader is a module attribute a test
 can replace.
+
+The three loaders that read action frames (snapshot, reference, universe) share one build
+gate: a key is built once however many callers ask for it together, and at most
+``runtime.LONG_JOB_LIMIT`` builds run at a time. A router keys its result cache before any
+build, from ``corpus_token`` and ``canonical_request``.
 """
 
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import re
-from collections import Counter
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass
-from functools import lru_cache
-from typing import TYPE_CHECKING, Annotated, Any, Literal, get_args
+import threading
+import time
+from collections import Counter, OrderedDict
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
+from dataclasses import asdict, dataclass, field
+from functools import lru_cache, wraps
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NamedTuple, get_args
 
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
+from pydantic_core import PydanticCustomError
 
 from ..domain import evidence, verdicts
 from ..domain.provenance import EvidenceClass
@@ -62,6 +72,7 @@ __all__ = [
     "EXPERIMENTAL_OPT_IN_ERROR",
     "UNKNOWN_REQUIREMENT",
     "DUPLICATE_DECLARATIONS",
+    "LOCKED_AND_EXCLUDED",
     "WORLDS_ERROR",
     "STAGES",
     "PRESETS",
@@ -74,6 +85,7 @@ __all__ = [
     "TIE_RULE",
     "ORDER_STATEMENT",
     "StrictId",
+    "INTEGER_ONLY",
     "League",
     "FormationId",
     "FORMATION_IDS",
@@ -93,6 +105,8 @@ __all__ = [
     "reference",
     "universe",
     "canonical_leagues",
+    "corpus_token",
+    "canonical_request",
     "declarable",
     "declare",
     "ATTAINED_VERSION",
@@ -150,6 +164,7 @@ EXPERIMENTAL_OPT_IN_ERROR = "experimental requirements need experimental_opt_in"
 """The sentence of ``snapshots.EXPERIMENTAL_OPT_IN_ERROR``, restated to stay import-light."""
 UNKNOWN_REQUIREMENT = "unknown requirement"
 DUPLICATE_DECLARATIONS = "duplicate requirement declarations"
+LOCKED_AND_EXCLUDED = "a player cannot be both locked and excluded"
 WORLDS_ERROR = "bootstrap worlds must be one of " + ", ".join(
     str(count) for count in (0, *runtime.WORLD_MENU)
 )
@@ -176,6 +191,17 @@ _RATES_SUBJECT_EXPERIMENT = "E-12"
 """The draft protocol that would cover whether a recorded rate carries over. Unregistered."""
 
 StrictId = Annotated[int, Field(strict=True, ge=1, le=10**9)]
+
+
+def _integer_only(value: object) -> object:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise PydanticCustomError("int_type", "Input is not an integer")
+    return value
+
+
+INTEGER_ONLY = BeforeValidator(_integer_only)
+"""For a ``Literal`` of integers (a set size, a world count, a percentile). ``Literal``
+compares by equality, so without this ``True`` is read as 1 and ``12.0`` as 12."""
 League = Literal["Spain", "England", "Italy", "Germany", "France"]
 FormationId = Literal["4-3-3", "4-3-1-2"]
 FORMATION_IDS: tuple[str, ...] = get_args(FormationId)
@@ -298,7 +324,8 @@ def resolve_scenario(scenario_id: str) -> PlanningScenario:
 
     A club id is ``{league}-{team_id}-planning-{that league's season-end date}``; any other
     date, a club that did not play in the league, and a match-scenario id are unknown. Madrid's
-    club id resolves to the flagship object, so one problem has one cache key.
+    club id resolves to the flagship object, so the two spellings share one snapshot and,
+    through ``canonical_request``, one result-cache key.
     """
     if scenario_id == FLAGSHIP.scenario_id:
         return FLAGSHIP
@@ -345,7 +372,118 @@ def _check_worlds(worlds: int) -> None:
         raise ValueError(WORLDS_ERROR)
 
 
-@lru_cache(maxsize=8, typed=True)  # typed: 12.0 is not the cached 12, so it is still refused
+class _CacheInfo(NamedTuple):
+    currsize: int
+    maxsize: int
+
+
+@dataclass
+class _Flight:
+    done: threading.Event = field(default_factory=threading.Event)
+    waiters: int = 0
+    built: bool = False
+    value: Any = None
+
+
+class _BuildGate:
+    """One build per key, and at most ``runtime.LONG_JOB_LIMIT`` builds at a time.
+
+    A second caller of a key that is being built waits for the first and is handed its
+    object. A caller that has waited ``runtime.LONG_JOB_WAIT_SECONDS`` for a place raises
+    ``runtime.LongJobsBusy`` (a 429 inside ``runtime.lab_errors``). A key that is already
+    built is returned under the guard alone, so it never waits behind another key's build.
+    A build that fails is kept by nobody: a caller that waited for it builds in its turn.
+    """
+
+    def __init__(self) -> None:
+        self._guard = threading.Lock()
+        self._places = threading.BoundedSemaphore(runtime.LONG_JOB_LIMIT)
+        self._flights: dict[tuple, _Flight] = {}
+        self._held = threading.local()
+
+    def get(self, built: OrderedDict, maxsize: int, key: tuple,
+            build: Callable[[], Any]) -> Any:
+        deadline = time.monotonic() + runtime.LONG_JOB_WAIT_SECONDS
+        while True:
+            with self._guard:
+                if key in built:
+                    built.move_to_end(key)
+                    return built[key]
+                flight = self._flights.get(key)
+                first = flight is None
+                if first:
+                    flight = self._flights[key] = _Flight()
+                flight.waiters += 1
+            if first:
+                break
+            flight.done.wait()
+            if flight.built:
+                return flight.value
+        try:
+            with self._place(deadline):
+                value = build()
+            with self._guard:
+                built[key] = value
+                while len(built) > maxsize:
+                    built.popitem(last=False)
+            flight.value, flight.built = value, True
+            return value
+        finally:
+            with self._guard:
+                del self._flights[key]
+            flight.done.set()
+
+    @contextmanager
+    def _place(self, deadline: float) -> Iterator[None]:
+        # A build inside a build (the pool reads its squad's snapshot) is one build: asking
+        # for a second place from inside the first would wait on itself.
+        if getattr(self._held, "place", False):
+            yield
+            return
+        if not self._places.acquire(timeout=max(0.0, deadline - time.monotonic())):
+            raise runtime.LongJobsBusy(runtime.LONG_JOBS_BUSY)
+        self._held.place = True
+        try:
+            yield
+        finally:
+            self._held.place = False
+            self._places.release()
+
+
+_BUILDS = _BuildGate()
+
+
+def _built_once(maxsize: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """What ``lru_cache`` was for a loader that reads action frames, behind ``_BUILDS``.
+
+    The least recently used of ``maxsize`` objects is dropped. Keys are typed: 12.0 is not
+    the built 12, so it reaches the loader and is still refused there. ``cache_clear`` and
+    ``cache_info`` keep their ``lru_cache`` names.
+    """
+
+    def decorate(build: Callable[..., Any]) -> Callable[..., Any]:
+        built: OrderedDict = OrderedDict()
+        signature = inspect.signature(build)
+
+        @wraps(build)
+        def loader(*args: Any, **kwargs: Any) -> Any:
+            bound = signature.bind(*args, **kwargs)
+            bound.apply_defaults()  # f(a) and f(a, 0) are one key
+            key = (build.__name__, bound.args, tuple(type(value) for value in bound.args))
+            return _BUILDS.get(built, maxsize, key, lambda: build(*bound.args))
+
+        def cache_clear() -> None:
+            with _BUILDS._guard:
+                built.clear()
+
+        loader.cache_clear = cache_clear
+        loader.cache_info = lambda: _CacheInfo(currsize=len(built), maxsize=maxsize)
+        return loader
+
+    return decorate
+
+
+@_built_once(maxsize=8)
 def planning_snapshot(scenario_id: str, worlds: int = 0) -> TeamSnapshot:
     """The club's squad before the scenario's cutoff, with league-coherent worlds.
 
@@ -367,7 +505,7 @@ def planning_snapshot(scenario_id: str, worlds: int = 0) -> TeamSnapshot:
     )
 
 
-@lru_cache(maxsize=8)
+@_built_once(maxsize=8)
 def reference(scenario_id: str, experimental_opt_in: bool = False) -> LeagueReference:
     """Starting-XI sums of the scenario's league before its cutoff. Descriptive.
 
@@ -386,7 +524,7 @@ def reference(scenario_id: str, experimental_opt_in: bool = False) -> LeagueRefe
     )
 
 
-@lru_cache(maxsize=4, typed=True)
+@_built_once(maxsize=4)
 def universe(scenario_id: str, include_leagues: tuple[str, ...] = (),
              worlds: int = 0) -> CandidateUniverse:
     """The gated pool beside the scenario's squad. Pass ``canonical_leagues(...)``."""
@@ -415,6 +553,63 @@ def canonical_leagues(scenario: PlanningScenario,
     return tuple(league for league in LEAGUE_LABELS if league in named)
 
 
+# ------------------------------------------------------------------------ cache keys
+
+
+def corpus_token(scenario: PlanningScenario, leagues: Sequence[str] = ()) -> str:
+    """A cheap identity of the corpus files a request reads. For a cache key, nothing else.
+
+    The names, sizes and modification times of the public Parquet files of the scenario's
+    league and of ``leagues``. No file is opened, so a request can be keyed before anything
+    is built, and a file that is rewritten moves the key. It is not a content hash: the
+    dataset hash a snapshot computes stays in provenance. ``FileNotFoundError`` when a file
+    is absent.
+    """
+    from ..storage import public as _public
+
+    listed, missing = [], []
+    for league in sorted({scenario.competition, *leagues}):
+        for table in _public.TABLES:
+            path = _public._path(_public.PUBLIC, league, table)  # the loader's own layout
+            try:
+                found = path.stat()
+            except FileNotFoundError:
+                missing.append(str(path))
+                continue
+            listed.append([path.relative_to(_public.PUBLIC).as_posix(), found.st_size,
+                           found.st_mtime_ns])
+    if missing:
+        raise FileNotFoundError(f"public frames not present: {missing}")
+    return _digest(sorted(listed))
+
+
+def canonical_request(scenario: PlanningScenario, request: BaseModel) -> dict:
+    """A request as resolved, for ``runtime.cache_key``: one accepted problem, one key.
+
+    The scenario id is the resolved one, so Madrid's club spelling and the flagship id are
+    one key. Exclusions and locks are sorted and de-duplicated, as ``declare`` reads them.
+    Presets, opted-in leagues and requirement declarations are put in one order and a repeat
+    is kept: a repeated name is refused when the problem is declared, and a key that folded
+    it away would answer that refusal from the stored reply of the accepted request. Every
+    other field is as sent.
+    A preset and the same exclusion by hand are different declarations and different keys.
+    """
+    body = request.model_dump(mode="json")
+    body["scenario_id"] = scenario.scenario_id
+    for name in ("excludes", "locks"):
+        if name in body:
+            body[name] = sorted(set(body[name]))
+    for name in ("presets", "include_leagues"):
+        if name in body:
+            body[name] = sorted(body[name])
+    if "requirements" in body:
+        body["requirements"] = sorted(
+            body["requirements"],
+            key=lambda row: (row["requirement_id"], json.dumps(row, sort_keys=True)),
+        )
+    return body
+
+
 # ---------------------------------------------------------------------- declarations
 
 
@@ -424,7 +619,7 @@ class RequirementDeclaration(BaseModel):
     model_config = ConfigDict(extra="forbid")
     requirement_id: Annotated[str, Field(pattern=r"^[a-z_]{3,40}$")]
     source: Literal["CLUB_MEDIAN", "LEAGUE_PERCENTILE", "EXPLICIT"]
-    percentile: Literal[10, 25, 50, 75, 90] | None = None
+    percentile: Annotated[Literal[10, 25, 50, 75, 90], INTEGER_ONLY] | None = None
     value: Annotated[float, Field(strict=True, ge=0, le=1000, allow_inf_nan=False)] | None = None
 
     @model_validator(mode="after")
@@ -433,6 +628,8 @@ class RequirementDeclaration(BaseModel):
         if (self.percentile is not None, self.value is not None) \
                 != wanted.get(self.source, (False, False)):
             raise ValueError("requirement declaration fields do not match its source")
+        if self.value == 0:
+            self.value = 0.0  # negative zero passes ge=0; it is stored and printed as zero
         return self
 
 
@@ -634,9 +831,9 @@ def declare(scenario: PlanningScenario, request: PlanningInputs, *,
     ``ValueError`` (a 422 inside ``runtime.lab_errors``) for an unknown excluded or locked
     id, an unknown requirement, two different declarations of one requirement (by hand, by
     preset, or one of each), a side requirement or its preset without the opt-in, and a
-    preset the scenario does not offer. ``FileNotFoundError`` without the corpus.
-    A contradiction the model can state (a player both locked and excluded) is left to the
-    tool, which answers it as a status.
+    preset the scenario does not offer, and a player both locked and excluded, by hand or
+    through a preset: no tool is asked to solve a declaration that contradicts itself.
+    ``FileNotFoundError`` without the corpus.
     """
     from ..optimization import snapshots as _snapshots
 
@@ -651,6 +848,8 @@ def declare(scenario: PlanningScenario, request: PlanningInputs, *,
         unknown = sorted(set(ids) - known)
         if unknown:
             raise ValueError(f"unknown {name} player IDs: {unknown}")
+    if set(locks) & set(excludes):
+        raise ValueError(LOCKED_AND_EXCLUDED)
 
     by_hand = list(request.requirements)
     by_preset = [d for p in presets for d in p.declarations()]

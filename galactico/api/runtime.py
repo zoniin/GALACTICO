@@ -7,9 +7,11 @@ provenance names the hosted providers and whose keys carry no rating. Each rule
 has one home, here, so five routers cannot hold five versions of it.
 
 What a budget is: wall-clock seconds for the whole request, checked between
-solves. It is not the per-solve deterministic limit a tool records in its
-certificate. A request that reaches its budget is a 200 that says what was not
-evaluated; it is never called complete and never cached.
+solves. It starts when the handler starts, so reading the corpus and waiting for
+a place are inside it; neither is interrupted by it. It is not the per-solve
+deterministic limit a tool records in its certificate. A request that reaches its
+budget is a 200 that says what was not evaluated; it is never called complete and
+never cached.
 
 What ``finalize`` checks: the provider set and the key names. It is a guard on
 the envelope, not evidence about the numbers inside it. A violation is a fault of
@@ -143,7 +145,8 @@ class Budget:
     """Wall-clock seconds one request may spend, counted from ``started``."""
 
     seconds: float
-    started: float = field(default_factory=time.monotonic)
+    # Read through the module at each start, so a test can move the clock under a request.
+    started: float = field(default_factory=lambda: time.monotonic())
 
     def __post_init__(self) -> None:
         if isinstance(self.seconds, bool) or not isinstance(self.seconds, (int, float)) \
@@ -366,9 +369,16 @@ class ResultCache:
 RESULTS = ResultCache()
 
 
-def cache_key(route: str, request: BaseModel, dataset_hash: str) -> tuple[str, ...]:
-    """Route, dataset and the canonical request. Tool versions are in the payload's provenance."""
-    canonical = json.dumps(request.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+def cache_key(route: str, request: BaseModel | Mapping[str, object],
+              dataset_hash: str) -> tuple[str, ...]:
+    """Route, dataset and the canonical request. Tool versions are in the payload's provenance.
+
+    ``request`` is a model, keyed as it was sent, or a mapping a router has already resolved
+    (``planning.canonical_request``), keyed as it is. ``dataset_hash`` is any identity of the
+    data the request reads: a dataset hash, or ``planning.corpus_token``.
+    """
+    body = request.model_dump(mode="json") if isinstance(request, BaseModel) else dict(request)
+    canonical = json.dumps(body, sort_keys=True, separators=(",", ":"))
     return (route, dataset_hash, hashlib.sha256(canonical.encode("utf-8")).hexdigest())
 
 
@@ -390,11 +400,16 @@ def match_snapshot(scenario_id: str, worlds: int):
 def lab_errors(*, not_found: str = "unknown scenario") -> Iterator[None]:
     """Map what a loader or a tool raises to the status a client should see.
 
-    ``FileNotFoundError`` -> 503, ``ValueError`` -> 422 with the tool's own
-    sentence, ``LongJobsBusy`` -> 429. ``KeyError`` and ``BoundaryViolation`` pass
-    through and are a 500. An ``HTTPException`` raised inside passes through too.
-    A pydantic ``ValidationError`` is a 422 that lists location, message and type
-    and never the rejected value.
+    ``OSError`` (a file that is absent, ``FileNotFoundError``, or cannot be read) -> 503,
+    ``ValueError`` -> 422 with the tool's own sentence, ``LongJobsBusy`` -> 429.
+    ``KeyError`` and ``BoundaryViolation`` pass through and are a 500. An
+    ``HTTPException`` raised inside passes through too. A pydantic ``ValidationError``
+    is a 422 that lists location, message and type and never the rejected value.
+
+    One ``ValueError`` is not a refusal: the one Arrow raises on a file that is not the
+    Parquet it is named as. That is the corpus, not the client, and is a 503 too; Arrow's
+    sentence is not sent. A plain ``ValueError`` a library raises cannot be told from a
+    tool's own by its type and is still a 422.
 
     ``not_found`` is accepted so the specified call shape works, and is not used:
     nothing raised in the block is turned into a 404. The handler raises its own,
@@ -412,9 +427,11 @@ def lab_errors(*, not_found: str = "unknown scenario") -> Iterator[None]:
         ]) from exc
     except LongJobsBusy as exc:
         raise HTTPException(429, LONG_JOBS_BUSY) from exc
-    except FileNotFoundError as exc:
+    except OSError as exc:
         raise HTTPException(503, CORPUS_UNAVAILABLE) from exc
     except ValueError as exc:
+        if type(exc).__module__.partition(".")[0] == "pyarrow":  # ArrowInvalid: a damaged file
+            raise HTTPException(503, CORPUS_UNAVAILABLE) from exc
         raise HTTPException(422, str(exc)) from exc
 
 
@@ -512,8 +529,6 @@ def evidence_verdicts() -> Response:
         "verdicts": verdicts.all_payloads(),
         "order": VERDICTS_ORDER,
         "claim": VERDICTS_CLAIM,
+        "provenance": {"providers": list(HOSTED_PROVIDERS)},
     }
-    found = thesis.banned_key_paths(payload)
-    if found:
-        raise BoundaryViolation(f"banned keys in response: {found}")
-    return respond(payload)
+    return respond(finalize(payload))
