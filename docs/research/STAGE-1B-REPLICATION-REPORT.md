@@ -8,6 +8,8 @@ thresholds. Metric definitions are frozen. Negative controls were declared befor
 any league beyond Spain was computed. Nothing was retuned because a leaderboard
 looked strange.
 
+**Erratum, October 2026:** the ordering ρ computed for this report (`experiments/replication.json`, not printed here) ranked tied values in sort order. See [M-07](M-07-rank-ties.md). No status changes.
+
 ## Corpus audits
 
 | | ESP | ENG | ITA | GER | FRA |

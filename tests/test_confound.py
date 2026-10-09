@@ -290,25 +290,28 @@ def test_without_ties_both_policies_are_the_same_number() -> None:
     rng = np.random.default_rng(9)
     with warnings.catch_warnings():
         warnings.simplefilter("error")          # no ties, so nothing to announce
-        assert _spearman(a, b) == _spearman(a, b, ties="average")
+        assert _spearman(a, b, ties="legacy") == _spearman(a, b, ties="average")
         for n in (3, 4, 17, 64, 333, 345):
             x, y = rng.normal(size=n), rng.normal(size=n)
-            assert _spearman(x, y) == _spearman(x, y, ties="average")
+            assert _spearman(x, y, ties="legacy") == _spearman(x, y, ties="average")
 
 
-def test_the_published_tie_order_is_the_default_and_says_so() -> None:
+def test_the_published_tie_order_is_kept_for_the_record_and_says_so() -> None:
     """Averaging ties moves published figures: `chance_creation` has about sixty
     players at exactly zero in every league, and its ordering rho shifts in the
-    third decimal. So the sort-order ranks stay the default until the owner
-    decides, and using them on tied data is announced rather than silent."""
+    third decimal. The owner decided in October 2026: average ranks are the
+    default, the published reports stay as they are, and M-07 is the erratum.
+    The sort-order ranks remain behind `ties="legacy"` to reproduce the record,
+    and using them on tied data is announced rather than silent."""
     a = np.array([1.0, 2.0, 2.0, 3.0])
     b = np.array([1.0, 3.0, 2.0, 4.0])
     with pytest.warns(RuntimeWarning, match="tied"):
-        legacy = _spearman(a, b)
-    with pytest.warns(RuntimeWarning, match="tied"):
-        assert _spearman(a, b, ties="legacy") == legacy
+        legacy = _spearman(a, b, ties="legacy")
     # Whichever of the two tied rows the sort put first: 0.8 or 1.0, never sqrt(0.9).
     assert legacy == pytest.approx(0.8, abs=1e-12) or legacy == pytest.approx(1.0, abs=1e-12)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")          # the default has nothing to announce
+        assert _spearman(a, b) == pytest.approx(math.sqrt(0.9), abs=1e-12)
 
 
 def test_an_unknown_tie_policy_is_refused() -> None:
@@ -319,8 +322,8 @@ def test_an_unknown_tie_policy_is_refused() -> None:
 
 
 def test_the_audit_takes_a_declared_tie_policy() -> None:
-    """A count-valued candidate declares `ties="average"` and gets an ordering
-    figure that is a property of its data. Left undeclared, it is told."""
+    """A count-valued candidate gets an ordering figure that is a property of its
+    data, declared or not. Asked for the sort-order ranks, it is told."""
     rng = np.random.default_rng(10)
     shots = rng.poisson(0.7, size=300).astype(float)
     confound = rng.normal(size=(300, 1))
@@ -331,8 +334,10 @@ def test_the_audit_takes_a_declared_tie_policy() -> None:
         order = rng.permutation(300)
         reordered = discriminant_validity(shots[order], confound[order], key="shots",
                                           ties="average")
+        undeclared = discriminant_validity(shots, confound, key="shots")
     assert reordered.rank_correlation_after == pytest.approx(
         declared.rank_correlation_after, abs=1e-12)
+    assert undeclared.rank_correlation_after == declared.rank_correlation_after
 
     with pytest.warns(RuntimeWarning, match="tied"):
-        discriminant_validity(shots, confound, key="shots")
+        discriminant_validity(shots, confound, key="shots", ties="legacy")

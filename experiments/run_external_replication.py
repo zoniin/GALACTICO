@@ -32,6 +32,8 @@ from galactico.reliability.confound import _spearman
 WY = Path("data/public/parquet/pappalardo")
 SB_ROOT = Path("data/licensed/statsbomb")
 SB_CACHE = Path("data/licensed/parquet/statsbomb")
+# Gitignored. The StatsBomb half of the result is never written into a tracked path.
+LOCAL_RECORD = Path("data/licensed/derived/external_replication_statsbomb.json")
 MINUTES_FLOOR = 900
 HALF_FLOOR = 300
 BASELINE_CEILING = 0.85
@@ -120,8 +122,11 @@ def evaluate(actions, lineups, label: str, floor: int = MINUTES_FLOOR) -> dict:
         v = ax[axis].reindex(keep)
         ok = v.notna()
         conf = np.column_stack([touches[ok].to_numpy(), team_oh.loc[ok].to_numpy()])
+        # ties="legacy": the published record used sort-order ranks, and a rerun must
+        # reproduce it. Corrected figures: docs/research/M-07-rank-ties.md.
         dv = discriminant_validity(v[ok].to_numpy(), conf, key=axis,
-                                   confound_names=("pass volume", "team"), top_k=12)
+                                   confound_names=("pass volume", "team"), top_k=12,
+                                   ties="legacy")
         cors = {b: safe_corr(v[ok].to_numpy(), bs.loc[ok, b].to_numpy()) for b in bs.columns}
         cors = {k: c for k, c in cors.items() if np.isfinite(c)}
         best = max(cors, key=cors.get)
@@ -202,8 +207,15 @@ def main() -> None:
     out = {k: {a: {kk: (float(vv) if isinstance(vv, (int, float, np.floating)) else vv)
                    for kk, vv in row.items()}
                for a, row in v["rows"].items()} for k, v in results.items()}
-    Path("experiments/external_replication.json").write_text(json.dumps(out, indent=1),
+    # The tracked record holds the public (Wyscout) half only. The StatsBomb half is
+    # analysis formed from local-only data: LICENSING.md keeps derived tables out of the
+    # repository, so it is written under the gitignored cache and printed above.
+    public = {k: v for k, v in out.items() if k.startswith("WY_")}
+    local = {k: v for k, v in out.items() if k.startswith("SB_")}
+    Path("experiments/external_replication.json").write_text(json.dumps(public, indent=1),
                                                              encoding="utf-8")
+    LOCAL_RECORD.parent.mkdir(parents=True, exist_ok=True)
+    LOCAL_RECORD.write_text(json.dumps(local, indent=1), encoding="utf-8")
 
     # --- chance creation minutes curve under StatsBomb ---------------------
     print("\nCHANCE CREATION reliability by minutes floor (StatsBomb, pooled)")

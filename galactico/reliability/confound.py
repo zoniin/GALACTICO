@@ -73,7 +73,7 @@ def _tied(values: np.ndarray) -> int:
     return int(counts[counts > 1].sum())
 
 
-def _spearman(a: np.ndarray, b: np.ndarray, *, ties: str = "legacy") -> float:
+def _spearman(a: np.ndarray, b: np.ndarray, *, ties: str = "average") -> float:
     """Spearman rank correlation, or NaN where there is none to report.
 
     NaN for fewer than three pairs, for a non-finite value on either side, and
@@ -84,17 +84,15 @@ def _spearman(a: np.ndarray, b: np.ndarray, *, ties: str = "legacy") -> float:
 
     ``ties`` says what tied values receive.
 
-    ``"average"``: the mean of the ranks they span. This is the statistic the
-    name refers to, and the only one that is a property of the data.
+    ``"average"``, the default: the mean of the ranks they span. This is the
+    statistic the name refers to, and the only one that is a property of the data.
 
     ``"legacy"``: ``argsort(argsort(.))``. Tied values take distinct ranks in
     whatever order the sort leaves them, so the result moves when the same rows
-    arrive in another order. It stays the default for one reason: the published
-    Stage 1, 1B and 1C ordering figures were computed with it, ``chance_creation``
-    has about sixty players at exactly zero in every league, and averaging would
-    move those figures in the third decimal. Changing a published number is the
-    owner's decision, not a repair's. Until it is taken, this policy warns when
-    it meets tied data, and a new metric should declare ``ties="average"``.
+    arrive in another order. It was the only behaviour until October 2026, and
+    the Stage 1, 1B and 1C ordering figures were published with it. It is kept
+    to reproduce that record and for nothing else, and it warns when it meets
+    tied data. What it moved is in docs/research/M-07-rank-ties.md.
 
     Without ties the two policies return the same number, bit for bit.
     """
@@ -115,7 +113,8 @@ def _spearman(a: np.ndarray, b: np.ndarray, *, ties: str = "legacy") -> float:
         if tied:
             warnings.warn(
                 f"{tied} tied values ranked in sort order: this rank correlation "
-                f"depends on the order of the rows. Declare ties='average'.",
+                f"depends on the order of the rows. ties='legacy' reproduces a figure "
+                f"published before M-07; it is not a statistic of the data.",
                 RuntimeWarning, stacklevel=2,
             )
         ra = np.argsort(np.argsort(a)).astype(float)
@@ -230,7 +229,7 @@ def discriminant_validity(
     key: str,
     confound_names: Sequence[str] = (),
     top_k: int = 12,
-    ties: str = "legacy",
+    ties: str = "average",
     **thresholds: float,
 ) -> ConfoundVerdict:
     """Does this metric survive removing what it must not be measuring?
@@ -239,10 +238,9 @@ def discriminant_validity(
     while its leaderboard turns over completely, which is the failure mode that
     matters most: the leaderboard is what a reader actually consumes.
 
-    ``ties`` is the tie policy of the rank correlation; see ``_spearman``. A
-    count-valued or team-level metric is full of ties and should declare
-    ``ties="average"``. The default reproduces the published figures and warns
-    when it meets tied data.
+    ``ties`` is the tie policy of the rank correlation; see ``_spearman``. Tied
+    values share the mean of their ranks. ``ties="legacy"`` reproduces a figure
+    published before M-07 and warns when it meets tied data.
 
     Missing values are the caller's to mask. An unmasked NaN no longer passes:
     it leaves the checks undefined, and an undefined check fails.

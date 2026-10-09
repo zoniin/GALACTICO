@@ -82,6 +82,7 @@ FORMED_FROM_STATSBOMB = (
     "README.md",
     "docs/research/E-01-metronome-fit.md",
     "docs/research/STAGE-1C-EXTERNAL-REPLICATION.md",
+    "docs/research/M-07-rank-ties.md",
 )
 
 
@@ -115,3 +116,34 @@ def test_trial_tier_is_reserved_and_unused() -> None:
     tier; if something is added, this test should be revisited deliberately."""
     trial = [k for k, v in PROVIDERS.items() if v.tier is DataTier.TRIAL]
     assert trial == []
+
+
+def test_no_tracked_result_file_holds_a_block_derived_from_statsbomb_data() -> None:
+    """LICENSING.md keeps derived tables out of the repository. For a year one was in it:
+    experiments/external_replication.json carried four StatsBomb-side blocks beside the four
+    public ones, and the path-and-extension guard could not see what a JSON file holds."""
+    import json
+
+    root = Path(__file__).resolve().parents[1]
+
+    def keys(node, depth=0):
+        if isinstance(node, dict) and depth < 3:
+            for key, value in node.items():
+                yield str(key)
+                yield from keys(value, depth + 1)
+        elif isinstance(node, list) and depth < 3:
+            for value in node[:50]:
+                yield from keys(value, depth + 1)
+
+    results = [p for p in root.glob("experiments/**/*.json") if "node_modules" not in p.parts]
+    assert results, "no result file found: the guard would pass on nothing"
+    for path in results:
+        named = [k for k in keys(json.loads(path.read_text(encoding="utf-8")))
+                 if k.startswith("SB_") or "statsbomb" in k.lower()]
+        assert not named, f"{path.relative_to(root)} holds StatsBomb-derived blocks: {named[:4]}"
+    record = json.loads((root / "experiments/external_replication.json").read_text("utf-8"))
+    assert sorted(record) == ["WY_ENG", "WY_ESP", "WY_FRA", "WY_ITA"]
+    # The runner writes the StatsBomb half under the gitignored cache and nowhere else.
+    runner = (root / "experiments/run_external_replication.py").read_text(encoding="utf-8")
+    assert 'LOCAL_RECORD = Path("data/licensed/' in runner
+    assert 'if k.startswith("WY_")' in runner

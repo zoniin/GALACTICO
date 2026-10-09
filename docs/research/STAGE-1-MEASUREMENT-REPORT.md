@@ -7,6 +7,8 @@
 variables were not chosen after seeing results. But this is one league, one
 season, one provider, and nothing here is confirmatory.
 
+**Erratum, October 2026:** the ρ figures here ranked tied values in sort order. See [M-07](M-07-rank-ties.md). No figure printed here and no status changes.
+
 ---
 
 ## The corpus audit, first

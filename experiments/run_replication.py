@@ -136,8 +136,11 @@ def run_league(league: str) -> tuple[list[LeagueResult], dict]:
         ok = values.notna() & base["touches"].reindex(keep).notna()
         confounds = np.column_stack([base.loc[ok, "touches"].to_numpy(),
                                      team_oh.loc[ok].to_numpy()])
+        # ties="legacy": the published record used sort-order ranks, and a rerun must
+        # reproduce it. Corrected figures: docs/research/M-07-rank-ties.md.
         dv = discriminant_validity(values[ok].to_numpy(), confounds, key=key,
-                                   confound_names=("touch volume", "team"), top_k=12)
+                                   confound_names=("touch volume", "team"), top_k=12,
+                                   ties="legacy")
 
         cors = {b: _safe_abs_corr(values[ok].to_numpy(), base.loc[ok, b].to_numpy())
                 for b in base.columns if b != "minutes"}

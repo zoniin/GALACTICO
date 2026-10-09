@@ -9,6 +9,8 @@ User Agreement. This analysis is formed from StatsBomb data and carries the
 StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data and no
 table derived from it is in this repository.
 
+**Erratum, October 2026:** the ordering ρ computed for this report (not printed here) ranked tied values in sort order. See [M-07](M-07-rank-ties.md).
+
 Both change at once, so no discrepancy can be attributed uniquely to provider
 ontology. This is `EXTERNAL_REPLICATION_PROVIDER_SEASON_SHIFT`, and the question
 is not whether the numbers match — it is whether the football construct survives.
