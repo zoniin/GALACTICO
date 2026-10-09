@@ -249,9 +249,12 @@ def stage_1c_wyscout(*, as_published: bool = True) -> list[Cell]:
 def stage_1c_statsbomb() -> list[Cell] | None:
     """The StatsBomb columns of Stage 1C, from the local cache. None without it.
 
-    The cache is read, never built: building it writes under data/licensed.
+    The cache is read, never built: building it writes under data/licensed. The figures
+    of this half as they were published are not in the repository. They are compared
+    where the local record of the run exists and are left uncompared where it does not.
     """
-    record = json.loads(STAGE_1C_RECORD.read_text(encoding="utf-8"))
+    local = REPO / stage_1c_run.LOCAL_RECORD
+    record = json.loads(local.read_text(encoding="utf-8")) if local.exists() else {}
     cells: list[Cell] = []
     for competition, code in stage_1c_run.SB_LEAGUES.items():
         actions = stage_1c_run.SB_CACHE / f"{competition}_actions.parquet"
@@ -409,8 +412,10 @@ def main() -> None:
     else:
         recorded = [c for c in statsbomb if c.published is not None]
         zero_ties = [c.tied for c in statsbomb if c.construct == "chance_creation"]
-        print(f"figures {len(statsbomb)}; legacy reproduces the committed figure bit for bit "
-              f"{sum(c.reproduced for c in recorded)}/{len(recorded)}; moved "
+        against = (f"{sum(c.reproduced for c in recorded)}/{len(recorded)}" if recorded
+                   else "not compared (no local record of the published run)")
+        print(f"figures {len(statsbomb)}; legacy reproduces the published figure bit for bit "
+              f"{against}; moved "
               f"{sum(c.moved for c in statsbomb)}; largest absolute difference "
               f"{max(abs(c.average - c.legacy) for c in statsbomb):.6f}")
         print(f"tied players per chance-creation figure: {min(zero_ties)} to {max(zero_ties)}")

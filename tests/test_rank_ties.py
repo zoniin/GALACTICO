@@ -321,3 +321,20 @@ def test_no_status_or_gate_changes_under_the_corrected_default(recomputed) -> No
     assert t3["average"] == t3["legacy"]
     assert t3["average"] == pytest.approx(E02_T3, abs=1e-9)
     assert t3["average"] >= t3["floor"]
+
+
+@pytest.mark.slow
+def test_the_statsbomb_half_is_compared_with_the_local_record_only() -> None:
+    """The StatsBomb-side figures of Stage 1C as published are not in the repository.
+    Where the local cache and the local record of the run exist, the sort-order policy
+    reproduces every one of them. Elsewhere there is nothing to compare and this skips."""
+    from experiments import run_external_replication as runner
+    from experiments import run_rank_tie_erratum as erratum
+
+    assert "SB_" not in "".join(committed("experiments/external_replication.json"))
+    cells = erratum.stage_1c_statsbomb() if (ROOT / runner.LOCAL_RECORD).exists() else None
+    if cells is None:
+        pytest.skip("the local StatsBomb cache or the local record of the run is not present")
+    assert len(cells) == 20 and all(cell.published is not None for cell in cells)
+    assert all(cell.reproduced for cell in cells)
+    assert not any(cell.passed_legacy != cell.passed_average for cell in cells)

@@ -178,9 +178,10 @@ aggregate figures, machine-readable, tracked since the day the report was publis
 LICENSING.md keeps tables derived from StatsBomb data out of the repository, and the
 guard that enforces it reads paths and extensions, not what a JSON file holds. The
 blocks were removed from the tree with this note and remain in the history. The
-StatsBomb row of the table above was checked against them before they went. The
 runner now writes that half under the gitignored cache, and a test fails if a tracked
-result file holds such a block again.
+result file holds such a block again. The StatsBomb row of the table above compares
+with that local record: the script reports it where the record exists and says
+that it compared nothing where it does not.
 
 ## The checks to apply from now on
 
