@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -13,6 +14,24 @@ import pandas as pd
 from ..models.xt import fit_expected_threat
 from ..providers.base import assert_may_host
 from .model import MatchIntelligence, build_match
+
+_ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})")
+
+
+def display_label(label) -> str:
+    """Decode the literal ``\\uXXXX`` text the provider leaves in match labels.
+
+    Served text only. The cached label column keeps its raw characters, because its
+    content hash and its file digest are provenance. Only complete four-digit escapes
+    are decoded, so text that is already readable passes through untouched. Half of a
+    surrogate pair is not a character and stays literal.
+    """
+
+    def decode(found):
+        code = int(found.group(1), 16)
+        return found.group(0) if 0xD800 <= code <= 0xDFFF else chr(code)
+
+    return _ESCAPE.sub(decode, str(label))
 
 
 def fit_reference_xt(actions):
@@ -156,7 +175,7 @@ class MatchLabService:
             result.append(
                 {
                     "match_id": int(row["game_id"]),
-                    "label": str(row["label"]),
+                    "label": display_label(row["label"]),
                     "date": str(row["date"]),
                     "competition": self.competition,
                     "home_team_id": int(row["home_team_id"]),
@@ -174,6 +193,7 @@ class MatchLabService:
         if matched.empty:
             raise KeyError(game_id)
         match = matched.iloc[0].to_dict()
+        match["label"] = display_label(match["label"])  # a copy of the row, not the frame
         meta = details.get(game_id)
         substitutions = [] if meta is not None else None
         if meta:

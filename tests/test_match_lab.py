@@ -163,3 +163,49 @@ def test_stoppage_substitution_uses_only_observed_periods(
         assert next(e for e in result.timeline if e["event_id"] == "7")["clock"] == "90+5′"
         assert all(e["period"] not in ("E1", "E2") for e in result.timeline)
     assert "approximate sort position" in result.availability["substitutions"]["reason"]
+
+
+def clearances(profile):
+    return next(m for m in profile["metrics"] if m["id"] == "clearances")
+
+
+@pytest.mark.parametrize("tagged", [False, True])
+def test_clearances_count_the_sub_event_not_a_tag_that_never_occurs(tagged):
+    # Wyscout records a clearance as a sub-event. Its clearance TAG is absent from the
+    # whole public corpus, so a count of the tag is zero for every team in every match:
+    # a zero that means "looked in the wrong place", not "no clearance was recorded".
+    data = example()
+    template = data["actions"].iloc[0].to_dict()
+    recorded = [(1, True), (1, False), (2, None)]  # accurate, inaccurate, unjudged
+    extra = [
+        {
+            **template,
+            "event_id": 20 + index,
+            "player_id": player,
+            "type": "touch",
+            "subtype": "Clearance",
+            "success": success,
+            "seconds": 300.0 + index,
+        }
+        for index, (player, success) in enumerate(recorded)
+    ]
+    data["actions"] = pd.concat([data["actions"], pd.DataFrame(extra)], ignore_index=True)
+    # tagged=False is Pappalardo (the tag never fires); tagged=True is a provider that
+    # also flags the row. One recorded clearance is one clearance either way.
+    data["actions"]["clearance"] = (data["actions"].subtype == "Clearance") & tagged
+    result = build_match(**data)
+    team = clearances(result.team_profiles[0])
+    assert team["value"] == len(recorded) == 3
+    assert team["status"] == "DIRECT"
+    assert "sub-event" in team["label"].lower()
+    assert "tagged" not in team["label"].lower()
+    by_player = {p["player_id"]: clearances(p)["value"] for p in result.player_match_profiles}
+    assert by_player == {1: 2, 2: 1}
+    assert sum(by_player.values()) == team["value"]
+
+
+def test_a_match_without_clearance_rows_reports_an_observed_zero():
+    # Non-vacuity for the test above: zero is still the answer when nothing was recorded.
+    result = build_match(**example())
+    assert clearances(result.team_profiles[0])["value"] == 0
+    assert all(clearances(p)["value"] == 0 for p in result.player_match_profiles)

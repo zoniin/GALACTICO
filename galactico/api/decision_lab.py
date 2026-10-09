@@ -12,7 +12,12 @@ from fastapi.responses import FileResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 
+from ..domain.constructs import CONSTRUCTS
 from ..optimization.historical import PUBLIC, ROOT, SEED, load_snapshot
+
+# Below this the Wyscout chance-creation estimator renders no point estimate. Read from
+# the registry: one definition, not a second copy of the number.
+CHANCE_CREATION_FLOOR = CONSTRUCTS["chance_creation"].estimator_for("wyscout_event").minutes_floor
 
 
 class DecisionRoute(APIRoute):
@@ -158,11 +163,13 @@ class SolveRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario_id: str = "madrid-2018-05-06"
     formation: str = "4-3-3"
-    locks: list[int] = Field(default_factory=list, max_length=11)
-    excludes: list[int] = Field(default_factory=list, max_length=30)
-    bootstrap_worlds: int = Field(default=12, ge=0, le=80)
+    # Strict, as in TradeoffRequest: "3563", 3563.0 and true are not player IDs, world
+    # counts or minima, and are refused rather than coerced into them.
+    locks: list[Annotated[int, Field(strict=True)]] = Field(default_factory=list, max_length=11)
+    excludes: list[Annotated[int, Field(strict=True)]] = Field(default_factory=list, max_length=30)
+    bootstrap_worlds: int = Field(default=12, ge=0, le=80, strict=True)
     mode: str = Field(default="BALANCE", pattern="^(BALANCE|SATISFY)$")
-    minimums: dict[str, float] = Field(default_factory=dict)
+    minimums: dict[str, Annotated[float, Field(strict=True)]] = Field(default_factory=dict)
 
 
 class AlternativesRequest(SolveRequest):
@@ -170,6 +177,12 @@ class AlternativesRequest(SolveRequest):
     bootstrap_worlds: Literal[0] = 0
     alternative_count: int = Field(default=3, ge=1, le=5, strict=True)
     minimum_player_changes: int = Field(default=2, ge=1, le=11, strict=True)
+
+
+class SensitivityRequest(SolveRequest):
+    # Removal sensitivity re-solves one point estimate per selected player. No world is
+    # run, so a world count would be an input accepted and then ignored.
+    bootstrap_worlds: Literal[0] = 0
 
 
 class TradeoffFloors(BaseModel):
@@ -195,6 +208,34 @@ class TradeoffRequest(BaseModel):
 @lru_cache(maxsize=12)
 def snapshot(match_id, worlds):
     return load_snapshot(match_id, worlds=worlds, seed=SEED)
+
+
+def served_candidates(snap):
+    """Response copies of the snapshot's candidates, with gated values withheld.
+
+    The Wyscout chance-creation estimator renders no point estimate below its minutes
+    floor and none for a goalkeeper. A snapshot may hold such a number; a response may
+    not carry it. Only the copy changes: the snapshot object, its hashes and the values
+    handed to the solver stay exactly as they are.
+    """
+    served = []
+    for candidate in snap.candidates:
+        values = dict(candidate["values"])
+        withheld = {}
+        if "chance_creation" in values:
+            reason = None
+            if candidate["position"] == "GK":
+                reason = "The chance-creation estimator does not apply to goalkeepers."
+            elif candidate["minutes"] < CHANCE_CREATION_FLOOR:
+                reason = (
+                    f"{candidate['minutes']} prior minutes is below the "
+                    f"{CHANCE_CREATION_FLOOR}-minute floor of the chance-creation estimator."
+                )
+            if reason:
+                values["chance_creation"] = None
+                withheld["chance_creation"] = reason
+        served.append({**candidate, "values": values, "withheld_values": withheld})
+    return served
 
 
 def decision_inputs(snap, formation, mode="BALANCE", minimums=None):
@@ -315,29 +356,39 @@ def solve(request: SolveRequest):
             provenance=snap.provenance,
         )
         payload = asdict(result)
-        baseline = solve_xi(
-            candidates,
-            requirements,
-            formation=request.formation,
-            mode=request.mode,
-            seed=SEED,
-            analyze_ties=False,
+        # Nothing locked or excluded: the unlocked XI is this XI. No second solve, and
+        # no warning about a lock/exclusion that does not exist.
+        constrained = bool(request.locks or request.excludes)
+        baseline = (
+            solve_xi(
+                candidates,
+                requirements,
+                formation=request.formation,
+                mode=request.mode,
+                seed=SEED,
+                analyze_ties=False,
+            )
+            if constrained
+            else result
         )
         before = {a.player_id for a in baseline.assignments}
         after = {a.player_id for a in result.assignments}
-        comparison_available = bool(before and after)
+        comparison_available = constrained and bool(before and after)
         baseline_requirements = {r.requirement_id: r for r in baseline.requirements}
         payload["what_changed"] = {
             "comparison_available": comparison_available,
             "claim": (
                 "Model-implied changes versus the unlocked XI under the same requirements"
                 if comparison_available
+                else "No comparison: nothing was locked or excluded, so the unlocked XI is this XI."
+                if not constrained
                 else "No comparison: requested or unlocked baseline XI has no feasible solution."
             ),
             "tie_warning": (
                 "These changes are among equally optimal XIs; the lock/exclusion did not "
                 "worsen modeled structural shortfalls. Player swaps are not necessary conclusions."
-                if result.solution_status == baseline.solution_status == "OPTIMAL"
+                if constrained
+                and result.solution_status == baseline.solution_status == "OPTIMAL"
                 and result.objective_vector
                 and result.objective_vector == baseline.objective_vector
                 else None
@@ -374,7 +425,7 @@ def solve(request: SolveRequest):
         {
             "scenario_id": request.scenario_id,
             "scenario": SCENARIOS[request.scenario_id],
-            "candidates": snap.candidates,
+            "candidates": served_candidates(snap),
             "omitted_candidates": snap.omitted,
             "mode": request.mode,
             "match_url": f"/match?id={snap.match_id}",
@@ -416,7 +467,7 @@ def alternatives(request: AlternativesRequest):
         **asdict(result),
         "scenario_id": request.scenario_id,
         "scenario": SCENARIOS[request.scenario_id],
-        "candidates": snap.candidates,
+        "candidates": served_candidates(snap),
         "omitted_candidates": snap.omitted,
         "mode": request.mode,
         "match_url": f"/match?id={snap.match_id}",
@@ -470,7 +521,7 @@ def tradeoff(request: TradeoffRequest):
         **asdict(result),
         "scenario_id": request.scenario_id,
         "scenario": SCENARIOS[request.scenario_id],
-        "candidates": snap.candidates,
+        "candidates": served_candidates(snap),
         "omitted_candidates": snap.omitted,
         "floors": floors,
         "match_url": f"/match?id={snap.match_id}",
@@ -485,7 +536,7 @@ def tradeoff(request: TradeoffRequest):
 
 
 @router.post("/api/xi/sensitivity")
-def sensitivity(request: SolveRequest):
+def sensitivity(request: SensitivityRequest):
     from ..optimization.xi import removal_sensitivity, solve_xi
 
     if request.scenario_id not in SCENARIOS:

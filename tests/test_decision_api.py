@@ -128,11 +128,36 @@ def test_equal_objectives_claim_ties_only_when_both_solves_are_certified(
         replace(certified, solution_status=status) for status in (result_status, baseline_status)
     )
     monkeypatch.setattr(xi, "solve_xi", lambda *_args, **_kwargs: next(results))
-    response = client.post("/api/xi/solve", json={"bootstrap_worlds": 0})
+    # A lock is what makes a comparison exist. Without one there is no second
+    # solve and nothing to call a tie (the test below).
+    response = client.post("/api/xi/solve", json={"locks": [3563], "bootstrap_worlds": 0})
     assert response.status_code == 200
     changes = response.json()["what_changed"]
     assert bool(changes["tie_warning"]) is expected_warning
     assert changes["baseline_status"] == baseline_status
+
+
+def test_without_a_lock_or_exclusion_there_is_no_comparison_and_no_second_solve(
+    client, monkeypatch
+):
+    solves = []
+    real = xi.solve_xi
+
+    def counting(*args, **kwargs):
+        solves.append(kwargs.get("analyze_ties", True))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(xi, "solve_xi", counting)
+    response = client.post("/api/xi/solve", json={"bootstrap_worlds": 0})
+    assert response.status_code == 200
+    changes = response.json()["what_changed"]
+    # The default load used to warn that "the lock/exclusion did not worsen"
+    # shortfalls, about a lock nobody had set, after solving the same XI twice.
+    assert solves == [True]
+    assert changes["comparison_available"] is False
+    assert changes["tie_warning"] is None
+    assert "nothing was locked or excluded" in changes["claim"]
+    assert changes["in"] == [] and changes["out"] == []
 
 
 @pytest.mark.parametrize("field", ["locks", "excludes"])
@@ -432,3 +457,180 @@ def test_tradeoff_floor_changes_invalidate_input_identity(client):
         "floors": {**TRADEOFF_FLOORS, "right_pass_origins": 9.5},
     }).json()
     assert first["provenance"]["input_fingerprint"] != second["provenance"]["input_fingerprint"]
+
+
+# Request types: a quoted number, a float or a boolean is not a player ID, a world
+# count or a minimum. The solve family refuses them exactly as the hard-floor query does.
+
+VALID_PAGE_BODY = {
+    "scenario_id": "madrid-2018-05-06",
+    "formation": "4-3-3",
+    "mode": "BALANCE",
+    "locks": [3563],
+    "excludes": [7],
+    "minimums": {"progression": 2, "left_pass_origins": 2.5},
+}
+
+
+@pytest.mark.parametrize("endpoint", ["solve", "alternatives", "sensitivity"])
+@pytest.mark.parametrize("body", [
+    {"locks": ["31415926"]}, {"locks": [31415926.0]}, {"locks": [True]},
+    {"excludes": ["31415926"]}, {"excludes": [31415926.0]}, {"excludes": [False]},
+    {"minimums": {"progression": "31415926"}}, {"minimums": {"progression": True}},
+    {"minimums": {"progression": None}},
+])
+def test_solve_family_rejects_coerced_ids_and_minima_without_echoing_them(
+    client, endpoint, body
+):
+    response = client.post(f"/api/xi/{endpoint}", json={**body, "bootstrap_worlds": 0})
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    # A list is the validator speaking. A string would be the solver, reached only after
+    # the value had already been coerced into a player ID.
+    assert isinstance(detail, list) and detail
+    field = next(iter(body))
+    for error in detail:
+        assert set(error) <= {"loc", "msg", "type"}
+        assert error["loc"][:2] == ["body", field]
+    assert "31415926" not in response.text
+
+
+@pytest.mark.parametrize("worlds", [True, False, "12", 12.0, 0.0, None])
+def test_solve_rejects_a_world_count_that_is_not_an_integer(client, worlds):
+    response = client.post("/api/xi/solve", json={"bootstrap_worlds": worlds})
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", "bootstrap_worlds"]]
+
+
+@pytest.mark.parametrize("endpoint", ["solve", "alternatives", "sensitivity"])
+def test_the_body_the_page_sends_is_still_valid_and_honoured(client, endpoint):
+    response = client.post(f"/api/xi/{endpoint}", json={**VALID_PAGE_BODY, "bootstrap_worlds": 0})
+    assert response.status_code == 200
+    result = response.json().get("baseline", response.json())
+    assert result["locked"] == [3563] and result["excluded"] == [7]
+    minimum = {r["requirement_id"]: r["minimum"] for r in result["requirements"]}
+    assert minimum["progression"] == 2 and minimum["left_pass_origins"] == 2.5
+    assert minimum["right_pass_origins"] == 12.0  # untouched minimum keeps the snapshot's
+
+
+@pytest.mark.parametrize("worlds", [1, 12, 40, 80])
+def test_sensitivity_rejects_the_bootstrap_worlds_it_would_ignore(client, worlds):
+    response = client.post("/api/xi/sensitivity", json={"bootstrap_worlds": worlds})
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", "bootstrap_worlds"]]
+
+
+@pytest.mark.parametrize("body", [{}, {"bootstrap_worlds": 0}])
+def test_sensitivity_runs_one_point_estimate_and_says_so(client, monkeypatch, body):
+    snap = api.snapshot(2565907, 0)
+    seen = []
+
+    def record(match_id, worlds):
+        seen.append(worlds)
+        return snap
+
+    monkeypatch.setattr(api, "snapshot", record)
+    response = client.post("/api/xi/sensitivity", json=body)
+    assert response.status_code == 200
+    assert seen == [0]
+    assert response.json()["baseline"]["selection_frequencies"] == []
+
+
+# Gated values. The Wyscout chance-creation estimator renders no point estimate below
+# 1,800 minutes and none for a goalkeeper. A snapshot may hold such a number; a response
+# may not carry it.
+
+
+@pytest.fixture
+def gated(client):
+    snap = api.snapshot(2565907, 0)
+    by_id = {candidate["player_id"]: candidate for candidate in snap.candidates}
+    by_id[1].update(minutes=2500)  # the goalkeeper, well above the floor
+    by_id[1]["values"]["chance_creation"] = 0.125
+    by_id[6].update(minutes=1799)
+    by_id[6]["values"]["chance_creation"] = 0.5
+    by_id[7].update(minutes=1800)  # the floor itself is enough
+    by_id[7]["values"]["chance_creation"] = 0.25
+    by_id[8].update(minutes=900)
+    by_id[8]["values"]["chance_creation"] = None  # already withheld upstream
+    return snap
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "body"),
+    [
+        ("solve", {"bootstrap_worlds": 0}),
+        ("alternatives", {}),
+        ("tradeoff", {"floors": TRADEOFF_FLOORS}),
+    ],
+)
+def test_a_gated_chance_creation_value_never_leaves_the_boundary(client, gated, endpoint, body):
+    from galactico.domain.constructs import CONSTRUCTS
+
+    # The floor is the registry's, not a second copy of the number.
+    assert CONSTRUCTS["chance_creation"].estimator_for("wyscout_event").minutes_floor == 1800
+    response = client.post(f"/api/xi/{endpoint}", json=body)
+    assert response.status_code == 200
+    served = {candidate["player_id"]: candidate for candidate in response.json()["candidates"]}
+    assert served[6]["values"]["chance_creation"] is None
+    assert "1799" in served[6]["withheld_values"]["chance_creation"]
+    assert "1800" in served[6]["withheld_values"]["chance_creation"]
+    assert served[8]["values"]["chance_creation"] is None
+    assert "900" in served[8]["withheld_values"]["chance_creation"]
+    assert served[1]["values"]["chance_creation"] is None
+    assert "goalkeeper" in served[1]["withheld_values"]["chance_creation"].lower()
+    # At the floor the estimator does render, and nothing is withheld.
+    assert served[7]["values"]["chance_creation"] == 0.25
+    assert served[7]["withheld_values"] == {}
+    # A candidate the snapshot gave no such value gains neither a number nor a reason.
+    assert "chance_creation" not in served[2]["values"]
+    assert served[2]["withheld_values"] == {}
+    # Everything the gate does not concern is served as the snapshot holds it.
+    for candidate in gated.candidates:
+        copy = served[candidate["player_id"]]
+        for key in ("name", "position", "minutes", "role_rules"):
+            assert copy[key] == candidate[key]
+        for metric in ("progression", "left_pass_origins", "right_pass_origins"):
+            assert copy["values"][metric] == candidate["values"][metric]
+
+
+def test_withholding_at_the_boundary_changes_neither_snapshot_nor_solver_input(client, gated):
+    from copy import deepcopy
+
+    held = deepcopy(gated.candidates)
+    # The fingerprint covers every candidate value, so it moves if the solver is handed
+    # anything but the snapshot's own numbers.
+    expected = xi.solve_xi(*api.decision_inputs(gated, "4-3-3"), analyze_ties=False)
+    response = client.post("/api/xi/solve", json={"bootstrap_worlds": 0})
+    assert response.status_code == 200
+    result = response.json()
+    assert gated.candidates == held
+    below_floor = next(c for c in gated.candidates if c["player_id"] == 6)
+    assert below_floor["values"]["chance_creation"] == 0.5
+    assert "withheld_values" not in below_floor
+    assert result["provenance"]["input_fingerprint"] == expected.provenance["input_fingerprint"]
+    assert [a["player_id"] for a in result["assignments"]] == [
+        a.player_id for a in expected.assignments
+    ]
+
+
+def test_no_xi_response_serves_an_undecoded_snapshot_label(client):
+    # The cached match label keeps provider escapes, and the snapshot copies it. It is
+    # not part of any response today; this fails the day someone serves it raw.
+    snap = api.snapshot(2565907, 0)
+    snap.label = "Real Madrid - Atl\\u00e9tico Madrid, 1 - 1"
+    scenarios = client.get("/api/xi/scenarios")
+    assert "Real Madrid · before Atlético Madrid" in [
+        scenario["label"] for scenario in scenarios.json()["scenarios"]
+    ]
+    responses = [
+        scenarios,
+        client.post("/api/xi/solve", json={"bootstrap_worlds": 0}),
+        client.post("/api/xi/alternatives", json={}),
+        client.post("/api/xi/tradeoff", json={"floors": TRADEOFF_FLOORS}),
+        client.post("/api/xi/sensitivity", json={}),
+    ]
+    for response in responses:
+        assert response.status_code == 200
+        # A literal backslash-u would arrive JSON-escaped; either spelling contains this.
+        assert "\\u00" not in response.text

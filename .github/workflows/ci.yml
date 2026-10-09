@@ -59,7 +59,7 @@ jobs:
       # guards on the shipped artifact run here or nowhere.
       - name: tests with the corpus
         run: uv run pytest -q -m "not research"
-      - run: npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js
+      - run: npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js e2e/repairs.spec.js
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

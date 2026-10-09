@@ -176,12 +176,17 @@ def _metrics(rows: pd.DataFrame, xt) -> list[dict]:
                 "Recorded interceptions; no inference about defending quality.",
                 status="DIRECT",
             ),
+            # Wyscout records a clearance as a sub-event. Its clearance TAG is absent from
+            # the whole public corpus, so counting the tag printed 0 for every team in
+            # every match: "looked in the wrong place", not "none recorded". Count the
+            # sub-event, and name the metric after what is counted.
             _metric(
                 "clearances",
-                "Tagged clearances",
-                int(rows.clearance.fillna(False).sum()),
+                "Clearance sub-events",
+                int((rows.subtype == "Clearance").sum()),
                 "events",
-                "Recorded clearances; no inference about defensive coverage.",
+                "Rows whose provider sub-event is Clearance, accurate or not; "
+                "no inference about defensive coverage.",
                 status="DIRECT",
             ),
         ]
