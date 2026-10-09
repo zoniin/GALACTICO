@@ -270,7 +270,8 @@ def break_even_retention(
     declared = problem.declared
     scale = problem.quantization
     hard = conclusion == "MINIMA_SATISFIABLE"
-    sentence = CONCLUSION_SENTENCES[conclusion].format(slot=slot_id)
+    slot_label = next(s.label for s in problem.formation.slots if s.slot_id == slot_id)
+    sentence = CONCLUSION_SENTENCES[conclusion].format(slot=slot_label)
 
     solves = 0
     invalid = False
@@ -430,7 +431,7 @@ def break_even_retention(
     elif reason == "NO_MEASURED_ADMISSIBLE_SLOT":
         claim = (
             f"{said} cannot hold at any fraction: the model cannot place {candidate.name} "
-            f"at {slot_id}."
+            f"at {slot_label}."
         )
     elif status == "NEVER_HOLDS":
         claim = f"{said} does not hold even if 100% of {what} carries over."

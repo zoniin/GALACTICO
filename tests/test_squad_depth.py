@@ -419,7 +419,10 @@ def test_gate_rule_and_measurement_drops_are_named_separately_on_a_hand_built_sq
     assert any(w.startswith("The squad has no fieldable XI in this model before any absence")
                for w in result.warnings)
     assert any("The gate removed N7." in w for w in result.warnings)
-    assert any(w.startswith("The evidence gate lowers kappa from 2 to 1") for w in result.warnings)
+    assert any("fewest absences that leave no fieldable XI from 2 to 1" in w
+               for w in result.warnings)
+    # A warning is read by a person: the docstring's symbol never appears in one.
+    assert not any("kappa" in w for w in result.warnings)
 
 
 def test_pinned_values_declared_inputs_and_fingerprints_on_a_fieldable_squad(thesis_guard):
@@ -437,8 +440,10 @@ def test_pinned_values_declared_inputs_and_fingerprints_on_a_fieldable_squad(the
     assert result.evidence["per_requirement"] == {"progression": "HEURISTIC"}
     assert result.evidence["composed"] == "HEURISTIC"
     assert result.evidence["binding"] == ["progression", "eligibility"]
-    assert "Not in force: left_pass_origins, right_pass_origins" in result.evidence[
-        "requirement_scope"]
+    scope = result.evidence["requirement_scope"]
+    assert scope.startswith("Requirements in force: Positive completed-pass xT per 90. "
+                            "Not in force: Left wide-channel pass origins per 90; ")
+    assert "left_pass_origins" not in scope  # a sentence names labels; ids are fields
     assert {row["name"] for row in result.evidence["declared_inputs"]} == {
         "formation", "minimums", "locked", "excluded", "experimental_opt_in"}
     keeper, back_a, back_b, front = result.slots
@@ -688,7 +693,12 @@ def test_madrid_planning_snapshot_depth_names_what_the_gate_removed(corpus_root)
     assert group.available_ids == (3304, 3306, 3309, 4501)
     assert group.restored_by_gate_ids == (282441, 396475)
     assert group.spare_by_stage["rule_eligible"] == 3 and group.spare_by_stage["available"] == 1
-    assert any(w.startswith("The evidence gate lowers kappa from 3 to 2") for w in result.warnings)
+    assert any("fewest absences that leave no fieldable XI from 3 to 2" in w
+               for w in result.warnings)
+    assert any(w.startswith("The slots Left centre back, Right centre back, Right back have a "
+                            "spare of 1 after the evidence gate and 3 before it")
+               for w in result.warnings)
+    assert not any("kappa" in w or "lcb" in w for w in result.warnings)
     assert result.certificate.squad_integer == (0, 0)
     assert result.certificate.completeness == "EXACT"
     assert all(p.status == "NEUTRAL" for s in result.slots for p in s.pinned)

@@ -377,7 +377,8 @@ def test_boundary_cases_one_quantum_step_twenty_never_and_an_empty_slot():
     assert (hard.break_even_step, hard.certificate.baseline_status) == (20, "NOT_RUN")
     assert hard.bracket[0].forced_status == "NOT_SATISFIABLE"
     assert hard.bracket[1].forced_status == "SATISFIABLE"
-    assert hard.conclusion_sentence == "Every declared minimum is reachable with him at s"
+    # The sentence names the slot by its label ("Only"), not by its id ("s").
+    assert hard.conclusion_sentence == "Every declared minimum is reachable with him at Only"
     # An empty slot: any admissible body makes the XI fieldable, at zero carry-over.
     empty = solve_one(1.0, excluded=(1,))
     assert (empty.status, empty.break_even, empty.baseline_unfieldable) == (
@@ -396,7 +397,7 @@ def test_boundary_cases_one_quantum_step_twenty_never_and_an_empty_slot():
     unplaced = break_even_retention(Candidate(9, "New", "X", {"r": None}, 900, ("s",)), INCUMBENT,
                                     NEED, ONE, slot_id="s", metrics=additive("r"), quantization=8)
     assert (unplaced.status, unplaced.reason) == ("NEVER_HOLDS", "NO_MEASURED_ADMISSIBLE_SLOT")
-    assert "cannot place New at s" in unplaced.claim
+    assert unplaced.claim.endswith("the model cannot place New at Only.")
 
 
 def test_a_negative_rate_voids_the_theorem_and_forces_the_full_scan():

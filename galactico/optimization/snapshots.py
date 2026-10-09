@@ -823,15 +823,22 @@ def requirement_scope(snap: TeamSnapshot, *, experimental_opt_in: bool = False) 
         if experimental_opt_in or not _experimental(metric)
     )
     withheld = () if experimental_opt_in else experimental
-    statement = f"Requirements in force: {', '.join(in_force) or 'none'}."
+    labels = {metric.metric_id: metric.label for metric in required}
+
+    def named(metric_ids: tuple[str, ...]) -> str:
+        return "; ".join(labels[metric_id] for metric_id in metric_ids)
+
+    # The sentence is read by a person: it names requirements by label. The ids are the
+    # ``in_force`` and ``withheld_experimental`` fields beside it.
+    statement = f"Requirements in force: {named(in_force) or 'none'}."
     if experimental and experimental_opt_in:
         statement += (
-            f" {', '.join(experimental)}: EXPERIMENTAL pass-origin descriptors of deployment, "
+            f" {named(experimental)}: EXPERIMENTAL pass-origin descriptors of deployment, "
             "in force: the experimental opt-in was declared."
         )
     elif experimental:
         statement += (
-            f" Not in force: {', '.join(experimental)}. They are EXPERIMENTAL pass-origin "
+            f" Not in force: {named(experimental)}. They are EXPERIMENTAL pass-origin "
             "descriptors of deployment and enter only through an explicit experimental opt-in."
         )
     return RequirementScope(experimental_opt_in, in_force, withheld, statement)

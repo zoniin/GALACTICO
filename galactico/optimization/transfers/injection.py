@@ -439,6 +439,11 @@ def _problem(squad, requirements, formation, slot_id, locked, excluded, seed, qu
     )
 
 
+def _slot_label(problem: _Problem) -> str:
+    """The declared slot as a person reads it. Ids stay in fields; sentences use the label."""
+    return next(s.label for s in problem.formation.slots if s.slot_id == problem.slot_id)
+
+
 def _pool(pool: Sequence[Candidate], problem: _Problem) -> tuple[Candidate, ...]:
     pool = tuple(pool)
     ids = [candidate.player_id for candidate in pool]
@@ -1040,7 +1045,8 @@ def inject_candidates(
         claim=(
             f"Without an addition the least declared shortfall is "
             f"{_words(base, baseline.status, scale)}. For each of {len(pool)} screened "
-            f"candidates placed at {slot_id}: the least declared shortfall with him forced into "
+            f"candidates placed at {_slot_label(problem)}: the least declared shortfall with "
+            "him forced into "
             "the XI, and whether he is in every, some or no least-shortfall XI of the squad "
             "plus him."
         ),
@@ -1226,7 +1232,8 @@ def injection_detail(
         evidence=_evidence(problem, {"candidate_player_id": candidate.player_id}),
         warnings=tuple(warnings),
         claim=(
-            f"With {candidate.name} placed at {slot_id}, the least declared shortfall is "
+            f"With {candidate.name} placed at {_slot_label(problem)}, the least declared "
+            "shortfall is "
             f"{forced_words}; without him it "
             f"is {_words(base, baseline.status, scale)}. In the squad plus him he is "
             f"{membership_words}."

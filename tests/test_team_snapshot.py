@@ -384,7 +384,10 @@ def test_planning_inputs_default_to_progression_and_say_what_is_in_force(league)
             "research", False, "RESEARCH")
     scope = S.requirement_scope(snap)
     assert (scope.in_force, scope.withheld_experimental) == (("progression",), tuple(side))
-    assert "Not in force: left_pass_origins, right_pass_origins" in scope.statement
+    assert scope.statement.startswith(
+        "Requirements in force: Positive completed-pass xT per 90. Not in force: Left "
+        "wide-channel pass origins per 90; Right wide-channel pass origins per 90. ")
+    assert "left_pass_origins" not in scope.statement  # labels in the sentence, ids beside it
     with pytest.raises(ValueError, match=S.EXPERIMENTAL_OPT_IN_ERROR):
         S.snapshot_inputs(snap, "4-3-3", minimums={"left_pass_origins": 1.0})
 

@@ -494,23 +494,27 @@ def squad_depth(
             f"{unknown_rows} player-slot pairs were not evaluated before the time limit. "
             "Unknown is not evidence that a player raises the shortfall."
         )
+    # Warnings are read by a person: no symbol of the docstring and no slot id appears in one.
     if locked_ids:
         warnings.append(
-            "kappa and the slot groups count cover among all available players and ignore the "
-            "declared locks."
+            "The slot groups and the count of absences before no XI can be fielded are taken "
+            "over all available players and ignore the declared locks."
         )
     if kappa["gated"] < kappa["rule_eligible"]:
         warnings.append(
-            f"The evidence gate lowers kappa from {kappa['rule_eligible']} to {kappa['gated']}: "
-            "that thinness is a property of the evidence, not of the squad."
+            "The evidence gate lowers the fewest absences that leave no fieldable XI from "
+            f"{kappa['rule_eligible']} to {kappa['gated']}: that thinness is a property of the "
+            "evidence, not of the squad."
         )
     roster_names = {r["player_id"]: r["name"] for r in roster}
+    slot_labels = {slot.slot_id: slot.label for slot in slots}
     for group in groups:
         if group.restored_by_gate_ids:
             warnings.append(
-                f"Slot group {', '.join(group.slot_ids)} has spare "
-                f"{group.spare_by_stage['gated']} after the evidence gate and "
-                f"{group.spare_by_stage['rule_eligible']} before it. The gate removed "
+                f"The slots {', '.join(slot_labels[sid] for sid in group.slot_ids)} have a "
+                f"spare of {group.spare_by_stage['gated']} after the evidence gate and "
+                f"{group.spare_by_stage['rule_eligible']} before it (eligible players beyond "
+                "the number of slots). The gate removed "
                 f"{', '.join(roster_names[pid] for pid in group.restored_by_gate_ids)}."
             )
 

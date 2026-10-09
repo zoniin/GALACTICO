@@ -470,7 +470,7 @@ def test_boundary_cases_state_the_exact_category_and_the_signed_change():
         "With New available, these players are in a least-shortfall XI without him and in "
         "none with him: Ann.")
     assert detail.claim == (
-        "With New placed at s1, the least declared shortfall is (maximum 0.29, sum 0.29); "
+        "With New placed at One, the least declared shortfall is (maximum 0.29, sum 0.29); "
         "without him it is (maximum 0.3, sum 0.3). In the squad plus him he is in every "
         "least-shortfall XI.")
     # (3) an unavailable rate on an applicable requirement: not placed, not imputed, no solve.
@@ -1009,7 +1009,7 @@ def test_sentences_print_the_certified_integers_exactly_and_name_an_unplaceable_
     detail = injection_detail(newcomer(0.2234567), squad, one_need(), PAIR, **options)
     assert detail.row.forced_inclusion_integer == (3765433, 3765433)
     assert detail.claim.startswith(
-        "With New placed at s1, the least declared shortfall is (maximum 0.3765433, sum "
+        "With New placed at One, the least declared shortfall is (maximum 0.3765433, sum "
         "0.3765433); without him it is (maximum 0.4765433, sum 0.4765433).")
     # A candidate the model cannot place has no forced value by proof, not by a deadline.
     detail = detail_of(newcomer(None), pair_squad(), one_need())
@@ -1017,6 +1017,6 @@ def test_sentences_print_the_certified_integers_exactly_and_name_an_unplaceable_
         "NOT_EVALUABLE", "EXACT", ())
     assert "not determined" not in detail.claim
     assert detail.claim == (
-        "With New placed at s1, the least declared shortfall is not defined (the model cannot "
+        "With New placed at One, the least declared shortfall is not defined (the model cannot "
         "place him at this slot); without him it is (maximum 0.3, sum 0.3). In the squad plus "
         "him he is in no least-shortfall XI.")
