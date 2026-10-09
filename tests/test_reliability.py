@@ -132,3 +132,105 @@ def test_interval_is_undefined_for_degenerate_inputs() -> None:
 def test_the_report_shows_the_interval() -> None:
     text = reliability_report([AxisReliability("progression", 0.88, 1200, 900, "p")])
     assert "90% CI" in text and "0.87-0.89" in text
+
+
+# --- no interval, no lower bound, no grade -------------------------------
+
+def test_the_thinnest_sample_does_not_pass_the_gate_built_to_stop_it() -> None:
+    """Three players give no Fisher-z interval. The lower bound then fell back to
+    the measured r, so r = 0.95 on n = 3 graded NUMBER at weight 1.0, while the
+    same r on n = 4, which has an interval, was withheld. Without an interval
+    there is nothing to defend."""
+    three = AxisReliability("x", 0.95, 3, 900, "p")
+    four = AxisReliability("x", 0.95, 4, 900, "p")
+
+    assert three.interval is None
+    assert math.isnan(three.lower_bound)
+    assert three.grade is Grade.INSUFFICIENT
+    assert three.optimizer_weight == 0.0
+    assert three.verdict == "does not ship; weight zero"
+
+    assert four.interval is not None and four.lower_bound < 0.50
+    assert four.grade is Grade.INSUFFICIENT
+    assert four.optimizer_weight == 0.0
+
+
+@pytest.mark.parametrize("r,n", [
+    (0.95, 3), (0.95, 2), (0.95, 1), (0.95, 0),      # too few units for an interval
+    (0.60, 3),                                        # would have been a band
+    (1.0, 100), (1.0, 3), (1.5, 100),                 # |r| >= 1 is a duplicate or not a correlation
+    (-1.0, 100), (0.30, 3),                           # already withheld; must stay withheld
+])
+def test_a_measured_reliability_without_an_interval_never_ships(r: float, n: int) -> None:
+    axis = AxisReliability("x", r, n, 900, "p")
+    assert axis.interval is None
+    assert axis.grade is Grade.INSUFFICIENT
+    assert axis.optimizer_weight == 0.0
+
+
+def test_a_row_without_an_interval_is_reported_as_not_shipped() -> None:
+    text = reliability_report([
+        AxisReliability("solid", 0.88, 1200, 900, "p"),
+        AxisReliability("three_teams", 0.95, 3, 900, "p"),
+    ])
+    row = next(line for line in text.splitlines() if line.startswith("three_teams"))
+    assert "n/a" in row and "0.00" in row and "does not ship" in row
+    assert "three_teams" in text.split("not shipped:")[1]
+    assert "solid" not in text.split("not shipped:")[1]
+
+
+def test_rows_that_have_an_interval_are_graded_exactly_as_before() -> None:
+    """The repair is confined to rows with no interval. These are the published
+    Stage 1 figures for Spain: r, n and interval as stored in
+    experiments/stage1_axes.json."""
+    progression = AxisReliability("progression", 0.887920510464265, 333, 900, "Spain 2017/18")
+    chance = AxisReliability("chance_creation", 0.5999259707376644, 333, 900, "Spain 2017/18")
+
+    assert progression.interval == pytest.approx(
+        (0.8671478494608997, 0.9056093712637681), abs=1e-12)
+    assert progression.lower_bound == pytest.approx(0.8671478494608997, abs=1e-12)
+    assert progression.grade is Grade.NUMBER
+    assert progression.optimizer_weight == 1.0
+
+    assert chance.interval == pytest.approx(
+        (0.5388156943619802, 0.6547554368343254), abs=1e-12)
+    assert chance.grade is Grade.BAND
+    assert chance.optimizer_weight == pytest.approx((0.5388156943619802 - 0.50) / 0.20, abs=1e-9)
+
+
+# --- the interval level is stated, not assumed ---------------------------
+
+@pytest.mark.parametrize("confidence", [0.99, 0.80, 0.5, 90, 95, 0.9000001, float("nan"), None])
+def test_an_unsupported_confidence_level_is_refused(confidence: object) -> None:
+    """Every value other than 0.90 was silently computed at 95%, so a requested
+    99% interval came back narrower than asked for and was graded as if it were
+    the real thing. The row is refused when it is built, so it cannot be printed
+    either."""
+    with pytest.raises(ValueError, match="confidence"):
+        AxisReliability("x", 0.8, 100, 900, "p", confidence=confidence)
+
+
+def test_the_interval_itself_refuses_a_level_it_cannot_state() -> None:
+    """Belt and braces: the property does not trust the constructor to have run."""
+    forced = AxisReliability("x", 0.8, 100, 900, "p")
+    object.__setattr__(forced, "confidence", 0.99)
+    with pytest.raises(ValueError, match="confidence"):
+        _ = forced.interval
+    with pytest.raises(ValueError, match="confidence"):
+        _ = forced.grade
+
+
+def test_the_two_supported_levels_keep_their_intervals() -> None:
+    """Fisher z by hand: atanh(r) -+ crit / sqrt(n - 3), back through tanh."""
+    z, se = math.atanh(0.8), 1.0 / math.sqrt(100 - 3)
+    ninety = AxisReliability("x", 0.8, 100, 900, "p").interval
+    ninety_five = AxisReliability("x", 0.8, 100, 900, "p", confidence=0.95).interval
+
+    assert ninety == pytest.approx(
+        (math.tanh(z - 1.6448536269514722 * se), math.tanh(z + 1.6448536269514722 * se)),
+        abs=1e-12)
+    assert ninety_five == pytest.approx(
+        (math.tanh(z - 1.959963984540054 * se), math.tanh(z + 1.959963984540054 * se)),
+        abs=1e-12)
+    assert ninety_five[0] < ninety[0] < 0.8 < ninety[1] < ninety_five[1]
+    assert AxisReliability("x", 0.8, 100, 900, "p", confidence=0.90).interval == ninety

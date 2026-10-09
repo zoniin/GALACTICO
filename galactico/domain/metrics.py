@@ -88,7 +88,19 @@ class MetricDefinition:
         return f"{self.key}@{self.version}"
 
     def assert_comparable(self, providers: Iterable[str]) -> None:
-        """Refuse to pool this metric across providers that disagree about it."""
+        """Refuse to pool this metric across providers that disagree about it.
+
+        ``providers`` is a collection of names. A bare string is a collection of
+        characters, so ``assert_comparable("statsbomb")`` used to answer about
+        providers called "a", "b" and "m". That is a mistake in the call, not a
+        finding about the metric, and it is refused as one.
+        """
+        if isinstance(providers, (str, bytes)):
+            raise TypeError(
+                f"assert_comparable takes an iterable of provider names, not the bare "
+                f"string {providers!r}: it would be read one character at a time. "
+                f"Pass [{providers!r}]."
+            )
         wanted = set(providers)
         if len(wanted) <= 1:
             return

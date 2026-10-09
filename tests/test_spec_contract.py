@@ -167,3 +167,109 @@ def test_fingerprints_are_distinct_across_constructs() -> None:
 
 def test_fingerprint_is_stable_across_calls() -> None:
     assert SPECS["width"].fingerprint == SPECS["width"].fingerprint
+
+
+# --- the sentence is published, so it is pinned and it is English --------
+
+# What the API serves as `definition` and METRICS.md prints, byte for byte. The
+# fingerprint beside each sentence is what invalidates a stored artifact, so a
+# repair to the wording must move neither.
+SHIPPED = {
+    "progression": (
+        "sum of positive xT gain over completed passes, per 90 minutes",
+        "582eb5f10997"),
+    "progression_per_action": (
+        "sum of positive xT gain over completed passes, per completed passes",
+        "954dfa834164"),
+    "chance_creation": (
+        "sum of xT delta over completed passes flagged key pass, per 90 minutes",
+        "4ba70c496930"),
+    "half_space_share": (
+        "count over completed passes starting in the half-space channels, "
+        "per completed passes",
+        "434485dcd76e"),
+    "width": (
+        "count over completed passes starting in the wide channels, per completed passes",
+        "a40c90db10d5"),
+}
+
+# Every neutral action type either provider can emit, with the plural a reader
+# should see. Read by a person, not derived: "shotes" was derived.
+PLURALS = {
+    "carry": "carries", "dribble": "dribbles", "duel": "duels", "foul": "fouls",
+    "interruption": "interruptions", "keeper_action": "keeper actions",
+    "offside": "offsides", "pass": "passes", "pressure": "pressures",
+    "receipt": "receipts", "save": "saves", "set_piece": "set pieces",
+    "shot": "shots", "touch": "touches",
+}
+
+
+def test_shipped_sentences_and_fingerprints_are_pinned() -> None:
+    """A construct added to SPECS ships its sentence the same day. Read it, then
+    pin it here."""
+    assert set(SPECS) == set(SHIPPED)
+    for key, (sentence, fingerprint) in SHIPPED.items():
+        assert SPECS[key].describe() == sentence
+        assert SPECS[key].fingerprint == fingerprint
+
+
+def test_every_action_type_a_provider_emits_has_a_plural_someone_read() -> None:
+    """The generator appended "es" to whatever it was given, which is right for
+    "pass" and "touch" and nothing else: "completed shotes", "dueles". A type that
+    reaches the action table without a plural listed here fails this test, so the
+    next sentence is read before it is published."""
+    from galactico.providers.pappalardo import _TYPE_BY_EVENT_ID
+    from galactico.providers.statsbomb import _NEUTRAL
+
+    emitted = set(_TYPE_BY_EVENT_ID.values()) | set(_NEUTRAL.values())
+    assert emitted <= set(PLURALS), sorted(emitted - set(PLURALS))
+    for kind, plural in PLURALS.items():
+        assert ActionFilter(types=frozenset({kind})).describe() == plural
+
+
+@pytest.mark.parametrize("types,completed,expected", [
+    ({"shot"}, None, "shots"),
+    ({"shot"}, True, "completed shots"),
+    ({"shot"}, False, "failed shots"),
+    ({"duel"}, None, "duels"),
+    ({"duel"}, True, "completed duels"),
+    ({"duel"}, False, "failed duels"),
+    ({"pass", "touch"}, True, "completed passes or touches"),
+    ({"pass", "touch"}, None, "passes or touches"),
+    ({"pass", "touch", "duel"}, True, "completed duels or passes or touches"),
+    ({"shot", "set_piece"}, None, "set pieces or shots"),
+])
+def test_each_type_in_a_filter_is_pluralised_on_its_own(
+        types: set[str], completed: bool | None, expected: str) -> None:
+    """Joining first and pluralising the joined string gave "pass or touches"."""
+    assert ActionFilter(types=frozenset(types), completed=completed).describe() == expected
+
+
+def test_qualifiers_follow_the_plural_unchanged() -> None:
+    described = ActionFilter(types=frozenset({"shot"}), completed=True,
+                             flags=frozenset({"counter_attack"}), channel="wide").describe()
+    assert described == "completed shots flagged counter attack starting in the wide channels"
+
+
+def test_shot_and_duel_definitions_read_as_sentences() -> None:
+    """The candidates about to be preregistered are built from shots and duels,
+    and a preregistration freezes the sentence it prints."""
+    shots = ConstructSpec(construct_id="x", family="quality", measure=Measure.COUNT,
+                          numerator=ActionFilter(types=frozenset({"shot"})),
+                          scaling=Scaling.PER_90)
+    duels = ConstructSpec(construct_id="y", family="style", measure=Measure.COUNT,
+                          numerator=ActionFilter(types=frozenset({"duel"}), completed=True),
+                          scaling=Scaling.PER_SELECTED_ACTION,
+                          denominator=ActionFilter(types=frozenset({"duel"})))
+    assert shots.describe() == "count over shots, per 90 minutes"
+    assert duels.describe() == "count over completed duels, per duels"
+    assert duels.denominator_label == "duels"
+
+
+def test_the_wording_is_not_part_of_the_fingerprint() -> None:
+    """The fingerprint hashes structure. If it hashed the sentence, repairing a
+    plural would have invalidated every stored artifact for no change in the
+    number."""
+    spec = ActionFilter(types=frozenset({"shot"}), completed=True)
+    assert spec.fingerprint == "shot|True||None"
+    assert SPECS["width"].numerator.fingerprint == "pass|True||wide"

@@ -110,6 +110,22 @@ def shrink(
     return w * observed + (1.0 - w) * prior_mean
 
 
+# Two-sided normal critical values for the interval levels this module can state.
+# A level missing from this table is refused, not approximated by a neighbour.
+_CRITICAL_VALUES = {0.90: 1.6448536269514722, 0.95: 1.959963984540054}
+
+
+def _critical_value(confidence: float) -> float:
+    try:
+        return _CRITICAL_VALUES[confidence]
+    except (KeyError, TypeError):
+        raise ValueError(
+            f"unsupported confidence {confidence!r}: the interval is computed at "
+            f"{' or '.join(str(level) for level in _CRITICAL_VALUES)} only. Any other "
+            f"value used to be computed at 0.95 and reported as what was asked for."
+        ) from None
+
+
 @dataclass(frozen=True)
 class AxisReliability:
     """One row of the published reliability table."""
@@ -122,6 +138,10 @@ class AxisReliability:
     gate: ReliabilityGate = DEFAULT_GATE
     confidence: float = 0.90
 
+    def __post_init__(self) -> None:
+        # Refused when the row is built, so a mislabelled interval cannot exist.
+        _critical_value(self.confidence)
+
     @property
     def interval(self) -> tuple[float, float] | None:
         """Confidence interval on the reliability, via the Fisher z transform.
@@ -130,27 +150,40 @@ class AxisReliability:
         bare float compared against a bare threshold. A metric at r = 0.71 over
         forty players is not reliably above 0.70.
         """
+        crit = _critical_value(self.confidence)
         r, n = self.reliability, self.n_players
         if not math.isfinite(r) or n < 4 or abs(r) >= 1.0:
             return None
         z = 0.5 * math.log((1 + r) / (1 - r))
         se = 1.0 / math.sqrt(n - 3)
-        crit = 1.6448536269514722 if self.confidence == 0.90 else 1.959963984540054
         lo, hi = z - crit * se, z + crit * se
         return math.tanh(lo), math.tanh(hi)
 
     @property
     def lower_bound(self) -> float:
-        """The reliability we can defend, not the one we happened to measure."""
+        """The reliability we can defend, not the one we happened to measure.
+
+        NaN when there is no interval. Fewer than four units, or |r| at or above
+        one, leave nothing to defend, and the measured r is not a lower bound on
+        itself: falling back to it let r = 0.95 over three units through the gate
+        as a number.
+        """
         band = self.interval
         if band is None:
-            return self.reliability
+            return float("nan")
         return band[0]
 
     @property
     def grade(self) -> Grade:
-        r = self.lower_bound
-        return self.gate.grade(None if not math.isfinite(r) else r)
+        if not math.isfinite(self.reliability):
+            # Never measured. The gate's own rule for an unknown reliability
+            # applies: a band at most, at weight zero.
+            return self.gate.grade(None)
+        band = self.interval
+        if band is None:
+            # Measured, on a sample too thin or too degenerate to bound.
+            return Grade.INSUFFICIENT
+        return self.gate.grade(band[0])
 
     @property
     def optimizer_weight(self) -> float:

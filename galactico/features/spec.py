@@ -77,14 +77,28 @@ class ActionFilter:
         return actions[mask]
 
     def describe(self) -> str:
-        kind = " or ".join(sorted(self.types))
+        """The filter as an English noun phrase: "completed passes", "shots".
+
+        Each type is pluralised on its own and then joined. Appending "es" to the
+        joined string was right for "pass" and "touch" and wrong for every other
+        type: "completed shotes", "dueles", "pass or touches". The phrase is
+        published inside the construct's definition, so it has to read as one.
+        """
+        def plural(kind: str) -> str:
+            noun = kind.replace("_", " ")
+            if noun.endswith(("s", "x", "z", "ch", "sh")):
+                return f"{noun}es"
+            if noun.endswith("y") and noun[-2:-1] not in "aeiou":
+                return f"{noun[:-1]}ies"
+            return f"{noun}s"
+
         parts = []
         if self.completed is True:
             parts.append("completed")
         elif self.completed is False:
             parts.append("failed")
-        parts.append(f"{kind}es" if kind.endswith("s") else f"{kind}es")
-        text = " ".join(parts).replace("passes", "passes")
+        parts.append(" or ".join(plural(kind) for kind in sorted(self.types)))
+        text = " ".join(parts)
         for flag in sorted(self.flags):
             text += f" flagged {flag.replace('_', ' ')}"
         if self.channel == "half_space":

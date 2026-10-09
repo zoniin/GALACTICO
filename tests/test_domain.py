@@ -150,3 +150,45 @@ def test_empty_and_negative_weights_are_rejected() -> None:
 
 def test_lines_partition_the_roles() -> None:
     assert {r.line for r in Role} == set(Line)
+
+
+# --- a provider name is not a collection of providers --------------------
+
+@pytest.mark.parametrize("bare", ["statsbomb", "wyscout", b"statsbomb"])
+def test_a_bare_provider_name_is_refused_as_a_type_error(bare: object) -> None:
+    """`assert_comparable("statsbomb")` iterated the string and reported that the
+    metric "is not comparable across ['a', 'b', 'm', 'o', 's', 't']". The caller
+    passed one provider, which is always comparable with itself, and was told
+    about six that do not exist. The mistake is the argument's type, so say that."""
+    with pytest.raises(TypeError, match="iterable of provider names"):
+        REGISTRY["progression"].assert_comparable(bare)
+    with pytest.raises(TypeError, match="iterable of provider names"):
+        REGISTRY["chance_creation"].assert_comparable(bare)
+
+
+def test_a_bare_provider_name_is_not_reported_as_a_comparability_failure() -> None:
+    """A caller that catches ComparabilityError to mean "do not pool these" must
+    not catch a typo in its own call."""
+    assert not issubclass(TypeError, ComparabilityError)
+    assert not issubclass(ComparabilityError, TypeError)
+    try:
+        REGISTRY["progression"].assert_comparable("statsbomb")
+    except ComparabilityError:  # pragma: no cover - this is the defect
+        pytest.fail("a bare string was reported as a comparability verdict")
+    except TypeError as refused:
+        assert "'statsbomb'" in str(refused)
+
+
+@pytest.mark.parametrize("providers", [
+    ["statsbomb"], ("statsbomb",), {"statsbomb"}, frozenset({"statsbomb"}),
+    ["statsbomb", "statsbomb"], [],
+])
+def test_real_collections_of_one_provider_still_pass(providers: object) -> None:
+    REGISTRY["progression"].assert_comparable(providers)
+    REGISTRY["progression"].assert_comparable(iter(list(providers)))
+
+
+def test_the_comparability_verdict_itself_is_unchanged() -> None:
+    with pytest.raises(ComparabilityError, match=r"not comparable across \['wyscout'\]"):
+        REGISTRY["progression"].assert_comparable(("statsbomb", "wyscout"))
+    REGISTRY["width"].assert_comparable({"statsbomb", "wyscout"})

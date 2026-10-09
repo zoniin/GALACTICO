@@ -282,3 +282,128 @@ def test_estimates_are_still_gated() -> None:
     weak = make(78.0, EvidenceClass.ESTIMATED, sd=6.0, reliability=0.2)
     assert weak.grade is Grade.INSUFFICIENT
     assert weak.optimizer_weight == 0.0
+
+
+# --- a reliability that is not a number is not a measurement -------------
+
+@pytest.mark.parametrize("unmeasured", [float("nan"), float("inf"), float("-inf")])
+def test_a_non_finite_reliability_carries_exactly_zero_weight(unmeasured: float) -> None:
+    """NaN compares false against both thresholds, so it fell through to the ramp
+    and came back as NaN: an objective term multiplied by an unmeasured
+    reliability, at a weight nobody could read. Zero, exactly, and no number shown.
+    Positive infinity is the same defect from the other side: it graded NUMBER at
+    full weight."""
+    gate = ReliabilityGate()
+    weight = gate.optimizer_weight(unmeasured)
+    assert weight == 0.0                      # NaN == 0.0 is False, so this rejects NaN too
+    assert not math.isnan(weight)
+    assert gate.grade(unmeasured) is Grade.INSUFFICIENT
+
+
+def test_a_result_with_an_unmeasured_reliability_cannot_reach_an_objective() -> None:
+    lost = make(78.0, EvidenceClass.ESTIMATED, sd=6.0, reliability=float("nan"))
+    assert lost.optimizer_weight == 0.0
+    assert lost.grade is Grade.INSUFFICIENT
+    assert lost.render() == "insufficient signal"
+
+
+def test_the_ramp_is_untouched_for_measured_reliabilities() -> None:
+    """The repair must not move a weight that was already defined."""
+    gate = ReliabilityGate()
+    for r, weight in ((1.0, 1.0), (0.70, 1.0), (0.65, 0.75), (0.60, 0.5), (0.55, 0.25),
+                      (0.50, 0.0), (0.49, 0.0), (0.0, 0.0), (-0.3, 0.0)):
+        assert gate.optimizer_weight(r) == pytest.approx(weight, abs=1e-12)
+    assert gate.optimizer_weight(None) == 0.0
+    assert gate.grade(None) is Grade.BAND
+
+
+# --- a transformed number is not an observation --------------------------
+
+def test_a_product_of_observations_is_derived() -> None:
+    """The same per-90 rate as the scaling test above, written as a product of two
+    recorded numbers. It kept OBSERVED, and with it the count's exemption from the
+    gate: weight 1.0 and a printed "73.8" for a rate nobody recorded."""
+    count = MetricResult.observed(64, source="statsbomb", definition="passes@1")
+    ninety_over_minutes = MetricResult.observed(90 / 78, source="statsbomb",
+                                                definition="ninety_over_minutes@1")
+    per90 = count.times(ninety_over_minutes)
+    assert per90.value == pytest.approx(64 * 90 / 78)
+    assert per90.evidence is EvidenceClass.DERIVED
+    assert per90.grade is Grade.BAND
+    assert per90.optimizer_weight == 0.0
+    assert per90.render() == "reliability unknown"
+
+
+def test_a_difference_of_observations_is_derived() -> None:
+    """Nobody recorded "passes minus losses". A difference is where sampling error
+    matters most, so it is the last place to wave the gate through."""
+    passes = MetricResult.observed(64, source="statsbomb", definition="passes@1")
+    losses = MetricResult.observed(10, source="statsbomb", definition="losses@1")
+    net = passes - losses
+    assert net.value == pytest.approx(54.0)
+    assert net.evidence is EvidenceClass.DERIVED
+    assert net.grade is Grade.BAND
+    assert net.optimizer_weight == 0.0
+
+
+@pytest.mark.parametrize("shift", [1000, -4, 0, 2.5])
+def test_shifting_an_observation_by_a_constant_is_derived(shift: float) -> None:
+    """64 passes plus a thousand is not 1,064 recorded passes. Same rule as
+    scaling: arithmetic with a constant leaves the record behind."""
+    passes = MetricResult.observed(64, source="statsbomb", definition="passes@1")
+    for moved in (passes + shift, passes - shift):
+        assert moved.evidence is EvidenceClass.DERIVED
+        assert moved.grade is Grade.BAND
+        assert moved.optimizer_weight == 0.0
+    assert (passes + shift).value == pytest.approx(64 + shift)
+    assert (passes - shift).value == pytest.approx(64 - shift)
+
+
+def test_a_sum_of_observed_counts_is_still_a_count() -> None:
+    """The one composition that stays OBSERVED: passes in two matches are passes.
+    The composition tests at the top of this file require it."""
+    first = MetricResult.observed(64, source="statsbomb", definition="passes@1")
+    second = MetricResult.observed(71, source="statsbomb", definition="passes@1")
+    total = first + second
+    assert total.value == pytest.approx(135.0)
+    assert total.evidence is EvidenceClass.OBSERVED
+    assert total.grade is Grade.NUMBER
+    assert total.render() == "135"
+
+
+def test_a_shift_does_not_strengthen_or_weaken_a_gated_estimate() -> None:
+    """Demotion stops at DERIVED. An estimate keeps its class and its measured
+    reliability under a shift, as it does under scaling."""
+    estimate = make(10.0, EvidenceClass.ESTIMATED, sd=2.0, reliability=0.85)
+    shifted = estimate + 3
+    assert shifted.evidence is EvidenceClass.ESTIMATED
+    assert shifted.reliability == 0.85
+    assert shifted.grade is Grade.NUMBER
+
+
+@given(a=EVIDENCE, b=EVIDENCE)
+def test_differences_and_products_are_never_observed_and_never_strengthen(
+        a: EvidenceClass, b: EvidenceClass) -> None:
+    for combined in ((make(2.0, a) - make(1.0, b)).evidence,
+                     make(2.0, a).times(make(1.0, b)).evidence):
+        assert combined == max(a, b, EvidenceClass.DERIVED)
+        assert combined >= a and combined >= b
+        assert combined is not EvidenceClass.OBSERVED
+
+
+@given(a=EVIDENCE, k=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False))
+def test_arithmetic_with_a_constant_is_never_observed_and_never_strengthens(
+        a: EvidenceClass, k: float) -> None:
+    for moved in (make(2.0, a) + k, make(2.0, a) - k, make(2.0, a) * k, k * make(2.0, a)):
+        assert moved.evidence == max(a, EvidenceClass.DERIVED)
+
+
+@given(a=EVIDENCE, b=EVIDENCE, c=EVIDENCE)
+def test_mixed_composition_is_associative_in_evidence(a, b, c) -> None:
+    """Regrouping the same expression must not change what kind of number it is,
+    whichever operators it mixes."""
+    x, y, z = make(3.0, a), make(2.0, b), make(1.0, c)
+    assert ((x - y) - z).evidence == (x - (y + z)).evidence
+    assert ((x + y) - z).evidence == (x + (y - z)).evidence
+    assert ((x - y) + z).evidence == (x - (y - z)).evidence
+    assert x.times(y).times(z).evidence == x.times(y.times(z)).evidence

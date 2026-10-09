@@ -242,11 +242,17 @@ class ReliabilityGate:
         a player's rate and therefore carries sampling error, so it is gated like
         any other estimate. That distinction is the hole through which unmeasured
         quantities would otherwise reach the optimiser at full weight.
+
+        A reliability that is not a finite number is not a measurement. NaN and
+        the infinities show nothing, rather than whatever a comparison against
+        the thresholds happens to return for them.
         """
         if evidence <= EvidenceClass.OBSERVED:
             return Grade.NUMBER
         if reliability is None:
             return Grade.BAND
+        if not math.isfinite(reliability):
+            return Grade.INSUFFICIENT
         if reliability >= self.number_threshold:
             return Grade.NUMBER
         if reliability >= self.band_threshold:
@@ -260,10 +266,14 @@ class ReliabilityGate:
         Linear ramp across the band, chosen for transparency rather than derived
         from anything. A metric below the band threshold gets exactly zero, which
         is the part that matters.
+
+        So does a metric whose reliability was never measured. NaN is false
+        against both thresholds, so without the guard it reaches the ramp and the
+        weight comes back NaN, which an objective then multiplies by.
         """
         if evidence <= EvidenceClass.OBSERVED:
             return 1.0
-        if reliability is None:
+        if reliability is None or not math.isfinite(reliability):
             return 0.0
         if reliability >= self.number_threshold:
             return 1.0
@@ -283,6 +293,13 @@ class MetricResult:
     Arithmetic is supported and propagates evidence class, uncertainty and
     provenance. It is deliberately not possible to add two of these and get a
     bare float back.
+
+    OBSERVED means a provider recorded it, and the reliability gate lets it
+    through at full weight for that reason alone. So the class survives exactly
+    one operation: adding two observations, because passes in two matches are
+    still passes. A difference, a product, and a shift or a scale by a constant
+    all produce a number nobody recorded. Each is at least DERIVED, and gated.
+    Nothing here ever returns a class stronger than its weakest input.
     """
 
     value: float
@@ -338,9 +355,12 @@ class MetricResult:
                   draws: np.ndarray | None, op: str,
                   extra_assumptions: Iterable[str] = ()) -> MetricResult:
         key = self.uncertainty.draw_key if draws is not None else None
+        # Only a sum of observations is still an observation. Every other operator,
+        # including one added later, lands on DERIVED unless it is named here.
+        floor = EvidenceClass.OBSERVED if op == "+" else EvidenceClass.DERIVED
         return MetricResult(
             value=value,
-            evidence=EvidenceClass(max(self.evidence, other.evidence)),
+            evidence=EvidenceClass(max(self.evidence, other.evidence, floor)),
             provenance=Provenance(
                 source="galactico.compose",
                 definition=f"({self.provenance.definition} {op} {other.provenance.definition})",
@@ -378,7 +398,13 @@ class MetricResult:
 
     def _linear(self, other: MetricResult | float, sign: float, op: str) -> MetricResult:
         if isinstance(other, (int, float)):
-            return replace(self, value=self.value + sign * float(other))
+            # A shifted count is no more a count than a scaled one. Same rule as
+            # __mul__: it must not keep the observation's exemption from the gate.
+            return replace(
+                self,
+                value=self.value + sign * float(other),
+                evidence=EvidenceClass(max(self.evidence, EvidenceClass.DERIVED)),
+            )
         if self._shares_replicates(other):
             draws = self.uncertainty.draws + sign * other.uncertainty.draws
             return self._combined(other, self.value + sign * other.value, None, draws, op)
