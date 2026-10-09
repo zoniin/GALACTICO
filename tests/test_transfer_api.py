@@ -10,6 +10,7 @@ to 1e-5 as the shipped integer policy does.
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 from dataclasses import replace
@@ -25,7 +26,9 @@ from galactico.optimization.transfers import universe as universe_module
 
 METRICS = ("progression", "left_pass_origins", "right_pass_origins")
 SQUAD_NS, ENGLAND_NS = "ns-squad", "ns-england"
-FLAG = universe_module.CROSS_LEAGUE_FLAG.format(destination="Spain")
+FLAG = universe_module.CROSS_LEAGUE_FLAG.format(
+    destination=universe_module.LEAGUE_LABELS["Spain"])
+LEFT_OUT = dict(zip(universe_module.OMISSION_REASONS, (2020, 24, 47, 185), strict=True))
 # name, id, position, league, progression, age, foot
 POOL = (
     ("Able", 101, "FW", "Spain", 4.0, 24, "left"),
@@ -70,7 +73,9 @@ def _universe(include_leagues: tuple[str, ...], worlds: int) -> universe_module.
             team_name=f"Club {pid}", competition=league, same_league=home,
             strength_adjusted=False, minutes=1000 + pid, matches=20, starts=18,
             values={**dict.fromkeys(METRICS, rate), "chance_creation": None},
-            lane_shares=universe_module.LaneShares(0.25, 0.5, 0.25, 400),
+            # Eze has no completed pass: no lane shares, and nothing is printed for them.
+            lane_shares=None if name == "Eze"
+            else universe_module.LaneShares(0.25, 0.5, 0.25, 400),
             foot=foot, birth_date=None, age_years=age, other_stints=(),
             xt_surface=universe_module.XT_SURFACE,
             world_namespace=(SQUAD_NS if home else ENGLAND_NS) if worlds else "",
@@ -79,7 +84,7 @@ def _universe(include_leagues: tuple[str, ...], worlds: int) -> universe_module.
     return universe_module.CandidateUniverse(
         destination_team_id=675, destination_competition="Spain", cutoff_date="2018-05-21",
         leagues=leagues, candidates=tuple(sorted(candidates, key=lambda c: c.player_id)),
-        omitted_counts=dict.fromkeys(universe_module.OMISSION_REASONS, 0),
+        omitted_counts=dict(LEFT_OUT),
         worlds={w: {c.player_id: dict(c.values) for c in candidates} for w in range(worlds)},
         world_namespaces={}, xt_version="synthetic", metric_ids=METRICS,
         provenance={
@@ -88,7 +93,7 @@ def _universe(include_leagues: tuple[str, ...], worlds: int) -> universe_module.
             "cross_league_flag": FLAG if include_leagues else None,
             "shown_evidence": dict(universe_module.SHOWN_EVIDENCE),
         },
-        banner=("5 outfield players in Spain. That is the pool this corpus defines.",),
+        banner=("5 outfield players in La Liga. That is the pool this corpus defines.",),
     )
 
 
@@ -154,6 +159,12 @@ def test_page_and_catalogue_are_corpus_free_and_pass_the_copy_guard(client, thes
         == ([], planning.NOT_TESTED_STATEMENT)
     assert [lead["id"] for lead in catalogue["deficiency_leads"]] \
         == ["exclusion", "explicit-minimum", "league-percentile"]
+    leads = {lead["id"]: lead["sentence"] for lead in catalogue["deficiency_leads"]}
+    assert leads["explicit-minimum"] == (
+        "Enter a minimum above what the gated squad's XIs sum to under these declarations.")
+    assert not any("addition" in sentence for sentence in leads.values())
+    assert tuple(transfer_lab.LEFT_OUT_LABELS) == universe_module.OMISSION_REASONS
+    assert set(transfer_lab.FACT_WORDS) == set(universe_module.SHOWN_EVIDENCE)
 
 
 def test_no_declared_shortfall_is_said_plainly_and_nothing_is_searched(client, thesis_guard):
@@ -173,9 +184,23 @@ def test_no_declared_shortfall_is_said_plainly_and_nothing_is_searched(client, t
     assert attained["statement"] == planning.ATTAINED_CERTIFIED.format(
         reached=attained["reached_text"], ceiling=attained["ceiling_text"],
         label=attained["label"])
+    assert "of the gated squad" in attained["statement"]
+    assert "addition" not in attained["statement"]
+    # What was left out before any filter, in the tool's order and in words.
+    assert pool["pool"]["left_out"] == [
+        {"reason": "LEAGUE_NOT_INCLUDED", "label": "league not included", "count": 2020},
+        {"reason": "OWN_SQUAD", "label": "this club's own squad", "count": 24},
+        {"reason": "GOALKEEPER", "label": "goalkeepers", "count": 47},
+        {"reason": "BELOW_900_CURRENT_CLUB", "label": "below 900 minutes at his current club",
+         "count": 185},
+    ]
+    assert pool["pool"]["omitted_counts"] == LEFT_OUT
     ledger = {row["row_id"]: row for row in pool["ledger"]}
     printed = f"{attained['reached_text']}; none above {attained['ceiling_text']}"
     assert ledger["attained-progression"]["value_text"] == printed
+    assert ledger["attained-progression"]["quantity"] == (
+        "Largest sum of Positive completed-pass xT per 90 over every XI of the gated squad as "
+        "declared")
     assert ledger["attained-progression"]["verdict"] is None  # arithmetic, no empirical claim
 
     search = _post(client, "injection", MET)
@@ -190,6 +215,14 @@ def test_no_declared_shortfall_is_said_plainly_and_nothing_is_searched(client, t
     short = _post(client, "universe", SHORT)
     assert short["deficiency"]["state"] == "SHORTFALL" and short["deficiency"]["attained"] == []
     assert not any(row["row_id"].startswith("attained-") for row in short["ledger"])
+    assert short["deficiency"]["declared_by"] == []
+    # What made the shortfall, each with its verb: a name alone says nothing.
+    departed = _post(client, "universe", {**SHORT, "excludes": [8278], "requirements": [
+        {"requirement_id": "progression", "source": "EXPLICIT", "value": 12.5}]})
+    assert departed["deficiency"]["declared_by"] == [
+        {"kind": "EXCLUSION", "label": "Excluded: P8278"},
+        {"kind": "MINIMUM", "label": "Positive completed-pass xT per 90 minimum 12.5"},
+    ]
 
 
 def test_injection_lists_by_name_and_groups_by_outcome_then_one_key(client, thesis_guard):
@@ -245,6 +278,73 @@ def test_injection_lists_by_name_and_groups_by_outcome_then_one_key(client, thes
     reference = search["reference_row"]
     assert reference["synthetic"] and "player_id" not in reference
     assert "not a person" in reference["statement"] and reference["listed_count"] == 5
+
+    # One requirement in force: the reply says the groups are that one rate, restated.
+    assert search["single_requirement_statement"] == (
+        "With one requirement in force (Positive completed-pass xT per 90), the forced value of "
+        "every row, and therefore its outcome group, is a function of the one recorded rate "
+        "printed in that row, a higher recorded rate giving a lower declared shortfall or the "
+        "same one: the groups restate that rate under the declared minimum and are not a "
+        "second piece of evidence about a player.")
+    # And it is true of these rows: equal rates, equal values; a higher rate, never a higher
+    # value; nothing was removed from a row.
+    rated = sorted((row["requirement_values"]["progression"],
+                    row["injection"]["forced_inclusion_objective"],
+                    row["injection"]["forced_inclusion_change"]) for row in rows
+                   if row["requirement_values"]["progression"] is not None)
+    assert len(rated) == 4 and all(change is not None for _, _, change in rated)
+    assert [value for _, value, _ in rated] == sorted((v for _, v, _ in rated), reverse=True)
+    opted = _post(client, "injection", {**SHORT, "experimental_opt_in": True})
+    assert len(opted["experimental_inputs"]) == 2
+    assert opted["single_requirement_statement"] is None
+
+    # The class of each fact beside a candidate, read from the mapping the reply carries.
+    assert search["facts_evidence"] == dict(universe_module.SHOWN_EVIDENCE)
+    assert search["facts_evidence_statement"] == (
+        "Beside each candidate: foot and provider position are Observed; lane shares with "
+        "their completed-pass count, age at the cutoff, nominal minutes, matches, starts and "
+        "earlier clubs are Derived.")
+    assert by_name["Able"]["lane_text"] == "L 25.0% · C 50.0% · R 25.0% · 400 completed passes"
+    assert by_name["Able"]["lane_statement"] == (
+        "The lanes are where his completed passes originated at Club 101, which reflects how "
+        "he was deployed.")
+    assert by_name["Able"]["lane_shares"]["completed_passes"] == 400
+    assert (by_name["Eze"]["lane_shares"], by_name["Eze"]["lane_text"],
+            by_name["Eze"]["lane_statement"]) == (None, None, None)
+
+
+def test_the_facts_sentence_follows_the_mapping_and_every_lane_share_is_its_own_rounding(
+        client, monkeypatch):
+    lanes = universe_module.LaneShares
+    # Whole percentages rounded one by one would print 2, 45 and 52. Nothing is moved to
+    # make a sum come out: each share is its nearest tenth.
+    assert transfer_lab._lane_text(lanes(24 / 1000, 454 / 1000, 522 / 1000, 1000)) \
+        == "L 2.4% · C 45.4% · R 52.2% · 1,000 completed passes"
+    assert transfer_lab._lane_text(lanes(1 / 3, 1 / 3, 1 / 3, 3)) \
+        == "L 33.3% · C 33.3% · R 33.3% · 3 completed passes"   # adds to 99.9, and says so
+    assert transfer_lab._lane_text(lanes(0.0, 1.0, 0.0, 1)) \
+        == "L 0.0% · C 100.0% · R 0.0% · 1 completed pass"
+    for left, central in ((90, 1378), (25, 668), (1, 1), (7, 0), (333, 333), (9, 167)):
+        total = left + central + 520
+        text = transfer_lab._lane_text(
+            lanes(left / total, central / total, 520 / total, total))
+        printed = [float(part) for part in re.findall(r"(\d+\.\d)%", text)]
+        assert len(printed) == 3, text
+        for share, shown in zip((left, central, 520), printed, strict=True):
+            assert abs(shown - 100 * share / total) <= 0.05 + 1e-9, text
+    assert transfer_lab._lane_text(None) is None
+
+    # A class that moves in the mapping moves in the sentence: nothing is restated by hand.
+    moved = {**universe_module.SHOWN_EVIDENCE, "foot": "DERIVED"}
+    monkeypatch.setattr(universe_module, "SHOWN_EVIDENCE", moved)
+    for reply in (_post(client, "injection", SHORT),
+                  _post(client, "injection/detail", {**SHORT, "player_id": 101, "worlds": 0})):
+        assert reply["facts_evidence"] == moved
+        assert reply["facts_evidence_statement"] == (
+            "Beside each candidate: provider position is Observed; lane shares with their "
+            "completed-pass count, foot, age at the cutoff, nominal minutes, matches, starts "
+            "and earlier clubs are Derived.")
+        assert shell.scan_labels(reply) == []
 
 
 def test_goalkeeping_and_every_other_refusal_has_its_own_status(client, monkeypatch):
@@ -318,6 +418,25 @@ def test_other_leagues_are_an_opt_in_and_every_such_row_is_flagged(client, thesi
         "added": True}
     rates = next(r for r in home["ledger"] if r["row_id"] == "candidate-101-rates-progression")
     assert rates["verdict"]["basis"] == "NOT_REGISTERED"
+    # One recorded rate, one class, whoever's club recorded it. The carry-over assumption
+    # enters with the injected result, and that is where the weaker class is.
+    by_row = {row["row_id"]: row["evidence"]["class"] for row in home["ledger"]}
+    assert by_row["candidate-101-rates-progression"] == by_row["rates-progression"] == "ESTIMATED"
+    assert by_row["candidate-101-injection"] == "HEURISTIC"
+    assert home["candidate"]["lane_text"] == "L 25.0% · C 50.0% · R 25.0% · 400 completed passes"
+    assert home["candidate"]["lane_statement"].endswith(
+        "originated at Club 101, which reflects how he was deployed.")
+    facts = next(r for r in home["ledger"] if r["row_id"] == "candidate-101-facts")
+    assert facts["quantity"] == (
+        "Able: provider position, foot, age at the cutoff, minutes, lane shares and completed "
+        "passes")
+    assert facts["value_text"] == (
+        "FW · 1101 nominal minutes · L 25.0% · C 50.0% · R 25.0% · 400 completed passes")
+    # Each fact the row names, under the class the tool's mapping gives it.
+    assert {entry["label"]: entry["class"] for entry in facts["evidence"]["inputs"]} == {
+        "provider position": "OBSERVED", "foot": "OBSERVED", "age at the cutoff": "DERIVED",
+        "nominal minutes": "DERIVED", "lane shares with their completed-pass count": "DERIVED"}
+    assert facts["evidence"]["class"] == "DERIVED"
     none = _post(client, "injection/detail", {**SHORT, "player_id": 101, "worlds": 0})
     assert none["candidate"]["world_counts"] is None
 
@@ -631,3 +750,25 @@ def test_flagship_on_the_real_corpus(lab_client, corpus_root, league_available, 
     names = [row["name"] for row in search["rows"]]
     assert names == sorted(names, key=str.casefold)
     assert {row["provider_position"] for row in search["rows"]} == {"FW"}
+    # One requirement in force, so the reply says what the groups are, and every row keeps
+    # the signed change the opened candidate prints.
+    assert search["single_requirement_statement"].startswith(
+        "With one requirement in force (Positive completed-pass xT per 90), ")
+    assert all(row["injection"]["forced_inclusion_change"] is not None for row in search["rows"])
+    rated = sorted((row["requirement_values"]["progression"],
+                    row["injection"]["forced_inclusion_objective"]) for row in search["rows"])
+    assert [value for _, value in rated] == sorted((v for _, v in rated), reverse=True)
+    assert search["facts_evidence_statement"].startswith("Beside each candidate: ")
+    for row in search["rows"]:
+        # Each printed share is the nearest tenth to the share the reply carries.
+        printed = [float(part) for part in re.findall(r"(\d+\.\d)%", row["lane_text"])]
+        shares = [row["lane_shares"][lane] for lane in ("left", "central", "right")]
+        assert len(printed) == 3, row["lane_text"]
+        assert all(abs(shown - 100 * share) <= 0.05 + 1e-9
+                   for shown, share in zip(printed, shares, strict=True)), row["lane_text"]
+    assert [entry["reason"] for entry in search["pool"]["left_out"]] \
+        == list(universe_module.OMISSION_REASONS)
+    assert {entry["reason"]: entry["count"] for entry in search["pool"]["left_out"]} \
+        == search["pool"]["omitted_counts"]
+    assert search["deficiency"]["declared_by"][0] == {
+        "kind": "EXCLUSION", "label": "Excluded: Cristiano Ronaldo"}

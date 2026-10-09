@@ -89,10 +89,11 @@ CONCLUSIONS = (
 MONOTONE_CONCLUSIONS = frozenset(CONCLUSIONS) - {"TOTAL_SHORTFALL_LOWER"}
 CONCLUSION_SENTENCES: Mapping[str, str] = {
     "SHORTFALL_VECTOR_LOWER": (
-        "The least declared shortfall (maximum, then total) is strictly lower with him available"
+        "The least declared shortfall (largest, then sum) is strictly lower with him available"
     ),
     "TOTAL_SHORTFALL_LOWER": (
-        "The declared total shortfall with him available is strictly smaller than without him"
+        "The sum part of the least declared shortfall is strictly smaller with him available "
+        "than without him"
     ),
     "POSSIBLE_MEMBER": "He appears in at least one least-shortfall XI",
     "REMOVES_SHORTFALL": "The declared shortfall falls to zero with him",
@@ -104,7 +105,7 @@ NON_CLAIM = (
     "carry-over function is applied; nothing here estimates what happens after a move."
 )
 _NON_MONOTONE = (
-    "The total at the least-shortfall optimum can rise when the maximum falls, so this "
+    "The sum at the least-shortfall optimum can rise when the largest falls, so this "
     "conclusion can fail again above its break-even."
 )
 _NEGATIVE_RATE = "A scaled rate is below zero, so the monotonicity theorem does not apply."

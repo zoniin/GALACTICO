@@ -136,12 +136,20 @@ def test_import_reads_no_data_and_loads_no_solver():
 def test_restated_constants_equal_the_objects_they_restate():
     assert planning.EXPERIMENTAL_OPT_IN_ERROR == snapshots.EXPERIMENTAL_OPT_IN_ERROR
     assert tuple(planning.LEAGUE_LABELS) == universe_module.LEAGUES == get_args(planning.League)
+    # One league, one name: the label a planning page prints is the one the pool's sentences use.
+    assert dict(planning.LEAGUE_LABELS) == dict(universe_module.LEAGUE_LABELS)
     assert set(planning.SEASON_END_CUTOFFS) == set(planning.LEAGUE_LABELS)
     assert tuple(FORMATIONS) == planning.FORMATION_IDS
     assert get_args(planning.PresetId) == tuple(planning.PRESETS)
     assert planning.FLAGSHIP.team_id == historical.TEAM_ID
     assert planning.WORLDS_ERROR == "bootstrap worlds must be one of 0, 12, 40"
     assert snapshots.ruleset_for(675, "Spain").kind == "MANUAL_DECLARED"
+    # Every token a rule set can carry has its words, and every source its origin.
+    rulesets = snapshots.ELIGIBILITY_RULESETS.values()
+    assert set(planning.ELIGIBILITY_KIND_LABELS) == {rules.kind for rules in rulesets}
+    assert set(planning.REVIEW_STATUS_LABELS) == {rules.review_status for rules in rulesets}
+    assert tuple(planning.ORIGIN_LABELS) == tuple(s for s, _ in planning.MINIMUM_SOURCES) \
+        == get_args(planning.RequirementDeclaration.model_fields["source"].annotation)
 
 
 def test_catalogue_is_corpus_free_passes_the_copy_guard_and_claims_no_test(
@@ -168,6 +176,22 @@ def test_catalogue_is_corpus_free_passes_the_copy_guard_and_claims_no_test(
     assert "your declaration" in departure["description"]
     assert [p["id"] for p in catalogue["presets"] if p["needs_experimental_opt_in"]] \
         == ["side-origins-league-p75"]
+    # One requirement has one name on a page: a preset names what it sets by that label, and
+    # the requirement id is not a second name for it.
+    for preset in catalogue["presets"]:
+        if preset["kind"] != "MINIMA":
+            continue
+        sets = [LABELS[row["requirement_id"]] for row in preset["sets"]["requirements"]]
+        assert preset["label"].startswith(f"{' and '.join(sets)}: "), preset["label"]
+        assert "progression" not in preset["label"].lower()
+    assert catalogue["presets"][1]["label"] == (
+        "Positive completed-pass xT per 90: minimum at the median of this club's own "
+        "starting-XI sums")
+    for phrase in catalogue["identity_policy"]["phrases"]:
+        assert "progression" not in phrase["sentence"].lower(), phrase["sentence"]
+        preset = planning.PRESETS.get(phrase["preset_id"])
+        for rid, _source, _percentile in (preset.minima if preset else ()):
+            assert LABELS[rid] in phrase["sentence"]
 
     by_id = {row["requirement_id"]: row for row in catalogue["requirements"]}
     assert [rid for rid, row in by_id.items() if row.get("declared_by_default")] == ["progression"]
@@ -510,6 +534,14 @@ def test_default_problem_is_progression_only_and_says_what_it_is_conditional_on(
             progression["minimum"], progression["normalizer"], progression["stated"]) \
         == (True, "CLUB_MEDIAN", "POLICY", 12.0, 12.0, False)
     assert [rows[side]["status"] for side in SIDES] == ["EXPERIMENTAL_NOT_OPTED_IN"] * 2
+    # Where the minimum came from, in words. An origin is not evidence: it carries no class,
+    # and the only class on the row is the requirement's own.
+    assert progression["origin_label"] == "Shipped default"
+    assert all(row["origin_label"] is None for rid, row in rows.items() if rid != "progression")
+    for row in rows.values():
+        assert {key for key in row if "origin" in key} <= {"origin", "origin_label"}
+        assert {key for key in row if "class" in key} <= {"evidence_class",
+                                                          "legacy_evidence_class"}
     assert all(rows[rid]["status"] == "UNMEASURED"
                for rid in ("chance_creation", "rest_defense", "goalkeeping"))
 
@@ -531,6 +563,9 @@ def test_default_problem_is_progression_only_and_says_what_it_is_conditional_on(
     assert {row["stage"] for row in body["ledger"]} == {"AUDIT"}
     assert body["ledger"][1]["value_text"] \
         == "12 in the evidence set; 2 omitted (2 below 900 prior minutes)"
+    # A value cell names the rule set's kind and status in words; the tokens are the fields.
+    assert body["ledger"][0]["value_text"] \
+        == f"{historical.ELIGIBILITY_VERSION} (manual rules, declared by hand)"
     assert body["ledger"][2]["evidence"]["class"] == "ESTIMATED"
 
     # Nothing was tested, and nothing says otherwise.
@@ -602,8 +637,15 @@ def test_attained_is_the_largest_sum_over_every_fieldable_xi(client, snap):
         # The printed numbers are rounded away from the claim: down for one, up for the other.
         assert float(row["reached_text"]) <= row["reached"]
         assert float(row["ceiling_text"]) >= row["ceiling"]
-        assert row["reached_text"] in row["statement"] and row["ceiling_text"] in row["statement"]
-        assert LABELS["progression"] in row["statement"]
+        # Scoped to what was solved: the gated squad, these declarations, this template. No
+        # remedy is named.
+        assert row["statement"] == (
+            f"One XI of the gated squad under these declarations sums to {row['reached_text']} "
+            f"on {LABELS['progression']}, and none sums to more than {row['ceiling_text']}: an "
+            "exact maximisation with every minimum set aside, rounding allowance included. "
+            "Under these declarations and this role-slot template, no XI of the gated squad "
+            f"reaches a minimum above {row['ceiling_text']}.")
+        assert "addition" not in row["statement"]
         assert shell.scan_labels(row) == []
         largest[name] = expected
     # The declarations are in the answer: a departure and a forced inclusion both lower it.
@@ -679,6 +721,13 @@ def test_experimental_requirements_enter_only_through_the_declared_opt_in(client
     rows = {row["requirement_id"]: row for row in body["inputs"]["requirements"]}
     assert (rows["left_pass_origins"]["origin"], rows["left_pass_origins"]["source_sentence"]) \
         == ("DECLARED", "Entered by you.")
+    assert [rows[rid]["origin_label"] for rid in ("progression", *SIDES)] \
+        == ["Shipped default", "Entered by you", "Shipped default"]
+    # The class of a per-player rate, as the ledger gives it: the Player Lab estimate, or
+    # experimental for a descriptor that is.
+    by_metric = {metric.metric_id: metric for metric in problem.snapshot.metrics}
+    assert [planning.rate_class(by_metric[rid]).name for rid in ("progression", *SIDES)] \
+        == ["ESTIMATED", "EXPERIMENTAL", "EXPERIMENTAL"]
     assert rows["right_pass_origins"]["stated"] is False
     assert "declared-experimental-opt-in" in [row["key"] for row in body["declared"]]
     assert [row["evidence"]["class"] for row in body["ledger"][2:]] \
@@ -690,8 +739,9 @@ def test_a_league_percentile_minimum_is_the_reference_value_and_names_its_sample
     row = next(r for r in body["inputs"]["requirements"] if r["requirement_id"] == "progression")
     assert (row["minimum"], row["normalizer"], row["source"], row["percentile"], row["origin"]) \
         == (13.5, 12.0, "LEAGUE_PERCENTILE", 75, "POLICY")
+    assert row["origin_label"] == "League percentile you chose"
     assert row["source_sentence"] == (
-        "Positive completed-pass xT per 90 minimum at the 75th percentile of Spain starting-XI "
+        "Positive completed-pass xT per 90 minimum at the 75th percentile of La Liga starting-XI "
         "sums before 2018-05-21 (760 starting elevens of 20 clubs).")
     assert row["reference_fingerprint"] == "f" * 64
     (requirement,) = [r for r in SEEN[-1].requirements if r.active]
@@ -727,6 +777,14 @@ def test_a_league_percentile_minimum_is_the_reference_value_and_names_its_sample
 def test_a_declaration_the_problem_cannot_hold_is_a_422_with_its_sentence(client, sent, detail):
     response = client.post("/probe", json=sent)
     assert (response.status_code, response.json()["detail"]) == (422, detail)
+
+
+def test_a_club_with_no_prior_starting_eleven_is_refused_by_the_label_of_the_requirement(
+        client, snap):
+    del snap.requirement_minima["progression"]
+    response = client.post("/probe", json={})
+    assert (response.status_code, response.json()["detail"]) == (
+        422, f"no prior starting eleven gives a {LABELS['progression']} minimum for this club")
 
 
 @pytest.mark.parametrize("sent", [
@@ -792,6 +850,8 @@ def test_unknown_scenario_is_404_no_corpus_is_503_and_other_clubs_are_unreviewed
     body = client.post("/probe", json={"scenario_id": other}).json()
     assert (body["eligibility"]["kind"], body["eligibility"]["review_status"]) \
         == ("PROVIDER_POSITION", "UNREVIEWED")
+    assert body["ledger"][0]["value_text"] \
+        == f"{snapshots.PROVIDER_POSITION_VERSION} (provider positions, unreviewed)"
     assert "unreviewed" in body["eligibility"]["banner"]
     assert all(candidate.eligible_slots is None for candidate in SEEN[-1].candidates)
     # The departure preset is a fact about one club. It is not offered for another.

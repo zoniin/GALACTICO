@@ -510,9 +510,12 @@ def squad_depth(
     slot_labels = {slot.slot_id: slot.label for slot in slots}
     for group in groups:
         if group.restored_by_gate_ids:
+            where = ", ".join(slot_labels[sid] for sid in group.slot_ids)
+            subject = (f"The slot {where} has" if len(group.slot_ids) == 1
+                       else f"The slots {where} have")
             warnings.append(
-                f"The slots {', '.join(slot_labels[sid] for sid in group.slot_ids)} have a "
-                f"spare of {group.spare_by_stage['gated']} after the evidence gate and "
+                f"{subject} a spare of {group.spare_by_stage['gated']} after the evidence "
+                "gate and "
                 f"{group.spare_by_stage['rule_eligible']} before it (eligible players beyond "
                 "the number of slots). The gate removed "
                 f"{', '.join(roster_names[pid] for pid in group.restored_by_gate_ids)}."

@@ -76,6 +76,9 @@ __all__ = [
     "WORLDS_ERROR",
     "STAGES",
     "PRESETS",
+    "ORIGIN_LABELS",
+    "ELIGIBILITY_KIND_LABELS",
+    "REVIEW_STATUS_LABELS",
     "IDENTITY_POLICY_VERSION",
     "IDENTITY_PHRASES",
     "NOT_MEASURED_EXTRA",
@@ -115,6 +118,7 @@ __all__ = [
     "declared_row",
     "ledger_row",
     "declared_rows",
+    "rate_class",
     "base_ledger",
     "omitted_candidates",
     "verdict_reading",
@@ -178,6 +182,21 @@ MINIMUM_SOURCES: tuple[tuple[str, str], ...] = (
     ("LEAGUE_PERCENTILE", "A percentile of league starting-XI sums"),
     ("EXPLICIT", "A number you enter"),
 )
+ORIGIN_LABELS: Mapping[str, str] = {
+    "CLUB_MEDIAN": "Shipped default",
+    "LEAGUE_PERCENTILE": "League percentile you chose",
+    "EXPLICIT": "Entered by you",
+}
+"""Where a minimum came from, in words, per source. An origin is not evidence: it has no class."""
+ELIGIBILITY_KIND_LABELS: Mapping[str, str] = {
+    "MANUAL_DECLARED": "manual rules",
+    "PROVIDER_POSITION": "provider positions",
+}
+REVIEW_STATUS_LABELS: Mapping[str, str] = {
+    "DECLARED_BY_HAND": "declared by hand",
+    "UNREVIEWED": "unreviewed",
+}
+"""What a sentence calls a rule set's kind and its status. The tokens stay in the fields."""
 _NOT_OPTED_IN = (
     "EXPERIMENTAL descriptor of deployment. It enters a solve only through an explicit "
     "experimental opt-in."
@@ -686,26 +705,29 @@ PRESETS: Mapping[str, Preset] = {
         ),
         Preset(
             "minima-club-median", "MINIMA",
-            "Progression minimum at the median of this club's own starting-XI sums",
+            "Positive completed-pass xT per 90: minimum at the median of this club's own "
+            "starting-XI sums",
             "The shipped default. A convention, not a finding.",
             minima=(("progression", "CLUB_MEDIAN", None),),
         ),
         Preset(
             "progression-league-p75", "MINIMA",
-            "Progression minimum at the 75th percentile of league starting-XI sums",
+            "Positive completed-pass xT per 90: minimum at the 75th percentile of league "
+            "starting-XI sums",
             _PERCENTILE_NOTE,
             minima=(("progression", "LEAGUE_PERCENTILE", 75),),
         ),
         Preset(
             "progression-league-p90", "MINIMA",
-            "Progression minimum at the 90th percentile of league starting-XI sums",
+            "Positive completed-pass xT per 90: minimum at the 90th percentile of league "
+            "starting-XI sums",
             _PERCENTILE_NOTE,
             minima=(("progression", "LEAGUE_PERCENTILE", 90),),
         ),
         Preset(
             "side-origins-league-p75", "MINIMA",
-            "Left and right wide-channel origin minima at the 75th percentile of league "
-            "starting-XI sums",
+            "Left wide-channel pass origins per 90 and Right wide-channel pass origins per 90: "
+            "minima at the 75th percentile of league starting-XI sums",
             "Experimental. Pass-origin rates describe deployment; they are not validated team "
             "width. Needs your experimental opt-in.",
             minima=(
@@ -717,7 +739,8 @@ PRESETS: Mapping[str, Preset] = {
     )
 }
 """Whether a preset produces a declared shortfall is not known in advance and is assumed
-nowhere: a league percentile can lie below this club's own median."""
+nowhere: a league percentile can lie below this club's own median. A label names what it
+sets by the requirement's label (``snapshots.SHIPPED_METRICS``, restated; equal by test)."""
 
 
 class PlanningInputs(BaseModel):
@@ -780,14 +803,15 @@ def _minimum(scenario: PlanningScenario, snap: TeamSnapshot, requirement_id: str
              declaration: RequirementDeclaration | None, experimental_opt_in: bool) -> dict:
     normalizer = snap.requirement_minima.get(requirement_id)
     if normalizer is None:
-        raise ValueError(
-            f"no prior starting eleven gives a {requirement_id} minimum for this club"
-        )
+        label = next(m.label for m in snap.metrics if m.metric_id == requirement_id)
+        raise ValueError(f"no prior starting eleven gives a {label} minimum for this club")
+    source = "CLUB_MEDIAN" if declaration is None else declaration.source
     resolved = {
         "normalizer": float(normalizer),
-        "source": "CLUB_MEDIAN" if declaration is None else declaration.source,
+        "source": source,
         "percentile": None,
         "reference_fingerprint": None,
+        "origin_label": ORIGIN_LABELS[source],
     }
     if resolved["source"] == "CLUB_MEDIAN":
         return {
@@ -894,10 +918,10 @@ def declare(scenario: PlanningScenario, request: PlanningInputs, *,
             })
         elif requirement.status == "research":
             rows.append({**row, "declared": False, "status": "EXPERIMENTAL_NOT_OPTED_IN",
-                         "reason": _NOT_OPTED_IN})
+                         "reason": _NOT_OPTED_IN, "origin_label": None})
         else:
             rows.append({**row, "declared": False, "status": "UNMEASURED",
-                         "reason": _UNMEASURED})
+                         "reason": _UNMEASURED, "origin_label": None})
     return DeclaredProblem(
         scenario=scenario,
         snapshot=snap,
@@ -920,10 +944,10 @@ ATTAINED_VERSION = "attained-sum-v1"
 _ATTAINED_PLACES = 4
 
 ATTAINED_CERTIFIED = (
-    "One XI this squad can field under these declarations sums to {reached} on {label}, and "
-    "none sums to more than {ceiling}: an exact maximisation with every minimum set aside, "
-    "rounding allowance included. A minimum above {ceiling} cannot be reached without an "
-    "addition."
+    "One XI of the gated squad under these declarations sums to {reached} on {label}, and none "
+    "sums to more than {ceiling}: an exact maximisation with every minimum set aside, rounding "
+    "allowance included. Under these declarations and this role-slot template, no XI of the "
+    "gated squad reaches a minimum above {ceiling}."
 )
 ATTAINED_UNFIELDABLE = (
     "No XI can be fielded under these declarations, so no sum of {label} exists."
@@ -1078,9 +1102,12 @@ def declared_rows(problem: DeclaredProblem) -> list[dict]:
     return rows
 
 
-def _rate_class(metric: SnapshotMetric) -> EvidenceClass:
-    # A per-player per-90 rate is the Player Lab estimate, unless the metric itself is an
-    # experimental descriptor. Both classes are read from the one mapping.
+def rate_class(metric: SnapshotMetric) -> EvidenceClass:
+    """The class of a per-player per-90 rate as recorded at a club, the squad's or another.
+
+    The Player Lab estimate, unless the metric itself is an experimental descriptor. Both
+    classes are read from the one mapping.
+    """
     requirement = evidence.from_xi(metric.legacy_evidence)
     if requirement is EvidenceClass.EXPERIMENTAL:
         return requirement
@@ -1096,7 +1123,8 @@ def base_ledger(problem: DeclaredProblem) -> list[dict]:
     rows = [
         ledger_row(
             stage="AUDIT", row_id="eligibility-rules", quantity="Slot eligibility",
-            value_text=f"{eligibility.version} ({eligibility.kind}, {eligibility.review_status})",
+            value_text=(f"{eligibility.version} ({ELIGIBILITY_KIND_LABELS[eligibility.kind]}, "
+                        f"{REVIEW_STATUS_LABELS[eligibility.review_status]})"),
             sample=eligibility.banner,
             evidence=shell.evidence_payload(
                 [("Slot eligibility", EvidenceClass[eligibility.evidence_class])]
@@ -1128,7 +1156,7 @@ def base_ledger(problem: DeclaredProblem) -> list[dict]:
             quantity=f"Per-player {row['label']} at his own club",
             value_text=f"{valued} of {len(snap.candidates)} players in the evidence set valued",
             sample=f"{surface} Recorded with this club; goalkeepers carry no value.",
-            evidence=shell.evidence_payload([(row["label"], _rate_class(metric))]),
+            evidence=shell.evidence_payload([(row["label"], rate_class(metric))]),
             verdict=shell.verdict_payload(_RATES_SUBJECT_EXPERIMENT, metric.metric_id),
         ))
     return rows
@@ -1326,14 +1354,15 @@ class IdentityPhrase:
 IDENTITY_PHRASES: tuple[IdentityPhrase, ...] = (
     IdentityPhrase(
         "progressive", "“more progressive passing”", "TRANSLATED", "progression-league-p75",
-        "Sets the progression minimum at the 75th percentile of league starting-XI sums. The "
-        "percentile is a convention; declare another one if you mean another.",
+        "Sets the minimum of Positive completed-pass xT per 90 at the 75th percentile of league "
+        "starting-XI sums. The percentile is a convention; declare another one if you mean "
+        "another.",
     ),
     IdentityPhrase(
         "wide", "“wider”", "TRANSLATED_EXPERIMENTAL", "side-origins-league-p75",
-        "Sets both wide-channel origin minima at the 75th percentile of league starting-XI "
-        "sums. Experimental: these rates describe where passes started, not team width. "
-        "Needs your opt-in.",
+        "Sets the minima of Left wide-channel pass origins per 90 and Right wide-channel pass "
+        "origins per 90 at the 75th percentile of league starting-XI sums. Experimental: these "
+        "rates describe where passes started, not team width. Needs your opt-in.",
     ),
     IdentityPhrase(
         "goals", "“more goals”", "NOT_TRANSLATED", None,

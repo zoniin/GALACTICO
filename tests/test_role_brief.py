@@ -581,7 +581,7 @@ def test_a_slot_no_requirement_counts_and_squads_that_cannot_fill_the_other_slot
                        quantization=100)
     assert (empty.status, empty.certificate.final_region_status, empty.certificate.solves) == (
         "RESIDUAL_UNFIELDABLE", "INFEASIBLE_BY_CONSTRUCTION", 0)
-    assert empty.warnings == ("No eligible measured candidate for Slot y (y).",)
+    assert empty.warnings == ("No eligible measured candidate for Slot y.",)
     assert "one addition at this slot does not make an XI fieldable" in empty.claim
 
 
@@ -839,7 +839,7 @@ def test_result_carries_no_merit_key_and_its_fingerprint_follows_the_decision_in
     # A locked player who can play only the brief slot leaves the other slots unfillable.
     stuck = run(locked=(3,))
     assert (stuck.status, stuck.count.meeting) == ("RESIDUAL_UNFIELDABLE", 0)
-    assert stuck.warnings == ("Locked player 3 has no admissible assignment.",)
+    assert stuck.warnings == ("Locked player P3 has no admissible assignment.",)
 
     same = run(squad=squad[::-1], requirements=requirements[::-1], universe=universe[::-1])
     assert same.provenance["input_fingerprint"] == record["input_fingerprint"]

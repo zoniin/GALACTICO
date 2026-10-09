@@ -96,14 +96,8 @@ __all__ = [
 
 UNIVERSE_VERSION = "gated-current-stint-universe-v1"
 LEAGUES: tuple[str, ...] = ("Spain", "England", "Italy", "Germany", "France")
-# What a sentence calls a league. The competition ids above stay in every field.
-LEAGUE_LABELS: Mapping[str, str] = {
-    "Spain": "La Liga",
-    "England": "Premier League",
-    "Italy": "Serie A",
-    "Germany": "Bundesliga",
-    "France": "Ligue 1",
-}
+# What a sentence calls a league: one definition, in snapshots. Ids stay in every field.
+LEAGUE_LABELS = snapshots.LEAGUE_LABELS
 PROVIDER = "pappalardo"
 XT_SURFACE = "DESTINATION_LEAGUE_PRIOR"
 # What the canonical sort, the xT fit, the two SPEC filters and the lane rule read. Nothing else

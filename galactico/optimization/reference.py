@@ -42,6 +42,7 @@ from ..providers.base import PROVIDERS, assert_may_host
 from .historical import fit_prior_xt, frame_hash
 from .snapshots import (
     EXPERIMENTAL_OPT_IN_ERROR,
+    LEAGUE_LABELS,
     SHIPPED_METRICS,
     SnapshotMetric,
     prior_frames,
@@ -409,7 +410,8 @@ def declared_minimum(reference: LeagueReference, metric: str, percentile: int) -
         value=distribution.percentiles[percentile],
         label=(
             f"{distribution.label} minimum at the {percentile}th percentile of "
-            f"{reference.competition} starting-XI sums before {reference.cutoff_date}"
+            f"{LEAGUE_LABELS.get(reference.competition, reference.competition)} "
+            f"starting-XI sums before {reference.cutoff_date}"
         ),
         evidence_class="HEURISTIC",
         reference_fingerprint=reference.provenance["input_fingerprint"],

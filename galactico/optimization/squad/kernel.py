@@ -481,6 +481,10 @@ class ShortfallKernel:
             else:
                 vectors[player.player_id] = player.values
 
+        # A reason is read by a person: a slot by its label, a player by his name. The ids are
+        # the declarations beside it.
+        names = {player.player_id: player.name for player in self._candidates}
+        labels = {slot.slot_id: slot.label for slot in self._formation.slots}
         reasons = []
         if locked_ids & excluded_ids:
             reasons.append("A player cannot be both locked and excluded.")
@@ -510,16 +514,17 @@ class ShortfallKernel:
             if eligible:
                 model.add(sum(variables[pid, sid] for pid in eligible) == 1)
             else:
-                reasons.append(f"No eligible measured candidate for {slot.label} ({sid}).")
+                reasons.append(f"No eligible measured candidate for {slot.label}.")
         for pid in self._ids:
             choices = by_player[pid]
             required = pid in locked_ids or pid in pins
             if pid in pins and not choices:
                 reasons.append(
-                    f"Pinned player {pid} has no admissible assignment at {pins[pid]}."
+                    f"Pinned player {names[pid]} has no admissible assignment at "
+                    f"{labels[pins[pid]]}."
                 )
             elif required and not choices:
-                reasons.append(f"Locked player {pid} has no admissible assignment.")
+                reasons.append(f"Locked player {names[pid]} has no admissible assignment.")
             elif choices:
                 model.add(sum(choices) == 1 if required else sum(choices) <= 1)
         if not reasons:
@@ -737,7 +742,7 @@ class ShortfallKernel:
                 extra=("No XI satisfies the combined eligibility, measurement, locks and pins.",),
             )
         if name != "OPTIMAL":
-            return unproven(name, "The maximum-shortfall solve")
+            return unproven(name, "The largest-shortfall solve")
         maximum = solver.value(level)
 
         second = background.model.clone()
@@ -749,7 +754,7 @@ class ShortfallKernel:
         second.minimize(sum(deficits))
         name, solver = run.solve(second)
         if name != "OPTIMAL":
-            return unproven(name, "The total-shortfall solve")
+            return unproven(name, "The sum-shortfall solve")
         return certified(solver, maximum, sum(solver.value(d) for d in deficits))
 
     def satisfiable(

@@ -47,6 +47,8 @@ __all__ = [
     "MODEL_STATEMENT",
     "POOL_UNAVAILABLE",
     "RECORD_BUDGETS",
+    "ROLE_LABELS",
+    "SPARE_STATEMENT",
     "SQUAD_CLAIM",
     "SQUAD_NON_CLAIM",
     "STRESS_SIZES",
@@ -147,6 +149,26 @@ REMOVAL_OUTCOMES: tuple[tuple[str, str], ...] = (
     ("UNCHANGED", "Least declared shortfall unchanged without him"),
     ("UNKNOWN", "Not resolved"),
 )
+ROLE_LABELS: Mapping[str, str] = {
+    "gk": "Goalkeeper", "cb": "Centre back", "lb": "Left back", "rb": "Right back",
+    "dm": "Holding midfield", "cm": "Central midfield", "am": "Attacking midfield",
+    "lw": "Left forward", "rw": "Right forward", "st": "Centre forward",
+}
+"""A declared role in words, per role key of ``snapshots`` (every key, by test). A role that
+fills one slot has that slot's label."""
+SPARE_STATEMENT = (
+    "Spare at {slots}, eligible players beyond the number of slots: {available} with the squad "
+    "as declared, exclusions applied; {gated} after the evidence gate with nobody excluded; "
+    "{rule_eligible} under the eligibility rules before the gate."
+)
+"""One sentence per tight group. Each number is the spare at the ``depth.STAGES`` stage its
+words name, so a page prints it and names no stage itself."""
+ATTRIBUTION_LABELS: Mapping[str, str] = {
+    "GATE": "the evidence gate",
+    "EXCLUSION": "your exclusion",
+    "ELIGIBILITY": "the eligibility rules",
+}
+"""What made a smallest absence set leave no XI, in words, per attribution token."""
 _CARRY_OVER_EXPERIMENT = "E-12"
 """The draft protocol that would cover a rate recorded at another club. Unregistered."""
 
@@ -331,6 +353,7 @@ def _squad_rows(problem: planning.DeclaredProblem, formation: Any) -> list[dict]
             "foot": _fact(problem, player_id, "foot"),
             "age_years": _fact(problem, player_id, "age_years"),
             "role_rules": list(record.get("role_rules", ())),
+            "role_labels": [ROLE_LABELS[role] for role in record.get("role_rules", ())],
             "eligible_slots": [
                 {"slot_id": slot.slot_id, "label": slot.label}
                 for slot in formation.slots if _eligible(candidate, slot)
@@ -477,7 +500,8 @@ def squad_snapshot(request: SquadSnapshotRequest) -> Response:
             problem, route="squad.snapshot",
             claim=SNAPSHOT_CLAIM.format(
                 team=problem.scenario.team_name, cutoff=problem.scenario.cutoff,
-                version=eligibility.version, review=eligibility.review_status,
+                version=eligibility.version,
+                review=planning.REVIEW_STATUS_LABELS[eligibility.review_status],
             ),
             non_claim=SNAPSHOT_NON_CLAIM,
             budget=budget.report("EXACT"),
@@ -536,7 +560,7 @@ def squad_reference(request: SquadReferenceRequest) -> Response:
                          "median": distribution.subject_club_median},
                 "declared": {key: requirement[key] for key in
                              ("minimum", "normalizer", "source", "percentile",
-                              "source_sentence", "origin")},
+                              "source_sentence", "origin", "origin_label")},
                 "scale": {"min": min(marks) - margin, "max": max(marks) + margin},
                 "sample_statement": (
                     f"{distribution.n_units} starting elevens of {distribution.n_teams} clubs. "
@@ -662,7 +686,8 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
             "kappa_before": kappa["position_admissible"],
             "kappa_after": kappa["rule_eligible"],
             "statement": (
-                f"Eligibility rules ({eligibility.version}, {eligibility.review_status}). "
+                f"Eligibility rules ({eligibility.version}, "
+                f"{planning.REVIEW_STATUS_LABELS[eligibility.review_status]}). "
                 "Counting every squad player at each slot his provider position admits, "
                 f"{_after(kappa['position_admissible'])}. Under the rule set, "
                 f"{_after(kappa['rule_eligible'])}. {pairs} player-slot pairs are admitted by "
@@ -772,6 +797,17 @@ def squad_depth(request: SquadDepthRequest) -> Response:
         )
         raising = sum(pin["status"] == "RAISES_SHORTFALL" for s in slots for pin in s["pinned"])
         placements = sum(len(slot["pinned"]) for slot in slots)
+        # The certificate counts solves, and equal slots share one. The row says so, and
+        # counts what was left open in placements, the unit of its value.
+        open_placements = sum(pin["status"] == "UNKNOWN" for s in slots for pin in s["pinned"])
+        solves = _many(certificate.pinned_solved, "exact solve", "exact solves")
+        if not placements:
+            decided = "No placement was evaluated."
+        else:
+            reached = (f"{placements - open_placements} of {placements}" if open_placements
+                       else f"all {placements}")
+            decided = (f"{solves} decided {reached} placements, equivalent slots sharing a "
+                       f"solve; not evaluated: {open_placements}.")
         solver = (f"{certificate.squad_status} · {certificate.completeness} · quantisation "
                   f"{certificate.quantization}")
         eligibility_only = shell.evidence_payload([
@@ -802,9 +838,7 @@ def squad_depth(request: SquadDepthRequest) -> Response:
                 value_text=f"{raising} of {placements}" if certificate.pinned_requested
                 and certificate.squad_status == "CERTIFIED" and not certificate.pinned_unknown
                 else None,
-                sample=(f"{certificate.pinned_solved} placements decided, "
-                        f"{certificate.pinned_unknown} not evaluated."),
-                evidence=_composed(problem), solver=solver,
+                sample=decided, evidence=_composed(problem), solver=solver,
             ),
         ]
         payload = planning.envelope(
@@ -825,6 +859,9 @@ def squad_depth(request: SquadDepthRequest) -> Response:
                     "slot_ids": list(group.slot_ids),
                     "slot_labels": [labels[sid] for sid in group.slot_ids],
                     "spare_by_stage": dict(group.spare_by_stage),
+                    "spare_statement": SPARE_STATEMENT.format(
+                        slots=", ".join(labels[sid] for sid in group.slot_ids),
+                        **group.spare_by_stage),
                     "available": _named(group.available_ids, names),
                     "restored_by_gate": [
                         {**player, "minutes": int(snap.prior_minutes[player["player_id"]])
@@ -855,51 +892,85 @@ def squad_depth(request: SquadDepthRequest) -> Response:
 # ------------------------------------------------------------------------------ stress
 
 
+def _eligible_there(by_slot: Mapping[str, Sequence[dict]], slot_ids: Sequence[str]) -> list[dict]:
+    """The players of a per-slot map who appear at any of these slots, once each, by name."""
+    found: dict[int, dict] = {}
+    for slot_id in slot_ids:
+        for player in by_slot.get(slot_id, ()):
+            found[player["player_id"]] = {key: player[key]
+                                          for key in ("player_id", "name", "minutes")}
+    return [dict(row) for row in planning.canonical(list(found.values()))]
+
+
 def _core(core: Any, names: Mapping[int, str], labels: Mapping[str, str],
-          below_by_slot: Mapping[str, Sequence[dict]]) -> dict:
+          below_by_slot: Mapping[str, Sequence[dict]],
+          excluded_by_slot: Mapping[str, Sequence[dict]]) -> dict:
     """One smallest absence set that leaves no XI, attributed by counting.
 
     GATE when the blocking slot group would have a player for every slot once its
-    rule-eligible players below the 900-minute gate are counted; ELIGIBILITY otherwise.
+    rule-eligible players below the 900-minute gate are counted. EXCLUSION when it would
+    not, and would once the players the request excluded are counted as well: the set
+    leaves no XI on account of a declaration, and saying "the eligibility rules" would
+    blame the model for it. ELIGIBILITY when the group stays short with every squad
+    player counted. ``exclusion_alone_restores`` says whether withdrawing the exclusion,
+    with the gate left as it is, would already be enough.
     """
-    covered: dict[int, dict] = {}
-    for slot_id in core.blocking_slot_ids:
-        for player in below_by_slot.get(slot_id, ()):
-            covered[player["player_id"]] = {key: player[key]
-                                            for key in ("player_id", "name", "minutes")}
-    cover = [dict(row) for row in planning.canonical(list(covered.values()))]
-    slots = len(core.blocking_slot_ids)
-    gate = len(core.remaining_ids) + len(cover) >= slots
+    cover = _eligible_there(below_by_slot, core.blocking_slot_ids)
+    back = _eligible_there(excluded_by_slot, core.blocking_slot_ids)
+    slots, left = len(core.blocking_slot_ids), len(core.remaining_ids)
+    gate = left + len(cover) >= slots
+    alone = bool(back) and left + len(back) >= slots
+    together = bool(back) and left + len(cover) + len(back) >= slots
+    attribution = "GATE" if gate else "EXCLUSION" if together else "ELIGIBILITY"
     where = ", ".join(labels[sid] for sid in core.blocking_slot_ids)
     absent = ", ".join(row["name"] for row in _named(core.player_ids, names))
+    below, yours = (", ".join(row["name"] for row in rows) for rows in (cover, back))
     statement = (
         f"Without {absent}: {where} {'has' if slots == 1 else 'have'} "
-        f"{_many(len(core.remaining_ids), 'remaining player', 'remaining players')} for "
+        f"{_many(left, 'remaining player', 'remaining players')} for "
         f"{_many(slots, 'slot', 'slots')}. "
     )
     if gate:
         statement += (
-            f"Counting {', '.join(row['name'] for row in cover)}, eligible there and below "
-            "the 900-minute gate, the group has enough players."
+            f"Counting {below}, eligible there and below the 900-minute gate, the group has "
+            "enough players."
         )
-    elif cover:
+        if alone:
+            statement += (
+                f" It also has enough counting {yours}, whom you excluded: the gate is not "
+                "the only thing that leaves it short."
+            )
+    elif alone:
+        statement += f"Counting {yours}, whom you excluded, the group has enough players."
+    elif together:
         statement += (
-            f"Counting {', '.join(row['name'] for row in cover)}, eligible there and below "
-            "the 900-minute gate, the group is still short."
+            f"Counting {below}, below the 900-minute gate, together with {yours}, whom you "
+            "excluded, the group has enough players. Neither is enough alone."
+        )
+    elif cover or back:
+        counted = " and ".join(part for part in (
+            f"{below}, below the 900-minute gate" if cover else "",
+            f"{yours}, whom you excluded" if back else "") if part)
+        statement += (
+            f"Counting {counted}, the group is still short: it stays short with every squad "
+            "player counted, your exclusions included."
         )
     else:
         statement += (
             "No squad player below the gate is eligible there: the group stays short with "
-            "every squad player counted."
+            "every squad player counted, your exclusions included."
         )
     return {
         "player_ids": list(core.player_ids),
         "players": _named(core.player_ids, names),
-        "attribution": "GATE" if gate else "ELIGIBILITY",
+        "attribution": attribution,
+        "attribution_label": ATTRIBUTION_LABELS[attribution],
         "blocking_slot_ids": list(core.blocking_slot_ids),
         "blocking_slot_labels": [labels[sid] for sid in core.blocking_slot_ids],
         "remaining": _named(core.remaining_ids, names),
         "covered_by_below_gate": cover,
+        "covered_by_exclusion": back,
+        "exclusion_alone_restores": alone,
         "statement": statement,
     }
 
@@ -910,10 +981,17 @@ def _floor(level: Mapping[str, Any]) -> str:
 
 
 def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
-           describe: Callable[[Any], dict], names: Mapping[int, str]) -> dict:
+           describe: Callable[[Any], dict], names: Mapping[int, str],
+           excluding: bool = False) -> dict:
+    """One absence-set size as served. ``excluding``: the request excluded somebody, so a
+    set can leave no XI on account of that declaration and the reply counts those apart."""
     size = level.k
     cores = _by_names(describe(core) for core in level.minimal_unfieldable)
     by_gate = sum(core["attribution"] == "GATE" for core in cores)
+    by_exclusion = sum(core["attribution"] == "EXCLUSION" for core in cores)
+    by_rules = len(cores) - by_gate - by_exclusion
+    everyone = ("every squad player counted, your exclusions included" if excluding
+                else "every squad player counted")
     raised = _by_names(
         {"player_ids": list(value.player_ids), "players": _named(value.player_ids, names),
          "objective_vector": list(value.objective_vector),
@@ -950,8 +1028,13 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
         )
         eligibility = (
             f"Smallest absence sets of size {size}, found so far, that leave no fieldable XI "
-            "while the blocking slots stay short with every squad player counted: "
-            f"{len(cores) - by_gate}.{more}"
+            f"while the blocking slots stay short with {everyone}: "
+            f"{by_rules}.{more}"
+        )
+        exclusion = (
+            f"Smallest absence sets of size {size}, found so far, that leave no fieldable XI "
+            "where the players you excluded would cover the blocking slots and the players "
+            f"below the gate alone would not: {by_exclusion}.{more}"
         )
     else:
         unfieldable = (
@@ -966,8 +1049,13 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
         )
         eligibility = (
             f"Smallest absence sets of size {size} that leave no fieldable XI while the "
-            f"blocking slots stay short with every squad player counted: "
-            f"{len(cores) - by_gate}."
+            f"blocking slots stay short with {everyone}: "
+            f"{by_rules}."
+        )
+        exclusion = (
+            f"Smallest absence sets of size {size} that leave no fieldable XI where the "
+            "players you excluded would cover the blocking slots and the players below the "
+            f"gate alone would not: {by_exclusion}."
         )
     if cut:
         shortfall = (
@@ -1009,6 +1097,8 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
         "statements": {
             "unfieldable": unfieldable,
             "gate": gate,
+            # Sent only when the request excluded somebody: otherwise there is nothing to say.
+            "exclusion": exclusion if excluding else None,
             "eligibility": eligibility,
             "shortfall": shortfall,
             # Not under the key ``completeness``: that key holds a tool token everywhere,
@@ -1047,13 +1137,15 @@ def squad_stress(request: SquadStressRequest) -> Response:
         labels = {slot.slot_id: slot.label for slot in formation.slots}
         names = {int(p["player_id"]): str(p["name"]) for p in snap.candidates}
         below_by_slot = {slot.slot_id: _people(slot.below_gate) for slot in chains.slots}
+        excluded_by_slot = {slot.slot_id: _people(slot.excluded) for slot in chains.slots}
 
         def describe(core: Any) -> dict:
-            return _core(core, names, labels, below_by_slot)
+            return _core(core, names, labels, below_by_slot, excluded_by_slot)
 
         base = certificate.baseline_integer
         levels = [] if base is None else [
-            _level(level, result.table, tuple(base), describe, names)
+            _level(level, result.table, tuple(base), describe, names,
+                   excluding=bool(problem.excludes))
             for level in result.levels
         ]
         single_cores = {} if not result.levels else {
@@ -1149,22 +1241,36 @@ def squad_stress(request: SquadStressRequest) -> Response:
 # ------------------------------------------------------------------------------- brief
 
 
+def _brief_value(result: Any) -> str | None:
+    """The brief's ledger cell in words. An enumeration that did not finish is not a value."""
+    return {
+        "BRIEF": _many(len(result.rows), "minimal row", "minimal rows"),
+        "NO_NEED": "no need: any non-negative rates",
+        "NOT_ADDRESSABLE_AT_SLOT": "not addressable at this slot",
+        "RESIDUAL_UNFIELDABLE": "the other ten slots cannot be filled",
+    }.get(result.status)
+
+
 def _brief_statements(result: Any, slot: Any, labels: Mapping[str, str]) -> tuple[str, str]:
     where, rows = slot.label, len(result.rows)
     fixed = ", ".join(labels[rid] for rid in result.fixed_floor_requirements)
+    one_fixed = len(result.fixed_floor_requirements) == 1
     statement = {
         "BRIEF": (
             f"For every declared minimum to be reachable with an addition at {where}, his "
-            f"rates must meet at least one of these {_many(rows, 'row', 'rows')} on every "
-            "listed requirement. Each row is minimal."
+            "rates must meet "
+            + ("this row on every listed requirement. It is the only minimal row." if rows == 1
+               else f"at least one of these {rows} rows on every listed requirement. Each "
+               "row is minimal.")
         ),
         "NO_NEED": (
             f"With an addition at {where} the minima are reachable whatever non-negative "
             "rates he brings: the other ten already supply them."
         ),
         "NOT_ADDRESSABLE_AT_SLOT": (
-            f"No addition at {where} makes the minima reachable: {fixed} do not apply to "
-            "this slot and the other ten cannot meet them."
+            f"No addition at {where} makes the minima reachable: {fixed} "
+            f"{'does' if one_fixed else 'do'} not apply to this slot and the other ten cannot "
+            f"meet {'it' if one_fixed else 'them'}."
         ),
         "RESIDUAL_UNFIELDABLE": (
             f"The other ten slots cannot be filled. One addition at {where} does not make an "
@@ -1248,7 +1354,7 @@ def squad_brief(request: SquadBriefRequest) -> Response:
         ledger = [planning.ledger_row(
             stage="BRIEF", row_id=f"brief-{slot.slot_id}",
             quantity=f"Minimal requirement rows an addition at {slot.label} must supply",
-            value_text=f"{result.status}; {_many(len(result.rows), 'row', 'rows')}",
+            value_text=_brief_value(result),
             sample=statement, evidence=_composed(problem), solver=solver,
         )]
         if pool_block is not None:

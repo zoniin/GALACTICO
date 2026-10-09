@@ -501,15 +501,18 @@ def test_declarations_that_cannot_be_met_are_unfieldable_with_a_reason_and_never
     assert base.stage_statuses == ("INFEASIBLE", "OPTIMAL", "OPTIMAL") and base.solves == 3
     cases = [
         (dict(locked=(1,), excluded=(1,)), "both locked and excluded"),
-        (dict(excluded=(3,)), "No eligible measured candidate for B (b)."),
-        (dict(pinned={3: "a"}), "Pinned player 3 has no admissible assignment at a."),
-        (dict(pinned={1: "a"}, vacant=("a",)), "Pinned player 1"),
-        (dict(locked=(3,), values={3: {"m": None, "n": 0.2}}), "No eligible measured"),
+        # A reason is read by a person: a slot by its label, a player by his name, no id.
+        (dict(excluded=(3,)), "No eligible measured candidate for B."),
+        (dict(pinned={3: "a"}), "Pinned player three has no admissible assignment at A."),
+        (dict(pinned={1: "a"}, vacant=("a",)), "Pinned player one"),
+        (dict(locked=(3,), values={3: {"m": None, "n": 0.2}}),
+         "Locked player three has no admissible assignment."),
     ]
     for declared, reason in cases:
         value = kernel.value(**declared, deadline=far())
         assert (value.status, value.lineup, value.solves) == ("UNFIELDABLE", (), 0), declared
         assert any(reason in text for text in value.reasons), (declared, value.reasons)
+        assert not any(re.search(r"\d|\([ab]\)", text) for text in value.reasons), value.reasons
         assert kernel.satisfiable(**declared, deadline=far()).status == "UNFIELDABLE"
         assert oracle(players, requirements, formation, scale=100, **declared)["value"] is None
     # Unfieldable by counting, with every slot individually coverable: only a proof finds it.
@@ -719,6 +722,9 @@ def test_an_undecided_solve_never_becomes_a_value_or_a_proof_of_absence(
     # FEASIBLE at the feasibility stages is a real witness claim, so it is forced only where
     # an incumbent is "not a value": the two optimisation stages.
     stages = (2, 3) if forced == cp_model.FEASIBLE else (1, 2, 3)
+    # The two parts of a shortfall are the largest and the sum, in a reason as on a page.
+    named = {1: "The zero-shortfall feasibility solve", 2: "The largest-shortfall solve",
+             3: "The sum-shortfall solve"}
     for on_call in stages:
         with monkeypatch.context() as patch:
             override_status(patch, on_call, forced)
@@ -726,6 +732,7 @@ def test_an_undecided_solve_never_becomes_a_value_or_a_proof_of_absence(
             assert (value.status, value.maximum, value.total, value.lineup) == (
                 expected, None, None, ()), on_call
             assert value.solves == on_call and value.reasons
+            assert value.reasons[-1].startswith(named[on_call]), value.reasons
     if forced == cp_model.FEASIBLE:
         return
     for on_call in (1, 2):

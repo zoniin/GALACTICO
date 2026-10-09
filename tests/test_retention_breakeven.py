@@ -176,7 +176,7 @@ def test_instance_h_the_default_is_lexicographic_and_the_total_alternative_is_no
     assert holds.forced_inclusion_integer == (30, 60)  # (0.30, 0.60) < (0.35, 0.35)
     assert vector.warnings == () and vector.certificate.completeness == "EXACT"
     assert vector.claim == (
-        '"The least declared shortfall (maximum, then total) is strictly lower with him '
+        '"The least declared shortfall (largest, then sum) is strictly lower with him '
         "available\" holds if at least 10% of C's recorded r1, r2 carry over, and fails at 5%. "
         "Both sides were solved exactly.")
 
@@ -197,6 +197,13 @@ def test_instance_h_the_default_is_lexicographic_and_the_total_alternative_is_no
         "at 0.75, 0.80, 0.85. Read the profile, not the single number.",
     )
     assert "it does not hold at every one above" in total.claim
+    # The two parts of a shortfall have one name each in every sentence: largest and sum.
+    assert total.conclusion_sentence == (
+        "The sum part of the least declared shortfall is strictly smaller with him available "
+        "than without him")
+    for sentence in (*retention.CONCLUSION_SENTENCES.values(), retention.NON_MONOTONE_WARNING,
+                     total.claim, vector.claim):
+        assert not re.search(r"(maximum|total)", sentence), sentence
     # AUTO never bisects the non-monotone conclusion, and the oracle agrees with both.
     candidate, squad, requirements = instance_h()
     holds, _, base = grid(candidate, squad, requirements, PAIR, 100, ("r1", "r2"))
@@ -584,7 +591,7 @@ def test_no_sentence_says_every_grid_value_was_solved_unless_every_one_was(monke
         "it fails at 35%. Not every grid value above it was solved; whether it holds at every "
         "one above is not established.")
     assert cut.warnings == (
-        "The total at the least-shortfall optimum can rise when the maximum falls, so this "
+        "The sum at the least-shortfall optimum can rise when the largest falls, so this "
         "conclusion can fail again above its break-even. Not every grid value was solved.",)
     # Decided without any candidate solve: nothing on the grid was solved, and nothing says so.
     strong = [Candidate(1, "Inc", "X", {"r": 1.0}, 900)]

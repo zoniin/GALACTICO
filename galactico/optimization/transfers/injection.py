@@ -102,8 +102,8 @@ OUTCOME_STATEMENTS: Mapping[str, str] = {
         "With him available the least declared shortfall is zero; without him it is not."
     ),
     "LOWERS_SHORTFALL": (
-        "With him available the least declared shortfall (maximum, then total) is lower and "
-        "still above zero. The total alone can be higher."
+        "With him available the least declared shortfall (largest, then sum) is lower and "
+        "still above zero. The sum alone can be higher."
     ),
     "MAKES_FIELDABLE": (
         "Without an addition no XI can be fielded under the declared exclusions and locks; "
@@ -861,7 +861,7 @@ def _number(units: int, scale: int) -> str:
 def _words(pair: Pair | None, status: str, scale: int) -> str:
     if pair is None:
         return "no fieldable XI" if status == "UNFIELDABLE" else "not determined"
-    return f"(maximum {_number(pair[0], scale)}, sum {_number(pair[1], scale)})"
+    return f"(largest {_number(pair[0], scale)}, sum {_number(pair[1], scale)})"
 
 
 def _parent_payload(problem: _Problem, squad_worlds, namespace: str, provenance) -> dict:
@@ -978,17 +978,19 @@ def inject_candidates(
     for row in rows:
         membership_counts[row.membership] += 1
     warnings = _baseline_warnings(problem, baseline)
-    if membership_counts["UNDETERMINED"]:
+    open_rows = membership_counts["UNDETERMINED"]
+    if open_rows:
         warnings.append(
-            f"{membership_counts['UNDETERMINED']} candidates were not resolved within "
+            f"{open_rows} candidate{' was' if open_rows == 1 else 's were'} not resolved within "
             f"{problem.time_limit:g} s. Undetermined is not 'not possible'."
         )
     cut_off = sum(row.resolution == "SOLVED" and _value_left_open(row) for row in rows)
     if cut_off:
         warnings.append(
-            f"{cut_off} forced-inclusion values were not computed within "
-            f"{problem.time_limit:g} s. Whether those candidates are in a least-shortfall XI "
-            "was still proved; no value is implied."
+            f"{cut_off} forced-inclusion value{' was' if cut_off == 1 else 's were'} not "
+            f"computed within {problem.time_limit:g} s. Whether "
+            f"{'that candidate is' if cut_off == 1 else 'those candidates are'} in a "
+            "least-shortfall XI was still proved; no value is implied."
         )
     selection = SELECTION_STATEMENT.format(n=len(pool))
     scale = problem.quantization

@@ -298,9 +298,9 @@ def test_two_disjoint_pairs_tie_for_the_worst_and_both_are_returned():
     assert singles.worst_integer == (0, 0) and len(singles.worst_sets) == 6
     assert singles.positive_change_count == 0 and "No set among the 6 sets" in singles.claim
     # A whole number is printed as one, the way the injection sentences print a pair.
-    assert "raises the least declared shortfall above (maximum 0, total 0); 0 sets" in (
+    assert "raises the least declared shortfall above (largest 0, sum 0); 0 sets" in (
         singles.claim)
-    assert "rises from (maximum 0, total 0) to (maximum 0.4, total 0.4)." in pairs.claim
+    assert "rises from (largest 0, sum 0) to (largest 0.4, sum 0.4)." in pairs.claim
     assert pairs.worst_integer == (40, 40) and pairs.worst_sets == ((1, 2), (3, 4))
     assert pairs.worst_objective == (0.4, 0.4) and pairs.unfieldable_count == 0
     assert "any one of these 2 sets" in pairs.claim and "P1 and P2; P3 and P4" in pairs.claim
@@ -484,6 +484,9 @@ def test_a_forced_undecided_solve_withholds_the_worst_case_and_proves_nothing(mo
         expected = "MODEL_INVALID" if forced == cp_model.MODEL_INVALID else "DEADLINE"
         assert result.certificate.completeness == expected, on_call
         assert result.completeness_statement is None
+        # A warning is read by a person: no status token stands in for a word.
+        assert not any(token in warning for warning in result.warnings
+                       for token in ("UNKNOWN", "MODEL_INVALID", "UNDECIDED")), result.warnings
         if result.certificate.baseline_status != "CERTIFIED":
             assert result.levels == () and result.certificate.baseline_integer is None
             assert result.warnings and result.claim.startswith("Nothing is claimed")

@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ELIGIBILITY_RULESETS",
+    "LEAGUE_LABELS",
     "EXPERIMENTAL_OPT_IN_ERROR",
     "GATE_STATEMENT",
     "LANE_LEFT_BELOW",
@@ -111,6 +112,14 @@ EXPERIMENTAL_OPT_IN_ERROR = "experimental requirements need experimental_opt_in"
 _SHORT_HISTORY = "at least eight prior team matches are required for this research snapshot"
 _METRIC_KINDS = ("SPEC_PER_90", "LANE_COUNT_PER_90", "EXTENSION")
 _ELIGIBILITY_KINDS = ("MANUAL_DECLARED", "PROVIDER_POSITION")
+# What a sentence calls a league. The competition ids stay in every field.
+LEAGUE_LABELS: Mapping[str, str] = MappingProxyType({
+    "Spain": "La Liga",
+    "England": "Premier League",
+    "Italy": "Serie A",
+    "Germany": "Bundesliga",
+    "France": "Ligue 1",
+})
 _MODES = ("BALANCE", "SATISFY")
 _THRESHOLD_SOURCE = "Prior starting-XI median threshold (heuristic). "
 _SIDE_SOURCE = (

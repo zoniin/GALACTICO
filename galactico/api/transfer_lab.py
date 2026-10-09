@@ -48,6 +48,8 @@ __all__ = [
     "CARRY_OVER_STATEMENT",
     "CONCLUSION_IDS",
     "DEFAULT_CONCLUSION",
+    "FACT_WORDS",
+    "LEFT_OUT_LABELS",
     "OUTCOME_LABELS",
     "PREDICTS_NOTHING",
     "UNIVERSE_BUDGET_SECONDS",
@@ -134,7 +136,8 @@ DEFICIENCY_LEADS = (
     {"id": "exclusion", "label": "Declare a departure",
      "sentence": "Exclude a squad player from every solve, then set the problem again."},
     {"id": "explicit-minimum", "label": "Raise a minimum",
-     "sentence": "Enter a minimum above what this squad attains."},
+     "sentence": "Enter a minimum above what the gated squad's XIs sum to under these "
+                 "declarations."},
     {"id": "league-percentile", "label": "Take a league percentile",
      "sentence": "Set the minimum at a percentile of league starting-XI sums."},
 )
@@ -151,6 +154,35 @@ OUTCOME_LABELS: dict[str, str] = {
     "UNDETERMINED": "Not resolved",
 }
 """One label per ``injection.OUTCOME_GROUPS`` token, in that sequence (equal by test)."""
+SINGLE_REQUIREMENT_STATEMENT = (
+    "With one requirement in force ({label}), the forced value of every row, and therefore its "
+    "outcome group, is a function of the one recorded rate printed in that row, a higher "
+    "recorded rate giving a lower declared shortfall or the same one: the groups restate that "
+    "rate under the declared minimum and are not a second piece of evidence about a player."
+)
+"""Said whenever exactly one requirement is in force. With several, no one rate decides a row."""
+LEFT_OUT_LABELS: dict[str, str] = {
+    "LEAGUE_NOT_INCLUDED": "league not included",
+    "OWN_SQUAD": "this club's own squad",
+    "GOALKEEPER": "goalkeepers",
+    "BELOW_900_CURRENT_CLUB": "below 900 minutes at his current club",
+}
+"""One label per ``universe.OMISSION_REASONS`` token, in that sequence (equal by test)."""
+FACT_WORDS: dict[str, str] = {
+    "lane_shares": "lane shares with their completed-pass count",
+    "foot": "foot",
+    "age_years": "age at the cutoff",
+    "provider_position": "provider position",
+    "minutes": "nominal minutes",
+    "matches": "matches",
+    "starts": "starts",
+    "other_stints": "earlier clubs",
+}
+"""What a sentence calls each fact of ``universe.SHOWN_EVIDENCE`` (the same keys, by test)."""
+LANE_STATEMENT = (
+    "The lanes are where his completed passes originated at {club}, which reflects how he was "
+    "deployed."
+)
 RESOLUTION_SENTENCES: dict[str, str | None] = {
     "SOLVED": None,
     "NO_MEASURED_ADMISSIBLE_SLOT":
@@ -279,6 +311,36 @@ def _exact(value: float) -> str:
 
 def _pair(pair: Any) -> list[float] | None:
     return None if pair is None else [float(pair[0]), float(pair[1])]
+
+
+def _lane_text(lanes: Any) -> str | None:
+    """The printed line of a candidate's lane shares: three percentages and the count.
+
+    Each share is printed to one decimal place and rounded on its own, so every printed
+    number is the nearest tenth to its value. Three such numbers can add to 99.9 or 100.1;
+    none is moved to hide that, because a share shifted to make a sum come out is a wrong
+    share. The page prints this line and rounds nothing.
+    """
+    if lanes is None:
+        return None
+    total = lanes.completed_passes
+    left, central, right = (f"{share * 100:.1f}"
+                            for share in (lanes.left, lanes.central, lanes.right))
+    return (f"L {left}% · C {central}% · R {right}% · {total:,} completed "
+            f"{'pass' if total == 1 else 'passes'}")
+
+
+def _facts_evidence_statement(shown: Mapping[str, str]) -> str:
+    """One sentence naming the class of each fact beside a candidate, from the tool's mapping."""
+    by_class: dict[EvidenceClass, list[str]] = {}
+    for fact, name in shown.items():
+        by_class.setdefault(EvidenceClass[name], []).append(FACT_WORDS[fact])
+    parts = []
+    for member in sorted(by_class):
+        *first, last = by_class[member]
+        listed = f"{', '.join(first)} and {last}" if first else last
+        parts.append(f"{listed} {'are' if first else 'is'} {member.label}")
+    return f"Beside each candidate: {'; '.join(parts)}."
 
 
 def _passes(candidate: Any, filters: TransferFilters) -> bool:
@@ -410,7 +472,8 @@ def _deficiency(pool: _Pool, value: Any) -> dict:
         search, search_statement = "EMPTY_POOL", EMPTY_POOL
     problem = pool.problem
     names = _names(pool)
-    declared_by = [{"kind": "EXCLUSION", "label": names[pid]} for pid in problem.excludes]
+    declared_by = [{"kind": "EXCLUSION", "label": f"Excluded: {names[pid]}"}
+                   for pid in problem.excludes]
     declared_by += [
         {"kind": "MINIMUM", "label": f"{row['label']} minimum {_exact(row['minimum'])}"}
         for row in problem.requirement_rows
@@ -440,6 +503,10 @@ def _pool_payload(pool: _Pool, filters: TransferFilters) -> dict:
         "listed_count": len(pool.listed),
         "by_provider_position": by_position,
         "omitted_counts": dict(universe.omitted_counts),
+        "left_out": [
+            {"reason": reason, "label": label, "count": universe.omitted_counts[reason]}
+            for reason, label in LEFT_OUT_LABELS.items()
+        ],
         "filters": filters.model_dump(),
         "filter_statement": _filter_statement(filters),
         "definition": (
@@ -516,11 +583,12 @@ def _baseline_ledger(pool: _Pool, value: Any) -> dict:
 
 
 def _attained_ledger(pool: _Pool, attained: list[dict]) -> list[dict]:
-    """One row per requirement in force: the largest sum this squad's XIs reach."""
+    """One row per requirement in force: the largest sum the gated squad's XIs reach."""
     return [
         planning.ledger_row(
             stage="AUDIT", row_id=f"attained-{row['requirement_id']}",
-            quantity=f"Largest sum of {row['label']} over every XI of the squad as declared",
+            quantity=(f"Largest sum of {row['label']} over every XI of the gated squad as "
+                      "declared"),
             value_text=(None if row["reached_text"] is None
                         else f"{row['reached_text']}; none above {row['ceiling_text']}"),
             sample="Every minimum set aside. Eligibility rules, locks and exclusions kept.",
@@ -561,6 +629,9 @@ def _facts(pool: _Pool, candidate: Any) -> dict:
         "foot": candidate.foot,
         "foot_label": FOOT_LABELS.get(candidate.foot),
         "lane_shares": None if lanes is None else asdict(lanes),
+        "lane_text": _lane_text(lanes),
+        "lane_statement": None if lanes is None
+        else LANE_STATEMENT.format(club=candidate.team_name),
         "other_stints": [
             {"team_name": stint.team_name, "competition": stint.competition,
              "minutes": stint.minutes, "matches": stint.matches}
@@ -796,6 +867,7 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
         keys=planning.order_keys(problem),
     )
     solved = sum(row["injection"]["resolution"] == "SOLVED" for row in rows)
+    in_force = [row["label"] for row in problem.requirement_rows if row["declared"]]
     completeness = (
         result.certificate.completeness if result is not None
         else "EXACT" if value.status in ("CERTIFIED", "UNFIELDABLE") else "DEADLINE"
@@ -842,6 +914,11 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
         membership_counts=None if result is None else dict(result.membership_counts),
         certificate=None if result is None else asdict(result.certificate),
         facts_evidence=dict(pool.universe.provenance["shown_evidence"]),
+        facts_evidence_statement=_facts_evidence_statement(
+            pool.universe.provenance["shown_evidence"]),
+        single_requirement_statement=(
+            SINGLE_REQUIREMENT_STATEMENT.format(label=in_force[0]) if len(in_force) == 1
+            else None),
         model_statement=_model_statement(pool),
         carry_over_statement=CARRY_OVER_STATEMENT,
         list_cannot_say=list(LIST_CANNOT_SAY),
@@ -920,15 +997,22 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
     pair = row.forced_inclusion_objective
     evidence = _evidence(pool)
     solver = _solver(detail.certificate)
+    metrics = {metric.metric_id: metric for metric in snap.metrics}
+    shown = pool.universe.provenance["shown_evidence"]
+    lane_text = _lane_text(candidate.lane_shares)
     ledger = [
         planning.ledger_row(
             stage="CANDIDATE", row_id=f"candidate-{pid}-facts",
-            quantity=f"{candidate.name}: provider position, foot, age at the cutoff, minutes",
-            value_text=f"{candidate.provider_position} · {candidate.minutes} nominal minutes",
+            quantity=(f"{candidate.name}: provider position, foot, age at the cutoff, minutes, "
+                      "lane shares and completed passes"),
+            value_text=(f"{candidate.provider_position} · {candidate.minutes} nominal minutes"
+                        + (f" · {lane_text}" if lane_text else "")),
             sample=f"Recorded at {candidate.team_name}. Shown for you to judge; no role is "
                    "inferred.",
-            evidence=shell.evidence_payload(
-                [("Provider position and nominal minutes", EvidenceClass.DERIVED)]),
+            evidence=shell.evidence_payload([
+                (FACT_WORDS[fact], EvidenceClass[shown[fact]])
+                for fact in ("provider_position", "foot", "age_years", "minutes", "lane_shares")
+            ]),
         ),
         *(
             planning.ledger_row(
@@ -937,8 +1021,10 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
                 value_text=(None if row.requirement_values.get(r["requirement_id"]) is None
                             else f"{row.requirement_values[r['requirement_id']]:.3f}"),
                 sample=RECORDED_AT.format(club=candidate.team_name, minutes=candidate.minutes),
+                # The class of the recorded rate, as on the squad's own row. The carry-over
+                # assumption enters with the injected result below, not here.
                 evidence=shell.evidence_payload(
-                    [(r["label"], EvidenceClass[r["evidence_class"]])]),
+                    [(r["label"], planning.rate_class(metrics[r["metric"]]))]),
                 verdict=shell.verdict_payload("E-12", r["metric"]),
             )
             for r in problem.requirement_rows if r["declared"]
@@ -995,6 +1081,8 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
             else tuple(v / detail.certificate.quantization
                        for v in detail.certificate.baseline_integer)),
         certificate=asdict(detail.certificate),
+        facts_evidence=dict(shown),
+        facts_evidence_statement=_facts_evidence_statement(shown),
         model_statement=_model_statement(pool),
         carry_over_statement=CARRY_OVER_STATEMENT,
     )

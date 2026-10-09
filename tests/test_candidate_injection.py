@@ -12,6 +12,7 @@ import dataclasses
 import itertools
 import math
 import random
+import re
 from dataclasses import asdict, replace
 from fractions import Fraction
 
@@ -470,8 +471,8 @@ def test_boundary_cases_state_the_exact_category_and_the_signed_change():
         "With New available, these players are in a least-shortfall XI without him and in "
         "none with him: Ann.")
     assert detail.claim == (
-        "With New placed at One, the least declared shortfall is (maximum 0.29, sum 0.29); "
-        "without him it is (maximum 0.3, sum 0.3). In the squad plus him he is in every "
+        "With New placed at One, the least declared shortfall is (largest 0.29, sum 0.29); "
+        "without him it is (largest 0.3, sum 0.3). In the squad plus him he is in every "
         "least-shortfall XI.")
     # (3) an unavailable rate on an applicable requirement: not placed, not imputed, no solve.
     row, result = only_row(newcomer(None), squad, one_need())
@@ -540,7 +541,11 @@ def test_a_lower_maximum_can_come_with_a_higher_sum_and_the_row_says_both():
     for candidate in (strong, partial):
         fact = truth(squad, candidate, requirements, PAIR, 100, "s1")
         assert rows[candidate.player_id].with_candidate_integer == fact["after"]
-    assert "The total alone can be higher" in result.groups[0].statement
+    assert result.groups[0].statement == (
+        "With him available the least declared shortfall (largest, then sum) is lower and "
+        "still above zero. The sum alone can be higher.")
+    for sentence in (*injection.OUTCOME_STATEMENTS.values(), result.claim, result.non_claim):
+        assert not re.search(r"(maximum|total)", sentence), sentence
 
 
 # ------------------------------------------------------------------ J6: ordering
@@ -743,7 +748,7 @@ def test_an_undecided_solve_is_undetermined_and_never_not_possible(monkeypatch):
         assert result.certificate.completeness == "DEADLINE"
         assert result.membership_counts["UNDETERMINED"] == 1
         assert result.warnings == (
-            "1 candidates were not resolved within 60 s. Undetermined is not 'not possible'.",)
+            "1 candidate was not resolved within 60 s. Undetermined is not 'not possible'.",)
     # An unproven baseline decides nothing for anyone who could be placed.
     with monkeypatch.context() as patch:
         override_status(patch, 2, cp_model.UNKNOWN)
@@ -869,8 +874,8 @@ def test_a_forced_value_the_deadline_cut_off_is_not_certified_as_complete(monkey
     assert result.certificate.completeness == "DEADLINE"
     assert result.warnings == (
         SATURATED_WARNING,
-        "1 forced-inclusion values were not computed within 60 s. Whether those candidates are "
-        "in a least-shortfall XI was still proved; no value is implied.",
+        "1 forced-inclusion value was not computed within 60 s. Whether that candidate is in "
+        "a least-shortfall XI was still proved; no value is implied.",
     )
     with monkeypatch.context() as patch:
         override_status(patch, 3, cp_model.UNKNOWN)
@@ -1005,12 +1010,12 @@ def test_sentences_print_the_certified_integers_exactly_and_name_an_unplaceable_
     options = dict(slot_id="s1", quantization=10**7)
     result = inject_candidates([newcomer(0.1)], squad, one_need(), PAIR, **options)
     assert result.certificate.baseline_integer == (4765433, 4765433)
-    assert "(maximum 0.4765433, sum 0.4765433)" in result.claim
+    assert "(largest 0.4765433, sum 0.4765433)" in result.claim
     detail = injection_detail(newcomer(0.2234567), squad, one_need(), PAIR, **options)
     assert detail.row.forced_inclusion_integer == (3765433, 3765433)
     assert detail.claim.startswith(
-        "With New placed at One, the least declared shortfall is (maximum 0.3765433, sum "
-        "0.3765433); without him it is (maximum 0.4765433, sum 0.4765433).")
+        "With New placed at One, the least declared shortfall is (largest 0.3765433, sum "
+        "0.3765433); without him it is (largest 0.4765433, sum 0.4765433).")
     # A candidate the model cannot place has no forced value by proof, not by a deadline.
     detail = detail_of(newcomer(None), pair_squad(), one_need())
     assert (detail.row.outcome, detail.certificate.completeness, detail.warnings) == (
@@ -1018,5 +1023,5 @@ def test_sentences_print_the_certified_integers_exactly_and_name_an_unplaceable_
     assert "not determined" not in detail.claim
     assert detail.claim == (
         "With New placed at One, the least declared shortfall is not defined (the model cannot "
-        "place him at this slot); without him it is (maximum 0.3, sum 0.3). In the squad plus "
+        "place him at this slot); without him it is (largest 0.3, sum 0.3). In the squad plus "
         "him he is in no least-shortfall XI.")

@@ -250,7 +250,7 @@ def _number(value: float) -> str:
 
 def _phrase(integers: Pair, quantization: int) -> str:
     maximum, total = _floats(integers, quantization)
-    return f"(maximum {_number(maximum)}, total {_number(total)})"
+    return f"(largest {_number(maximum)}, sum {_number(total)})"
 
 
 def _level_claim(
@@ -558,7 +558,9 @@ def absence_stress(
             )
         )
     if model_invalid and baseline is not None:
-        warnings.append("The solver rejected a model; the affected sets are reported as UNKNOWN.")
+        warnings.append(
+            "The solver rejected a model; the affected sets are reported as not resolved."
+        )
     if any(level.unfieldable_count for level in levels):
         warnings.append(
             "Sets that leave no fieldable XI reflect the evidence gate and the eligibility "

@@ -20,6 +20,7 @@ import pytest
 
 from galactico.api import planning, runtime, shell, squad_lab
 from galactico.optimization import historical, reference, snapshots
+from galactico.optimization.xi.domain import FORMATIONS
 
 # The synthetic squad, restated: provider position, reviewed roles, progression per 90.
 ROLE_SLOTS = {"gk": ("gk",), "lb": ("lb",), "cb": ("lcb", "rcb"), "rb": ("rb",), "dm": ("dm",),
@@ -220,6 +221,17 @@ def test_snapshot_lists_the_evidence_set_once_by_name_with_every_order_as_data(c
     assert by_id[3322]["state"] == "EXCLUDED" and by_id[7]["state"] == "AVAILABLE"
     assert [s["slot_id"] for s in by_id[3563]["eligible_slots"]] == ["lcm", "rcm"]
     assert all("values" not in p for p in squad)
+    # The declared roles in words, in the order of the ids beside them.
+    assert (by_id[3563]["role_rules"], by_id[3563]["role_labels"]) \
+        == (["am", "cm"], ["Attacking midfield", "Central midfield"])
+    assert by_id[1]["role_labels"] == ["Goalkeeper"]
+    assert all(len(p["role_labels"]) == len(p["role_rules"]) for p in squad)
+    # A sentence names the rule set's status in words, never by its token.
+    version = historical.ELIGIBILITY_VERSION
+    assert payload["claim"] == (
+        "This is the squad of Real Madrid as the public record shows it before 2018-05-21: who "
+        f"played, for how long, at which rates, under eligibility rule set {version} (declared "
+        "by hand).")
     listings = payload["listings"]
     assert [k["order_key"] for k in listings["keys"]] == [
         "name", "minutes", "age", "requirement_value:progression"]
@@ -227,6 +239,60 @@ def test_snapshot_lists_the_evidence_set_once_by_name_with_every_order_as_data(c
     assert [g["outcome"] for g in by_rate] == ["GK", "DF", "MF", "FW"]
     assert by_rate[2]["tie_groups"][0] == {"key_value": 4.0, "key_label": "4.000",
                                            "player_ids": [7, 8]}
+
+
+def test_every_declared_role_has_a_name_in_words_tied_to_the_slot_it_fills():
+    slot_labels = {slot.slot_id: slot.label for formation in FORMATIONS.values()
+                   for slot in formation.slots}
+    for rules in snapshots.ELIGIBILITY_RULESETS.values():
+        assert set(squad_lab.ROLE_LABELS) == set(rules.role_slots)
+        assert rules.review_status in planning.REVIEW_STATUS_LABELS
+        assert rules.kind in planning.ELIGIBILITY_KIND_LABELS
+        for role, slot_ids in rules.role_slots.items():
+            if len(slot_ids) == 1:  # a role of one slot is called what the slot is called
+                assert squad_lab.ROLE_LABELS[role] == slot_labels[slot_ids[0]]
+    assert shell.scan_labels(dict(squad_lab.ROLE_LABELS)) == []
+
+
+def _spare(group, excluded=()) -> tuple[int, int, int]:
+    """Players beyond the slots of a slot group at the three stages a page prints, by counting:
+    the squad as declared, after the gate with nobody excluded, under the rules before the gate."""
+    gated = {pid for pid, (position, roles, _) in SQUAD.items()
+             if any(_admits(position, roles, slot) for slot in group)}
+    below = {pid for pid, (position, roles) in BELOW_GATE.items()
+             if any(_admits(position, roles, slot) for slot in group)}
+    return (len(gated - set(excluded)) - len(group), len(gated) - len(group),
+            len(gated | below) - len(group))
+
+
+def test_a_tight_group_says_its_spare_at_each_stage_under_the_meaning_of_that_stage(client):
+    # Without 3563 eleven players are left for eleven slots: the whole XI is the tight group,
+    # he is the one player an exclusion took and abel and Zed the two the gate took.
+    payload = _post(client, "depth", excludes=[3563]).json()
+    (group,) = payload["tight_groups"]
+    assert group["slot_ids"] == list(SLOTS)
+    assert _spare(group["slot_ids"], excluded=(3563,)) == (0, 1, 3)
+    assert group["spare_statement"] == (
+        f"Spare at {', '.join(group['slot_labels'])}, eligible players beyond the number of "
+        "slots: 0 with the squad as declared, exclusions applied; 1 after the evidence gate "
+        "with nobody excluded; 3 under the eligibility rules before the gate.")
+    assert [p["name"] for p in group["restored_by_gate"]] == ["abel", "Zed"]
+    # Every group of every request, a negative spare included, against the same counting.
+    seen = set()
+    for excluded in ((), (3322,), (3563,), (7,)):
+        for group in _post(client, "depth", excludes=list(excluded)).json()["tight_groups"]:
+            declared, gated, eligible = _spare(group["slot_ids"], excluded)
+            assert group["spare_statement"].endswith(
+                f"slots: {declared} with the squad as declared, exclusions applied; {gated} "
+                f"after the evidence gate with nobody excluded; {eligible} under the "
+                "eligibility rules before the gate."), (excluded, group["spare_statement"])
+            assert group["spare_statement"].startswith(
+                f"Spare at {', '.join(group['slot_labels'])}, ")
+            stages = group["spare_by_stage"]
+            assert (stages["available"], stages["gated"], stages["rule_eligible"]) \
+                == (declared, gated, eligible)
+            seen.add((declared, gated, eligible))
+    assert len(seen) >= 3 and min(declared for declared, _, _ in seen) < 0
 
 
 def test_depth_names_who_each_stage_dropped_and_keeps_three_kinds_of_thinness_apart(client):
@@ -265,6 +331,21 @@ def test_depth_names_who_each_stage_dropped_and_keeps_three_kinds_of_thinness_ap
             ("Zed", ["Left midfield", "Right midfield"])]
     assert payload["player_counts"] == {"available": 12, "below_gate": 2, "excluded": 0}
     assert payload["model_statement"] == squad_lab.MODEL_STATEMENT
+    assert eligibility["statement"].startswith(
+        f"Eligibility rules ({historical.ELIGIBILITY_VERSION}, declared by hand). ")
+    rules = next(row for row in payload["ledger"] if row["row_id"] == "eligibility-rules")
+    assert rules["value_text"] \
+        == f"{historical.ELIGIBILITY_VERSION} (manual rules, declared by hand)"
+    # The placements row says what its second number is: solves, which equal slots share.
+    # Nothing is left for a reader to subtract.
+    shared = {frozenset(p["player_id"] for p in slot["available"]) for slot in slots.values()}
+    assert sum(len(members) for members in shared) == 14
+    placements = next(row for row in payload["ledger"] if row["row_id"] == "audit-placements")
+    assert placements["value_text"] == "2 of 19"
+    assert placements["sample"] == (
+        "14 exact solves decided all 19 placements, equivalent slots sharing a solve; not "
+        "evaluated: 0.")
+    assert payload["certificate"]["pinned_solved"] == 14
 
 
 def test_stress_agrees_with_the_oracle_and_attributes_by_counting(client):
@@ -301,11 +382,64 @@ def test_stress_agrees_with_the_oracle_and_attributes_by_counting(client):
             assert {p["player_id"] for p in core["covered_by_below_gate"]} == below
             assert core["attribution"] == (
                 "GATE" if len(remaining) + len(below) >= len(group) else "ELIGIBILITY")
+            assert core["attribution_label"] == {
+                "GATE": "the evidence gate", "ELIGIBILITY": "the eligibility rules",
+            }[core["attribution"]]
             seen.add(core["attribution"])
     assert seen == {"GATE", "ELIGIBILITY"}
+    cores = [row["core"] for row in payload["single_absences"] if row["core"]]
+    assert len(cores) == 9 and all(core["attribution_label"] for core in cores)
     assert sorted(c["player_ids"] for c in two["minimal_unfieldable"]["listed"]) == [
         [7, 8], [7, 3563], [8, 3563]]
     assert payload["model_statement"] == squad_lab.MODEL_STATEMENT
+
+
+def test_an_absence_set_is_attributed_to_your_exclusion_when_that_is_what_leaves_no_xi(client):
+    # The attribution rule itself, on the four cases. Two slots, one player left.
+    labels = {"lcm": "Left midfield", "rcm": "Right midfield"}
+    names = {7: "P7", 8: "P8", 3563: "P3563"}
+    below = [{"player_id": 91, "name": "Zed", "minutes": 400}]
+    out = [{"player_id": 3563, "name": "P3563", "minutes": 1000}]
+    core = SimpleNamespace(player_ids=(7,), blocking_slot_ids=("lcm", "rcm"),
+                           remaining_ids=(8,))
+
+    def attributed(below_gate, excluded):
+        made = squad_lab._core(core, names, labels, {"lcm": below_gate, "rcm": below_gate},
+                               {"lcm": excluded, "rcm": excluded})
+        assert shell.scan_labels(made) == []
+        return made
+
+    gate_only = attributed(below, [])
+    assert (gate_only["attribution"], gate_only["exclusion_alone_restores"]) == ("GATE", False)
+    assert gate_only["covered_by_exclusion"] == []
+    # Below-gate cover is enough, and so is the player the user excluded: both are said.
+    either = attributed(below, out)
+    assert (either["attribution"], either["exclusion_alone_restores"]) == ("GATE", True)
+    assert [p["player_id"] for p in either["covered_by_exclusion"]] == [3563]
+    assert "P3563" in either["statement"] and "you excluded" in either["statement"]
+    # Nobody below the gate: only the user's own exclusion leaves the group short. It was
+    # called "the eligibility rules ... with every squad player counted" before.
+    yours = attributed([], out)
+    assert (yours["attribution"], yours["attribution_label"]) == ("EXCLUSION", "your exclusion")
+    assert yours["exclusion_alone_restores"] is True
+    assert "every squad player counted" not in yours["statement"]
+    # Short even with everyone counted, the excluded included.
+    lone = SimpleNamespace(player_ids=(7, 8), blocking_slot_ids=("lcm", "rcm"), remaining_ids=())
+    rules = squad_lab._core(lone, names, labels, {}, {"lcm": out, "rcm": out})
+    assert (rules["attribution"], rules["exclusion_alone_restores"]) == ("ELIGIBILITY", False)
+    assert "your exclusions included" in rules["statement"]
+
+    # Through the route: with 3563 excluded, the absence of 7 leaves one midfielder for two
+    # slots. Zed, below the gate, would cover; so would the player the user excluded.
+    reply = _post(client, "stress", excludes=[3563]).json()
+    (level,) = [lv for lv in reply["levels"] if lv["k"] == 1]
+    seven = next(c for c in level["minimal_unfieldable"]["listed"] if c["player_ids"] == [7])
+    assert (seven["attribution"], seven["exclusion_alone_restores"]) == ("GATE", True)
+    assert [p["player_id"] for p in seven["covered_by_exclusion"]] == [3563]
+    assert "exclusion" in level["statements"] and level["statements"]["exclusion"]
+    # No exclusion declared: the sentence about exclusions is not sent at all.
+    plain = _post(client, "stress").json()
+    assert all(lv["statements"]["exclusion"] is None for lv in plain["levels"])
 
 
 def test_three_absences_need_an_explicit_confirmation(client):
@@ -502,8 +636,45 @@ def test_brief_is_refused_for_the_goalkeeper_and_counts_the_pool_by_exact_solves
     assert payload["pool"]["universe_size"] == 3
     assert payload["transfer_url"] == "/transfer?scenario=madrid-planning-2018-05-21&slot=st"
     assert squad_lab.BRIEF_NON_CLAIM in payload["claim"]
+    assert brief["statement"] == (
+        "For every declared minimum to be reachable with an addition at Centre forward, his "
+        "rates must meet this row on every listed requirement. It is the only minimal row.")
+    cells = {row["row_id"]: row["value_text"] for row in payload["ledger"]}
+    assert cells["brief-st"] == "1 minimal row"
     uncounted = _post(client, "brief", count_pool=False).json()
     assert uncounted["pool"] is None and uncounted["brief"]["count"] is None
+
+
+def test_the_brief_statement_agrees_in_number_with_what_it_counts():
+    slot = SimpleNamespace(label="Left forward")
+    labels = {"progression": "Alpha per 90", "left_pass_origins": "Beta per 90"}
+
+    def said(status, rows=0, fixed=()) -> str:
+        result = SimpleNamespace(status=status, rows=(None,) * rows,
+                                 fixed_floor_requirements=fixed,
+                                 squad_satisfiable_without_addition="NOT_SATISFIABLE")
+        return squad_lab._brief_statements(result, slot, labels)[0]
+
+    assert "must meet this row on every listed requirement. It is the only minimal row." \
+        in said("BRIEF", rows=1)
+    assert "must meet at least one of these 2 rows on every listed requirement. Each row is " \
+        "minimal." in said("BRIEF", rows=2)
+    assert said("NOT_ADDRESSABLE_AT_SLOT", fixed=("progression",)).endswith(
+        "Alpha per 90 does not apply to this slot and the other ten cannot meet it.")
+    assert said("NOT_ADDRESSABLE_AT_SLOT", fixed=("progression", "left_pass_origins")).endswith(
+        "Alpha per 90, Beta per 90 do not apply to this slot and the other ten cannot meet "
+        "them.")
+    assert said("INCOMPLETE", rows=1).startswith("1 minimal row found; ")
+
+    # The ledger cell is in words, and an enumeration that did not finish is not a value.
+    def value(status, rows=0):
+        return squad_lab._brief_value(SimpleNamespace(status=status, rows=(None,) * rows))
+
+    assert [value("BRIEF", 1), value("BRIEF", 8)] == ["1 minimal row", "8 minimal rows"]
+    assert value("NO_NEED", 1) == "no need: any non-negative rates"
+    assert value("NOT_ADDRESSABLE_AT_SLOT") == "not addressable at this slot"
+    assert value("RESIDUAL_UNFIELDABLE") == "the other ten slots cannot be filled"
+    assert [value("INCOMPLETE", 2), value("MODEL_INVALID")] == [None, None]
 
 
 def test_brief_without_the_other_leagues_is_served_without_a_pool_and_not_cached(
@@ -534,6 +705,8 @@ def test_reference_carries_the_distribution_and_the_declared_percentile_minimum(
                  "percentile": 75}]
     row = _post(client, "reference", requirements=declared).json()["distributions"][0]
     assert row["declared"]["minimum"] == 13.5 and row["declared"]["percentile"] == 75
+    assert (row["declared"]["origin"], row["declared"]["origin_label"]) \
+        == ("POLICY", "League percentile you chose")
     assert [(p["percentile"], p["value"], p["club_units_at_or_below"])
             for p in row["percentiles"]] == [(10, 9.0, 0), (25, 10.0, 2), (50, 11.0, 9),
                                              (75, 13.5, 30), (90, 15.0, 36)]
@@ -556,6 +729,9 @@ def test_no_fieldable_xi_is_a_200_about_the_gated_model(client):
     assert requirement["placements"] is None and requirement["unfieldable_if_pinned"] is None
     assert "no XI can be fielded" in requirement["statement"]
     assert payload["placement_note"].startswith("No placement was evaluated")
+    ledger = {row["row_id"]: row for row in payload["ledger"]}
+    assert (ledger["audit-placements"]["value_text"], ledger["audit-placements"]["sample"]) \
+        == (None, "No placement was evaluated.")
     stress = _post(client, "stress", excludes=[2]).json()
     assert stress["levels"] == [] and stress["single_absences"] == []
     assert stress["claim"] == "No XI can be fielded in this model before any absence."
@@ -614,6 +790,10 @@ def test_a_depth_deadline_is_incomplete_uncached_and_never_a_count_of_zero(clien
     assert payload["placement_note"].startswith("No placement was evaluated")
     values = {row["row_id"]: row["value_text"] for row in payload["ledger"]}
     assert values["audit-shortfall"] is None and values["audit-placements"] is None
+    samples = {row["row_id"]: row["sample"] for row in payload["ledger"]}
+    assert samples["audit-placements"] == (
+        "0 exact solves decided 0 of 19 placements, equivalent slots sharing a solve; not "
+        "evaluated: 19.")
     assert shell.scan_labels(payload) == []
 
     # The squad is certified and some placements are not: the count is of those decided.
@@ -632,6 +812,9 @@ def test_a_depth_deadline_is_incomplete_uncached_and_never_a_count_of_zero(clien
     assert payload["placement_note"].startswith("11 of 19 placements were not evaluated")
     assert {row["row_id"]: row["value_text"] for row in payload["ledger"]}[
         "audit-placements"] is None
+    sample = {row["row_id"]: row["sample"] for row in payload["ledger"]}["audit-placements"]
+    assert " decided 8 of 19 placements, equivalent slots sharing a solve; not evaluated: " \
+        "11." in sample
     assert shell.scan_labels(payload) == []
 
 
@@ -733,3 +916,23 @@ def test_flagship_on_the_real_corpus(corpus_root, lab_client):
     for payload in (depth, stress, brief, snapshot, reference_reply):
         assert shell.scan_labels(payload) == []
         assert payload["provenance"]["providers"] == ["pappalardo"]
+    # With Cristiano Ronaldo excluded the centre forward group is the tight one: G. Bale and
+    # K. Benzema for one slot, Ronaldo back when nobody is excluded, Borja Mayoral below the gate.
+    declared = client.post("/api/squad/depth", json=departure).json()
+    forward = next(g for g in declared["tight_groups"] if g["slot_ids"] == ["st"])
+    assert forward["spare_statement"] == (
+        "Spare at Centre forward, eligible players beyond the number of slots: 1 with the squad "
+        "as declared, exclusions applied; 2 after the evidence gate with nobody excluded; 3 "
+        "under the eligibility rules before the gate.")
+    assert [p["name"] for p in forward["available"]] == ["G. Bale", "K. Benzema"]
+    assert [p["name"] for p in forward["restored_by_gate"]] == ["Borja Mayoral"]
+    ledger = {row["row_id"]: row for row in declared["ledger"]}
+    assert ledger["audit-placements"]["value_text"] == "17 of 36"
+    assert ledger["audit-placements"]["sample"] == (
+        "28 exact solves decided all 36 placements, equivalent slots sharing a solve; not "
+        "evaluated: 0.")
+    nacho = next(p for p in snapshot["squad"] if p["player_id"] == 3304)
+    assert (nacho["role_rules"], nacho["role_labels"]) \
+        == (["cb", "lb", "rb"], ["Centre back", "Left back", "Right back"])
+    assert {c["attribution_label"] for c in pairs["minimal_unfieldable"]["listed"]} \
+        == {"the evidence gate"}
