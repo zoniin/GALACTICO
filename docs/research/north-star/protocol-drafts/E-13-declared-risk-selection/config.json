@@ -1,0 +1,261 @@
+{
+  "version": "declared-risk-selection-v1",
+  "experiment_id": "E-13",
+  "tier": "PUBLIC",
+  "experiment_directory": "experiments/preregistered/E-13-declared-risk-selection",
+
+  "quantization": 100000,
+  "rules": ["BALANCE", "WORST_WORLD", "TAIL_10", "TAIL_25", "TAIL_50", "MINIMAX_REGRET"],
+  "modes": ["WORST_WORLD", "TAIL_10", "TAIL_25", "TAIL_50", "MINIMAX_REGRET"],
+  "reference_arms": ["BALANCE_FIRST", "ORACLE_SHRINKAGE", "RANDOM_SET"],
+  "world_tiers": [12, 40, 200],
+  "decision_tiers": [12, 40],
+  "tail_counts": [
+    {"worlds": 12, "WORST_WORLD": 1, "TAIL_10": 2, "TAIL_25": 3, "TAIL_50": 6},
+    {"worlds": 40, "WORST_WORLD": 1, "TAIL_10": 4, "TAIL_25": 10, "TAIL_50": 20},
+    {"worlds": 200, "WORST_WORLD": 1, "TAIL_10": 20, "TAIL_25": 50, "TAIL_50": 100}
+  ],
+  "subject_arms": {
+    "risk_rule:WORST_WORLD": ["WORST_WORLD"],
+    "risk_rule:TAIL": ["TAIL_10", "TAIL_25", "TAIL_50"],
+    "risk_rule:MINIMAX_REGRET": ["MINIMAX_REGRET"],
+    "risk_report:WORST_WORLD": ["WORST_WORLD"],
+    "risk_report:TAIL": ["TAIL_10", "TAIL_25", "TAIL_50"],
+    "split_sample_diagnostic": ["BALANCE"]
+  },
+
+  "seed": 20261009,
+  "bootstrap_seed": 20261010,
+  "rehearsal_seed": 20261011,
+  "stream_latent": 0,
+  "stream_match_uniforms": 1,
+  "stream_count_permutation": 2,
+  "stream_shared_effect": 3,
+  "stream_idiosyncratic": 4,
+  "stream_world_counts": 5,
+  "stream_split_halves": 6,
+  "stream_half_a_world_counts": 7,
+  "stream_half_b_world_counts": 8,
+  "stream_planted_coins": 9,
+  "real_split_stream_offset": 1000,
+  "real_world_stream_offset": 2000,
+  "structure_check_stream_offset": 3000,
+  "alternating_split_index": 100000,
+  "chronological_split_index": 100001,
+
+  "synthetic_matches": 34,
+  "latent_mean": 1.8,
+  "latent_sd": 0.3,
+  "geometries": [
+    {
+      "geometry_id": "M05_8C3",
+      "groups": [[8, 3]],
+      "requirements": 2,
+      "trials": 4000,
+      "normalizer": 6.2,
+      "minimum_levels": [
+        {"level": "MEAN", "minimum": 5.4},
+        {"level": "M05", "minimum": 6.2},
+        {"level": "HIGH", "minimum": 7.0}
+      ],
+      "exposure_counts": [
+        {"profile": "GATED_SQUAD", "counts": [23, 23, 24, 24, 25, 26, 28, 29]},
+        {"profile": "WIDE", "counts": [10, 13, 17, 20, 24, 27, 31, 34]},
+        {"profile": "WIDE_ALIGNED", "counts": [10, 13, 17, 20, 24, 27, 31, 34]},
+        {"profile": "FULL", "counts": [34, 34, 34, 34, 34, 34, 34, 34]}
+      ]
+    },
+    {
+      "geometry_id": "GROUPED_14C10",
+      "groups": [[5, 4], [5, 3], [4, 3]],
+      "requirements": 3,
+      "trials": 2000,
+      "normalizer": 19.46,
+      "minimum_levels": [
+        {"level": "MEAN", "minimum": 18.0},
+        {"level": "M05", "minimum": 19.46},
+        {"level": "HIGH", "minimum": 20.92}
+      ],
+      "exposure_counts": [
+        {"profile": "GATED_SQUAD", "counts": [23, 23, 23, 23, 24, 24, 24, 25, 25, 26, 28, 28, 28, 29]},
+        {"profile": "WIDE", "counts": [10, 12, 14, 16, 17, 19, 21, 23, 25, 27, 28, 30, 32, 34]},
+        {"profile": "WIDE_ALIGNED", "counts": [10, 12, 14, 16, 17, 19, 21, 23, 25, 27, 28, 30, 32, 34]},
+        {"profile": "FULL", "counts": [34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34]}
+      ]
+    }
+  ],
+  "primary_noise_sd": [0.1, 0.2, 0.3],
+  "stress_noise_sd": [0.6],
+  "primary_exposure_profiles": ["GATED_SQUAD", "WIDE"],
+  "base_shared_fraction": 0.5,
+  "sensitivity_worlds": 40,
+  "sensitivity_variants": [
+    {"variant": "SHARED_0", "shared_fraction": 0.0, "exposure_profiles": ["GATED_SQUAD", "WIDE"]},
+    {"variant": "EXPOSURE_FULL", "shared_fraction": 0.5, "exposure_profiles": ["FULL"]},
+    {"variant": "EXPOSURE_WIDE_ALIGNED", "shared_fraction": 0.5, "exposure_profiles": ["WIDE_ALIGNED"]}
+  ],
+  "split_exposure_profile": "GATED_SQUAD",
+  "expected_primary_cells_per_tier": 36,
+  "expected_sensitivity_cells": 72,
+  "expected_stress_cells": 12,
+  "expected_split_cells_per_tier": 18,
+
+  "bootstrap_replicates": 2000,
+  "interval_quantiles": [0.025, 0.975],
+  "true_shortfall_margin": 0.005,
+  "minimum_informative_trials": 200,
+  "minimum_compared_cell_fraction": [2, 3],
+  "maximum_discarded_world_trial_share": 0.05,
+  "diagnostic_minimum_agreeing_fraction": [2, 3],
+  "diagnostic_minimum_resolved_fraction": [2, 3],
+  "diagnostic_recovery_tolerance": 0.25,
+
+  "provider": "pappalardo",
+  "league_list": ["Spain"],
+  "team_id": 675,
+  "formation": "4-3-3",
+  "snapshots": [
+    {"scenario_id": "madrid-2018-05-06", "match_id": 2565907, "expected_prior_team_matches": 34},
+    {"scenario_id": "madrid-2018-04-08", "match_id": 2565852, "expected_prior_team_matches": 30}
+  ],
+  "expected_candidates": 16,
+  "expected_feasible_assignments": 5200,
+  "expected_player_sets": 480,
+  "expected_active_requirements": ["left_pass_origins", "progression", "right_pass_origins"],
+  "split_families": ["RANDOM", "ALTERNATING", "CHRONOLOGICAL"],
+  "product_split_rule": "ALTERNATING",
+  "random_splits": 250,
+  "requirement_multipliers": [1.0, 1.15, 1.3, 1.45],
+  "minimum_used_world_share": 0.9,
+  "minimum_used_directions": 450,
+  "minimum_informative_directions": 100,
+  "heldout_shortfall_margin": 0.005,
+  "minimum_direction_share": 0.6,
+  "split_quantiles": [0.025, 0.5, 0.975],
+
+  "risk_solver_module": "galactico.optimization.xi.risk",
+  "risk_solver_oracle_tests": ["tests/test_xi_risk_oracle.py"],
+  "solver_audit_random_splits": [0, 1, 2],
+  "solver_audit_include_alternating": true,
+  "solver_audit_multipliers": [1.0, 1.3],
+  "solver_audit_worlds": [12],
+  "solver_time_limit": 120,
+  "solver_seed": 20260906,
+
+  "bridge_seed": 20260906,
+  "bridge_trials": 4000,
+  "bridge_noise_sd": [0.1, 0.3, 0.6],
+  "bridge_tolerance": 0.0005,
+
+  "planted_probability": 0.5,
+  "planted_geometry": "M05_8C3",
+  "planted_worlds": 40,
+  "planted_trials": 2000,
+  "planted_seeds": 10,
+  "planted_minimum_correct": 10,
+  "planted_magnitude_standard_errors": 4,
+  "planted_cost_margin_multiple": 3,
+  "planted_array_seeds": 400,
+  "planted_array_trials": 4000,
+  "planted_array_sd": 0.05,
+  "planted_array_effect": -0.004,
+  "planted_array_minimum_recovered": 380,
+  "planted_array_maximum_false_positive": 20,
+  "planted_split_corpora": 10,
+  "planted_split_minimum_correct": 10,
+  "planted_split_noise_sd": 0.6,
+  "planted_split_random_splits": 100,
+
+  "rehearsal_trial_divisor": 4,
+  "rehearsal_random_splits": 20,
+  "rehearsal_synthetic_corpus_noise_sd": 0.3,
+
+  "float_decimals": 6,
+  "results_maximum_bytes": 480000,
+  "determinism_excluded_keys": ["part_b.solver_audit"],
+
+  "verdict_vocabulary": {
+    "risk_rule:WORST_WORLD": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT"],
+    "risk_rule:TAIL": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT"],
+    "risk_rule:MINIMAX_REGRET": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT"],
+    "risk_report:WORST_WORLD": ["INCONCLUSIVE", "NOT_ESTABLISHED", "OWN_STATISTIC_NOT_OPTIMISTIC"],
+    "risk_report:TAIL": ["INCONCLUSIVE", "NOT_ESTABLISHED", "OWN_STATISTIC_NOT_OPTIMISTIC"],
+    "split_sample_diagnostic": ["INCONCLUSIVE", "NOT_ESTABLISHED", "RECOVERS_SUM_GAP"]
+  },
+  "product_consequences": {
+    "risk_rule": {
+      "PENDING": "NOT_RUN",
+      "INCONCLUSIVE": "RISK_GATE_FAILED",
+      "NOT_ESTABLISHED": "RISK_DECLARED_PREFERENCE_ONLY",
+      "COSTS_SHORTFALL": "RISK_COST_RECORDED",
+      "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC": "RISK_LESS_OPTIMISTIC_SYNTHETIC",
+      "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT": "RISK_LESS_OPTIMISTIC_SYNTHETIC_AND_SPLIT"
+    },
+    "risk_report": {
+      "PENDING": "NOT_RUN",
+      "INCONCLUSIVE": "RISK_REPORT_UNESTABLISHED",
+      "NOT_ESTABLISHED": "RISK_REPORT_UNESTABLISHED",
+      "OWN_STATISTIC_NOT_OPTIMISTIC": "RISK_REPORT_NOT_OPTIMISTIC"
+    },
+    "split_sample_diagnostic": {
+      "PENDING": "NOT_RUN",
+      "INCONCLUSIVE": "SPLIT_GATE_FAILED",
+      "NOT_ESTABLISHED": "SPLIT_RECORD_ONLY",
+      "RECOVERS_SUM_GAP": "SPLIT_RECOVERS_SUM_GAP"
+    }
+  },
+  "display_status": {
+    "INCONCLUSIVE": "INCONCLUSIVE",
+    "NOT_ESTABLISHED": "NOT_ESTABLISHED",
+    "COSTS_SHORTFALL": "NOT_ESTABLISHED",
+    "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC": "ESTABLISHED",
+    "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT": "ESTABLISHED",
+    "OWN_STATISTIC_NOT_OPTIMISTIC": "ESTABLISHED",
+    "RECOVERS_SUM_GAP": "ESTABLISHED"
+  },
+  "claim_tokens": {
+    "risk_rule": "LESS OPTIMISTIC, NOT WORSE",
+    "risk_report": "NOT OPTIMISTIC ON AVERAGE",
+    "split_sample_diagnostic": "RECOVERS THE SUM GAP"
+  },
+  "consequence_sentences": {
+    "RISK_GATE_FAILED": "A declared risk preference over resamples of the same prior matches. E-13's sample gate failed for this rule, so it was not compared with Balance.",
+    "RISK_DECLARED_PREFERENCE_ONLY": "A declared risk preference over resamples of the same prior matches. On synthetic squads with known values, E-13 did not establish that choosing by this rule narrows the gap between reported and true shortfall without adding true shortfall.",
+    "RISK_COST_RECORDED": "A declared risk preference over resamples of the same prior matches. In E-13 the selections of this rule carried a larger declared shortfall than Balance's, on synthetic squads with known values or on held-out halves of Real Madrid's prior matches; the research note says which.",
+    "RISK_LESS_OPTIMISTIC_SYNTHETIC": "On synthetic squads with known values, the true shortfall of this rule's selection exceeded its point-estimate shortfall by less than Balance's did, and was not larger than Balance's by more than 0.005 normalised units. Any rule that does not minimise the reported number narrows that gap; the tested part is the cost bound. Declared Gaussian match noise, not these players.",
+    "RISK_LESS_OPTIMISTIC_SYNTHETIC_AND_SPLIT": "On synthetic squads with known values, the true shortfall of this rule's selection exceeded its point-estimate shortfall by less than Balance's did, and was not larger than Balance's by more than 0.005 normalised units. Any rule that does not minimise the reported number narrows that gap; the tested part is the cost bound. On random half-splits of Real Madrid's prior matches the gap between chosen-on and held-out shortfall was also smaller than Balance's, without a larger held-out shortfall: one club, two overlapping snapshots, no interval.",
+    "RISK_REPORT_NOT_OPTIMISTIC": "On synthetic squads with known values this tail value was, on average, not below the selected set's true shortfall at 12 and at 40 worlds. It is a tail statistic of resampling and grows with the number of worlds.",
+    "RISK_REPORT_UNESTABLISHED": "A tail statistic of resampling. E-13 did not establish that it is at or above the true shortfall on average. It grows with the number of worlds.",
+    "SPLIT_RECOVERS_SUM_GAP": "On synthetic squads with known values, the difference between chosen-on and other-half requirement sums recovered the true selection gap of those sums within 25 percent. The shortfall line is different: a held-out shortfall is a noisy reading of a convex quantity and overstates shortfall for a fixed XI.",
+    "SPLIT_RECORD_ONLY": "On synthetic squads with known values, this check did not recover the selection gap of the requirement sums within 25 percent. Read the differences as one split of one season and nothing more.",
+    "SPLIT_GATE_FAILED": "The synthetic calibration of this check did not reach its sample gate. Read the differences as one split of one season and nothing more."
+  },
+  "non_claims": {
+    "risk_rule": "Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast.",
+    "risk_report": "Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast.",
+    "split_sample_diagnostic": "One split of one club's season. Not a prediction of any XI, and not a correction to any number."
+  },
+
+  "source_paths": [
+    "experiments/run_risk_selection.py",
+    "experiments/run_optimizer_curse.py",
+    "galactico/validation/risk_selection.py",
+    "galactico/validation/digests.py",
+    "galactico/optimization/historical.py",
+    "galactico/optimization/xi/domain.py",
+    "galactico/optimization/xi/solver.py",
+    "galactico/optimization/xi/risk.py",
+    "galactico/profiles/uncertainty.py",
+    "galactico/features/spec.py",
+    "galactico/api/decision_lab.py",
+    "galactico/models/xt/__init__.py",
+    "galactico/models/xt/grid.py"
+  ],
+  "data_paths": [
+    "data/public/parquet/pappalardo/competition=Spain/actions.parquet",
+    "data/public/parquet/pappalardo/competition=Spain/matches.parquet",
+    "data/public/parquet/pappalardo/competition=Spain/lineups.parquet",
+    "data/public/parquet/pappalardo/players.parquet"
+  ],
+  "manifest_path": "data/public/pappalardo/MANIFEST.json"
+}

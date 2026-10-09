@@ -1,0 +1,74 @@
+{
+ "wyscout": {
+  "conceded_f3_entries_by_channel": {
+   "fingerprint": "2be74ac2872fc2cd",
+   "payload": "team-descriptor-v1|conceded_f3_entries_by_channel|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=def_left<-against/f3_entry_pass[pass:*:completed:-|start_in=-|start_not_in=final_third(x>=2/3)|end_in=final_third(x>=2/3)|needs=start,end]/end_lateral_thirds@end[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_right;def_centre<-against/f3_entry_pass[pass:*:completed:-|start_in=-|start_not_in=final_third(x>=2/3)|end_in=final_third(x>=2/3)|needs=start,end]/end_lateral_thirds@end[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_centre;def_right<-against/f3_entry_pass[pass:*:completed:-|start_in=-|start_not_in=final_third(x>=2/3)|end_in=final_third(x>=2/3)|needs=start,end]/end_lateral_thirds@end[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_left|mirror=def_left<>def_right",
+   "sentence": "Conceded final-third entry passes, share by channel (defending team's frame): def left = completed open-play passes by the opponent starting outside the final third and ending in the final third, end location in the acting team's right lateral third; def centre = completed open-play passes by the opponent starting outside the final third and ending in the final third, end location in the central lateral third; def right = completed open-play passes by the opponent starting outside the final third and ending in the final third, end location in the acting team's left lateral third. Each part is a share of the three-part total. Window: first and second half, both teams at eleven, goal difference at most one.",
+   "columns": [
+    "against__f3_entry_pass__att_centre",
+    "against__f3_entry_pass__att_left",
+    "against__f3_entry_pass__att_right"
+   ]
+  },
+  "conceded_f3_entries_wide_share": {
+   "fingerprint": "d251a8b6ea11589a",
+   "payload": "team-descriptor-v1|conceded_f3_entries_wide_share|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=wide<-against/f3_entry_pass[pass:*:completed:-|start_in=-|start_not_in=final_third(x>=2/3)|end_in=final_third(x>=2/3)|needs=start,end]/end_lateral_thirds@end[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_left+against/f3_entry_pass[pass:*:completed:-|start_in=-|start_not_in=final_third(x>=2/3)|end_in=final_third(x>=2/3)|needs=start,end]/end_lateral_thirds@end[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_right;centre<-against/f3_entry_pass[pass:*:completed:-|start_in=-|start_not_in=final_third(x>=2/3)|end_in=final_third(x>=2/3)|needs=start,end]/end_lateral_thirds@end[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_centre|mirror=-",
+   "sentence": "Conceded final-third entry passes, wide share: wide = completed open-play passes by the opponent starting outside the final third and ending in the final third, end location in the acting team's left lateral third plus completed open-play passes by the opponent starting outside the final third and ending in the final third, end location in the acting team's right lateral third; centre = completed open-play passes by the opponent starting outside the final third and ending in the final third, end location in the central lateral third. Each part is a share of the two-part total. Window: first and second half, both teams at eleven, goal difference at most one.",
+   "columns": [
+    "against__f3_entry_pass__att_centre",
+    "against__f3_entry_pass__att_left",
+    "against__f3_entry_pass__att_right"
+   ]
+  },
+  "conceded_box_entries_by_origin_channel": {
+   "fingerprint": "1520182357343ffa",
+   "payload": "team-descriptor-v1|conceded_box_entries_by_origin_channel|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=def_left<-against/box_entry_pass[pass:*:completed:-|start_in=-|start_not_in=penalty_box(x>=21/25&y>=19/100&y<=81/100)|end_in=penalty_box(x>=21/25&y>=19/100&y<=81/100)|needs=start,end]/start_lateral_thirds@start[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_right;def_centre<-against/box_entry_pass[pass:*:completed:-|start_in=-|start_not_in=penalty_box(x>=21/25&y>=19/100&y<=81/100)|end_in=penalty_box(x>=21/25&y>=19/100&y<=81/100)|needs=start,end]/start_lateral_thirds@start[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_centre;def_right<-against/box_entry_pass[pass:*:completed:-|start_in=-|start_not_in=penalty_box(x>=21/25&y>=19/100&y<=81/100)|end_in=penalty_box(x>=21/25&y>=19/100&y<=81/100)|needs=start,end]/start_lateral_thirds@start[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_left|mirror=def_left<>def_right",
+   "sentence": "Conceded penalty-area entry passes, share by origin channel (defending team's frame): def left = completed open-play passes by the opponent starting outside the penalty-area rectangle and ending in the penalty-area rectangle, start location in the acting team's right lateral third; def centre = completed open-play passes by the opponent starting outside the penalty-area rectangle and ending in the penalty-area rectangle, start location in the central lateral third; def right = completed open-play passes by the opponent starting outside the penalty-area rectangle and ending in the penalty-area rectangle, start location in the acting team's left lateral third. Each part is a share of the three-part total. Window: first and second half, both teams at eleven, goal difference at most one.",
+   "columns": [
+    "against__box_entry_pass__att_centre",
+    "against__box_entry_pass__att_left",
+    "against__box_entry_pass__att_right"
+   ]
+  },
+  "conceded_shots_inside_box_share": {
+   "fingerprint": "7b51b3b307b4148b",
+   "payload": "team-descriptor-v1|conceded_shots_inside_box_share|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=inside_box<-against/open_play_shot[shot:*:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_in_box@start[inside=x>=21/25&y>=19/100&y<=81/100;outside=otherwise]:inside;outside_box<-against/open_play_shot[shot:*:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_in_box@start[inside=x>=21/25&y>=19/100&y<=81/100;outside=otherwise]:outside|mirror=-",
+   "sentence": "Conceded open-play shots, share from inside the penalty-area rectangle: inside box = open-play shots by the opponent, start location inside the penalty-area rectangle; outside box = open-play shots by the opponent, start location outside the penalty-area rectangle. Each part is a share of the two-part total. Window: first and second half, both teams at eleven, goal difference at most one.",
+   "columns": [
+    "against__open_play_shot__inside",
+    "against__open_play_shot__outside"
+   ]
+  },
+  "defensive_actions_by_pitch_third": {
+   "fingerprint": "5ecfbefcb7634b29",
+   "payload": "team-descriptor-v1|defensive_actions_by_pitch_third|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=own_third<-for/defensive_action[duel:Ground defending duel:any:-+*:*:any:interception+foul:Foul:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_depth_thirds@start[own_third=x<1/3;opposition_third=x>=2/3;middle_third=otherwise]:own_third;middle_third<-for/defensive_action[duel:Ground defending duel:any:-+*:*:any:interception+foul:Foul:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_depth_thirds@start[own_third=x<1/3;opposition_third=x>=2/3;middle_third=otherwise]:middle_third;opposition_third<-for/defensive_action[duel:Ground defending duel:any:-+*:*:any:interception+foul:Foul:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_depth_thirds@start[own_third=x<1/3;opposition_third=x>=2/3;middle_third=otherwise]:opposition_third|mirror=-",
+   "sentence": "Recorded defensive actions, share by pitch third (team's own frame): own third = recorded defensive actions (ground defending duel records, interception-tagged events, fouls committed; each event once) by the team, start location in the acting team's own third; middle third = recorded defensive actions (ground defending duel records, interception-tagged events, fouls committed; each event once) by the team, start location in the middle third; opposition third = recorded defensive actions (ground defending duel records, interception-tagged events, fouls committed; each event once) by the team, start location in the opposition third. Each part is a share of the three-part total. Window: first and second half, both teams at eleven, goal difference at most one.",
+   "columns": [
+    "for__defensive_action__middle_third",
+    "for__defensive_action__opposition_third",
+    "for__defensive_action__own_third"
+   ]
+  },
+  "high_zone_defensive_action_share": {
+   "fingerprint": "0d2ee50169a05af9",
+   "payload": "team-descriptor-v1|high_zone_defensive_action_share|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=high_zone_defensive_actions<-for/defensive_action_high[duel:Ground defending duel:any:-+*:*:any:interception+foul:Foul:any:-|start_in=high_zone(x>=2/5)|start_not_in=-|end_in=-|needs=start];opponent_own_60_passes<-against/own_60_pass[pass:*:any:-|start_in=own_60(x<=3/5)|start_not_in=-|end_in=-|needs=start]|mirror=-",
+   "sentence": "High-zone defensive actions as a share of those actions plus opponent pass attempts started in the opponent's own 60%: high zone defensive actions = recorded defensive actions (ground defending duel records, interception-tagged events, fouls committed; each event once) by the team starting in the zone at least 40% of the pitch length from the acting team's own goal line; opponent own 60 passes = open-play pass attempts by the opponent starting in the passing team's own 60% of the pitch length. Each part is a share of the two-part total. Window: first and second half, both teams at eleven, goal difference at most one.",
+   "columns": [
+    "against__own_60_pass",
+    "for__defensive_action_high"
+   ]
+  }
+ },
+ "statsbomb": {
+  "conceded_box_entries_by_origin_channel_sb": {
+   "fingerprint": "11161bb6ef93404e",
+   "payload": "team-descriptor-v1|conceded_box_entries_by_origin_channel_sb|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=def_left<-against/box_entry_pass_sb[pass:*:completed:-|start_in=-|start_not_in=penalty_box_sb(x>=17/20&y>=9/40&y<=31/40)|end_in=penalty_box_sb(x>=17/20&y>=9/40&y<=31/40)|needs=start,end]/start_lateral_thirds@start[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_right;def_centre<-against/box_entry_pass_sb[pass:*:completed:-|start_in=-|start_not_in=penalty_box_sb(x>=17/20&y>=9/40&y<=31/40)|end_in=penalty_box_sb(x>=17/20&y>=9/40&y<=31/40)|needs=start,end]/start_lateral_thirds@start[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_centre;def_right<-against/box_entry_pass_sb[pass:*:completed:-|start_in=-|start_not_in=penalty_box_sb(x>=17/20&y>=9/40&y<=31/40)|end_in=penalty_box_sb(x>=17/20&y>=9/40&y<=31/40)|needs=start,end]/start_lateral_thirds@start[att_left=y<1/3;att_right=y>2/3;att_centre=otherwise]:att_left|mirror=def_left<>def_right",
+   "sentence": "Conceded penalty-area entry passes, share by origin channel (defending team's frame): def left = completed open-play passes by the opponent starting outside the penalty-area rectangle and ending in the penalty-area rectangle, start location in the acting team's right lateral third; def centre = completed open-play passes by the opponent starting outside the penalty-area rectangle and ending in the penalty-area rectangle, start location in the central lateral third; def right = completed open-play passes by the opponent starting outside the penalty-area rectangle and ending in the penalty-area rectangle, start location in the acting team's left lateral third. Each part is a share of the three-part total. Window: first and second half, both teams at eleven, goal difference at most one."
+  },
+  "conceded_shots_inside_box_share_sb": {
+   "fingerprint": "b54d37b794ed388e",
+   "payload": "team-descriptor-v1|conceded_shots_inside_box_share_sb|composition|window=close_11v11(periods=1H,2H;eleven_v_eleven=True;max_abs_goal_difference=1)|parts=inside_box<-against/open_play_shot[shot:*:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_in_box_sb@start[inside=x>=17/20&y>=9/40&y<=31/40;outside=otherwise]:inside;outside_box<-against/open_play_shot[shot:*:any:-|start_in=-|start_not_in=-|end_in=-|needs=start]/start_in_box_sb@start[inside=x>=17/20&y>=9/40&y<=31/40;outside=otherwise]:outside|mirror=-",
+   "sentence": "Conceded open-play shots, share from inside the penalty-area rectangle: inside box = open-play shots by the opponent, start location inside the penalty-area rectangle; outside box = open-play shots by the opponent, start location outside the penalty-area rectangle. Each part is a share of the two-part total. Window: first and second half, both teams at eleven, goal difference at most one."
+  }
+ }
+}

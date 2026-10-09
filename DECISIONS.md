@@ -448,3 +448,273 @@ causal football value. Passing capacity is an additive historical-rate assumptio
 
 **Reversal.** A genuinely supported broader utility would require fresh evidence
 and a separately reviewed decision claim. E-08's null is not reopened by this tool.
+
+---
+
+## ADR-0018 — Local-tier evidence may label a hosted quantity; it never gates or parameterises one
+
+**Problem.** The written rule was "a hosted instance may never serve a
+StatsBomb-derived number". The shipped product already serves StatsBomb-derived
+labels: `external_replication` (`ROBUST`, `ROBUST_WITH_SHIFT`) was assigned from
+the 2015/16 comparison and is printed in Player Lab. Nothing said whether a label
+may unlock a panel, or whether a coefficient fitted on the local corpus may sit
+inside a hosted computation. Transfer and opponent research would both have
+reached for one.
+
+**Decision.** Labels yes, numbers no, coefficients no. A verdict token from a
+LOCAL-tier experiment may be shown on a hosted page as a label that links to its
+research note. It may never be the gate that unlocks a number-bearing panel, never
+parameterise a served computation, and no LOCAL-derived number, interval,
+coefficient or identifier is served or committed in machine-readable form. Hosted
+panels are gated on PUBLIC-tier verdicts only. `galactico/domain/verdicts.py`
+enforces it in the type: a LOCAL record cannot carry a figure, `may_gate` is false
+for it under every token, and no digit may ride inside its sentences. Every new
+response passes `runtime.finalize`, which requires the provider set at any depth
+of the payload to be exactly the hosted one.
+
+The registry ships **empty**. No protocol has been frozen, so every subject
+answers "RECORD ONLY · NOT TESTED". Five protocols are drafted under
+`docs/research/north-star/protocol-drafts/`; a draft is not a registration.
+
+**Evidence.** Clauses 1.2.1, 1.2.2 and 1.4 of the StatsBomb Public Data User
+Agreement, re-read on 9 October 2026 and unchanged. The agreement's preamble
+permits sharing analysis and conclusions; a per-player derived table served on
+demand is hard to distinguish from providing the data.
+
+**Alternatives rejected.** Banning the existing replication labels (they are
+conclusions, which the agreement permits). Letting a replicated verdict unlock a
+hosted panel (the panel's numbers would then depend on local data). Publishing a
+fitted carry-over coefficient as "just two numbers".
+
+**Confidence.** High on the rule. One known gap is not closed by it: the two
+published notes formed from StatsBomb data carry no StatsBomb logo, which clause
+1.4 requires. See KNOWN_LIMITATIONS.
+
+**Reversal.** A written permission from the provider, or a licensed feed whose
+terms allow hosted derived values.
+
+---
+
+## ADR-0019 — One evidence mapping; planning surfaces default to progression only
+
+**Problem.** ADR-0001's ladder had no production caller. Profiles carried the
+literal "Estimated", XI Lab carried `MEASURED / HEURISTIC / RESEARCH /
+UNAVAILABLE`, Match Lab carried `DIRECT / DERIVABLE / REJECTED / UNAVAILABLE`,
+and "composition takes the weakest" was hand-labelled per requirement. A page that
+joins labs could not compute its own evidence class.
+
+**Decision.** `galactico/domain/evidence.py` is the one place a shipped vocabulary
+becomes an `EvidenceClass`, and the one place classes are composed. XI's
+`MEASURED` is `ESTIMATED`; `RESEARCH` is `EXPERIMENTAL`; `UNAVAILABLE` and
+`REJECTED` are the absence of a number, not a class. A declared input (minima,
+locks, exclusions, the slot, an absence) is not evidence and is never coerced into
+a class: computed numbers are labelled conditional on the declarations, which are
+listed beside them.
+
+Stated consequence. The two side pass-origin requirements that drive the shipped
+XI solve are `RESEARCH`, so every result that uses them composes to
+`EXPERIMENTAL`, which ADR-0001 says never renders without an opt-in. The shipped
+XI Lab is not changed. The planning tools default to the progression requirement
+alone and admit the two side requirements only through an explicit
+`experimental_opt_in`; the composed class and the inputs that bind it are always
+printed.
+
+**Evidence.** `tests/test_evidence_mapping.py`: the tables are total over the
+vocabularies the shipped code emits; composition equals `provenance.weakest` under
+hypothesis; a default three-requirement problem composes to `EXPERIMENTAL` with
+exactly the two side requirements binding, a progression-only problem to
+`HEURISTIC` (its minimum is a declared policy).
+
+**Alternatives rejected.** Relabelling the side descriptors as measured. Hiding
+the composed class. Changing what XI Lab serves.
+
+**Confidence.** High on the mapping. The ordering of `OPTIMIZED` against
+`HEURISTIC` remains the medium-confidence part ADR-0001 already names.
+
+**Reversal.** A side descriptor that survives its own experiment moves to
+`ESTIMATED` and the opt-in disappears for it.
+
+---
+
+## ADR-0020 — The squad and transfer tools share one exact kernel whose integers equal the XI solver's
+
+**Problem.** Stress, brief and injection each need hundreds of shortfall solves.
+The shipped model takes 0.13 to 3 seconds per solve, and six tools written
+separately would be six definitions of the same shortfall.
+
+**Decision.** `galactico/optimization/squad/kernel.py` computes the declared
+lexicographic shortfall as a linear epigraph in at most three bounded solves: a
+zero-shortfall feasibility check, the least maximum, then the least total on that
+level. The frozen solver is not edited; its rounding function is imported, so a
+shortfall here is the same integer XI Lab reports for the same squad. Hard
+statements ("the minima are reachable", "meets the brief") use the conservative
+floor/ceil policy of the hard-floor query. No third policy exists. A certified
+level records the model and declarations it was computed under and is refused
+anywhere else. Solver limits are deterministic time, not wall clock, so a status
+does not depend on machine load.
+
+**Evidence.** On the shipped Madrid scenario the kernel equals `solve_xi` on the
+baseline and all sixteen single removals in both formations, and on all 120
+absence pairs, at 9-25 ms per value. An independent oracle (itertools, exact
+Fractions, no import from the kernel or the solver) agrees on seeded instances and
+on Madrid. Review found `membership` answering about a level computed with a
+different lock; the level now carries a hash of its declarations.
+
+**Numerical boundary.** A squad can show shortfall `(0, 0)` under half-even
+rounding and still be not satisfiable under the conservative policy, within
+`(slots + 1) / quantization` normalised units per requirement. Every tool says
+which policy a statement uses.
+
+**Alternatives rejected.** Calling `solve_xi` in a loop. Coarsening the
+quantisation to make it faster. A weighted sum of the two stages as a search
+device (one serialisation away from a scalar). Editing the frozen solver.
+
+**Confidence.** High. The cost of `add_max_equality`, not the integer scale, was
+the bottleneck, and the equality with the shipped solver is tested on real data.
+
+**Reversal.** If XI Lab is ever re-versioned, it can adopt the kernel; until then
+the two must agree and a test says so.
+
+---
+
+## ADR-0021 — Snapshots for any club and cutoff carry a named eligibility rule set
+
+**Problem.** The only snapshot builder is frozen, reads Spain, defaults to team
+675 and applies a 24-player manual table. Any other team returned zero candidates
+under the Madrid version string. Squad and transfer questions need other clubs, a
+cutoff that is a date rather than a match, and worlds an external player can share.
+
+**Decision.** `galactico/optimization/snapshots.py` stands beside the frozen
+`historical.py`. A snapshot is built for a (competition, team, decision match or
+bare cutoff date) under a registered `EligibilityRuleSet`. Two exist: the Madrid
+manual rules, wrapped unchanged under their shipped version and marked reviewed,
+and `provider-position-broad-v1`, marked unreviewed, in which the provider's
+four-class position decides. A manual rule set applied to another team is an
+error. Worlds have a named scheme: `TEAM_MATCHES` (the shipped draw) and
+`LEAGUE_MATCHES` (one weight per league match per world, shared by every player of
+that league); leagues are resampled independently and the snapshot says so. A
+cutoff is spelled `YYYY-MM-DD` and nothing else. League reference distributions of
+starting-XI rate sums are a separate, descriptive object.
+
+**Evidence.** Byte equality with `historical.build_snapshot` for Madrid on
+candidates, omitted players, worlds, minima, `dataset_hash` and `xt_version`. The
+future-and-same-day poison test passes against a bare date. All twenty La Liga
+clubs field a 4-3-3 under the provider rule. Review found that a day-first date
+string was parsed month-first, which would have admitted a month of later matches
+without a word.
+
+**Numerical boundary.** `LEAGUE_MATCHES` worlds are a different resampling scheme
+from the shipped one, with their own namespace; frequencies from the two are not
+comparable.
+
+**Alternatives rejected.** Editing `historical.py` (its hash is pinned by E-07 and
+E-08). Inferring slot roles from event locations (an unvalidated construct that
+would inherit the solver's credibility). Lowering the 900-minute gate to thicken
+squads. Pooling a player's minutes across clubs. Pretending worlds couple leagues.
+A winter planning scenario: Madrid has nine gated outfield players on 1 January
+2018, fewer than the ten the template needs.
+
+**Confidence.** High for parity and temporal integrity. Provider-position
+eligibility is a heuristic, too permissive (it does not tell left from right) and
+sometimes wrong; depth under it mostly restates the provider's position code, and
+every surface that uses it says so.
+
+**Reversal.** A reviewed rule set for another club replaces the broad rule by
+registration. A role-inference construct that survives its own experiment would
+enter as a third kind, with its verdict attached.
+
+---
+
+## ADR-0022 — Absence stress and the role brief are exact statements about the gated model
+
+**Problem.** The shipped removal table excludes one player from one representative
+XI and reports swaps that can be tie noise. Nothing said what a pair of absences
+does, which absences leave no XI at all, or what a newcomer at a slot would have
+to supply.
+
+**Decision.** Three exact tools on the shared kernel. Slot depth is a chain of
+named sets that separates eligibility-, gate-, measurement- and requirement-induced
+thinness and prints the omitted players beside every count. Absence stress
+enumerates every set of `k` unavailable players (`k = 1, 2`; `3` on explicit
+confirmation), certifies each set's least declared shortfall or that it leaves no
+fieldable XI, returns all worst sets with ties, and lists every inclusion-minimal
+unfieldable set with the slot group that is short. No absence likelihood exists
+anywhere. The role brief for a slot is the complete set of minimal requirement
+vectors an addition at that slot must supply, in the conservative arithmetic of
+the solve it explains; a candidate meets it only through the exact solve with him
+placed there. Locked players are not removable in a stress test.
+
+**Evidence.** On the shipped scenario, 17 of 120 pairs and 212 of 560 triples
+leave no XI: exactly the pairs predicted by three tight slot groups with one spare
+player each. With the seven gated-out players counted, the back four would have
+four spare. Under the planning default (progression only) no single absence raises
+the shortfall. The brief at left back has eight minimal rows although the squad
+already reaches its minima, because the only two players eligible there are
+eligible nowhere else.
+
+**Numerical boundary.** As ADR-0020.
+
+**Alternatives rejected.** Absence probabilities, including literature injury
+rates. A single "most important player" label. A bilevel interdiction model as the
+product path (its certificate is harder to read than a table of solved sets).
+Building the brief from half-even sums (it could disagree with the solve that
+defines "meets"). Reporting one displaced player from two representative XIs.
+
+**Confidence.** High that the numbers are exact for the declared model. None is
+claimed that the model's thinness is the squad's: most of it is the evidence gate,
+and the result says so.
+
+**Reversal.** If licensed availability data ever exists, a likelihood-weighted
+view is a new, separately claimed tool. Stress over resampled worlds waits for a
+verdict on the risk modes.
+
+---
+
+## ADR-0023 — Candidate injection and the break-even carry-over fraction are transport-agnostic statements
+
+**Problem.** The shipped injection helper is untested, re-solves the baseline per
+candidate and reports representative-XI entry that can be a tie artifact. Whether
+a rate measured at one club repeats at another is untested here: seven players in
+the corpus have 900 minutes at each of two clubs. No coefficient fitted on the
+local corpus may reach a hosted page (ADR-0018).
+
+**Decision.** The transfer tools state only what follows from arithmetic. The
+universe is the gated outfield players of the declared leagues at the cutoff,
+valued on one declared xT surface, same league by default; other leagues are an
+explicit opt-in and flagged as not adjusted for league strength. The user declares
+the slot; admissibility is the provider's broad position; lane shares, foot and
+age are shown for a person to judge and no role is inferred. Each candidate gets
+an exact forced-inclusion solve, which yields the injected optimum and his
+possible and necessary membership. Rows are grouped by a categorical outcome of
+that solve, then ordered inside a group by one declared key, with equal keys as
+tie groups; no key combines requirements and no ordinal exists. The response
+states how many candidates were screened and shows a pool-median reference
+injection beside them. The break-even carry-over fraction scales his additive
+rates on a fixed grid and reports the smallest value at which a declared
+conclusion still holds, with the exact solves that bracket it. No carry-over
+function is fitted or applied.
+
+**Evidence.** The injected optimum is the smaller of the baseline and the
+forced-inclusion value, and membership follows from comparing the two; both are
+oracle-tested. Adding a candidate can never raise the largest shortfall; the total
+at the lexicographic optimum can move either way, and both directions are tested.
+The shipped scenario's baseline is `(0, 0)`: no candidate can lower it, and the
+tool says so instead of listing tie artifacts. One hand-built instance has the
+total-only conclusion holding at fractions 0.40-0.70 and 0.90-1.00 and failing
+between, which is why the default conclusion is the lexicographic one (monotone by
+theorem) and the total-only one scans the whole grid.
+
+**Alternatives rejected.** A learned carry-over or league-strength coefficient
+(not identified in the public corpus; the cross-provider one is licence-barred).
+Shrinking candidate rates toward a positional mean with an unregistered constant.
+A shortlist ordered by modelled change, tiers named by merit, similarity
+percentages, or any per-player scalar. A "displaced player": under ties none
+exists.
+
+**Confidence.** High for the arithmetic. None is claimed for what a player would
+do after a move; the composed evidence class is no stronger than `HEURISTIC`.
+
+**Reversal.** If a public-tier experiment ever supports a carry-over statement for
+a construct, the page may show the tested range beside the break-even, never
+substituted into the solve. An ordering by a solver output would need an ADR that
+overturns the no-rating rule.

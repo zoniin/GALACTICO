@@ -1,0 +1,533 @@
+{
+  "version": "conceded-shape-v1",
+  "experiment_id": "E-10",
+  "experiment_directory": "experiments/preregistered/E-10-conceded-shape",
+  "provider": "pappalardo",
+  "season_label": "2017/18",
+  "leagues": [
+    "Spain",
+    "England",
+    "Italy",
+    "Germany",
+    "France"
+  ],
+  "exposed_leagues": [
+    "Spain",
+    "England"
+  ],
+  "unexposed_leagues": [
+    "Italy",
+    "Germany",
+    "France"
+  ],
+  "expected_teams_per_league": {
+    "Spain": 20,
+    "England": 20,
+    "Italy": 20,
+    "Germany": 18,
+    "France": 20
+  },
+  "season_start": "2017-07-01",
+  "evaluation_start": "2018-01-01",
+  "end": "2018-07-01",
+  "prior_rule": "calendar_date_strictly_before",
+  "calendar_week_rule": "W-SUN",
+  "window_primary": "close_11v11",
+  "window_sensitivity": "all_states",
+  "windows": {
+    "close_11v11": {
+      "periods": [
+        "1H",
+        "2H"
+      ],
+      "eleven_v_eleven": true,
+      "max_abs_goal_difference": 1
+    },
+    "all_states": {
+      "periods": [
+        "1H",
+        "2H"
+      ],
+      "eleven_v_eleven": false,
+      "max_abs_goal_difference": null
+    }
+  },
+  "state_change_rule": "an incident changes the state of events with a strictly later (period, seconds)",
+  "goal_event_types": [
+    "shot",
+    "set_piece"
+  ],
+  "dismissal_cards": [
+    "red_card",
+    "second_yellow"
+  ],
+  "exposure_unit_seconds": 5400,
+  "sentinel_coordinates": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      1.0
+    ]
+  ],
+  "coordinate_range": [
+    0.0,
+    1.0
+  ],
+  "final_third_x": [
+    2,
+    3
+  ],
+  "lateral_left_below_y": [
+    1,
+    3
+  ],
+  "lateral_right_above_y": [
+    2,
+    3
+  ],
+  "lateral_edge_rule": "y < 1/3 is the acting team's left; y > 2/3 is its right; 1/3 <= y <= 2/3 is centre",
+  "depth_own_third_below_x": [
+    1,
+    3
+  ],
+  "depth_opposition_third_from_x": [
+    2,
+    3
+  ],
+  "penalty_box_wyscout": {
+    "x_min": [
+      21,
+      25
+    ],
+    "y_min": [
+      19,
+      100
+    ],
+    "y_max": [
+      81,
+      100
+    ]
+  },
+  "penalty_box_statsbomb": {
+    "x_min": [
+      17,
+      20
+    ],
+    "y_min": [
+      9,
+      40
+    ],
+    "y_max": [
+      31,
+      40
+    ]
+  },
+  "high_zone_x_min": [
+    2,
+    5
+  ],
+  "own_60_x_max": [
+    3,
+    5
+  ],
+  "defensive_action_clauses": [
+    {
+      "types": [
+        "duel"
+      ],
+      "subtypes": [
+        "Ground defending duel"
+      ],
+      "completed": null,
+      "flags": []
+    },
+    {
+      "types": [],
+      "subtypes": [],
+      "completed": null,
+      "flags": [
+        "interception"
+      ]
+    },
+    {
+      "types": [
+        "foul"
+      ],
+      "subtypes": [
+        "Foul"
+      ],
+      "completed": null,
+      "flags": []
+    }
+  ],
+  "descriptor_schema": "team-descriptor-v1",
+  "primary_descriptor": "conceded_f3_entries_by_channel",
+  "level_subject": "conceded_f3_entries_per_90",
+  "secondary_descriptors": [
+    "conceded_f3_entries_wide_share",
+    "conceded_box_entries_by_origin_channel",
+    "conceded_shots_inside_box_share",
+    "defensive_actions_by_pitch_third",
+    "high_zone_defensive_action_share"
+  ],
+  "descriptor_parts": {
+    "conceded_f3_entries_by_channel": [
+      "def_left",
+      "def_centre",
+      "def_right"
+    ],
+    "conceded_f3_entries_wide_share": [
+      "wide",
+      "centre"
+    ],
+    "conceded_box_entries_by_origin_channel": [
+      "def_left",
+      "def_centre",
+      "def_right"
+    ],
+    "conceded_shots_inside_box_share": [
+      "inside_box",
+      "outside_box"
+    ],
+    "defensive_actions_by_pitch_third": [
+      "own_third",
+      "middle_third",
+      "opposition_third"
+    ],
+    "high_zone_defensive_action_share": [
+      "high_zone_defensive_actions",
+      "opponent_own_60_passes"
+    ]
+  },
+  "descriptor_mirror_pairs": {
+    "conceded_f3_entries_by_channel": [
+      [
+        "def_left",
+        "def_right"
+      ]
+    ],
+    "conceded_box_entries_by_origin_channel": [
+      [
+        "def_left",
+        "def_right"
+      ]
+    ]
+  },
+  "descriptor_fingerprints": {
+    "conceded_f3_entries_by_channel": "2be74ac2872fc2cd",
+    "conceded_f3_entries_wide_share": "d251a8b6ea11589a",
+    "conceded_box_entries_by_origin_channel": "1520182357343ffa",
+    "conceded_shots_inside_box_share": "7b51b3b307b4148b",
+    "defensive_actions_by_pitch_third": "5ecfbefcb7634b29",
+    "high_zone_defensive_action_share": "0d2ee50169a05af9"
+  },
+  "descriptor_fingerprints_statsbomb": {
+    "conceded_f3_entries_by_channel": "2be74ac2872fc2cd",
+    "conceded_f3_entries_wide_share": "d251a8b6ea11589a",
+    "conceded_box_entries_by_origin_channel_sb": "11161bb6ef93404e",
+    "conceded_shots_inside_box_share_sb": "b54d37b794ed388e"
+  },
+  "fingerprint_rule": "first 16 hex characters of sha256 over the UTF-8 payload string of PIPELINE.md section 3.6",
+  "not_run_in_this_experiment": [
+    "xT-weighted entries",
+    "regain height or any quantity needing a possession segmentation rule",
+    "set-piece concession",
+    "transition exposure",
+    "zone-14 cell",
+    "five-channel or finer lateral grids",
+    "any shot quantity weighted by a conversion model",
+    "coach-change adjustment"
+  ],
+  "minimum_prior_matches": 8,
+  "league_prior_pseudocount_per_part": 1.0,
+  "log_ratio_smoothing_per_part": 0.5,
+  "raw_persistence_matches": 5,
+  "shrinkage_grid": [
+    25,
+    50,
+    100,
+    200,
+    400,
+    800,
+    1600,
+    3200,
+    6400
+  ],
+  "shrinkage_grid_unit": "pseudo-events of prior strength",
+  "unit_term_boundary_candidate": "context_only",
+  "selection_tie_tolerance": 1e-12,
+  "selection_tie_rule": "context_only first, then the larger shrinkage value",
+  "selection_scope": "eligible development rows, all five leagues pooled, ratio of sums",
+  "zero_tolerance": 1e-12,
+  "minimum_valid_match_share_per_league": 0.95,
+  "minimum_development_rows_per_league": 100,
+  "minimum_development_weeks_per_league": 6,
+  "minimum_evaluation_rows_per_league": 150,
+  "minimum_evaluation_weeks_per_league": 8,
+  "minimum_evaluation_events_per_league": 1600,
+  "minimum_reliability_teams": 90,
+  "minimum_half_matches_per_team": 8,
+  "minimum_permutation_changed_share": 0.6,
+  "bootstrap_replicates": 10000,
+  "interval_quantiles": [
+    0.025,
+    0.975
+  ],
+  "seed": 20261009,
+  "seed_offsets": {
+    "primary": 0,
+    "mirror": 1,
+    "level": 2,
+    "unexposed": 3,
+    "calibration": 4,
+    "interaction": 5,
+    "strength_permutation": 6,
+    "per_league": 7,
+    "sensitivity_all_states": 8
+  },
+  "seed_stride_per_descriptor": 100,
+  "permutation_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "permutation_strata": "league x strength tercile at the decision date",
+  "strength_tercile_key": [
+    "prior_points_per_match",
+    "prior_goal_difference_per_match",
+    "team_id"
+  ],
+  "strength_tercile_count": 3,
+  "minimum_leagues_with_negative_estimate": 4,
+  "holm_family_alpha_one_sided": 0.025,
+  "holm_family_size": 5,
+  "reliability_split": "alternating matches within each team's own date-ordered valid rows",
+  "reliability_centring": "league mean removed within each half",
+  "reliability_interval_method": "fisher_z_on_half_correlation_then_spearman_brown",
+  "reliability_critical_value": 1.959963984540054,
+  "reliability_degrees_of_freedom": "n_teams - 3 - (n_leagues - 1)",
+  "reliability_band": 0.5,
+  "reliability_number": 0.7,
+  "house_reliability_critical_value": 1.6448536269514722,
+  "house_reliability_reported_only": true,
+  "strength_covariates": [
+    "points_per_match",
+    "goals_for_per_match",
+    "goals_against_per_match",
+    "completed_pass_share"
+  ],
+  "strength_adjusted_r2_ceiling": 0.6,
+  "strength_rank_correlation_floor": 0.5,
+  "strength_top_k_reported_only": 12,
+  "strength_permutations": 10000,
+  "interaction_minimum_events_per_meeting": 10,
+  "interaction_lower_quantile": 0.0125,
+  "interaction_floor": 0.07,
+  "calibration_minimum_events_per_row": 10,
+  "replication": {
+    "provider": "statsbomb",
+    "season_label": "2015/16",
+    "leagues": [
+      "La_Liga",
+      "Premier_League",
+      "Serie_A",
+      "Ligue_1"
+    ],
+    "expected_matches": {
+      "La_Liga": 380,
+      "Premier_League": 380,
+      "Serie_A": 380,
+      "Ligue_1": 377
+    },
+    "season_start": "2015-07-01",
+    "evaluation_start": "2015-07-01",
+    "end": "2016-07-01",
+    "retuning": "none: shrinkage values are those selected on the Pappalardo development rows",
+    "run_only_if_primary_corpus_verdict": "DEFENDER_SHAPE_SIGNAL",
+    "comparable_descriptors": {
+      "conceded_f3_entries_by_channel": "conceded_f3_entries_by_channel",
+      "conceded_f3_entries_wide_share": "conceded_f3_entries_wide_share",
+      "conceded_box_entries_by_origin_channel": "conceded_box_entries_by_origin_channel_sb",
+      "conceded_shots_inside_box_share": "conceded_shots_inside_box_share_sb"
+    },
+    "not_comparable_descriptors": [
+      "defensive_actions_by_pitch_third",
+      "high_zone_defensive_action_share"
+    ],
+    "set_piece_pass_types": [
+      "Kick Off",
+      "Throw-in",
+      "Free Kick",
+      "Corner",
+      "Goal Kick"
+    ],
+    "open_play_shot_type": "Open Play",
+    "own_goal_event_type": "Own Goal Against",
+    "dismissal_card_names": [
+      "Red Card",
+      "Second Yellow"
+    ],
+    "minimum_evaluation_rows_per_league": 150,
+    "minimum_evaluation_weeks_per_league": 8,
+    "minimum_valid_match_share_per_league": 0.95,
+    "orientation_check_minimum_matches": 40,
+    "local_artifact": "data/licensed/research/E-10/replication.json",
+    "hosted_label_permitted": false
+  },
+  "synthetic_gate": {
+    "base_seed": 20261010,
+    "seasons_per_gating_scenario": 200,
+    "seasons_per_reported_scenario": 100,
+    "bootstrap_replicates": 2000,
+    "team_counts": [
+      20,
+      20,
+      20,
+      18,
+      20
+    ],
+    "first_round_date": "2017-08-12",
+    "days_between_rounds": 7,
+    "winter_break_extra_days": 14,
+    "mean_events_per_row": 34.0,
+    "window_exposure": 0.84,
+    "league_composition": [
+      0.36,
+      0.28,
+      0.36
+    ],
+    "sd_attacker_shape": 0.2,
+    "sd_match_shape": 0.1,
+    "sd_match_level": 0.25,
+    "level_strength_attacker": 0.2,
+    "home_level": 0.05,
+    "goal_model": {
+      "home_intercept": 0.25,
+      "away_intercept": 0.05,
+      "strength_slope": 0.35
+    },
+    "mean_completed_passes": 350.0,
+    "pass_strength_slope": 0.15,
+    "coordinate_rule": "sd_side and sd_width are standard deviations of the defender effect on log-ratio coordinates z1 and z2; 0.15 is about five percentage points of a channel share",
+    "strength_shape_rule": "delta_u = strength_shape * (full-season points per match standardised within league) * (+1, -1) on (z1, z2): a shape that is an exact function of measured strength",
+    "scenarios": {
+      "NULL_NOTHING": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.0,
+        "level_strength_defender": 0.0,
+        "strength_shape": 0.0
+      },
+      "NULL_SHAPE_WITH_LEVEL": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.0
+      },
+      "EFFECT_STRONG": {
+        "sd_side": 0.15,
+        "sd_width": 0.15,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.0
+      },
+      "WIDTH_ONLY": {
+        "sd_side": 0.0,
+        "sd_width": 0.15,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.0
+      },
+      "STRENGTH_ONLY": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.15
+      },
+      "EFFECT_0_09": {
+        "sd_side": 0.09,
+        "sd_width": 0.09,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.0
+      },
+      "EFFECT_0_06": {
+        "sd_side": 0.06,
+        "sd_width": 0.06,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.0
+      },
+      "EFFECT_0_03": {
+        "sd_side": 0.03,
+        "sd_width": 0.03,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.0
+      }
+    },
+    "gating_scenarios": [
+      "NULL_NOTHING",
+      "NULL_SHAPE_WITH_LEVEL",
+      "EFFECT_STRONG",
+      "WIDTH_ONLY",
+      "STRENGTH_ONLY"
+    ],
+    "reported_scenarios": [
+      "EFFECT_0_09",
+      "EFFECT_0_06",
+      "EFFECT_0_03"
+    ],
+    "requirements": {
+      "NULL_NOTHING": {
+        "DEFENDER_SHAPE_SIGNAL_max": 0.05,
+        "LEVEL_ONLY_max": 0.05,
+        "NOT_ESTABLISHED_min": 0.9
+      },
+      "NULL_SHAPE_WITH_LEVEL": {
+        "DEFENDER_SHAPE_SIGNAL_max": 0.05,
+        "LEVEL_ONLY_min": 0.9
+      },
+      "EFFECT_STRONG": {
+        "DEFENDER_SHAPE_SIGNAL_min": 0.9
+      },
+      "WIDTH_ONLY": {
+        "DEFENDER_SHAPE_SIGNAL_max": 0.05
+      },
+      "STRENGTH_ONLY": {
+        "DEFENDER_SHAPE_SIGNAL_max": 0.05
+      }
+    },
+    "frame_negative_control": "with the defender-frame mirror removed, the planted side effect is recovered with the opposite sign",
+    "workers_maximum": 4
+  },
+  "results_maximum_bytes": 524288,
+  "forbidden_result_substrings": [
+    "player_id",
+    "player_name"
+  ],
+  "hash_policy": "sha256 over LF-normalised bytes for protocol, config, pipeline document and source files; content hashes for data frames",
+  "determinism_reruns": 1
+}
