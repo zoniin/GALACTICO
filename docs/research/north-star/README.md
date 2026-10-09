@@ -5,7 +5,7 @@ Two things live here, and neither is a result.
 
 | File | What it is | Status |
 |---|---|---|
-| [ROOT-DECISIONS.md](ROOT-DECISIONS.md) | The binding decisions the build ran under: the constitution restated as rules R1-R13, the tool definitions, the frozen files, and the rulings on what the reconnaissance and the designers disputed (sections 2.5 and 2.6) | Followed for everything shipped. Sections on tools that were not built (frontier, risk modes, minimal conflict, Opponent Lab, the desk) are plans, not descriptions |
+| [ROOT-DECISIONS.md](ROOT-DECISIONS.md) | The binding decisions the build ran under: the constitution restated as rules R1-R13, the tool definitions, the frozen files, and the rulings on what the reconnaissance and the designers disputed (sections 2.5 and 2.6) | Followed for everything shipped. Sections on tools that were not built (frontier, risk modes, minimal conflict, Opponent Lab, the desk) are plans, not descriptions. So is section 2.2: its heading names `experiments/preregistered/E-09 .. E-13`, and no such protocol is registered; the five are drafts under `protocol-drafts/` |
 | [protocol-drafts/](protocol-drafts/) | Five experiment protocols with their configs and pipeline specifications | **Drafts. Not frozen, not registered, not run** |
 
 ## The five drafts

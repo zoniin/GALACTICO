@@ -6,9 +6,9 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-The Squad Lab and Transfer Lab build passed **1,074 local Python tests** (one more
-skips: the tag sidecar it needs is not built) and **33 Playwright tests** on
-9 October, with the five-league public corpus present. Ruff and the licensing
+The Squad Lab and Transfer Lab build passed **1,119 local Python tests** (one more
+skips: the tag sidecar it needs is not built) and **35 browser tests** plus the two
+screenshot captures on 9 October, with the five-league public corpus present. Ruff and the licensing
 guard passed. It lives on the `north-star` branch and **has not run on GitHub
 Actions**: the browser job now ingests all five leagues, and that change is
 untested there.
@@ -26,8 +26,8 @@ What the new tests establish, and what they do not:
   when later and same-day matches are poisoned, and is byte-equal to the frozen
   builder for both shipped Madrid scenarios.
 - **The guards run.** The rating-key walker and the provider check run on every
-  new response at the boundary, not only in tests; a copy guard scans every label of the responses the
-  tests request (it is not yet run at the boundary); the research firewall parses imports; preregistration order is
+  new response at the boundary, not only in tests; so does the
+  copy guard, on every served string; the research firewall parses imports; preregistration order is
   read from git. See [M-06](docs/research/M-06-a-guard-that-never-runs.md).
 - **The pages.** Browser tests compare what is drawn with what the server sent,
   hold replies to prove a stale one changes nothing, and check gold and 390 px
@@ -41,6 +41,20 @@ What the new tests establish, and what they do not:
   where anyone can play, or that a recorded rate repeats after a move. No
   experiment was run in this build: the five new protocols are
   [drafts](docs/research/north-star/README.md), unreviewed and unregistered.
+
+**The final audit.** Before the branch was handed over, three reviewers that had
+written none of it audited it read-only: every claim of the new documents against
+code and data, the HTTP boundary attacked on the real corpus, and the two pages
+read state by state against the constitution. They reported 36 findings, four of
+them high. The README described the break-even fraction backwards. A cached
+request waited 21 seconds behind other clubs' builds, outside any budget. Squad
+Lab labelled a count with the wrong stage. Transfer Lab printed a signed modelled
+change beside every name while these documents said nothing orders players by
+merit. Each was repaired from a failing test, and the copy guard that the documents
+said ran on every response was moved to where that is true. What the audit found
+and this branch did not change is listed in
+[KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md). The repairs themselves were not audited
+a second time.
 
 Reviewed by agents only. No football analyst and no statistician outside the
 project has looked at these pages or these protocols.

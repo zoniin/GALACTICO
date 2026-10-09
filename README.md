@@ -46,7 +46,7 @@ group before no XI can be fielded under the eligibility rules, and two once the
 leaves the declared shortfall where it was, because nothing here measures
 finishing. A page that printed a shortlist would be answering a question this
 data cannot. These print the question back, with what it is conditional on.
-[Decisions](DECISIONS.md) ADR-0018 to ADR-0023 ·
+[Decisions](DECISIONS.md) ADR-0018 to ADR-0024 ·
 [what they cannot say](KNOWN_LIMITATIONS.md)
 
 ![Squad Lab](docs/screenshots/17-squad-lab.png)
@@ -169,6 +169,9 @@ npm test
 ```
 
 Playwright starts its own local server and tests the actual historical data surfaces.
+`npm test` runs every spec. `e2e/labs.spec.js` (also in `make e2e`) and
+`e2e/screenshots.spec.js` rewrite the tracked images under `docs/screenshots`:
+`git restore docs/screenshots` afterwards unless the change is intended and inspected.
 `make install`, `make prepare`, `make serve`, `make check` and `make e2e` are shortcuts
 where Make is available. No API key is needed for this public historical release.
 
@@ -186,7 +189,7 @@ any attempt to commit one.
 | LAB, local only | StatsBomb open 2015/16, four leagues | restrictive EULA |
 | VISION | SkillCorner, DFL/Sportec | MIT, CC BY 4.0 |
 
-All three shipped labs are **historical**. They run on 2017/18 event data and are badged `LAB` in
+All five shipped labs are **historical**. They run on 2017/18 event data and are badged `LAB` in
 the interface. A LIVE regime would use a different estimator with different
 uncertainty and different sample thresholds, which is why constructs and
 estimators are separate objects in the registry.

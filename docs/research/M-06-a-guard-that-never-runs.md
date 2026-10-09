@@ -32,6 +32,13 @@ And once more in the code written to repair them. The first version of the page
 copy guard removed allowed denials as raw substrings, so "Mariano rating 91"
 scanned clean: "no rating" sits inside the name.
 
+And a third time, in the documents written about the repair. They said the copy
+guard scans every served label. It ran in the tests, on the replies those tests
+asked for, and nowhere else: the placement gap this note is about. An auditor who
+had not written it found it by searching for the call. It could not simply be moved
+to the boundary, because it took 2.3 seconds on the largest real reply; it runs
+there now, at 85 milliseconds, with a test that its answers did not change.
+
 ## Why nothing caught it
 
 Each guard had a test, or was a test. Each was run by hand at the moment it was
@@ -49,7 +56,7 @@ level up: a passing suite is not evidence that a guard executed.
 - `galactico/domain/thesis.py` walks any payload by exact key, with path-scoped
   exemptions (`teams[].score` is a scoreline), and the bundle test covers every
   profile and every nested key. New responses pass it at the boundary
-  (`runtime.finalize`), not only in a test.
+  (`runtime.finalize`), not only in a test, and since the audit so does the copy guard.
 - Fail-open defaults became fail-closed: undefined is not a pass, no interval is
   no lower bound, outside a work tree is an error.
 - Preregistration order and protocol hashes are machine-checked from git.

@@ -126,7 +126,11 @@ pooling remains guarded; the Bridge remains unvalidated.
 
 - Every number is exact arithmetic on declared inputs: a role-slot template,
   requirement minima, an eligibility rule set and the evidence gate. None says
-  whom to keep, sell or sign, and nothing orders players by merit.
+  whom to keep, sell or sign. No list is ordered by a solver output: the default
+  order is the name, and a user may choose one declared recorded quantity. With a
+  single requirement in force, which is the default, Transfer Lab's outcome groups
+  are a threshold on that one recorded rate and that key lists a group in the
+  order of the modelled change. The page says so above the list.
 - Planning surfaces use the **progression requirement only** by default. The two
   side pass-origin requirements are EXPERIMENTAL and enter through an explicit
   opt-in. Finishing, defending, goalkeeping, physical profile, character, fee,
@@ -174,15 +178,34 @@ pooling remains guarded; the Bridge remains unvalidated.
   together, it is not a target, and Squad Lab does not show it yet.
 - With the experimental opt-in, both side requirements are in force together.
   One cannot be declared without the other.
-- Whether a set of absences that leaves no XI is attributed to the gate or to
-  the eligibility rules is decided by counting the players the gate removed
-  from the short slot group, not by an exact cover. It agreed with an exact
-  assignment check on 160 real cases and could be wrong on a contrived squad.
+- Whether a set of absences that leaves no XI is attributed to the gate, to the
+  user's own exclusion or to the eligibility rules is decided by counting the
+  players each of them removed from the short slot group, not by an exact cover. It agreed with an exact
+  assignment check wherever the two were compared (160 cases in review, 1,154
+  across all 98 clubs in the final audit), and could be wrong on a contrived
+  squad. Neither comparison is a committed test.
 - Transfer Lab fills the break-even column one candidate at a time. A pool of
   several hundred (another league included) takes tens of seconds. Superseded
   requests are dropped by the page, not cancelled on the server.
+- Squad Lab's single-absence rows print the change in the least declared
+  shortfall without each player, under a first group of rows that raise it.
+  That is the question the tool answers; it is conditional on the declarations
+  and says nothing about the player. The same pattern was removed from Transfer
+  Lab's list and left here.
+- Fixed captions, keys, the lines under figures and a few token-to-words tables
+  are written in the two pages. None varies with a number. Every sentence that
+  depends on a value comes from the server, and the page headers say which is
+  which.
+- This is a single-user laboratory, not a service. Two corpus builds and two
+  enumerating computations run at a time; a request that has waited five seconds
+  for a place is answered 429. Ten different clubs requested cold at the same
+  moment got six replies and four refusals. A budget does not interrupt a corpus
+  read, so a request can last its budget plus one build.
+- A failure raised inside pandas or numpy as a plain `ValueError` is still
+  answered as a 422 carrying the library's sentence. Only file errors and Arrow's
+  own are told apart and answered 503.
 - The 404, 422 and 503 states of the two pages are tested at the API and not
-  in the browser; 429 is tested on the runtime skeleton only. A real deadline was never reached on the shipped
+  in the browser. The 429 state is tested in both, with a fulfilled reply. A real deadline was never reached on the shipped
   scenarios; those states are tested by rewriting replies.
 
 ## Drafted, not registered, not run
@@ -226,8 +249,10 @@ These need the owner's decision; none was changed.
 - Three xT turnover recipes are live (Stage 1B, Player Lab, XI Lab). Surfaces
   differ by up to 0.004 per cell. They were not unified: doing so moves shipped
   numbers.
-- Lineup minutes are nominal on a flat 90-minute clock; 256 starters sent off
-  across the five leagues are credited 90 minutes or more.
+- Lineup minutes are nominal on a flat 90-minute clock; about 250 starters
+  sent off before the 90th minute across the five leagues are credited 90 minutes
+  or more (256 or 258 depending on the clock convention; no committed script
+  produces the count).
 - The `ROBUST` versus `ROBUST_WITH_SHIFT` boundary is written nowhere: `width`
   (+10%) was labelled robust and `half_space_share` (−14%) robust with shift.
 - The committed `RELIABILITY_CURVE` values are the Wyscout column of the Stage 1B

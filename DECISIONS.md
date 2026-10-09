@@ -588,7 +588,8 @@ cutoff that is a date rather than a match, and worlds an external player can sha
 **Decision.** `galactico/optimization/snapshots.py` stands beside the frozen
 `historical.py`. A snapshot is built for a (competition, team, decision match or
 bare cutoff date) under a registered `EligibilityRuleSet`. Two exist: the Madrid
-manual rules, wrapped unchanged under their shipped version and marked reviewed,
+manual rules, wrapped unchanged under their shipped version and marked as declared by
+hand (no external football review of them is recorded),
 and `provider-position-broad-v1`, marked unreviewed, in which the provider's
 four-class position decides. A manual rule set applied to another team is an
 error. Worlds have a named scheme: `TEAM_MATCHES` (the shipped draw) and
@@ -620,7 +621,7 @@ eligibility is a heuristic, too permissive (it does not tell left from right) an
 sometimes wrong; depth under it mostly restates the provider's position code, and
 every surface that uses it says so.
 
-**Reversal.** A reviewed rule set for another club replaces the broad rule by
+**Reversal.** A hand-declared rule set for another club replaces the broad rule by
 registration. A role-inference construct that survives its own experiment would
 enter as a third kind, with its verdict attached.
 
@@ -690,10 +691,23 @@ possible and necessary membership. Rows are grouped by a categorical outcome of
 that solve, then ordered inside a group by one declared key, with equal keys as
 tie groups; no key combines requirements and no ordinal exists. The response
 states how many candidates were screened and shows a pool-median reference
-injection beside them. The break-even carry-over fraction scales his additive
+injection beside them. A list row shows a candidate's recorded facts, his certified
+forced value and his membership; the signed change against the squad's own value is
+printed only for a candidate the user opens, beside its certificate. The break-even carry-over fraction scales his additive
 rates on a fixed grid and reports the smallest value at which a declared
 conclusion still holds, with the exact solves that bracket it. No carry-over
 function is fitted or applied.
+
+Stated consequence. With one requirement in force, which is the planning default,
+the forced value of a row is a function of the one recorded rate printed in it: a
+higher rate gives a lower declared shortfall or the same one. The outcome groups are
+then a threshold on that rate, and the rate key lists a group in the order of the
+modelled change. That is as near to an ordering by a solver output as this tool
+comes. The reply says so in a sentence the page prints above the groups: they
+restate one recorded rate under a declared minimum and are not a second piece of
+evidence about a player. The default order is the name. The final audit found the
+page printing the signed change beside every name and the documents saying nothing
+orders players by merit; the row lost the number and the documents the sentence.
 
 **Evidence.** The injected optimum is the smaller of the baseline and the
 forced-inclusion value, and membership follows from comparing the two; both are
@@ -719,3 +733,70 @@ do after a move; the composed evidence class is no stronger than `HEURISTIC`.
 a construct, the page may show the tested range beside the break-even, never
 substituted into the solve. An ordering by a solver output would need an ADR that
 overturns the no-rating rule.
+
+---
+
+## ADR-0024 — A new route's builds are inside its budget and behind one gate; the copy guard runs at the boundary
+
+**Problem.** The runtime states what every new request does: a server-owned budget
+for the whole request, an identical request in flight computed once, two long
+computations at a time, a copy guard on every served label. An audit that attacked
+the routes on the real corpus found none of the four true at the boundary. Every
+Squad Lab request declared its problem under one process-wide lock, before the
+result cache was asked and before a budget existed; every Transfer Lab request built
+its snapshot and candidate universe the same way. Ten first requests for ten clubs
+made an already cached request wait 21.7 seconds, 45 made the page and the static
+files wait 30, and a five-league request that took 8.5 seconds reported 0.032 elapsed.
+The copy guard ran only in tests, on the replies those tests asked for.
+
+**Decision.**
+
+1. One build gate in `api/planning.py` behind the snapshot, reference and universe
+   loaders. One build per key, with later callers handed the first caller's object;
+   two builds at once in the process; 429 after the documented wait for a place. A
+   key that is already built waits for nobody.
+2. Every POST starts its budget at handler entry, asks the result cache before
+   anything is built, and declares its problem inside the computed function. The
+   key is the request as resolved (`canonical_request`: reordered or repeated
+   exclusions and locks, reordered presets and declarations, and the club spelling
+   of a scenario are one problem) and a cheap identity of the corpus files it reads
+   (`corpus_token`: names, sizes and modification times; no file is opened). The
+   dataset hash stays in provenance.
+3. The copy guard lives in `domain/labels.py`, beside the key walker, and
+   `runtime.finalize` runs it over the string values of every new response. Keys stay
+   with the key walker and its path-scoped exemptions, so one key answers to one rule.
+   The refusal names the path and the word, never the sentence.
+
+**Evidence.** Replayed on the real corpus after the change: the ten-club burst
+returns six replies and four 429s in six seconds while the cached request answers in
+0.01; each reply's elapsed time is within 0.03 seconds of its wall time; two
+simultaneous first requests build once. The guard took 2,264 ms on the largest real
+reply (1.56 MB, 64,071 strings) and takes 85: one combined pattern asks first whether
+a text holds any banned token, which is sound because an allowed phrase is matched
+only between non-word characters and removing one cannot create a token. Its answers
+equal the plain definition on 300,000 generated strings, of which a seeded 20,000 are
+a test. No real reply trips it: 147 replies of 14 routes for six clubs, and every
+player and team name in the corpus. The gate, key and budget tests use events,
+counters and a patched clock; none sleeps for an outcome.
+
+**Numerical boundary.** A budget does not interrupt a corpus read, so a request can
+last its budget plus one build. Each distinct problem on the two enumerating routes
+still holds one of the two long-computation places. The cache key contains file
+modification times, so a result store filled on one machine could not be read on
+another; nothing ships in one. A failure raised inside pandas or numpy as a plain
+`ValueError` is still answered 422 with the library's sentence.
+
+**Alternatives rejected.** A lock per club with no bound (four concurrent universe
+builds took the server from 380 MB to 1,257 MB). Keying the cache on the dataset
+hash (it needs the build the lookup exists to avoid). Folding a repeated preset or
+league into the key (a refusal would be answered from the stored reply of the
+accepted request). Scanning labels in tests only (M-06). Scanning keys at the
+boundary as well (a scoreline key exempted by the key walker would be refused by the
+other rule).
+
+**Confidence.** High for the mechanics. The label guard can refuse a response for a
+legitimate name that is a banned word; none exists in this corpus, and a new corpus
+would show it as a 500 on the first request that serves the name.
+
+**Reversal.** A hosted, multi-user deployment needs a job queue and precomputed
+results. The gate is a single-user device and says so by answering 429.

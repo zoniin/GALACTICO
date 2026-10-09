@@ -69,15 +69,15 @@ changed: their bytes are hashed into published experiment results.
 | `domain/evidence.py` | The one mapping from shipped vocabularies to `EvidenceClass`, and composition by the weakest |
 | `domain/verdicts.py` | One typed record per preregistered claim; a LOCAL-tier record can label, never gate. Ships empty |
 | `domain/thesis.py` | Walks any payload for rating-like keys by exact key |
-| `api/runtime.py` | How every new request runs: error mapping, server-owned budgets, result cache with single-flight, the boundary check `finalize`, NaN-free responses |
-| `api/shell.py` | What every new page shows: navigation, the not-measured list, evidence and verdict payloads, the copy guard `scan_labels` |
-| `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem and the two lab routers |
+| `domain/labels.py` | The copy guard: words a served string may not contain outside a named denial. Run on every new response |
+| `api/runtime.py` | How every new request runs: error mapping, budgets that start with the request, result cache with single-flight, two long computations at a time, the boundary check `finalize` (providers, keys, served words), NaN-free responses |
+| `api/shell.py` | What every new page shows: navigation, the not-measured list, evidence and verdict payloads |
+| `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem, the build gate (one build per key, two at once, 429 after the wait), cache keys on the request as resolved, and the two lab routers |
 
 Every new response passes `runtime.finalize`: the provider set at any depth of the
-payload must be exactly the hosted one, and no key may read like a rating. The tests pass every label of the
-responses they request through `shell.scan_labels` (it is not yet run at the
-boundary): a word such as "best", "weakness" or
-"forecast" may appear only inside a named denial. Product code imports nothing
+payload must be exactly the hosted one, and no key may read like a rating. It also
+passes the copy guard there (`domain/labels.py`): in every served string a word such as
+"best", "weakness" or "forecast" may appear only inside a named denial. Product code imports nothing
 from `galactico.validation` or `experiments`; `tests/test_research_firewall.py`
 parses the imports.
 

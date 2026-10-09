@@ -8,8 +8,8 @@ build ran unattended and no push was requested, and a push matters here: commit
 order is how a preregistration is proved. Review the branch, then push it or
 merge it. `git log --oneline feb9f8b..north-star` lists it.
 
-1,074 Python tests passed and 1 skipped (the tag sidecar is not built); 33
-Playwright tests passed; Ruff and the licence guard clean; desktop and 390 px
+1,119 Python tests passed and 1 skipped (the tag sidecar is not built); 35
+browser tests and the two screenshot captures passed; Ruff and the licence guard clean; desktop and 390 px
 screenshots read. The CI workflow was changed (the browser job ingests five
 leagues and runs two more specs) and that change has never run on GitHub Actions.
 
@@ -21,7 +21,17 @@ league references · `ac1d43a` depth, absence stress, role brief · `1d6f7f1`
 candidate universe, exact injection, break-even carry-over · `4668b2a` lab
 runtime and page shell · `e96b81c` ADR-0018 to 0023, M-06, protocol drafts ·
 `36150fb` tool sentences by label · `a8ffe3d` planning API and browser kit ·
-`d9bf28f` Squad Lab and Transfer Lab · then screenshots and documentation.
+`d9bf28f` Squad Lab and Transfer Lab · `9b8c105` documentation and screenshots ·
+`5991c23` the attained sum in Transfer Lab. Then the repairs the final audit asked
+for: `b91f466` six false statements in the documents · `e55d824` the Madrid rule
+set is declared by hand, not reviewed · `1853ad2` tool sentences · `d9ba681` builds
+inside the budget and behind a gate, one cache key per problem · `8b13d52` the copy
+guard at the response boundary · `55b3b7b` server fields for the pages · `2736f08`
+the pages print them · then this documentation.
+
+One commit message is wrong and cannot be corrected without rewriting history:
+`ac1d43a` says the role brief matched a slot search on 88 slot and scenario
+combinations. The committed test covers 22.
 
 This build ran in a fresh clone on a second Windows machine with no `uv` and no
 `gh`: `py -3.12 -m venv .venv`, then `pip install -e ".[dev,api]"`. The commands
@@ -129,8 +139,9 @@ No credentials or proprietary data are needed or committed.
 
 - 9 October, guards. The test behind "no overall rating" had never run in CI,
   and six more guards failed open. Each was repaired from a failing test
-  ([M-06](research/M-06-a-guard-that-never-runs.md)). The 864 published figures of
-  the Player Lab bundle are bit-identical after the measurement repairs.
+  ([M-06](research/M-06-a-guard-that-never-runs.md)). The Player Lab bundle
+  (385,145 values) and 864 recomputed reliability and confound figures are
+  bit-identical after the measurement repairs.
 - 9 October, engine. One exact kernel equal to the XI solver's integers; snapshots
   for any club and cutoff date with byte parity for Madrid; league references;
   slot depth; absence stress; the role brief; a gated candidate universe; exact
@@ -142,7 +153,12 @@ No credentials or proprietary data are needed or committed.
   the side pass-origin requirements are an explicit experimental opt-in. Each
   page was reviewed in a browser by an agent that did not build it; fourteen
   defects were repaired.
-- 9 October, record. ADR-0018 to ADR-0023. Five protocol **drafts** (E-09 to
+- 9 October, final audit. Three read-only reviewers that had written none of the
+  branch: documentation claims against code and data, the HTTP boundary on the
+  real corpus, the constitution on the rendered pages. 36 findings, four high,
+  repaired from failing tests in seven commits. The findings and the three repair
+  reports are with the owner's working notes. The repairs were not re-audited.
+- 9 October, record. ADR-0018 to ADR-0024. Five protocol **drafts** (E-09 to
   E-13) under `docs/research/north-star/protocol-drafts/`.
 
 ## CURRENT STATE MAP
@@ -167,8 +183,8 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation on `north-star`. **1,074 local Python tests and 33
-Playwright tests** passed on 9 October, plus Ruff/licensing. Push and CI are the
+No unfinished implementation on `north-star`. **1,119 local Python tests, 35 browser
+tests and two screenshot captures** passed on 9 October, plus Ruff/licensing. Push and CI are the
 remaining handoff checks. Do not reopen E-07 or E-08.
 
 The 20 September release: **374 local Python tests and 13 Playwright tests**
@@ -272,7 +288,7 @@ need a protocol before confirmatory evaluation; do not tune to the 12-match wind
 
 For the planning work, in the order to read them:
 `docs/research/north-star/ROOT-DECISIONS.md` (the rules the build ran under; its
-sections on tools that were not built are plans), `DECISIONS.md` ADR-0018 to 0023,
+sections on tools that were not built are plans), `DECISIONS.md` ADR-0018 to 0024,
 `galactico/optimization/squad/kernel.py` (every new exact tool goes through it),
 `galactico/api/runtime.py` and `shell.py` (every new route and page goes through
 them), `galactico/api/planning.py`, then the two routers and pages.
