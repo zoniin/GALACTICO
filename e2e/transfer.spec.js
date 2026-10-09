@@ -109,7 +109,7 @@ test('the default problem has no shortfall: the page says so and leads to a decl
   await expect(page.locator('#pool-definition')).toHaveText(pool.pool.definition);
   await expect(page.locator('#carry-over-statement')).toHaveText(pool.carry_over_statement);
   await expect(page.locator('#eligibility-banner')).toHaveText(new RegExp(pool.eligibility.banner.slice(0, 40)));
-  await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'REVIEWED');
+  await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#composed-evidence')).toHaveAttribute('data-evidence', pool.evidence.class);
   await expect(page.locator('#research-status')).toHaveText(pool.research_statement);
 

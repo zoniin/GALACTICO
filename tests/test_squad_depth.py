@@ -42,7 +42,7 @@ THREE = Formation("three", (KEEPER, BACK_A, FRONT))
 ROLE_SLOTS = {"g": ("g",), "ab": ("a", "b"), "a": ("a",), "b": ("b",), "c": ("c",),
               "x": ("c", "a")}
 MANUAL = EligibilityRuleSet(
-    version="synthetic-manual-v1", kind="MANUAL_REVIEWED", review_status="REVIEWED",
+    version="synthetic-manual-v1", kind="MANUAL_DECLARED", review_status="DECLARED_BY_HAND",
     team_id=1, competition="Synth", role_rules={}, role_slots=ROLE_SLOTS,
     evidence_class="HEURISTIC", banner="synthetic manual rules")
 PROVIDER = replace(ELIGIBILITY_RULESETS[PROVIDER_POSITION_VERSION], role_slots=ROLE_SLOTS)
@@ -58,7 +58,7 @@ def record(pid, position, minutes, roles=(), values=None):
 
 def make_snapshot(rows, minima, rules, reverse=False):
     """Apply the shipped omission rule to the rows and wrap them as a snapshot."""
-    manual = rules.kind == "MANUAL_REVIEWED"
+    manual = rules.kind == "MANUAL_DECLARED"
     candidates, omitted = [], []
     for row in rows:
         unreviewed = manual and not row["role_rules"]
@@ -89,7 +89,7 @@ def exact(value, normalizer, scale):
 
 def chain(snapshot, slot, metrics, excluded):
     """The stages of spec 4.2, each a list comprehension over the snapshot's records."""
-    manual = snapshot.eligibility.kind == "MANUAL_REVIEWED"
+    manual = snapshot.eligibility.kind == "MANUAL_DECLARED"
     roles = snapshot.eligibility.role_slots
     roster = sorted([*snapshot.candidates, *snapshot.omitted], key=lambda p: p["player_id"])
     needed = metrics if slot.allowed_positions != ("GK",) else ()
@@ -282,7 +282,7 @@ def test_depth_equals_the_definition_on_seeded_snapshots(thesis_guard):
                                                 *slot.not_rule_eligible_other_slot)]
                 assert (gone["player_id"] in listed) == (
                     gone["position"] in shape.allowed_positions)
-        manual = snapshot.eligibility.kind == "MANUAL_REVIEWED"
+        manual = snapshot.eligibility.kind == "MANUAL_DECLARED"
         conflicts = {
             p["player_id"]: tuple(
                 s.slot_id for s in formation.slots
@@ -659,7 +659,7 @@ def test_madrid_default_scenario_depth_table(corpus_root, thesis_guard):
     assert [(p.player_id, p.minutes) for p in result.slots[0].available] == [
         (3785, 810), (3915, 2250)]
     assert "goalkeepers exempt (shipped rule)" in result.gate_statement
-    assert result.rule_position_conflicts == () and result.eligibility["kind"] == "MANUAL_REVIEWED"
+    assert result.rule_position_conflicts == () and result.eligibility["kind"] == "MANUAL_DECLARED"
     assert result.slots[2].equivalent_slot_ids == ("rcb",)
     assert result.slots[6].equivalent_slot_ids == ("rcm",)
     # Planning default: progression only, and no placement raises the squad's (0, 0).

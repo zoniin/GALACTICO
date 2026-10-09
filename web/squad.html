@@ -231,7 +231,7 @@ function depthList(reply, selected) {
       (raising.length ? `<div class="depth-line" data-stage="raises">Raises the least declared shortfall when used here: ${names(raising)}</div>` : '') +
       (only.length ? `<div class="depth-line" data-stage="exclusive">Available here and at no other slot: ${names(only)}</div>` : '') +
       (unmeasured.length ? `<div class="depth-line" data-stage="unmeasured">No measurement this slot needs: ${names(unmeasured)}</div>` : '') +
-      (other.length ? `<div class="depth-line" data-stage="other-slot">Reviewed for other slots only: ${names(other)}</div>` : '') +
+      (other.length ? `<div class="depth-line" data-stage="other-slot">Declared for other slots only: ${names(other)}</div>` : '') +
       (unreviewed.length ? `<div class="depth-line" data-stage="unreviewed">Admitted by position, no eligibility rule: ${names(unreviewed)}</div>` : '') +
       '</li>';
   }).join('');
@@ -340,7 +340,7 @@ function playerDetail() {
   return `<h3>${esc(member.name)}${member.state === 'EXCLUDED' ? ' ' + GP.declared() : ''}</h3>` +
     `<p class="player-facts">${esc(member.position)} · ${GP.value(member.minutes, 0)} nominal minutes · matches ${GP.value(member.matches, 0)}, starts ${GP.value(member.starts, 0)} · age ${GP.value(member.age_years, 0)} · foot ${esc(member.foot ?? DASH)}</p>` +
     '<ul class="player-lines">' +
-    `<li><span class="label">Eligibility rule</span>${list(member.role_rules).length ? 'Reviewed roles: ' + list(member.role_rules).map(esc).join(', ') + '. ' : 'Provider position only. '}Slots: ${list(member.eligible_slots).map(s => esc(s.label)).join(', ') || 'none in this template'}.</li>` +
+    `<li><span class="label">Eligibility rule</span>${list(member.role_rules).length ? 'Declared roles: ' + list(member.role_rules).map(esc).join(', ') + '. ' : 'Provider position only. '}Slots: ${list(member.eligible_slots).map(s => esc(s.label)).join(', ') || 'none in this template'}.</li>` +
     `<li><span class="label">Recorded on the declared requirements</span>${rates}</li>` +
     (member.state === 'EXCLUDED' ? '<li><span class="label">State</span>Excluded by you from every solve.</li>' : placements) +
     (removal ? `<li data-removal="${esc(removal.outcome)}"><span class="label">Without him</span>${esc(removal.outcome_label)}${removal.objective_vector ? ': ' + pair(removal.objective_vector) : ''}.</li>` : '') +

@@ -136,7 +136,7 @@ def test_restated_constants_equal_the_objects_they_restate():
     assert get_args(planning.PresetId) == tuple(planning.PRESETS)
     assert planning.FLAGSHIP.team_id == historical.TEAM_ID
     assert planning.WORLDS_ERROR == "bootstrap worlds must be one of 0, 12, 40"
-    assert snapshots.ruleset_for(675, "Spain").kind == "MANUAL_REVIEWED"
+    assert snapshots.ruleset_for(675, "Spain").kind == "MANUAL_DECLARED"
 
 
 def test_catalogue_is_corpus_free_passes_the_copy_guard_and_claims_no_test(
@@ -285,7 +285,7 @@ def test_default_problem_is_progression_only_and_says_what_it_is_conditional_on(
     assert len(body["provenance"]["input_fingerprint"]) == 64
     assert (body["claim"], body["non_claim"]) == (CLAIM, NON_CLAIM)
     assert body["scenario"]["cutoff"] == "2018-05-21"
-    assert body["eligibility"]["kind"] == "MANUAL_REVIEWED"
+    assert body["eligibility"]["kind"] == "MANUAL_DECLARED"
     assert body["gate_statement"] == snapshots.GATE_STATEMENT
     # Canonical order: name ignoring case, then id. Each omission carries its reason.
     assert [(p["name"], p["reason"]) for p in body["omitted_candidates"]] == [
@@ -661,7 +661,7 @@ def test_flagship_resolves_and_builds_on_the_real_corpus(corpus_root):
         assert (snap.kind, snap.cutoff_date, snap.world_scheme) \
             == ("DATE", "2018-05-21", "LEAGUE_MATCHES")
         assert (snap.eligibility.kind, snap.eligibility.review_status) \
-            == ("MANUAL_REVIEWED", "REVIEWED")
+            == ("MANUAL_DECLARED", "DECLARED_BY_HAND")
         assert {player["reason"] for player in snap.omitted} == {"below 900 prior minutes"}
         # The preset's label names player 3322; the corpus must agree with the literal.
         assert snap.facts[3322].name == "Cristiano Ronaldo"
@@ -697,7 +697,7 @@ def test_every_league_cutoff_is_the_day_after_its_last_match(corpus_root, league
         madrid = next(club for club in spain if club["team_id"] == 675)
         assert (madrid["scenario_id"], madrid["team_name"], madrid["eligibility_kind"]) \
             == (planning.DEFAULT_PLANNING_SCENARIO, planning.FLAGSHIP.team_name,
-                "MANUAL_REVIEWED")
+                "MANUAL_DECLARED")
         others = {club["eligibility_review_status"] for club in spain if club["team_id"] != 675}
         assert others == {"UNREVIEWED"}
         assert planning.resolve_scenario(spain[0]["scenario_id"]).team_id == spain[0]["team_id"]

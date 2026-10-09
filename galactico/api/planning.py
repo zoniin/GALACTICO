@@ -349,7 +349,7 @@ def _check_worlds(worlds: int) -> None:
 def planning_snapshot(scenario_id: str, worlds: int = 0) -> TeamSnapshot:
     """The club's squad before the scenario's cutoff, with league-coherent worlds.
 
-    Eligibility is the rule set's own choice: the reviewed manual rules for Madrid, provider
+    Eligibility is the rule set's own choice: the hand-declared rules for Madrid, provider
     positions (unreviewed) for every other club. ``worlds`` is 0 or a ``runtime.WORLD_MENU``
     count. An unknown id is a ``KeyError``: a handler resolves the scenario first.
     """

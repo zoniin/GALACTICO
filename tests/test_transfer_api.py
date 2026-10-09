@@ -442,7 +442,7 @@ def test_flagship_on_the_real_corpus(lab_client, corpus_root, league_available, 
     _clean(default, thesis_guard)
     # The measured fact the page is built around: the default squad already meets its minimum.
     assert default["deficiency"]["state"] == "NO_DECLARED_DEFICIENCY"
-    assert default["eligibility"]["review_status"] == "REVIEWED"
+    assert default["eligibility"]["review_status"] == "DECLARED_BY_HAND"
     assert default["evidence"]["class"] == "HEURISTIC" and default["experimental_inputs"] == []
     declared = {"slot_id": "st", "excludes": [3322], "requirements": [
         {"requirement_id": "progression", "source": "EXPLICIT", "value": 4.2}]}

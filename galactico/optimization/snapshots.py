@@ -110,7 +110,7 @@ EXPERIMENTAL_OPT_IN_ERROR = "experimental requirements need experimental_opt_in"
 
 _SHORT_HISTORY = "at least eight prior team matches are required for this research snapshot"
 _METRIC_KINDS = ("SPEC_PER_90", "LANE_COUNT_PER_90", "EXTENSION")
-_ELIGIBILITY_KINDS = ("MANUAL_REVIEWED", "PROVIDER_POSITION")
+_ELIGIBILITY_KINDS = ("MANUAL_DECLARED", "PROVIDER_POSITION")
 _MODES = ("BALANCE", "SATISFY")
 _THRESHOLD_SOURCE = "Prior starting-XI median threshold (heuristic). "
 _SIDE_SOURCE = (
@@ -129,8 +129,8 @@ class EligibilityRuleSet:
     """Who may fill which slot, as a declared rule and never as an inferred role."""
 
     version: str
-    kind: str  # MANUAL_REVIEWED | PROVIDER_POSITION
-    review_status: str  # REVIEWED | UNREVIEWED
+    kind: str  # MANUAL_DECLARED | PROVIDER_POSITION
+    review_status: str  # DECLARED_BY_HAND | UNREVIEWED
     team_id: int | None  # the only team a manual rule set may be applied to
     competition: str | None
     role_rules: Mapping[int, tuple[str, ...]]  # empty for PROVIDER_POSITION
@@ -280,8 +280,8 @@ _ROLE_SLOTS: Mapping[str, tuple[str, ...]] = MappingProxyType({
 ELIGIBILITY_RULESETS: Mapping[str, EligibilityRuleSet] = MappingProxyType({
     historical.ELIGIBILITY_VERSION: EligibilityRuleSet(
         version=historical.ELIGIBILITY_VERSION,
-        kind="MANUAL_REVIEWED",
-        review_status="REVIEWED",
+        kind="MANUAL_DECLARED",
+        review_status="DECLARED_BY_HAND",
         team_id=historical.TEAM_ID,
         competition="Spain",
         # The frozen dict itself, read-only: one definition, not a copy that can drift.
@@ -289,8 +289,9 @@ ELIGIBILITY_RULESETS: Mapping[str, EligibilityRuleSet] = MappingProxyType({
         role_slots=_ROLE_SLOTS,
         evidence_class="HEURISTIC",
         banner=(
-            "Manual slot eligibility, versioned and reviewed for Real Madrid 2017/18. "
-            "Declared rules, not inferred roles."
+            "Manual slot eligibility, declared player by player for Real Madrid 2017/18 and "
+            "versioned. Declared rules, not inferred roles. No external football review of "
+            "them is recorded."
         ),
     ),
     PROVIDER_POSITION_VERSION: EligibilityRuleSet(
@@ -312,10 +313,10 @@ ELIGIBILITY_RULESETS: Mapping[str, EligibilityRuleSet] = MappingProxyType({
 
 
 def ruleset_for(team_id: int, competition: str) -> EligibilityRuleSet:
-    """The reviewed rule set where one exists for this club, else provider positions."""
+    """The hand-declared rule set where one exists for this club, else provider positions."""
     for ruleset in ELIGIBILITY_RULESETS.values():
         if (
-            ruleset.kind == "MANUAL_REVIEWED"
+            ruleset.kind == "MANUAL_DECLARED"
             and ruleset.team_id == team_id
             and ruleset.competition == competition
         ):
@@ -502,7 +503,7 @@ def build_team_snapshot(
     team_id = int(team_id)
     if eligibility.kind not in _ELIGIBILITY_KINDS:
         raise ValueError(f"eligibility kind must be one of {_ELIGIBILITY_KINDS}")
-    manual = eligibility.kind == "MANUAL_REVIEWED"
+    manual = eligibility.kind == "MANUAL_DECLARED"
     if manual and (eligibility.team_id != team_id or eligibility.competition != competition):
         raise ValueError(
             f"eligibility rule set {eligibility.version} is declared for team "
@@ -876,7 +877,7 @@ def snapshot_inputs(
         slot.slot_id for slot in formation.slots if slot.allowed_positions != ("GK",)
     )
 
-    manual = snap.eligibility.kind == "MANUAL_REVIEWED"
+    manual = snap.eligibility.kind == "MANUAL_DECLARED"
     roles = snap.eligibility.role_slots
     candidates = [
         Candidate(

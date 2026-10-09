@@ -287,7 +287,7 @@ def test_the_envelope_is_rendered_verbatim_and_every_label_passes_the_scan(tmp_p
          "competition": "Spain", "competition_label": "La Liga",
          "eligibility_kind": "PROVIDER_POSITION"},
         {"scenario_id": SCENARIO["scenario_id"], "team_name": "Real Madrid",
-         "competition_label": "La Liga", "eligibility_kind": "MANUAL_REVIEWED"}])
+         "competition_label": "La Liga", "eligibility_kind": "MANUAL_DECLARED"}])
     got = json.loads(out)
     for name, sent in (("plain", plain), ("wide", wide)):
         page = got[name]
@@ -311,8 +311,9 @@ def test_the_envelope_is_rendered_verbatim_and_every_label_passes_the_scan(tmp_p
     assert "lcb, RCB" in got["slots"]
     assert "La Liga 2017/18, matches before 2018-05-21" in got["plain"]["scope"]
     assert "{" not in got["plain"]["scope"]
-    # Only a REVIEWED rule set is drawn quietly; the provider-position one is a notice.
-    assert 'class="gp-banner small subtle" data-review="REVIEWED"' in got["plain"]["eligibility"]
+    # Only a DECLARED_BY_HAND rule set is drawn quietly; the provider-position one is a notice.
+    by_hand = 'class="gp-banner small subtle" data-review="DECLARED_BY_HAND"'
+    assert by_hand in got["plain"]["eligibility"]
     assert 'class="gp-banner notice" data-review="UNREVIEWED"' in got["wide"]["eligibility"]
     # The composed class and what binds it are printed with or without the opt-in.
     assert 'data-evidence="HEURISTIC"' in got["plain"]["evidence"]
@@ -924,7 +925,7 @@ def test_hostile_server_strings_never_become_markup(tmp_path: Path) -> None:
     assert 'data-may-gate="true"' not in joined and 'data-state="CERTIFIED"' in joined
     # A hostile status is never drawn as certified, and a hostile review status never as reviewed.
     assert joined.count('data-state="NOT_CERTIFIED"') == 2
-    assert 'data-review="REVIEWED"' not in joined
+    assert 'data-review="DECLARED_BY_HAND"' not in joined
 
 
 def test_a_superseded_reply_is_never_applied_and_dirty_inputs_block_dependants(

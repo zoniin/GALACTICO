@@ -120,8 +120,8 @@ def tiny_league(seed: int = 7, matchdays: int = 24) -> dict[str, pd.DataFrame]:
 PROVIDER_RULES = S.ELIGIBILITY_RULESETS[S.PROVIDER_POSITION_VERSION]
 MANUAL_10 = S.EligibilityRuleSet(
     version="synthetic-manual-v1",
-    kind="MANUAL_REVIEWED",
-    review_status="REVIEWED",
+    kind="MANUAL_DECLARED",
+    review_status="DECLARED_BY_HAND",
     team_id=10,
     competition=COMPETITION,
     # Player 1013 has 2160 minutes and no rule: omitted for the rule, not for the minutes.
@@ -220,7 +220,8 @@ def test_rows_on_and_after_the_cutoff_day_are_never_read(league):
 
 def test_refusals(league):
     madrid = S.ruleset_for(675, "Spain")
-    assert madrid.version == historical.ELIGIBILITY_VERSION and madrid.review_status == "REVIEWED"
+    assert madrid.version == historical.ELIGIBILITY_VERSION
+    assert madrid.review_status == "DECLARED_BY_HAND"
     assert dict(madrid.role_rules) == historical.MADRID_ROLE_RULES
     assert S.ruleset_for(676, "Spain") is PROVIDER_RULES
     assert S.ruleset_for(675, "England") is PROVIDER_RULES
@@ -452,7 +453,7 @@ def test_madrid_match_snapshot_equals_the_frozen_builder(spain_frames, match_id,
     assert new.cutoff == old.cutoff
     assert {key: new.provenance[key] for key in old.provenance} == old.provenance
     assert new.provenance["providers"] == ["pappalardo"]
-    assert new.eligibility.review_status == "REVIEWED"
+    assert new.eligibility.review_status == "DECLARED_BY_HAND"
     assert old.label.startswith(new.label + ",")
     for formation in ("4-3-3", "4-3-1-2"):
         for mode in ("BALANCE", "SATISFY"):
@@ -506,7 +507,7 @@ def test_planning_snapshots_for_madrid_and_an_unreviewed_club(corpus_root):
     assert madrid.provenance["training_match_count"] == 380
     assert madrid.provenance["team_match_count"] == 38
     assert madrid.provenance["providers"] == ["pappalardo"]
-    assert madrid.eligibility.kind == "MANUAL_REVIEWED"
+    assert madrid.eligibility.kind == "MANUAL_DECLARED"
     assert {p["reason"] for p in madrid.omitted} == {"below 900 prior minutes"}
     assert len(madrid.candidates) + len(madrid.omitted) == len(madrid.facts) == 24
     assert all(p["minutes"] >= 900 or p["position"] == "GK" for p in madrid.candidates)

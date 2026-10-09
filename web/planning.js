@@ -127,14 +127,14 @@
       (text(r.non_claim) ? `<p id="non-claim" class="subtle" data-part="non-claim">${esc(r.non_claim)}</p>` : '') + '</div>';
   }
 
-  // The eligibility rule set's banner and the gate sentence. Only REVIEWED is drawn quietly.
+  // The eligibility rule set's banner and the gate sentence. Only DECLARED_BY_HAND is drawn quietly.
   function eligibility(reply) {
     const r = object(reply) ? reply : {};
     const e = object(r.eligibility) ? r.eligibility : {};
-    const reviewed = e.review_status === 'REVIEWED';
+    const byHand = e.review_status === 'DECLARED_BY_HAND';
     const banner = text(e.banner) ? esc(e.banner) : 'No eligibility rule set was sent.';
     const version = text(e.version) ? ` <span class="mono small">${esc(e.version)}</span>` : '';
-    return `<p id="eligibility-banner" class="gp-banner ${reviewed ? 'small subtle' : 'notice'}" data-review="${reviewed ? 'REVIEWED' : 'UNREVIEWED'}" data-kind="${esc(word(e.kind))}">${banner}${version}</p>` +
+    return `<p id="eligibility-banner" class="gp-banner ${byHand ? 'small subtle' : 'notice'}" data-review="${byHand ? 'DECLARED_BY_HAND' : 'UNREVIEWED'}" data-kind="${esc(word(e.kind))}">${banner}${version}</p>` +
       (text(r.gate_statement) ? `<p id="gate-statement" class="gp-banner small subtle">${esc(r.gate_statement)}</p>` : '');
   }
 

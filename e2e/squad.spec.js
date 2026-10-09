@@ -86,7 +86,7 @@ test('Squad Lab draws what the server returned, with the gate beside every count
   const scenario = depth.scenario;
   await expect(page.locator('#eyebrow')).toHaveText(`${scenario.team_name} · ${scenario.season} · matches before ${scenario.cutoff}`);
   await expect(page.locator('h1')).toHaveText('Depth is a count.Not a verdict.');
-  await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'REVIEWED');
+  await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#gate-statement')).toHaveText(depth.gate_statement);
   await expect(page.locator('#shortfall-statement')).toHaveText(depth.baseline.statement);
   await expect(page.locator('#depth-statement')).toHaveText(depth.depth_statement);

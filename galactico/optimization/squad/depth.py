@@ -248,7 +248,7 @@ def squad_depth(
         replace(snapshot, candidates=tuple({"values": {}, **record} for record in roster)),
         formation, mode="BALANCE", minimums=minimums, experimental_opt_in=experimental_opt_in,
     )
-    manual = snapshot.eligibility.kind == "MANUAL_REVIEWED"
+    manual = snapshot.eligibility.kind == "MANUAL_DECLARED"
     slot_ids = tuple(slot.slot_id for slot in slots)
     rule_slots = {
         player.player_id: slot_ids if player.eligible_slots is None else player.eligible_slots
