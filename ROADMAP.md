@@ -95,7 +95,8 @@ nothing else. See [ADR-0020 to ADR-0023](DECISIONS.md).
   requirements are an explicit experimental opt-in. Evidence classes are composed
   from the domain ladder and shown.
 - Independent exhaustive oracles for every tool, pinned real-data regressions,
-  corpus-free API tests, a copy guard on every served label and browser tests.
+  corpus-free API tests, a copy guard on the labels of every tested response and
+  browser tests.
 
 Not established by any of it: that the declared minima are the right identity,
 that a requirement sum says anything about results, or that a recorded rate

@@ -16,7 +16,7 @@ Five connected historical workstations now run locally:
 - **Match Lab** — actual lineups, key/tactical timelines, positive pass-xT flow, shot locations, inferred passing networks and player-match contribution vectors.
 - **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
 - **Squad Lab** — for a declared squad, template and minima: who is eligible where and why not, which absences raise the declared shortfall or leave no fieldable XI, and what an addition at a slot would have to supply. Real Madrid at the end of 2017/18 by default; any league club under an unreviewed position rule.
-- **Transfer Lab** — for a slot you declare: every gated player admitted there, placed at that slot and re-solved exactly, with the fraction of his recorded rates the conclusion can lose. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
+- **Transfer Lab** — for a slot you declare: every gated player admitted there, placed at that slot and re-solved exactly, with the smallest share of his recorded rates that must carry over for the conclusion to hold. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
 
 XI Lab does **not** identify the best football XI. Its default solve finds XIs with the
 least shortfall against declared progression and pass-origin requirements.
@@ -60,8 +60,9 @@ shortfall. Gold is the selected player, at every slot he can fill.
 
 Transfer Lab on the same departure with a minimum of 4.2, recruiting at centre
 forward. Rows are grouped by what the exact re-solve returned and listed by name
-inside a group. The strip is the break-even carry-over fraction: how much of his
-recorded rates the conclusion can lose. It predicts nothing, and whether a rate
+inside a group. The strip is the break-even carry-over fraction: the smallest share of his
+recorded rates that must carry over for the conclusion to hold (1.00 means it can
+lose nothing). It predicts nothing, and whether a rate
 repeats after a move has not been tested here.
 
 Most football analytics projects ask what statistics they can calculate.

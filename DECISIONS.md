@@ -550,8 +550,9 @@ shortfall here is the same integer XI Lab reports for the same squad. Hard
 statements ("the minima are reachable", "meets the brief") use the conservative
 floor/ceil policy of the hard-floor query. No third policy exists. A certified
 level records the model and declarations it was computed under and is refused
-anywhere else. Solver limits are deterministic time, not wall clock, so a status
-does not depend on machine load.
+anywhere else. The per-solve limit is deterministic time; a
+wall-clock request budget also applies, and a solve it cuts off is reported as
+undecided, never as a value.
 
 **Evidence.** On the shipped Madrid scenario the kernel equals `solve_xi` on the
 baseline and all sixteen single removals in both formations, and on all 120
@@ -649,8 +650,8 @@ leave no XI: exactly the pairs predicted by three tight slot groups with one spa
 player each. With the seven gated-out players counted, the back four would have
 four spare. Under the planning default (progression only) no single absence raises
 the shortfall. The brief at left back has eight minimal rows although the squad
-already reaches its minima, because the only two players eligible there are
-eligible nowhere else.
+already reaches its minima, because Marcelo, one of the two players eligible
+there, is eligible nowhere else.
 
 **Numerical boundary.** As ADR-0020.
 

@@ -74,8 +74,9 @@ changed: their bytes are hashed into published experiment results.
 | `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem and the two lab routers |
 
 Every new response passes `runtime.finalize`: the provider set at any depth of the
-payload must be exactly the hosted one, and no key may read like a rating. Every
-served label passes `shell.scan_labels`: a word such as "best", "weakness" or
+payload must be exactly the hosted one, and no key may read like a rating. The tests pass every label of the
+responses they request through `shell.scan_labels` (it is not yet run at the
+boundary): a word such as "best", "weakness" or
 "forecast" may appear only inside a named denial. Product code imports nothing
 from `galactico.validation` or `experiments`; `tests/test_research_firewall.py`
 parses the imports.

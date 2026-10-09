@@ -151,8 +151,8 @@ pooling remains guarded; the Bridge remains unvalidated.
   in conservative integer arithmetic; a raw-boundary case can read as not met.
 - **Whether a recorded rate repeats after a club change has not been tested.**
   Candidate values are rates recorded at another club, carried over unchanged.
-  The break-even carry-over fraction says how much of those rates a declared
-  conclusion can lose; it predicts nothing. Seven players in the five-league
+  The break-even carry-over fraction is the smallest share of those rates that
+  must carry over for a declared conclusion to hold; it predicts nothing. Seven players in the five-league
   corpus have 900 minutes at each of two clubs, none involving Real Madrid.
 - Candidates from another league are valued on the destination league's surface
   and are not adjusted for league strength. Nothing in one season of five
@@ -181,8 +181,8 @@ pooling remains guarded; the Bridge remains unvalidated.
 - Transfer Lab fills the break-even column one candidate at a time. A pool of
   several hundred (another league included) takes tens of seconds. Superseded
   requests are dropped by the page, not cancelled on the server.
-- The 404, 422, 429 and 503 states of the two pages are tested at the API and
-  not in the browser. A real deadline was never reached on the shipped
+- The 404, 422 and 503 states of the two pages are tested at the API and not
+  in the browser; 429 is tested on the runtime skeleton only. A real deadline was never reached on the shipped
   scenarios; those states are tested by rewriting replies.
 
 ## Drafted, not registered, not run

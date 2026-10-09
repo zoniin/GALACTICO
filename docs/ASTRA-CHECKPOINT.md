@@ -8,7 +8,7 @@ build ran unattended and no push was requested, and a push matters here: commit
 order is how a preregistration is proved. Review the branch, then push it or
 merge it. `git log --oneline feb9f8b..north-star` lists it.
 
-1,072 Python tests passed and 1 skipped (the tag sidecar is not built); 33
+1,074 Python tests passed and 1 skipped (the tag sidecar is not built); 33
 Playwright tests passed; Ruff and the licence guard clean; desktop and 390 px
 screenshots read. The CI workflow was changed (the browser job ingests five
 leagues and runs two more specs) and that change has never run on GitHub Actions.
@@ -167,7 +167,7 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation on `north-star`. **1,072 local Python tests and 33
+No unfinished implementation on `north-star`. **1,074 local Python tests and 33
 Playwright tests** passed on 9 October, plus Ruff/licensing. Push and CI are the
 remaining handoff checks. Do not reopen E-07 or E-08.
 
