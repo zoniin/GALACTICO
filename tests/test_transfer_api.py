@@ -157,6 +157,18 @@ def test_no_declared_shortfall_is_said_plainly_and_nothing_is_searched(client, t
     assert pool["deficiency"]["search_state"] == "NO_DECLARED_DEFICIENCY"
     assert pool["pool"]["listed_count"] == 5  # counted, and no name is sent with the count
     assert "rows" not in pool
+    # Nothing to lower, so the reply says what the squad attains: the number a user needs
+    # before declaring a minimum above it. One row per requirement in force, in the ledger too.
+    (attained,) = pool["deficiency"]["attained"]
+    assert (attained["requirement_id"], attained["status"]) == ("progression", "CERTIFIED")
+    assert attained["reached"] <= attained["ceiling"]
+    assert attained["statement"] == planning.ATTAINED_CERTIFIED.format(
+        reached=attained["reached_text"], ceiling=attained["ceiling_text"],
+        label=attained["label"])
+    ledger = {row["row_id"]: row for row in pool["ledger"]}
+    printed = f"{attained['reached_text']}; none above {attained['ceiling_text']}"
+    assert ledger["attained-progression"]["value_text"] == printed
+    assert ledger["attained-progression"]["verdict"] is None  # arithmetic, no empirical claim
 
     search = _post(client, "injection", MET)
     _clean(search, thesis_guard)
@@ -165,8 +177,11 @@ def test_no_declared_shortfall_is_said_plainly_and_nothing_is_searched(client, t
     assert search["reference_row"] is None and search["selection_statement"] is None
     assert search["budget"]["completeness"] == "EXACT"
 
-    # Opposite case in the same test set: the default synthetic problem is short.
-    assert _post(client, "universe", SHORT)["deficiency"]["state"] == "SHORTFALL"
+    # Opposite case in the same test set: the default synthetic problem is short. A declared
+    # shortfall already says how far the squad is from the minimum; no second number is sent.
+    short = _post(client, "universe", SHORT)
+    assert short["deficiency"]["state"] == "SHORTFALL" and short["deficiency"]["attained"] == []
+    assert not any(row["row_id"].startswith("attained-") for row in short["ledger"])
 
 
 def test_injection_lists_by_name_and_groups_by_outcome_then_one_key(client, thesis_guard):

@@ -117,9 +117,10 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
 
 ## Not started or not validated
 
-- Attainable ranges per requirement (what this squad can reach, which Transfer
-  Lab needs before it can suggest a minimum worth declaring), certified
-  Pareto-frontier enumeration, declared-risk (tail, minimax-regret) modes,
+- Attainable ranges per requirement beyond the single certified maximum Transfer
+  Lab states (the least value, joint attainability, the same figure in Squad
+  Lab), certified Pareto-frontier enumeration, declared-risk (tail,
+  minimax-regret) modes,
   certified minimal conflict sets, continuity utility, role-transition value models
   and automatic formation identification. No specification exists for the XI-level
   tools yet; the squad kernel is the place to build them.

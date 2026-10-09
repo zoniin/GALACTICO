@@ -11,6 +11,7 @@ from __future__ import annotations
 import random
 import subprocess
 import sys
+from fractions import Fraction
 from typing import get_args
 
 import pytest
@@ -325,6 +326,101 @@ def test_default_problem_is_progression_only_and_says_what_it_is_conditional_on(
                          and v["badge"] == "RECORD ONLY · NOT TESTED" for v in shown)
     assert body["provenance"]["verdicts"] == []
     assert body["research_statement"] == planning.NOT_TESTED_STATEMENT
+
+
+def _largest_sum(problem, requirement_id) -> Fraction | None:
+    """Every XI the declarations allow, by depth-first enumeration in exact fractions.
+
+    It shares no code with the tool: no solver, no quantisation, no kernel.
+    """
+    slots = FORMATIONS[problem.formation].slots
+    active = [r for r in problem.requirements if r.active]
+    target = next(r for r in active if r.requirement_id == requirement_id)
+    sums: list[Fraction] = []
+
+    def applies(requirement, slot_id) -> bool:
+        return not requirement.slot_ids or slot_id in requirement.slot_ids
+
+    def place(index: int, used: frozenset, total: Fraction) -> None:
+        if index == len(slots):
+            if set(problem.locks) <= used:
+                sums.append(total)
+            return
+        slot = slots[index]
+        for player in problem.candidates:
+            if player.player_id in used or player.player_id in problem.excludes:
+                continue
+            if player.position not in slot.allowed_positions:
+                continue
+            if player.eligible_slots is not None and slot.slot_id not in player.eligible_slots:
+                continue
+            if any(applies(r, slot.slot_id) and player.values.get(r.metric) is None
+                   for r in active):
+                continue  # no measurement where one is needed: not placed, never zero
+            counts = applies(target, slot.slot_id)
+            gain = Fraction(player.values[target.metric]) if counts else Fraction()
+            place(index + 1, used | {player.player_id}, total + gain)
+
+    place(0, frozenset(), Fraction())
+    return max(sums) if sums else None
+
+
+def test_attained_is_the_largest_sum_over_every_fieldable_xi(client, snap):
+    # Rates in sixteenths, all different: every sum is exact and no two XIs are a rounding
+    # step apart, so the tool's XI must be the enumeration's.
+    rates = {2: 0.5, 3: 1.25, 4: 0.75, 5: 1.0, 6: 1.5, 7: 2.0, 8: 0.25,
+             3322: 1.75, 3321: 2.5, 8278: 0.375, 3563: 2.25}
+    for candidate in snap.candidates:
+        if candidate["player_id"] in rates:
+            candidate["values"]["progression"] = rates[candidate["player_id"]]
+    largest = {}
+    for name, body in (("default", {}), ("without 3563", {"excludes": [3563]}),
+                       ("8 fielded", {"locks": [8]}), ("diamond", {"formation": "4-3-1-2"})):
+        assert client.post("/probe", json=body).status_code == 200
+        problem = SEEN[-1]
+        (row,) = planning.attained(problem, time_limit=10.0)
+        expected = _largest_sum(problem, "progression")
+        assert (row["requirement_id"], row["status"]) == ("progression", "CERTIFIED"), name
+        assert row["label"] == LABELS["progression"]
+        assert row["reached"] == float(expected), name
+        # No XI sums to more than the ceiling, and the ceiling is the rounding allowance away.
+        slack = 2 * Fraction(row["allowance"]) + Fraction(1, 10**9)
+        assert expected <= Fraction(row["ceiling"]) <= expected + slack
+        # The printed numbers are rounded away from the claim: down for one, up for the other.
+        assert float(row["reached_text"]) <= row["reached"]
+        assert float(row["ceiling_text"]) >= row["ceiling"]
+        assert row["reached_text"] in row["statement"] and row["ceiling_text"] in row["statement"]
+        assert LABELS["progression"] in row["statement"]
+        assert shell.scan_labels(row) == []
+        largest[name] = expected
+    # The declarations are in the answer: a departure and a forced inclusion both lower it.
+    assert largest["default"] > largest["without 3563"]
+    assert largest["default"] > largest["8 fielded"]
+
+    # With the opt-in, one row per requirement in force, each its own maximisation.
+    assert client.post("/probe", json={"experimental_opt_in": True}).status_code == 200
+    problem = SEEN[-1]
+    rows = planning.attained(problem, time_limit=10.0)
+    assert [row["requirement_id"] for row in rows] == ["progression", *SIDES]
+    for row in rows:
+        assert row["reached"] == float(_largest_sum(problem, row["requirement_id"]))
+
+
+def test_attained_states_no_number_when_no_xi_exists_or_the_solve_was_not_decided(
+        client, monkeypatch):
+    # Both right-sided defenders' only cover gone: no XI, so no sum. Not a zero.
+    assert client.post("/probe", json={"excludes": [5]}).status_code == 200
+    (row,) = planning.attained(SEEN[-1], time_limit=10.0)
+    assert _largest_sum(SEEN[-1], "progression") is None
+    assert (row["status"], row["reached"], row["ceiling"]) == ("UNFIELDABLE", None, None)
+    assert row["reached_text"] is None and "No XI can be fielded" in row["statement"]
+
+    # A spent clock: the tool returns no incumbent, and that is not a finding.
+    assert client.post("/probe", json={}).status_code == 200
+    (late,) = planning.attained(SEEN[-1], time_limit=1e-9)
+    assert (late["status"], late["reached"], late["ceiling"]) == ("NOT_CERTIFIED", None, None)
+    assert "not certified" in late["statement"] and "No value is implied" in late["statement"]
+    assert shell.scan_labels(late) == []
 
 
 def test_the_departure_preset_is_a_declaration_with_its_sentence(client):

@@ -513,6 +513,22 @@ def _baseline_ledger(pool: _Pool, value: Any) -> dict:
     )
 
 
+def _attained_ledger(pool: _Pool, attained: list[dict]) -> list[dict]:
+    """One row per requirement in force: the largest sum this squad's XIs reach."""
+    return [
+        planning.ledger_row(
+            stage="AUDIT", row_id=f"attained-{row['requirement_id']}",
+            quantity=f"Largest sum of {row['label']} over every XI of the squad as declared",
+            value_text=(None if row["reached_text"] is None
+                        else f"{row['reached_text']}; none above {row['ceiling_text']}"),
+            sample="Every minimum set aside. Eligibility rules, locks and exclusions kept.",
+            evidence=_evidence(pool),
+            solver=f"{row['certification']} · quantisation {row['quantization']}",
+        )
+        for row in attained
+    ]
+
+
 # ------------------------------------------------------------------------- the rows
 
 
@@ -677,19 +693,27 @@ def transfer_universe(request: TransferUniverseRequest) -> Response:
         def compute() -> dict:
             value = _baseline(pool, budget)
             proven = value.status in ("CERTIFIED", "UNFIELDABLE")
+            deficiency = _deficiency(pool, value)
+            attained: list[dict] = []
+            if deficiency["state"] == "NO_DECLARED_DEFICIENCY":
+                # Nothing to lower: say what this squad attains, so that a minimum worth
+                # declaring is a number the user can read and not one to guess.
+                attained = planning.attained(pool.problem, time_limit=budget.remaining())
+            deficiency["attained"] = attained
             payload = planning.envelope(
                 pool.problem, route=ROUTE_UNIVERSE, claim=CLAIM_POOL, non_claim=NON_CLAIM_POOL,
                 budget=budget.report("EXACT" if proven else "DEADLINE"),
                 question=_question(pool, filters=request.filters.model_dump()),
                 declared=_declared(pool, request.filters),
-                ledger=[_baseline_ledger(pool, value), _pool_ledger(pool)],
+                ledger=[_baseline_ledger(pool, value), *_attained_ledger(pool, attained),
+                        _pool_ledger(pool)],
                 tools={"universe": pool.universe.provenance},
             )
             payload.update(
                 slot=_slot_payload(pool.slot),
                 squad=_squad(pool),
                 baseline=_baseline_payload(pool, value),
-                deficiency=_deficiency(pool, value),
+                deficiency=deficiency,
                 pool=_pool_payload(pool, request.filters),
                 model_statement=_model_statement(pool),
                 carry_over_statement=CARRY_OVER_STATEMENT,

@@ -122,6 +122,10 @@ test('the default problem has no shortfall: the page says so and leads to a decl
   await expect(page.locator('#leads [data-preset="exclude-3322"]')).toBeVisible();
   await expect(page.locator('#leads [data-lead-minimum]')).toHaveValue(
     String(pool.inputs.requirements.find(r => r.declared).minimum));
+  // The lead says what the squad attains, in the server's sentence: a minimum is not a guess.
+  expect(pool.deficiency.attained.map(a => [a.requirement_id, a.status])).toEqual([['progression', 'CERTIFIED']]);
+  await expect(page.locator('#leads [data-attained="progression"]')).toHaveText(pool.deficiency.attained[0].statement);
+  await expect(page.locator('[data-ledger="attained-progression"]')).toHaveCount(1);
   await expect(page.locator('ol')).toHaveCount(0);
   expect(await gold(page)).toEqual([]);
   await shot(page, 'transfer-default-1440.png');

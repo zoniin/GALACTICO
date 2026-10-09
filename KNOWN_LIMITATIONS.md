@@ -167,9 +167,11 @@ pooling remains guarded; the Bridge remains unvalidated.
 - On the flagship the squad meets the default minimum with or without Cristiano
   Ronaldo, and the league's 75th and 90th percentiles of starting-XI progression
   (1.953, 2.378) lie below Madrid's own median (3.006). So no candidate can lower
-  anything until a minimum is raised by hand, and the page cannot yet say what
-  the squad attains: there is no attainable-range tool. A user tries a value and
-  reads the answer.
+  anything until a minimum is raised by hand. Transfer Lab then states the
+  largest sum the squad's XIs reach on each requirement in force (3.814 here,
+  with or without him), so the minimum is not a guess. That number is each
+  requirement maximised on its own: it does not say several can be reached
+  together, it is not a target, and Squad Lab does not show it yet.
 - With the experimental opt-in, both side requirements are in force together.
   One cannot be declared without the other.
 - Whether a set of absences that leaves no XI is attributed to the gate or to

@@ -95,6 +95,8 @@ __all__ = [
     "canonical_leagues",
     "declarable",
     "declare",
+    "ATTAINED_VERSION",
+    "attained",
     "evidence_inputs",
     "declared_row",
     "ledger_row",
@@ -711,6 +713,90 @@ def declare(scenario: PlanningScenario, request: PlanningInputs, *,
         requirements=tuple(requirements),
         scope_statement=scope.statement,
     )
+
+
+# ------------------------------------------------------------------- attained sums
+
+ATTAINED_VERSION = "attained-sum-v1"
+_ATTAINED_PLACES = 4
+
+ATTAINED_CERTIFIED = (
+    "One XI this squad can field under these declarations sums to {reached} on {label}, and "
+    "none sums to more than {ceiling}: an exact maximisation with every minimum set aside, "
+    "rounding allowance included. A minimum above {ceiling} cannot be reached without an "
+    "addition."
+)
+ATTAINED_UNFIELDABLE = (
+    "No XI can be fielded under these declarations, so no sum of {label} exists."
+)
+ATTAINED_NOT_CERTIFIED = (
+    "The largest sum of {label} was not certified within the time limit. No value is implied."
+)
+
+
+def attained(problem: DeclaredProblem, *, time_limit: float) -> list[dict]:
+    """For each requirement in force: the largest sum any XI of the declared squad reaches.
+
+    Claim: arithmetic on the recorded rates. One XI reaches ``reached``; no XI the
+    eligibility rules, locks and exclusions allow sums to more than ``ceiling``. It is what
+    a user needs before declaring a minimum above what the squad attains, and nothing else:
+    it is not a target and says nothing about how the squad plays.
+
+    The frozen hard-floor query does the maximisation, once per requirement, with every
+    minimum set to zero so that no floor binds (the rates are non-negative). Its optimum is
+    over half-even integer coefficients, so the raw sum of any XI can exceed the decoded
+    optimum by at most the query's own rounding allowance; ``ceiling`` adds it. An undecided
+    or infeasible solve returns no number.
+    """
+    from dataclasses import replace
+    from math import ceil, floor, inf, nextafter
+
+    from ..optimization.xi.tradeoffs import maximize_requirement
+
+    free = tuple(replace(r, minimum=0.0) if r.active else r for r in problem.requirements)
+    scale = 10 ** _ATTAINED_PLACES
+    rows: list[dict] = []
+    for requirement in problem.requirements:
+        if not requirement.active:
+            continue
+        result = maximize_requirement(
+            problem.candidates, free, problem.formation,
+            target_requirement_id=requirement.requirement_id,
+            locked=problem.locks, excluded=problem.excludes, time_limit=time_limit,
+        )
+        certificate = result.objective
+        reached = ceiling = reached_text = ceiling_text = None
+        if result.solution_status == "OPTIMAL" and certificate.achieved is not None:
+            status = "CERTIFIED"
+            reached = float(certificate.achieved)
+            ceiling = nextafter(
+                certificate.quantized_upper_bound + certificate.raw_rounding_error_bound, inf)
+            # Printed away from the claim: "reaches" rounds down, "no more than" rounds up.
+            reached_text = f"{floor(reached * scale) / scale:.{_ATTAINED_PLACES}f}"
+            ceiling_text = f"{ceil(ceiling * scale) / scale:.{_ATTAINED_PLACES}f}"
+            statement = ATTAINED_CERTIFIED.format(
+                reached=reached_text, ceiling=ceiling_text, label=requirement.label)
+        elif result.solution_status == "INFEASIBLE":
+            status = "UNFIELDABLE"
+            statement = ATTAINED_UNFIELDABLE.format(label=requirement.label)
+        else:
+            status = "NOT_CERTIFIED"
+            statement = ATTAINED_NOT_CERTIFIED.format(label=requirement.label)
+        rows.append({
+            "requirement_id": requirement.requirement_id,
+            "label": requirement.label,
+            "status": status,
+            "reached": reached,
+            "ceiling": ceiling,
+            "reached_text": reached_text,
+            "ceiling_text": ceiling_text,
+            "allowance": float(certificate.raw_rounding_error_bound),
+            "certification": certificate.certification,
+            "quantization": certificate.quantization,
+            "statement": statement,
+            "attained_version": ATTAINED_VERSION,
+        })
+    return rows
 
 
 # ------------------------------------------------------------- evidence and the ledger
