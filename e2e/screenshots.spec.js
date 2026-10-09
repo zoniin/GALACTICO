@@ -1,6 +1,6 @@
 // Review artifacts, captured from the running application.
 const { test } = require('@playwright/test');
-const BASE = 'http://127.0.0.1:8111';
+const BASE = process.env.GALACTICO_URL || 'http://127.0.0.1:8111';
 const OUT = 'docs/screenshots';
 
 async function player(page, q) {
