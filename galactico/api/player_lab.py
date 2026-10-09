@@ -34,12 +34,20 @@ from ..profiles import REJECTED, RESEARCH_ONLY
 from ..profiles.build import UNTESTED
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
 from .decision_lab import router as decision_router
+from .runtime import router as runtime_router
+from .squad_lab import router as squad_router
+from .transfer_lab import router as transfer_router
 
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
 STATIC = Path(__file__).resolve().parent.parent.parent / "web"
 
 app = FastAPI(title="Galáctico Historical Decision Laboratory", version="0.3.0")
 app.include_router(decision_router)
+# The planning labs. Each router owns its page route and its endpoints; none reads data or
+# imports a solver at import time, so the frozen Player Lab starts exactly as before.
+app.include_router(runtime_router)
+app.include_router(squad_router)
+app.include_router(transfer_router)
 
 
 @lru_cache(maxsize=1)

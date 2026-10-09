@@ -18,14 +18,15 @@ profiles:
 	uv run python scripts/build_profiles.py
 
 prepare:
-	uv run python scripts/fetch_pappalardo.py --only Spain
+	uv run python scripts/fetch_pappalardo.py
 	uv run python scripts/prepare_lab.py
+	uv run python scripts/prepare_planning.py
 
 serve: profiles
 	uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090 --reload
 
 e2e:
-	npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js e2e/repairs.spec.js
+	npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js e2e/repairs.spec.js e2e/squad.spec.js e2e/transfer.spec.js
 
 check: licence lint test
 

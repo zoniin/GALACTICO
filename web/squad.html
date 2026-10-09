@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Galáctico — Squad Lab</title>
+<link rel="stylesheet" href="/static/labs.css"><link rel="stylesheet" href="/static/labs-shared.css"><link rel="stylesheet" href="/static/planning.css">
+<style>
+/* Squad Lab only. Tokens are labs.css's. Gold appears on the selected player and nowhere else:
+   his marks on the depth pitch, his name in the depth list, the square of his row. */
+.depth-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:2.5rem}
+.depth .depth-mark{cursor:pointer}
+.depth .depth-mark circle{fill:var(--surface);stroke:#abb4ac;stroke-width:.5}
+.depth .depth-mark line{stroke:#abb4ac;stroke-width:.45}
+.depth .depth-mark.below-gate circle{fill:none;stroke:var(--chalk);stroke-width:.45;stroke-dasharray:.8 .7}
+.depth .depth-mark.excluded circle{fill:none;stroke:var(--chalk);stroke-width:.45}
+.depth .depth-mark.excluded line{stroke:var(--chalk)}
+.depth .depth-mark.selected circle{stroke:var(--gold)}
+.depth .depth-mark.available.selected circle{fill:var(--gold)}
+.depth .depth-mark:focus-visible{outline:none}
+.depth .depth-mark:focus-visible circle{stroke:var(--text);stroke-width:1}
+.depth text{fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:.9px;stroke-linejoin:round}.depth .slot-label{fill:var(--text)}
+#depth-list{list-style:none;margin:0;padding:0}
+#depth-list>li{padding:.75rem 0;border-bottom:1px solid var(--line);min-width:0;overflow-wrap:anywhere}
+.slot-name{font:normal 1.05rem var(--serif);margin-right:.6rem}
+.slot-count{font:10px var(--mono);letter-spacing:.06em;color:var(--muted)}
+.depth-names{display:flex;flex-wrap:wrap;gap:.1rem 1rem;margin:.3rem 0 .1rem}
+button.depth-name{background:none;border:0;padding:.3rem 0;font:inherit;text-align:left;max-width:100%;overflow-wrap:anywhere;text-decoration:underline dotted var(--chalk);text-underline-offset:4px}
+button.depth-name.selected{color:var(--gold)}
+.depth-line{font:11px/1.7 var(--mono);color:var(--muted)}
+.thin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 2rem;margin:.4rem 0 1rem}
+.thin{border-top:1px solid var(--chalk);padding:.8rem 0 0;min-width:0;overflow-wrap:anywhere}
+.thin-figure{font:normal 2.1rem/1.1 var(--serif);margin:.5rem 0 .2rem;font-variant-numeric:tabular-nums}
+.thin-figure .arrow{color:var(--muted);font-size:1.3rem;padding:0 .35rem}
+.thin-caption{font:10px/1.6 var(--mono);letter-spacing:.05em;color:var(--muted);text-transform:uppercase}
+.thin p{font-size:12px;color:var(--muted);margin:.6rem 0 0}
+.thin .depth-line{margin-top:.5rem}
+.ref-strip{display:block;width:100%;max-width:640px;height:auto;margin:.6rem 0 .2rem}
+.ref-strip text{font-family:var(--mono);fill:var(--muted)}
+.ref-strip .axis,.ref-strip .tick{stroke:var(--chalk);stroke-width:1}
+.ref-strip .box{fill:var(--line);stroke:var(--chalk);stroke-width:1}
+.ref-strip .mid{stroke:var(--muted);stroke-width:1.25}
+.ref-strip .club{fill:none;stroke:var(--muted);stroke-width:1}
+.ref-strip .minimum{stroke:var(--text);stroke-width:1.25}
+.ref-strip .minimum-label{fill:var(--text)}
+.ref-rows{list-style:none;margin:.3rem 0 .6rem;padding:0;font:11px/1.9 var(--mono);color:var(--muted)}
+.ref-rows li{display:grid;grid-template-columns:2.6rem 5.2rem minmax(0,1fr);gap:.6rem;overflow-wrap:anywhere}
+.player-facts{font:11px/1.9 var(--mono);color:var(--muted);margin:0 0 .8rem;overflow-wrap:anywhere}
+.player-lines{list-style:none;margin:0 0 1rem;padding:0;font-size:12px}
+.player-lines li{padding:.45rem 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.player-lines .label{display:block;margin-bottom:.15rem}
+.level{border-top:1px solid var(--chalk);margin-top:1.6rem;padding-top:1rem}
+.level h3{margin-bottom:.3rem}
+.level h4{font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text);margin:1.4rem 0 .4rem}
+.level-note{font-size:12px;color:var(--muted);margin:.2rem 0;overflow-wrap:anywhere}
+#brief-leagues{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:0 1.2rem;min-width:0}
+#brief-leagues legend{padding:0;margin-bottom:.4rem}
+#brief-leagues label{display:inline-flex;align-items:center;gap:.5rem;min-height:44px}
+#brief-leagues input,#stress-confirm input{width:auto}
+#stress-confirm{margin:.2rem 0 .6rem;font-size:12px}
+.statement{max-width:95ch;overflow-wrap:anywhere}
+.error.statement{margin:.6rem 0}
+@media(max-width:1100px){.depth-split{grid-template-columns:minmax(0,1fr);gap:1rem}}
+@media(max-width:850px){.thin-grid{grid-template-columns:minmax(0,1fr)}.ref-rows li{grid-template-columns:2.4rem 4.6rem minmax(0,1fr)}}
+</style></head>
+<body><header><a class="brand" href="/">GALÁCTICO</a><span class="lab-tag">Historical LAB</span><nav aria-label="Laboratories" data-nav="v2"><a href="/" data-dest="player">Player<span class="sr-only"> Lab</span></a><a href="/match" data-dest="match">Match<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/xi" data-dest="xi">XI<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/squad" data-dest="squad" aria-current="page">Squad<span class="sr-only"> Lab</span></a><a href="/transfer" data-dest="transfer">Transfer<span class="sr-only"> Lab</span></a></nav></header>
+<main><div class="eyebrow" id="eyebrow">Planning snapshot · explicit requirement model</div><h1>Depth is a count.<br>Not a verdict.</h1>
+<p class="lede">Audit a squad at a planning date against minima you declare: who is eligible where, what made the cover thin, and what changes when players are absent. Every figure is conditional on the eligibility rules, the 900-minute evidence gate and the matches played before the cutoff.</p>
+<div id="scope-slot"></div>
+<div class="toolbar"><label class="control wide"><span class="label">Planning point</span><select id="scenario" aria-label="Planning point" disabled></select></label><label class="control"><span class="label">Role-slot template</span><select id="formation" aria-label="Role-slot template" disabled></select></label><button id="audit" disabled>Audit the squad</button></div>
+<div id="presets-slot" aria-label="Declarations the server offers"></div>
+<div id="status" class="notice" role="status">Loading planning points…</div>
+
+<div id="squad-body" class="hidden">
+<div id="banners"></div>
+<div class="status-line"><span id="audit-status"></span><span id="cutoff" class="small mono subtle"></span><span id="requirement-hash" class="small mono subtle"></span></div>
+<div id="claim-slot"></div><div id="constraints-slot"></div><div id="warnings-slot"></div>
+
+<div class="depth-split">
+<section class="panel" aria-labelledby="depth-title"><div class="panel-head"><h2 id="depth-title">Depth by role slot</h2><span id="formation-label" class="mono subtle"></span></div>
+<div class="pitch-wrap"><p class="attack">ATTACK ↑</p><div id="depth-pitch-slot"></div></div>
+<p class="figure-note" id="depth-key">Ring: available at this slot. Underlined ring: placing him there raises the least declared shortfall. Dashed ring: eligible, below the 900-minute gate, in no solve (+n). Struck ring: excluded by you (−n). Gold: the selected player, at every slot he is eligible for.</p>
+<p class="figure-note hidden" id="depth-placement-note"></p>
+<p class="figure-note">Positions are role-slot template positions, not where anyone played. One mark per player and slot he is eligible for: a player eligible at three slots is drawn three times.</p>
+<aside class="cannot-say"><span class="label">This cannot say</span><p>A count of eligible players is a count. It does not say the cover is adequate.</p><p>Cover that is thin only after the 900-minute gate is a property of the evidence, not of the squad.</p><p>Eligibility is a declared football rule, not a measurement.</p></aside>
+</section>
+<section class="panel" aria-labelledby="who-title"><div class="panel-head"><h2 id="who-title">Who fills each slot · who was left out, and by what</h2><span class="badge heuristic">Declared rules</span></div>
+<ul id="depth-list"></ul>
+</section></div>
+
+<section class="panel" aria-labelledby="thin-title"><div class="panel-head"><h2 id="thin-title">Thin cover · three causes, kept apart</h2><span class="badge">Counting, then one solve per placement</span></div>
+<div id="thinness" class="thin-grid"></div>
+<p id="depth-statement" class="statement small"></p>
+<h3>Tight slot groups</h3><p class="figure-note">Spare is the number of players who can fill some slot of the group, minus its slots. The groups with the least spare are listed.</p>
+<div id="tight-groups-slot"></div>
+</section>
+
+<div class="split equal">
+<section class="panel" aria-labelledby="minima-title"><div class="panel-head"><h2 id="minima-title">Declared minima · league reference</h2><span class="badge heuristic">Explicit assumptions</span></div>
+<p id="shortfall-statement" class="statement"></p>
+<div id="requirements"></div>
+<p id="reference-status" class="small subtle" role="status"></p>
+<p class="figure-note">The strip is what league starting elevens summed to before the cutoff: least to greatest, the box from the 25th to the 75th percentile. It describes; it does not prescribe. A minimum is your declaration. The normaliser stays at this club's own median whatever the minimum, so shortfalls remain comparable across edits.</p>
+<details id="declare"><summary>Declare the minima</summary><div id="editor"></div><p id="declare-status" class="small subtle" role="status"></p></details>
+</section>
+<section class="panel" aria-labelledby="player-title"><div class="panel-head"><h2 id="player-title">Squad player</h2><label class="small">Inspect <select id="player" aria-label="Inspect squad player"></select></label></div>
+<div id="player-detail" aria-live="polite"></div>
+<div class="actions"><button id="exclude-player" class="hidden"></button></div>
+<h2 style="margin-top:1.5rem">Outside the evidence set</h2>
+<div id="omitted-slot"></div>
+<p class="figure-note">These players are in the squad and in no solve. Below 900 nominal minutes a rate is not shown and not used. That is the gate, not a judgement.</p>
+</section></div>
+
+<section class="panel" id="stress-panel" aria-labelledby="stress-title"><div class="panel-head"><h2 id="stress-title">Absence stress · any <span id="stress-k-label">1</span> out</h2><span class="badge heuristic">Declared scenario</span></div>
+<p id="model-line" class="small"></p><p id="stress-intro" class="small subtle"></p>
+<div class="actions"><div id="stress-k" class="tabset" role="group" aria-label="Number of absent players"></div><button id="run-stress" disabled>Examine every absence set</button></div>
+<label id="stress-confirm" class="gp-optin hidden"><input type="checkbox" id="stress-confirm-k3"><span id="stress-confirm-text"></span></label>
+<p id="stress-status" class="small subtle" role="status"></p>
+<div id="stress-body" class="hidden"><div id="stress-summary"></div>
+<h3>One player out, re-solved</h3>
+<p class="small subtle">Each row removes one player and re-solves exactly. Read across: fieldable or not, and the least declared shortfall without him.</p>
+<p id="removal-warning" class="figure-note"></p>
+<div class="toolbar"><label class="control wide"><span class="label">List by</span><select id="removal-order" aria-label="List the single absences by"></select></label></div>
+<p id="removals-ordered-by" class="figure-note"></p>
+<div id="removals"></div><div id="not-removable"></div>
+<div id="stress-ledgers"></div></div>
+</section>
+
+<section class="panel" id="brief-panel" aria-labelledby="brief-title"><div class="panel-head"><h2 id="brief-title">Role brief · what an addition must supply</h2><span class="badge heuristic">Arithmetic on your minima</span></div>
+<p class="small subtle">Choose the slot. The brief is what an addition placed at that slot would have to supply for your minima to be reachable, and how many gated players of the pool do.</p>
+<div class="toolbar"><label class="control"><span class="label">Slot</span><select id="brief-slot" aria-label="Slot the brief is for"></select></label><fieldset id="brief-leagues"><legend class="label">Count players of other leagues too · not strength-adjusted</legend></fieldset><button id="run-brief" disabled>Compute the role brief</button></div>
+<p id="brief-keeper" class="figure-note"></p>
+<p id="brief-status" class="small subtle" role="status"></p>
+<div id="brief-body" class="hidden"><div id="brief"></div>
+<p><a id="open-transfer" href="/transfer">Re-solve with each of them in Transfer Lab →</a></p><p class="small subtle">Transfer Lab opens with its own defaults. Declarations made here are not carried across pages.</p></div>
+</section>
+
+<section class="panel" aria-labelledby="ledger-title"><h2 id="ledger-title">Evidence ledger</h2><div id="ledger-slot"></div></section>
+</div>
+<div id="not-measured-slot"></div>
+<footer class="provenance">Requirement sums are model inputs added under an unchanged-deployment assumption, not team output. Nothing on this page says which player to keep, sell or sign. Historical Pappalardo/Wyscout data, CC BY 4.0. <a href="https://doi.org/10.6084/m9.figshare.c.4415000">Dataset and attribution</a>.</footer>
+</main>
+<script src="/static/labs-shared.js"></script><script src="/static/planning.js"></script>
+<script>
+/* Squad Lab. Every number, name, order and sentence about football below is the server's.
+   The script places server values on server scales, counts server lists and maps a status
+   token to a fixed sentence. It adds nothing up and sorts nothing. */
+const {esc, num, api} = Shell;
+const $ = s => document.querySelector(s);
+const DASH = '—';
+const COPY = {
+  loading: 'Building the planning snapshot and auditing the squad. The first audit fits the pass-value surface on every league match before the cutoff…',
+  stressIdle: 'Run after an audit. Every absence set is re-solved.',
+  briefIdle: 'Choose a slot, then compute.',
+  dirty: 'Apply the edited minima and re-audit before asking this.',
+  noXi: 'No fieldable XI to compare against.',
+  solving: 'Re-solving…',
+  pick: 'Select a player, here or on the pitch. Every slot he is eligible for turns gold.',
+};
+const PINNED = {
+  NEUTRAL: 'the least declared shortfall is unchanged.',
+  RAISES_SHORTFALL: 'the least declared shortfall rises.',
+  UNFIELDABLE_IF_PINNED: 'another slot or a declared lock is left unfilled.',
+  UNKNOWN: 'not evaluated. Treat as incomplete.',
+};
+const UNDECLARED = {UNMEASURED: 'UNMEASURED', EXPERIMENTAL_NOT_OPTED_IN: 'EXPERIMENTAL · NOT OPTED IN'};
+const PITCH_MARKS = '<rect class="mark" x="3" y="3" width="94" height="120"/><path class="mark" d="M3 63H97 M29 3V22H71V3 M29 123V104H71V123 M40 3V10H60V3 M40 123V116H60V123"/><circle class="mark" cx="50" cy="63" r="11"/><circle cx="50" cy="63" r=".5" fill="var(--chalk)"/>';
+
+const state = {catalogue: null, clubs: [], scenarioId: null, formation: null, excludes: [],
+  draft: {requirements: [], experimental_opt_in: false}, selected: null, audit: null, auditInput: null,
+  reference: null, stress: null, brief: null, stressK: 1, orderKey: 'name',
+  busy: false, stressBusy: false, briefBusy: false, dirty: false, audited: false};
+const T = {audit: GP.tracker(), reference: GP.tracker(), stress: GP.tracker(), brief: GP.tracker()};
+
+const list = v => Array.isArray(v) ? v : [];
+const names = players => list(players).map(p => esc(p.name)).join(', ');
+// Five decimals: a shortfall is a whole number of hundred-thousandths, so this prints it exactly.
+const pair = v => Array.isArray(v) ? `largest ${GP.value(v[0], 5)}, sum ${GP.value(v[1], 5)}` : DASH;
+const signedPair = v => Array.isArray(v) ? `${GP.value(v[0], 5, {signed: true})}, ${GP.value(v[1], 5, {signed: true})}` : DASH;
+const depth = () => state.audit?.depth ?? null;
+const squad = () => list(state.audit?.snapshot?.squad);
+
+function setStatus(text, error) {
+  const el = $('#status');
+  el.classList.remove('hidden');
+  el.classList.toggle('error', Boolean(error));
+  if (error) el.innerHTML = text; else el.textContent = text;
+}
+
+/* ---- The depth pitch: one mark per player and slot he is eligible for. ---------------- */
+function depthPitch(reply, selected) {
+  const counts = reply.player_counts ?? {};
+  let marks = '';
+  for (const slot of list(reply.slots)) {
+    const ax = 5 + slot.x * 90, ay = 5 + slot.y * 112;
+    const pinned = new Map(list(slot.pinned).map(p => [p.player_id, p.status]));
+    const drawn = [
+      ...list(slot.available).map(p => ({p, kind: 'available', phrase: 'available'})),
+      ...list(slot.below_gate).map(p => ({p, kind: 'below-gate', phrase: 'eligible, below the 900-minute gate, in no solve'})),
+      ...list(slot.excluded).map(p => ({p, kind: 'excluded', phrase: 'excluded by you'})),
+    ];
+    const rows = Math.ceil(drawn.length / 5);
+    marks += `<text class="slot-label" x="${ax}" y="${(ay - 4.4).toFixed(2)}" font-size="1.9" text-anchor="middle">${esc(slot.slot_label)}</text>`;
+    drawn.forEach(({p, kind, phrase}, index) => {
+      const row = Math.floor(index / 5), inRow = Math.min(5, drawn.length - row * 5), i = index - row * 5;
+      const cx = (ax + (i - (inRow - 1) / 2) * 3.8).toFixed(2), cy = (ay + row * 3.8).toFixed(2);
+      const status = kind === 'available' ? (pinned.get(p.player_id) ?? 'NOT_COMPUTED') : 'NOT_IN_A_SOLVE';
+      const raises = status === 'RAISES_SHORTFALL';
+      const label = `${p.name}, ${slot.slot_label}, ${phrase}${raises ? ', placing him there raises the least declared shortfall' : status === 'UNKNOWN' ? ', placement not evaluated' : ''}`;
+      let extra = '';
+      if (raises) extra = `<line x1="${(+cx - 1.1).toFixed(2)}" y1="${(+cy + 2.4).toFixed(2)}" x2="${(+cx + 1.1).toFixed(2)}" y2="${(+cy + 2.4).toFixed(2)}"/>`;
+      if (kind === 'excluded') extra = `<line x1="${(+cx - 1.1).toFixed(2)}" y1="${(+cy + 1.1).toFixed(2)}" x2="${(+cx + 1.1).toFixed(2)}" y2="${(+cy - 1.1).toFixed(2)}"/>`;
+      marks += `<g class="depth-mark ${kind}${p.player_id === selected ? ' selected' : ''}" data-player="${p.player_id}" data-slot="${esc(slot.slot_id)}" data-pinned="${esc(status)}" tabindex="0" role="button" aria-label="${esc(label)}"><title>${esc(label)}</title><rect x="${(+cx - 1.9).toFixed(2)}" y="${(+cy - 1.9).toFixed(2)}" width="3.8" height="3.8" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="1.6"/>${extra}</g>`;
+    });
+    const a = list(slot.available).length, b = list(slot.below_gate).length, e = list(slot.excluded).length;
+    marks += `<text x="${ax}" y="${(ay + Math.max(rows, 1) * 3.8 + 2.2).toFixed(2)}" font-size="2.1" text-anchor="middle" data-slot-count="${esc(slot.slot_id)}">${a}${b ? ' +' + b : ''}${e ? ' −' + e : ''}</text>`;
+  }
+  const label = `Depth by role slot: ${num(counts.available, 0)} available squad players, ${num(counts.below_gate, 0)} below the 900-minute gate, ${num(counts.excluded, 0)} excluded by you`;
+  return `<svg class="pitch depth" id="depth-pitch" viewBox="0 0 100 126" role="img" aria-label="${esc(label)}">${PITCH_MARKS}${marks}</svg>`;
+}
+
+const nameButton = (p, selected) => `<button type="button" class="depth-name${p.player_id === selected ? ' selected' : ''}" data-player="${p.player_id}">${esc(p.name)}</button>`;
+
+function depthList(reply, selected) {
+  return list(reply.slots).map(slot => {
+    const pinned = new Map(list(slot.pinned).map(p => [p.player_id, p.status]));
+    const a = list(slot.available), b = list(slot.below_gate), e = list(slot.excluded);
+    const other = list(slot.not_rule_eligible_other_slot), unreviewed = list(slot.not_rule_eligible_unreviewed), unmeasured = list(slot.unmeasured);
+    const raising = a.filter(p => pinned.get(p.player_id) === 'RAISES_SHORTFALL');
+    const only = a.filter(p => list(slot.exclusive_ids).includes(p.player_id));
+    return `<li data-slot="${esc(slot.slot_id)}"><span class="slot-name">${esc(slot.slot_label)}</span><span class="slot-count">available <span data-value="${a.length}">${a.length}</span> · below the gate <span data-value="${b.length}">${b.length}</span> · excluded <span data-value="${e.length}">${e.length}</span></span>` +
+      (a.length ? `<div class="depth-names" data-stage="available">${a.map(p => nameButton(p, selected)).join('')}</div>` : '<div class="depth-line">No available player.</div>') +
+      (b.length ? `<div class="depth-line" data-stage="below-gate">Below the gate: ${b.map(p => `${nameButton(p, selected)} ${GP.value(p.minutes, 0)} min`).join(', ')}</div>` : '') +
+      (e.length ? `<div class="depth-line" data-stage="excluded">Excluded by you: ${e.map(p => nameButton(p, selected)).join(', ')}</div>` : '') +
+      (raising.length ? `<div class="depth-line" data-stage="raises">Raises the least declared shortfall when used here: ${names(raising)}</div>` : '') +
+      (only.length ? `<div class="depth-line" data-stage="exclusive">Available here and at no other slot: ${names(only)}</div>` : '') +
+      (unmeasured.length ? `<div class="depth-line" data-stage="unmeasured">No measurement this slot needs: ${names(unmeasured)}</div>` : '') +
+      (other.length ? `<div class="depth-line" data-stage="other-slot">Reviewed for other slots only: ${names(other)}</div>` : '') +
+      (unreviewed.length ? `<div class="depth-line" data-stage="unreviewed">Admitted by position, no eligibility rule: ${names(unreviewed)}</div>` : '') +
+      '</li>';
+  }).join('');
+}
+
+function thinness(reply) {
+  return list(reply.thinness).map(t => {
+    let figure = '', caption = '', lines = '';
+    if (t.kind === 'REQUIREMENT') {
+      const counted = t.evaluated === true && Boolean(t.placements);
+      figure = counted ? `${GP.value(t.placements.count, 0)}<span class="arrow">of</span>${GP.value(t.decided_count, 0)}` : GP.value(null);
+      caption = !counted ? 'placements that raise the least declared shortfall: not evaluated'
+        : t.unknown_count ? 'decided placements that raise the least declared shortfall' : 'placements that raise the least declared shortfall';
+      lines = list(t.placements?.listed).map(p => `${esc(p.name)} at ${esc(p.slot_label)}`).join('; ');
+      if (lines) lines = `<div class="depth-line">${lines}</div><div class="depth-line">${esc(t.placements.statement)}</div>`;
+    } else {
+      figure = `${GP.value(t.kappa_before, 0)}<span class="arrow">→</span>${GP.value(t.kappa_after, 0)}`;
+      caption = t.kind === 'GATE' ? 'absences until no XI: before the gate → after it' : 'absences until no XI: by position → under the rule set';
+      if (t.kind === 'GATE' && list(t.players).length) lines = `<div class="depth-line">Below the gate: ${list(t.players).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min (${list(p.eligible_slots).map(s => esc(s.label)).join(', ')})`).join('; ')}</div>`;
+    }
+    return `<div class="thin" data-thinness="${esc(t.kind)}"><span class="label">${esc(t.label)}</span><div class="thin-figure">${figure}</div><div class="thin-caption">${caption}</div><p>${esc(t.statement)}</p>${lines}</div>`;
+  }).join('');
+}
+
+function tightGroups(reply) {
+  const groups = list(reply.tight_groups);
+  if (!groups.length) return '<div class="unavailable" id="tight-groups">No slot group was sent.</div>';
+  return '<ul id="tight-groups" class="gp-rows">' + groups.map(g => GP.row([
+    {label: 'Slots', html: list(g.slot_labels).map(esc).join(', ')},
+    {label: 'Available', html: `${GP.value(list(g.available).length, 0)} · ${names(g.available) || DASH}`},
+    {label: 'Spare', html: `${GP.value(g.spare_by_stage?.available, 0)} <span class="subtle small">(${GP.value(g.spare_by_stage?.rule_eligible, 0)} with the gate lifted)</span>`},
+    {label: 'Below the gate, eligible there', html: list(g.restored_by_gate).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min`).join(', ') || 'Nobody.'},
+  ], {data: {slots: list(g.slot_ids).join('-')}})).join('') + '</ul>';
+}
+
+/* ---- Declared minima and the league reference strip. --------------------------------- */
+function referenceStrip(d) {
+  const sc = d.scale ?? {}, ok = Number.isFinite(sc.min) && Number.isFinite(sc.max) && sc.max > sc.min;
+  if (!ok) return '<div class="unavailable">No scale was sent for the league reference.</div>';
+  const X = v => (Math.min(308, Math.max(12, 12 + 296 * (v - sc.min) / (sc.max - sc.min)))).toFixed(2);
+  const at = Object.fromEntries(list(d.percentiles).map(p => [p.percentile, p.value]));
+  let marks = `<line class="axis" x1="${X(d.least)}" x2="${X(d.greatest)}" y1="40" y2="40"/><line class="tick" x1="${X(d.least)}" x2="${X(d.least)}" y1="36" y2="44"/><line class="tick" x1="${X(d.greatest)}" x2="${X(d.greatest)}" y1="36" y2="44"/>`;
+  if (Number.isFinite(at[25]) && Number.isFinite(at[75])) marks += `<rect class="box" x="${X(at[25])}" y="34" width="${Math.max(0.75, X(at[75]) - X(at[25])).toFixed(2)}" height="12"/>`;
+  const declaredAt = d.declared?.percentile ?? null;
+  list(d.percentiles).forEach((p, i) => {
+    if (!Number.isFinite(p.value)) return;
+    marks += `<line class="${p.percentile === 50 ? 'mid' : 'tick'}" x1="${X(p.value)}" x2="${X(p.value)}" y1="32" y2="48"/>` +
+      (p.percentile === declaredAt ? '' : `<text class="percentile-label" x="${X(p.value)}" y="${i % 2 ? 19 : 27}" font-size="7" text-anchor="middle">p${esc(p.percentile)}</text>`);
+  });
+  const median = d.club?.median;
+  if (Number.isFinite(median)) { const m = +X(median); marks += `<path class="club" d="M${m} 53L${m + 3} 56L${m} 59L${m - 3} 56Z"/><text x="${m}" y="67" font-size="7" text-anchor="${m > 270 ? 'end' : m < 50 ? 'start' : 'middle'}">club median</text>`; }
+  const minimum = d.declared?.minimum;
+  if (Number.isFinite(minimum)) { const m = +X(minimum); marks += `<line class="minimum" x1="${m}" x2="${m}" y1="10" y2="50"/><text class="minimum-label" x="${m}" y="7" font-size="8" text-anchor="${m > 280 ? 'end' : m < 40 ? 'start' : 'middle'}">min${declaredAt === null ? '' : ' · p' + esc(declaredAt)}</text>`; }
+  const label = `${d.label}: league starting elevens summed from ${num(d.least)} to ${num(d.greatest)}; declared minimum ${num(minimum)}; this club's median ${num(median)}`;
+  return `<svg class="ref-strip" data-requirement="${esc(d.requirement_id)}" viewBox="0 0 320 70" role="img" aria-label="${esc(label)}">${marks}</svg>`;
+}
+
+function requirementRows() {
+  const reply = depth(), reference = state.reference;
+  const byId = new Map(list(reference?.distributions).map(d => [d.requirement_id, d]));
+  return list(reply?.inputs?.requirements).map(r => {
+    const id = esc(r.requirement_id), label = esc(r.label);
+    if (r.declared !== true) {
+      return `<div class="gp-req" data-requirement="${id}" data-status="${esc(r.status)}"><span class="gp-req-name">${label}</span> <span class="badge">${UNDECLARED[r.status] ?? 'UNAVAILABLE'}</span><div class="detail">${esc(r.reason)}</div></div>`;
+    }
+    const d = byId.get(r.requirement_id);
+    const verdict = list(reference?.ledger).find(row => row.row_id === 'reference-' + r.requirement_id)?.verdict;
+    return `<div class="gp-req" data-requirement="${id}" data-status="DECLARED"><div class="gp-req-head"><span class="gp-req-name">${label}</span> ${Shell.evidenceBadge(r.evidence_class)}</div>` +
+      `<div class="detail">${esc(r.unit)}</div><div class="detail">${GP.origin(r.origin)} ${esc(r.source_sentence)}</div>` +
+      `<div class="gp-caption">minimum ${GP.value(r.minimum, 3, {exact: true})} · shortfalls in units of ${GP.value(r.normalizer, 3, {approx: true})}</div>` +
+      (d ? referenceStrip(d) + `<ul class="ref-rows" data-reference="${id}">` + list(d.percentiles).map(p => `<li data-percentile="${esc(p.percentile)}"><span>p${esc(p.percentile)}</span>${GP.value(p.value, 3, {approx: true})}<span>this club's elevens at or below: ${GP.value(p.club_units_at_or_below, 0)} of ${GP.value(d.club?.n_units, 0)}</span></li>`).join('') + '</ul>' +
+        `<div class="detail">${Shell.evidenceBadge(d.evidence_class)} ${Shell.verdictBadge(verdict)} ${esc(d.sample_statement)}</div>` : '') + '</div>';
+  }).join('') + (reference ? `<p class="figure-note" id="reference-claim">${esc(reference.claim)} ${esc(reference.non_claim)}</p>` : '');
+}
+
+/* ---- The selected player. --------------------------------------------------------- */
+function playerOptions() {
+  const omitted = list(depth()?.omitted);
+  const option = p => `<option value="${p.player_id}"${p.player_id === state.selected ? ' selected' : ''}>${esc(p.name)}${p.state === 'EXCLUDED' ? ' · excluded' : ''}</option>`;
+  return `<option value=""${state.selected === null ? ' selected' : ''}>Choose a player…</option><optgroup label="In the evidence set">${squad().map(option).join('')}</optgroup>` +
+    (omitted.length ? `<optgroup label="Outside the evidence set">${omitted.map(option).join('')}</optgroup>` : '');
+}
+
+function playerDetail() {
+  const reply = depth(), id = state.selected, button = $('#exclude-player');
+  button.classList.add('hidden');
+  if (id === null) return `<p class="small subtle">${COPY.pick}</p>`;
+  const member = squad().find(p => p.player_id === id);
+  if (!member) {
+    const out = list(reply?.omitted).find(p => p.player_id === id);
+    if (!out) return `<p class="small subtle">${COPY.pick}</p>`;
+    return `<h3>${esc(out.name)}</h3><p class="player-facts">${esc(out.position)} · ${GP.value(out.minutes, 0)} nominal minutes</p><ul class="player-lines"><li><span class="label">Why he is in no solve</span>${esc(out.reason)}</li><li><span class="label">Eligible under the rule set at</span>${list(out.eligible_slots).map(s => esc(s.label)).join(', ') || 'No slot of this template.'}</li></ul>`;
+  }
+  button.classList.remove('hidden');
+  button.textContent = (member.state === 'EXCLUDED' ? 'Restore ' : 'Exclude ') + member.name;
+  const requirements = list(reply?.inputs?.requirements).filter(r => r.declared === true);
+  const rates = member.outside_requirements ? 'No number on any requirement.' :
+    requirements.map(r => `${esc(r.label)}: ${GP.value(member.requirement_values?.[r.requirement_id], 3, {approx: true})}`).join('<br>');
+  const placements = list(reply?.slots).flatMap(slot => {
+    const pin = list(slot.pinned).find(p => p.player_id === id);
+    if (!pin) return [];
+    const only = list(slot.exclusive_ids).includes(id) ? ' Only there.' : '';
+    return [`<li data-slot="${esc(slot.slot_id)}" data-pinned="${esc(pin.status)}"><span class="label">Used at ${esc(slot.slot_label)}</span>${PINNED[pin.status] ?? PINNED.UNKNOWN}${pin.status === 'RAISES_SHORTFALL' ? ' With him there: ' + pair(pin.objective_vector) + '.' : ''}${only}</li>`];
+  }).join('');
+  const removal = list(state.stress?.single_absences).find(r => r.player_id === id);
+  return `<h3>${esc(member.name)}${member.state === 'EXCLUDED' ? ' ' + GP.declared() : ''}</h3>` +
+    `<p class="player-facts">${esc(member.position)} · ${GP.value(member.minutes, 0)} nominal minutes · matches ${GP.value(member.matches, 0)}, starts ${GP.value(member.starts, 0)} · age ${GP.value(member.age_years, 0)} · foot ${esc(member.foot ?? DASH)}</p>` +
+    '<ul class="player-lines">' +
+    `<li><span class="label">Eligibility rule</span>${list(member.role_rules).length ? 'Reviewed roles: ' + list(member.role_rules).map(esc).join(', ') + '. ' : 'Provider position only. '}Slots: ${list(member.eligible_slots).map(s => esc(s.label)).join(', ') || 'none in this template'}.</li>` +
+    `<li><span class="label">Recorded on the declared requirements</span>${rates}</li>` +
+    (member.state === 'EXCLUDED' ? '<li><span class="label">State</span>Excluded by you from every solve.</li>' : placements) +
+    (removal ? `<li data-removal="${esc(removal.outcome)}"><span class="label">Without him</span>${esc(removal.outcome_label)}${removal.objective_vector ? ': ' + pair(removal.objective_vector) : ''}.</li>` : '') +
+    '</ul>';
+}
+
+function markSelection() {
+  const id = String(state.selected);
+  for (const el of document.querySelectorAll('.depth-mark, button.depth-name')) el.classList.toggle('selected', el.dataset.player === id);
+  for (const el of document.querySelectorAll('#removals-ledger > li[data-player]')) el.classList.toggle('gp-selected', el.dataset.player === id);
+  $('#player').innerHTML = playerOptions();
+  $('#player-detail').innerHTML = playerDetail();
+}
+
+/* ---- Absence stress. --------------------------------------------------------------- */
+function coreRow(core) {
+  return GP.row([
+    {label: 'Absent', html: names(core.players)},
+    {label: 'Blocking slots', html: list(core.blocking_slot_labels).map(esc).join(', ')},
+    {label: 'Remaining there', html: names(core.remaining) || 'Nobody.'},
+    {label: 'Below the gate, eligible there', html: list(core.covered_by_below_gate).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min`).join(', ') || 'Nobody.'},
+  ], {data: {attribution: core.attribution, set: list(core.player_ids).join('-')}});
+}
+
+function stressLevel(level) {
+  const cores = list(level.minimal_unfieldable?.listed);
+  const block = (title, token, statement) => {
+    const rows = cores.filter(c => c.attribution === token);
+    return `<h4>${title}</h4><p class="level-note" data-statement="${token.toLowerCase()}">${esc(statement)}</p>` + (rows.length ? `<ul class="gp-rows" data-ledger-kind="${token}">${rows.map(coreRow).join('')}</ul>` : '');
+  };
+  const raised = list(level.raised?.listed), tied = list(level.worst_sets?.listed);
+  return `<div class="level" data-level="${esc(level.k)}"><h3>Every set of ${esc(level.k)}</h3>` +
+    `<p class="level-note" data-statement="resolved">${GP.certificate(level.completeness)} ${esc(level.statements?.resolved)}</p>` +
+    `<p class="level-note" data-statement="unfieldable">${esc(level.statements?.unfieldable)} ${esc(level.minimal_unfieldable?.statement)}</p>` +
+    block('No fieldable XI · the gate', 'GATE', level.statements?.gate) +
+    block('No fieldable XI · the eligibility rules', 'ELIGIBILITY', level.statements?.eligibility) +
+    `<h4>Fieldable · declared shortfall above the baseline</h4><p class="level-note" data-statement="shortfall">${esc(level.statements?.shortfall)}</p>` +
+    `<p class="level-note" data-statement="raised">${esc(level.raised?.statement)}</p>` +
+    (level.k === 1 && raised.length ? '<p class="level-note">Each is a row of the ledger above.</p>' : '') +
+    (level.k > 1 && raised.length ? `<ul class="gp-rows" data-ledger-kind="RAISED">${raised.map(r => GP.row([
+      {label: 'Absent', html: names(r.players)},
+      {label: 'Without them', html: pair(r.objective_vector)},
+      {label: 'Change from the baseline', html: signedPair(r.change_from_baseline)},
+    ], {data: {set: list(r.player_ids).join('-')}})).join('')}</ul>` : '') +
+    `<p class="level-note" data-statement="ties">${esc(level.worst_sets?.statement)}${tied.length && level.positive_change_count ? ' ' + tied.map(t => names(t.players)).join(' · ') : ''}</p></div>`;
+}
+
+function removalRow(row) {
+  const requirements = list(depth()?.inputs?.requirements).filter(r => r.declared === true);
+  let without;
+  if (row.outcome === 'NO_FIELDABLE_XI') {
+    const core = row.core ?? {};
+    without = `No fieldable XI · ${core.attribution === 'GATE' ? 'the gate' : 'the eligibility rules'}<div class="detail small subtle">${esc(core.statement)}</div>`;
+  } else if (row.outcome === 'UNKNOWN') without = Shell.notCertified('UNKNOWN');
+  else without = `Fieldable · ${pair(row.objective_vector)}<div class="detail small subtle">change ${signedPair(row.change_from_baseline)}</div>`;
+  return GP.row([
+    {label: 'Player', html: `${GP.nameButton(row)}<div class="small subtle mono">${esc(row.position)} · ${GP.value(row.minutes, 0)} min</div>`},
+    {label: 'Without him', html: without},
+    {label: 'Recorded rate', html: row.outside_requirements ? 'No number on any requirement.' : requirements.map(r => `${esc(r.label)}: ${GP.value(row.requirement_values?.[r.requirement_id], 3, {approx: true})}`).join('<br>')},
+    {label: 'Slots', html: list(row.eligible_slots).map(s => esc(s.label)).join(', ') || DASH},
+  ], {selected: row.player_id === state.selected, data: {player: row.player_id, outcome: row.outcome, attribution: row.core?.attribution ?? ''}});
+}
+
+function renderRemovals() {
+  const reply = state.stress;
+  $('#removal-order').innerHTML = GP.orderOptions(reply.listings, state.orderKey);
+  $('#removals-ordered-by').innerHTML = GP.orderedBy(reply.listings, state.orderKey, reply.listing_first_level);
+  $('#removals').innerHTML = GP.ordered(reply.listings, state.orderKey, reply.single_absences, removalRow, {id: 'removals-ledger', empty: 'No single absence was evaluated.'});
+}
+
+function renderStress() {
+  const reply = state.stress;
+  $('#stress-summary').innerHTML = `<div class="status-line">${GP.status(reply.baseline?.status, reply.baseline?.statement)} ${GP.completeness(reply.budget)}</div>` +
+    GP.claim(reply) + GP.warnings(reply.warnings) +
+    `<p class="small statement" id="stress-model">${esc(reply.model_statement)}</p>` +
+    (reply.completeness_statement ? `<p class="small subtle statement">${esc(reply.completeness_statement)}</p>` : '') +
+    `<p class="small subtle statement">${esc(reply.table_statement)}</p>`;
+  $('#removal-warning').textContent = reply.removal_warning ?? '';
+  renderRemovals();
+  $('#not-removable').innerHTML = list(reply.not_removable).length ? `<p class="figure-note">Not removed in any set: ${list(reply.not_removable).map(p => `${esc(p.name)} (${esc(p.reason)})`).join(' ')}</p>` : '';
+  $('#stress-ledgers').innerHTML = list(reply.levels).map(stressLevel).join('');
+  $('#stress-body').classList.remove('hidden');
+}
+
+/* ---- Role brief. ------------------------------------------------------------------- */
+function renderBrief() {
+  const reply = state.brief, b = reply.brief ?? {}, pool = reply.pool;
+  const rows = list(b.rows);
+  $('#brief').innerHTML = `<div class="status-line">${GP.certificate(b.status)} ${GP.completeness(reply.budget)}</div>` +
+    `<p class="statement" id="brief-statement">${esc(b.statement)}</p><p class="statement small" id="brief-squad">${esc(b.squad_statement)}</p>` +
+    (rows.length ? `<ul class="gp-rows" id="brief-rows">${rows.map(row => GP.row([
+      ...list(row.cells).map(c => ({label: c.label, html: `at least ${GP.value(c.need, 3, {approx: true})}<div class="small subtle">the other ten supply ${GP.value(c.residual_supply, 3, {approx: true})}</div>`})),
+      {label: 'Row', html: GP.certificate(row.certification)},
+    ])).join('')}</ul><p class="figure-note">${esc(b.witness_statement)}</p>` : '') +
+    (pool ? `<p class="statement" id="brief-pool">${esc(pool.count_statement)}</p><p class="small subtle statement">${esc(pool.definition)}</p>` +
+      list(pool.banner).filter(line => line !== pool.cross_league_flag).map(line => `<p class="small subtle statement">${esc(line)}</p>`).join('') +
+      (pool.cross_league_flag ? `<p class="notice small">${esc(pool.cross_league_flag)}</p>` : '') : (reply.pool_unavailable ? '' : '<p class="small subtle">The pool was not counted.</p>')) +
+    GP.warnings(reply.warnings) + GP.claim(reply) + `<p class="figure-note">${esc(reply.policy_note)}</p>`;
+  const link = $('#open-transfer');
+  link.setAttribute('href', typeof reply.transfer_url === 'string' && /^\/(?!\/)/.test(reply.transfer_url) ? reply.transfer_url : '/transfer');
+  $('#brief-body').classList.remove('hidden');
+}
+
+/* ---- The ledger of every reply on screen. ------------------------------------------- */
+function renderLedger() {
+  const replies = [depth(), state.audit?.snapshot, state.reference, state.stress, state.brief].filter(Boolean);
+  if (!replies.length) { $('#ledger-slot').replaceChildren(); return; }
+  const seen = new Set(), declared = [], ledger = [], provenance = {verdicts: replies[0].provenance?.verdicts, replies: {}};
+  for (const reply of replies) {
+    for (const row of list(reply.declared)) if (!seen.has('d:' + row.key)) { seen.add('d:' + row.key); declared.push(row); }
+    for (const row of list(reply.ledger)) if (!seen.has('l:' + row.row_id)) { seen.add('l:' + row.row_id); ledger.push(row); }
+    provenance.replies[reply.provenance?.route ?? 'reply'] = reply.provenance;
+  }
+  $('#ledger-slot').innerHTML = GP.ledger({declared, ledger, provenance, research_statement: replies[0].research_statement});
+}
+
+/* ---- Controls and what a child question may be asked of. ----------------------------- */
+const unfieldable = () => depth()?.baseline?.kind === 'NO_FIELDABLE_XI';
+
+function updateRuns() {
+  const common = {busy: state.busy, childBusy: state.stressBusy || state.briefBusy, dirty: state.dirty, stored: state.auditInput};
+  const needsConfirm = state.stressK === 3 && !$('#stress-confirm-k3').checked;
+  $('#run-stress').disabled = GP.blocked({...common, fieldable: !unfieldable()}) || needsConfirm;
+  $('#run-brief').disabled = GP.blocked(common) || $('#brief-slot').value === '';
+}
+
+function setStarters(disabled) {
+  for (const el of document.querySelectorAll('#scenario, #formation, #audit, #presets button, #apply-declarations, #exclude-player, #constraints button')) {
+    if (!disabled && el.dataset.needsOptIn === 'true' && state.draft.experimental_opt_in !== true) continue;
+    el.disabled = disabled;
+  }
+}
+
+const stressIdle = () => unfieldable() ? COPY.noXi : COPY.stressIdle;
+function invalidateStress(message) {
+  state.stress = null; state.stressBusy = false;
+  GP.invalidate(T.stress, {body: $('#stress-body'), clear: [$('#stress-summary'), $('#removals'), $('#not-removable'), $('#stress-ledgers')], status: $('#stress-status')}, message ?? stressIdle());
+}
+function invalidateBrief(message) {
+  state.brief = null; state.briefBusy = false;
+  GP.invalidate(T.brief, {body: $('#brief-body'), clear: [$('#brief')], status: $('#brief-status')}, message ?? COPY.briefIdle);
+}
+function invalidateChildren(message) {
+  T.reference.bump(); state.reference = null;
+  invalidateStress(message); invalidateBrief(message);
+}
+
+function renderPresets() {
+  $('#presets-slot').innerHTML = GP.presets(state.catalogue, state.scenarioId, {excludes: state.excludes, draft: state.draft});
+}
+
+function renderStressControls() {
+  const s = state.catalogue.stress ?? {};
+  $('#stress-k').innerHTML = list(s.sizes).map(k => `<button type="button" data-k="${esc(k)}" aria-pressed="${k === state.stressK}">${esc(k)}</button>`).join('');
+  $('#stress-k-label').textContent = String(state.stressK);
+  $('#stress-intro').textContent = s.intro ?? '';
+  $('#stress-confirm-text').textContent = s.confirmation_statement ?? '';
+  $('#stress-confirm').classList.toggle('hidden', !list(s.needs_confirmation).includes(state.stressK));
+}
+
+function renderAudit() {
+  const reply = depth(), snapshot = state.audit.snapshot, scenario = reply.scenario;
+  $('#eyebrow').textContent = `${scenario.team_name} · ${scenario.season} · matches before ${scenario.cutoff}`;
+  $('#scope-slot').innerHTML = GP.scope(scenario, state.catalogue.scope);
+  $('#banners').innerHTML = GP.eligibility(reply);
+  $('#audit-status').innerHTML = GP.certificate(reply.certificate?.squad_status) + ' ' + GP.completeness(reply.budget);
+  $('#cutoff').textContent = 'Matches before ' + scenario.cutoff;
+  $('#requirement-hash').textContent = 'Requirement set ' + (reply.provenance?.requirement_set_hash ?? DASH);
+  $('#claim-slot').innerHTML = GP.claim(reply) + GP.evidence(reply);
+  $('#constraints-slot').innerHTML = GP.exclusions(squad().filter(p => p.state === 'EXCLUDED'));
+  $('#warnings-slot').innerHTML = GP.warnings(reply.warnings);
+  $('#formation-label').textContent = reply.formation;
+  $('#depth-pitch-slot').innerHTML = depthPitch(reply, state.selected);
+  $('#depth-list').innerHTML = depthList(reply, state.selected);
+  const placementNote = $('#depth-placement-note');
+  placementNote.textContent = reply.placement_note ?? '';
+  placementNote.classList.toggle('hidden', !reply.placement_note);
+  $('#thinness').innerHTML = thinness(reply);
+  $('#depth-statement').textContent = reply.depth_statement;
+  $('#tight-groups-slot').innerHTML = tightGroups(reply);
+  const statement = $('#shortfall-statement');
+  statement.classList.toggle('error', unfieldable());
+  statement.innerHTML = `<span data-kind="${esc(reply.baseline?.kind)}">${esc(reply.baseline?.statement)}</span>` + (unfieldable() ? ' ' + esc(reply.model_statement) : '');
+  $('#requirements').innerHTML = requirementRows();
+  $('#editor').innerHTML = GP.editor(reply.inputs.requirements, state.catalogue, state.draft, {applyLabel: 'Apply and re-audit'});
+  $('#declare-status').textContent = '';
+  $('#omitted-slot').innerHTML = GP.omitted(reply.omitted);
+  $('#model-line').textContent = reply.model_line;
+  $('#stress-status').textContent = stressIdle(); // every audit starts by dropping the stress reply
+  const keeper = list(snapshot.slots).filter(s => s.recruitable === false);
+  $('#brief-slot').innerHTML = '<option value="">Choose a slot…</option>' + list(snapshot.slots).filter(s => s.recruitable === true).map(s => `<option value="${esc(s.slot_id)}">${esc(s.label)}</option>`).join('');
+  $('#brief-keeper').textContent = keeper.map(s => `${s.label} is not offered. ${s.reason} Goalkeeping is not measured here.`).join(' ');
+  $('#brief-leagues').innerHTML = '<legend class="label">Count players of other leagues too · not strength-adjusted</legend>' +
+    list(state.catalogue.leagues).filter(l => l.competition !== scenario.competition).map(l => `<label><input type="checkbox" value="${esc(l.competition)}"><span>${esc(l.label)}</span></label>`).join('');
+  renderPresets(); renderStressControls(); markSelection(); renderLedger();
+  $('#audit').textContent = 'Re-audit';
+  $('#squad-body').classList.remove('hidden');
+  $('#status').classList.add('hidden');
+}
+
+/* ---- Requests. A reply is applied only while its ticket is live. ---------------------- */
+async function audit() {
+  const body = GP.body({scenario_id: state.scenarioId, formation: state.formation, excludes: state.excludes, locks: [], presets: []}, state.draft);
+  const ticket = GP.ticket(T.audit);
+  state.auditInput = null; state.busy = true;
+  invalidateChildren();
+  setStarters(true); updateRuns();
+  $('#squad-body').classList.add('hidden');
+  setStatus(COPY.loading);
+  await GP.run(ticket, () => Promise.all([api('/api/squad/snapshot', body), api('/api/squad/depth', body)]), {
+    apply([snapshot, reply]) {
+      state.audit = {snapshot, depth: reply}; state.auditInput = body; state.dirty = false; state.audited = true;
+      state.draft = GP.draftOf(reply.inputs);
+      state.excludes = list(reply.inputs.excludes).slice();
+      const known = [...list(snapshot.squad), ...list(reply.omitted)].map(p => p.player_id);
+      if (!known.includes(state.selected)) state.selected = null;
+      renderAudit();
+      history.replaceState(null, '', '/squad?scenario=' + encodeURIComponent(reply.scenario_id));
+      runReference();
+    },
+    fail(error) { setStatus(Shell.errorText('Squad audit', error), true); },
+    settle() { state.busy = false; setStarters(false); updateRuns(); },
+  });
+}
+
+async function runReference() {
+  const body = GP.body(state.auditInput, state.auditInput);
+  const ticket = GP.ticket(T.reference, T.audit), status = $('#reference-status');
+  status.classList.remove('error');
+  status.textContent = 'Reading what league starting elevens summed to…';
+  await GP.run(ticket, () => api('/api/squad/reference', body), {
+    apply(reply) { state.reference = reply; status.textContent = ''; $('#requirements').innerHTML = requirementRows(); renderLedger(); },
+    fail(error) { status.classList.add('error'); status.innerHTML = Shell.errorText('League reference', error); },
+  });
+}
+
+async function runStress() {
+  if ($('#run-stress').disabled) return;
+  const body = GP.body(state.auditInput, state.auditInput, {k: state.stressK, confirm_k3: state.stressK === 3 && $('#stress-confirm-k3').checked});
+  const ticket = GP.ticket(T.stress, T.audit), status = $('#stress-status');
+  state.stressBusy = true; updateRuns();
+  $('#stress-body').classList.add('hidden');
+  status.classList.remove('error'); status.textContent = COPY.solving;
+  await GP.run(ticket, () => api('/api/squad/stress', body), {
+    apply(reply) { state.stress = reply; status.textContent = ''; renderStress(); markSelection(); renderLedger(); },
+    fail(error) { status.classList.add('error'); status.innerHTML = Shell.errorText('Absence stress', error); },
+    settle() { state.stressBusy = false; updateRuns(); },
+  });
+}
+
+async function runBrief() {
+  if ($('#run-brief').disabled) return;
+  const leagues = [...document.querySelectorAll('#brief-leagues input:checked')].map(el => el.value);
+  const body = GP.body(state.auditInput, state.auditInput, {slot_id: $('#brief-slot').value, include_leagues: leagues});
+  const ticket = GP.ticket(T.brief, T.audit), status = $('#brief-status');
+  state.briefBusy = true; updateRuns();
+  $('#brief-body').classList.add('hidden');
+  status.classList.remove('error'); status.textContent = COPY.solving;
+  await GP.run(ticket, () => api('/api/squad/brief', body), {
+    apply(reply) { state.brief = reply; status.textContent = ''; renderBrief(); renderLedger(); },
+    fail(error) { status.classList.add('error'); status.innerHTML = Shell.errorText('Role brief', error); },
+    settle() { state.briefBusy = false; updateRuns(); },
+  });
+}
+
+function select(id) {
+  state.selected = id;
+  markSelection();
+}
+
+/* ---- Events. ------------------------------------------------------------------------- */
+$('#scenario').addEventListener('change', event => {
+  state.scenarioId = event.target.value; state.excludes = []; state.selected = null;
+  state.draft = {requirements: [], experimental_opt_in: false};
+  audit();
+});
+$('#formation').addEventListener('change', event => { state.formation = event.target.value; audit(); });
+$('#audit').addEventListener('click', audit);
+$('#presets-slot').addEventListener('click', event => {
+  const button = event.target.closest('button[data-preset]');
+  if (!button || button.disabled) return;
+  const preset = list(state.catalogue.presets).find(p => p.id === button.dataset.preset);
+  if (!preset) return;
+  const out = list(preset.sets?.excludes);
+  if (out.length) {
+    const on = out.every(id => state.excludes.includes(id));
+    state.excludes = on ? state.excludes.filter(id => !out.includes(id)) : state.excludes.concat(out.filter(id => !state.excludes.includes(id)));
+  }
+  if (list(preset.sets?.requirements).length) {
+    const next = GP.applyPreset(state.draft, preset);
+    if (!next) return;
+    state.draft = next;
+  }
+  audit();
+});
+$('#constraints-slot').addEventListener('click', event => {
+  const button = event.target.closest('button[data-player]');
+  if (!button || button.disabled) return;
+  state.excludes = state.excludes.filter(id => String(id) !== button.dataset.player);
+  audit();
+});
+$('#exclude-player').addEventListener('click', () => {
+  const id = state.selected;
+  if (id === null) return;
+  state.excludes = state.excludes.includes(id) ? state.excludes.filter(x => x !== id) : state.excludes.concat([id]);
+  audit();
+});
+$('#player').addEventListener('change', event => select(event.target.value === '' ? null : Number(event.target.value)));
+for (const area of ['#depth-pitch-slot', '#depth-list', '#removals']) {
+  const pick = event => {
+    const el = event.target.closest('[data-player]');
+    if (!el) return;
+    if (event.type === 'keydown') { if (event.key !== 'Enter' && event.key !== ' ') return; event.preventDefault(); }
+    select(Number(el.dataset.player));
+  };
+  $(area).addEventListener('click', pick);
+  if (area === '#depth-pitch-slot') $(area).addEventListener('keydown', pick);
+}
+const editor = $('#editor');
+const edited = () => {
+  GP.syncEditor(editor);
+  state.dirty = true;
+  invalidateStress(COPY.dirty); invalidateBrief(COPY.dirty);
+  renderLedger(); markSelection(); updateRuns();
+};
+editor.addEventListener('input', edited);
+editor.addEventListener('change', edited);
+editor.addEventListener('click', event => {
+  if (!event.target.closest('#apply-declarations')) return;
+  const draft = GP.readDraft(editor);
+  if (!draft) { $('#declare-status').textContent = GP.COPY.incomplete; return; }
+  state.draft = draft;
+  audit();
+});
+$('#stress-k').addEventListener('click', event => {
+  const button = event.target.closest('button[data-k]');
+  if (!button) return;
+  state.stressK = Number(button.dataset.k);
+  $('#stress-confirm-k3').checked = false;
+  renderStressControls();
+  invalidateStress(state.dirty ? COPY.dirty : undefined);
+  renderLedger(); markSelection(); updateRuns();
+});
+$('#stress-confirm-k3').addEventListener('change', updateRuns);
+$('#run-stress').addEventListener('click', runStress);
+$('#removal-order').addEventListener('change', event => { state.orderKey = event.target.value; if (state.stress) renderRemovals(); });
+const briefChanged = () => { invalidateBrief(state.dirty ? COPY.dirty : undefined); renderLedger(); updateRuns(); };
+$('#brief-slot').addEventListener('change', briefChanged);
+$('#brief-leagues').addEventListener('change', briefChanged);
+$('#run-brief').addEventListener('click', runBrief);
+
+async function boot() {
+  try {
+    const [catalogue, clubs] = await Promise.all([api('/api/squad/scenarios'), api('/api/squad/clubs').then(r => r.clubs, () => [])]);
+    state.catalogue = catalogue; state.clubs = list(clubs);
+    const wanted = new URLSearchParams(location.search).get('scenario');
+    const known = [...list(catalogue.scenarios), ...state.clubs].map(s => s.scenario_id);
+    state.scenarioId = known.includes(wanted) ? wanted : catalogue.default_scenario;
+    state.formation = list(catalogue.formations)[0] ?? '4-3-3';
+    $('#scenario').innerHTML = GP.scenarioOptions(catalogue, state.clubs, state.scenarioId);
+    $('#formation').innerHTML = GP.formationOptions(catalogue, state.formation);
+    $('#scope-slot').innerHTML = GP.scope(list(catalogue.scenarios).find(s => s.scenario_id === state.scenarioId) ?? list(catalogue.scenarios)[0], catalogue.scope);
+    $('#not-measured-slot').innerHTML = GP.notMeasured(catalogue);
+    renderPresets(); renderStressControls();
+    $('#stress-status').textContent = COPY.stressIdle; $('#brief-status').textContent = COPY.briefIdle;
+  } catch (error) {
+    setStatus(Shell.errorText('Squad audit', error), true);
+    return;
+  }
+  audit();
+}
+boot();
+</script></body></html>
