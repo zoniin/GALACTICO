@@ -1,0 +1,64 @@
+/* The planning kit (window.GP). Loaded after labs.css and labs-shared.css; tokens are labs.css's.
+   Every selector starts with a gp- class. Gold appears twice and nowhere else: the selected row's
+   square and the subject of a rail. No merit colour: a signed change is monospace text. Every
+   grid track can shrink to nothing and every server string can wrap, so nothing widens the page. */
+
+/* Envelope: scope banner, claim and non-claim, status, composed evidence, warnings. */
+.gp-scope{font-size:10px;letter-spacing:.06em;color:var(--muted);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:.7rem 0;margin:0 0 1.2rem;overflow-wrap:anywhere}
+.gp-claim p{max-width:95ch;margin:0 0 .4rem;overflow-wrap:anywhere}
+.gp-banner{overflow-wrap:anywhere}
+.gp-cert{color:var(--text)}
+.gp-state{overflow-wrap:anywhere}
+.gp-missing{color:var(--muted)}
+.gp-evidence{margin:.6rem 0 1rem;min-width:0;overflow-wrap:anywhere}
+.gp-evidence .detail{font:11px var(--mono);color:var(--muted);margin-top:.25rem}
+.gp-warnings{list-style:none;margin:.6rem 0 1rem;padding:.1rem 0 .1rem .9rem;border-left:2px solid var(--chalk);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.gp-warnings li{margin:.3rem 0}
+
+/* Requirement rows and the rail. Marks take their stroke from a class, never from a value. */
+.gp-req{padding:.9rem 0;border-bottom:1px solid var(--line);min-width:0;overflow-wrap:anywhere}
+.gp-req .detail{font:11px var(--mono);color:var(--muted);margin-top:.25rem}
+.gp-req-name{font:normal 1.05rem var(--serif)}
+.gp-caption{font:11px var(--mono);color:var(--muted);line-height:2}
+.gp-rail{display:block;width:100%;max-width:640px;height:auto;margin:.5rem 0 .2rem}
+.gp-rail text{font-family:var(--mono);fill:var(--muted)}
+.gp-rail .gp-tick{stroke:var(--chalk);stroke-width:1}
+.gp-rail .gp-median{fill:none;stroke:var(--muted);stroke-width:1}
+.gp-rail .gp-minimum{stroke:var(--text);stroke-width:1.25}
+.gp-rail .gp-range{fill:var(--line);stroke:var(--chalk);stroke-width:1}
+.gp-rail .gp-range-full{fill:none;stroke:var(--chalk);stroke-width:1;stroke-dasharray:3 2}
+.gp-rail .gp-gap{stroke:var(--text);stroke-width:1;stroke-dasharray:2 2}
+.gp-rail .gp-gap-cap{stroke:var(--text);stroke-width:1}
+.gp-rail .gp-subject{fill:var(--gold);stroke:var(--gold)}
+
+/* Lists of players: labelled cells, outcome bands, tie bands. No number column exists. */
+.gp-rows{list-style:none;margin:0;padding:0}
+.gp-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:.4rem 1.2rem;padding:.9rem 0;border-bottom:1px solid var(--line);align-items:start;min-width:0;overflow-wrap:anywhere}
+.gp-cell{min-width:0}
+.gp-cell-label{display:block;font:9px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem}
+.gp-mark{display:inline-block;width:7px;height:7px;border:1px solid var(--chalk);margin-right:.5rem;vertical-align:middle}
+.gp-row.gp-selected .gp-mark{background:var(--gold);border-color:var(--gold)}
+.gp-row.gp-reference{border-bottom-style:dashed}
+.gp-row.gp-reference .gp-mark{border-style:dashed}
+.gp-row button.gp-name{background:none;border:0;padding:0;text-align:left;font:inherit;max-width:100%;overflow-wrap:anywhere}
+.gp-outcome-band{font:11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--text);padding:1.2rem 0 .4rem;border-bottom:1px solid var(--chalk);overflow-wrap:anywhere}
+.gp-tie-band{font:10px var(--mono);letter-spacing:.08em;color:var(--muted);padding:.6rem 0 .2rem;overflow-wrap:anywhere}
+
+/* The requirement editor. A locked experimental block says why it is locked. */
+.gp-declare{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:.9rem 1.4rem;margin:.8rem 0}
+.gp-req-edit{display:grid;gap:.6rem;align-content:start;border:0;border-top:1px solid var(--line);margin:0;padding:.8rem 0 0;min-width:0;overflow-wrap:anywhere}
+.gp-req-edit legend{padding:0;max-width:100%}
+.gp-req-edit .control{min-width:0}
+.gp-req-edit:disabled{color:var(--muted)}
+.gp-req-edit:not(:disabled) .gp-not-opted{display:none}
+.gp-req-edit .detail{font:11px var(--mono);color:var(--muted)}
+.gp-optin{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.7rem;align-items:center;min-height:44px;overflow-wrap:anywhere}
+.gp-optin input{width:auto}
+
+/* The research records under the ledger. */
+.gp-research caption{caption-side:top;text-align:left;padding:1rem 0 .2rem;font:10px var(--mono);text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+.gp-research td{font-size:12px;padding-right:1rem;overflow-wrap:anywhere}
+.gp-research td:last-child{padding-right:0}
+
+@media(max-width:850px){.gp-row{grid-auto-flow:row;grid-auto-columns:auto;grid-template-columns:minmax(0,1fr);gap:.5rem}}
+@media(max-width:650px){.gp-research{display:block}.gp-research caption,.gp-research tbody{display:block}.gp-research thead{position:absolute;left:-9999px}.gp-research tr{display:block;padding:.6rem 0;border-bottom:1px solid var(--line)}.gp-research td{display:grid;grid-template-columns:6rem minmax(0,1fr);gap:.6rem;border:0;padding:.25rem 0;text-align:left!important}.gp-research td:before{content:attr(data-label);font:10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}}
