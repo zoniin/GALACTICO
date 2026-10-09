@@ -827,7 +827,7 @@ def requirement_scope(snap: TeamSnapshot, *, experimental_opt_in: bool = False) 
     if experimental and experimental_opt_in:
         statement += (
             f" {', '.join(experimental)}: EXPERIMENTAL pass-origin descriptors of deployment, "
-            "in force because the experimental opt-in was declared."
+            "in force: the experimental opt-in was declared."
         )
     elif experimental:
         statement += (
