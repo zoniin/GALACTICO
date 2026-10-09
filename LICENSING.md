@@ -47,12 +47,21 @@ tables in the repository, and a hosted instance may never serve a StatsBomb-deri
 number. `assert_may_host("statsbomb")` raises.
 
 Published analysis formed from StatsBomb data names the source and carries the
-logo: the README, [E-01](docs/research/E-01-metronome-fit.md) and
-[Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md). The logo is the file
+logo: the README, [E-01](docs/research/E-01-metronome-fit.md),
+[Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md) and the erratum
+[M-07](docs/research/M-07-rank-ties.md). The logo is the file
 the provider ships with the data, kept at `docs/assets/statsbomb/`. This paragraph
 stated the requirement for months while two of those reports carried no logo.
 `tests/test_licensing.py` now fails if one loses it, or if a new report whose
 corpus is StatsBomb is published without it.
+
+One derived table was in the repository. `experiments/external_replication.json`
+carried the StatsBomb half of Stage 1C, four blocks of aggregate figures, beside
+the public half, from the commit that published the report until 9 October 2026.
+The guard reads paths and extensions and could not see what a JSON file holds.
+The blocks are out of the tree and remain in the history; the figures are in the
+report, as published analysis. The runner writes that half under the gitignored
+cache, and a test fails if a tracked result file holds such a block.
 
 ## Attribution
 

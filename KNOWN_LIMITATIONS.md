@@ -222,8 +222,11 @@ every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
 ## Found by the October reconnaissance and not repaired
 
-Two licence findings were repaired on 9 October and are recorded in
-[LICENSING](LICENSING.md): the README, E-01 and Stage 1C now name StatsBomb as
+Four were then decided and repaired on 9 October. Goalkeepers no longer carry the
+pass-origin constructs their own definition excludes ([ADR-0025](DECISIONS.md)), and
+rank correlations use average ranks, with an erratum for the published figures
+([M-07](docs/research/M-07-rank-ties.md), [ADR-0026](DECISIONS.md)): no verdict or
+gate changed. Two licence findings are recorded in [LICENSING](LICENSING.md): the README, E-01 and Stage 1C now name StatsBomb as
 their data source and carry its logo, as clause 1.4 of its agreement requires; and
 FPL, ClubElo and football-data.co.uk are reference only, since the terms read that
 day do not support the hostable posture two of them were given. The rest was not
@@ -232,15 +235,21 @@ changed.
 - StatsBomb delisted 272 of 306 Bundesliga 2015/16 matches on 26 May 2026. The
   files still download. The four-league posture here is unaffected; a fetch that
   enumerated the events directory instead of the match index would ingest them.
-- All 26 goalkeepers in the Player Lab bundle carry the two pass-origin style
-  constructs, although both declare outfield players as their valid context.
+
 - The legacy `REGISTRY` in `galactico/domain/metrics.py` still states the
   superseded on-ball-action denominators and names providers that match no
   adapter. Nothing in production reads it.
-- The published rank-correlation figures rank ties in sort order, so they depend
-  on row order (about sixty players sit at exactly zero chance creation in every
-  league). Average ranks are implemented behind `ties="average"`; the default
-  reproduces the published figures and warns.
+- The Wyscout columns of the published Stage 1C table do not reproduce from the
+  corpus as it is: three of the four were computed with one xT turnover recipe and
+  the fourth with another. The nine xT-weighted ordering figures move by up to
+  0.000444. Found while correcting the rank ties
+  ([M-07](docs/research/M-07-rank-ties.md)); not corrected.
+- E-01's two rank correlations predate the audit code. No script in the
+  repository produces them, so the tie correction says nothing about them.
+- `experiments/external_replication.json` carried the StatsBomb half of Stage 1C
+  as machine-readable aggregate figures from the day it was published until
+  9 October 2026. It is out of the tree and remains in the history.
+
 - The evidence ladder of ADR-0001 is composed on the planning surfaces only.
   Player, Match and XI Lab still carry their own strings.
 - Three xT turnover recipes are live (Stage 1B, Player Lab, XI Lab). Surfaces

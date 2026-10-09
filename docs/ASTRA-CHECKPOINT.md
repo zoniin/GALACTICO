@@ -3,15 +3,15 @@
 ## CURRENT COMMIT
 
 9 October: the Squad Lab / Transfer Lab build is committed on the local branch
-`north-star`, above `feb9f8b` on `main`. **Nothing is pushed.** The
-build ran unattended and no push was requested, and a push matters here: commit
-order is how a preregistration is proved. Review the branch, then push it or
-merge it. `git log --oneline feb9f8b..north-star` lists it.
+`north-star`, above `feb9f8b` on `main`. The branch is pushed as
+`origin/north-star`; `main` is where it was. The owner delegated the open decisions
+on 9 October, the branch was pushed that afternoon, and CI run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)
+passed both jobs on `b7bc919`. `git log --oneline feb9f8b..north-star` lists it.
 
-1,119 Python tests passed and 1 skipped (the tag sidecar is not built); 35
+1,166 Python tests passed and 1 skipped (the tag sidecar is not built); 37
 browser tests and the two screenshot captures passed; Ruff and the licence guard clean; desktop and 390 px
 screenshots read. The CI workflow was changed (the browser job ingests five
-leagues and runs two more specs) and that change has never run on GitHub Actions.
+leagues and runs two more specs); the run above is its first on GitHub Actions.
 
 Commits, oldest first: `d7e9acc` e2e port from the environment · `f581c56` guards
 that could not fail · `9a7da06` measurement gates that failed open · `c79a3ef`
@@ -26,8 +26,11 @@ runtime and page shell · `e96b81c` ADR-0018 to 0023, M-06, protocol drafts ·
 for: `b91f466` six false statements in the documents · `e55d824` the Madrid rule
 set is declared by hand, not reviewed · `1853ad2` tool sentences · `d9ba681` builds
 inside the budget and behind a gate, one cache key per problem · `8b13d52` the copy
-guard at the response boundary · `55b3b7b` server fields for the pages · `2736f08`
-the pages print them · then this documentation.
+guard at the response boundary · `55b3b7b` server fields for the pages · `2736f08` the pages print them · `4faa22a` the audit record. Then the decisions the
+owner delegated on 9 October: `b7bc919` StatsBomb credit and logo, three sources
+reference only · `7753b45` a construct is published only inside its declared
+context · `d3d3ff5` average ranks, the erratum M-07 and the StatsBomb-side table
+out of the tree · then this documentation.
 
 One commit message is wrong and cannot be corrected without rewriting history:
 `ac1d43a` says the role brief matched a slot search on 88 slot and scenario
@@ -183,9 +186,9 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation on `north-star`. **1,119 local Python tests, 35 browser
-tests and two screenshot captures** passed on 9 October, plus Ruff/licensing. Push and CI are the
-remaining handoff checks. Do not reopen E-07 or E-08.
+No unfinished implementation on `north-star`. **1,166 local Python tests, 37 browser
+tests and two screenshot captures** passed on 9 October, plus Ruff/licensing. Pushed, and CI
+passed. Do not reopen E-07 or E-08.
 
 The 20 September release: **374 local Python tests and 13 Playwright tests**
 passed, plus Ruff/licensing. All recovery/council/adversarial results
@@ -234,16 +237,17 @@ limit on the decision claim, not missing implementation disguised as a result.
 Owner decisions the 9 October reconnaissance left open. None was changed; each is
 described in KNOWN_LIMITATIONS under "Found by the October reconnaissance":
 
-1. Push or merge `north-star`, and watch the first CI run of the changed workflow.
+1. Pushed on 9 October; the first CI run of the changed workflow passed. Merging
+   into `main` follows once the remaining repairs on the branch are verified.
 2. Decided on 9 October, when the owner delegated these: the README, E-01 and
    Stage 1C name StatsBomb as their data source and carry its logo (clause 1.4);
    a test keeps it so.
 3. Decided the same day: FPL, ClubElo and football-data.co.uk are reference only
    in `providers/base.py`. The terms read that day do not support more.
-4. Whether goalkeepers should carry the two pass-origin style constructs (26 do).
-5. Whether the published rank correlations move to average ranks for ties. The
-   implementation is behind `ties="average"`; switching the default changes
-   published figures and needs its own decision record.
+4. Decided: a construct is published only inside the context it declares
+   (ADR-0025). Goalkeepers carry all five as withheld rows with the reason.
+5. Decided: average ranks are the default; the published figures are corrected by
+   erratum, not rewritten (M-07, ADR-0026). No verdict or gate changed.
 6. Which of the five drafted protocols to review, freeze and run, and in what
    order. E-11 gates E-12. E-09 and E-10 need the tag sidecar first.
 

@@ -800,3 +800,97 @@ would show it as a 500 on the first request that serves the name.
 
 **Reversal.** A hosted, multi-user deployment needs a job queue and precomputed
 results. The gate is a single-user device and says so by answering 429.
+
+---
+
+## ADR-0025 — A construct is published only inside the context it declares
+
+**Problem.** All five shipped constructs declare outfield players as their valid
+context. The builder read only the list of excluded contexts, which the two
+pass-origin constructs do not repeat, so 26 goalkeepers shipped with both as point
+estimates and percentiles among goalkeepers: K. Navas at the 57.7th percentile for
+half-space share. On the Explore view, 20 of the 40 rows listed under wide-channel
+share were goalkeepers. The pooled reliability printed on outfield rows was taken
+over all 345 players, goalkeepers included.
+
+**Decision.** The registry answers the question and the builder asks it:
+`ConstructDefinition.context_excluding(position)` reads the declared valid context
+first. The builder holds no construct id and no position of its own. Outside the
+context a profile carries the construct as a withheld row (`out_of_context`) with the
+reason and with no value, percentile, interval or reference population. An
+unrecorded position withholds. The channel breakdown under a profile restates the
+pass-origin constructs, so it is not shipped where they are withheld. Pooled
+split-half reliability is taken over the players a construct is defined for. A
+bundle records the builder rules it was built under; the artifact key covers them
+and the API refuses a bundle built under others.
+
+**Evidence.** The rebuilt bundle against the previous one, value by value: 26
+profiles differ in what they publish and all are goalkeepers, each with five
+withheld rows and no channel breakdown. On the 319 outfield profiles only the
+reliability of four constructs moved (progression 0.892 to 0.879, progression per
+action 0.898 to 0.894, width 0.983 to 0.979, half-space share 0.9532 to 0.9525) and
+no render state changed. Explore lists 319 players under each style construct, not
+345. Construct version hashes are unchanged: no registry entry was edited. For one
+goalkeeper the wide share of the channel bar equalled the withheld width.
+
+**Numerical boundary.** Chance creation's displayed reliability comes from its
+minutes curve and did not move. Every pooled reliability stays far above the
+publication gate, so no number crossed it.
+
+**Alternatives rejected.** Adding goalkeepers to the two constructs' excluded
+contexts: a registry edit that changes two published definition hashes to say what
+each entry already says. Dropping the rows, as the quality rows were dropped: an
+absence with no reason reads as a gap in the data. Keeping the channel bar for
+goalkeepers as raw observation: it is the withheld number under the withheld row.
+A goalkeeper construct: none has been through the lifecycle.
+
+**Confidence.** High. The gate is a property of the registry and is tested without
+data; the bundle test covers every profile.
+
+**Reversal.** A construct whose declared context includes goalkeepers is published
+for them by its declaration, with no change to the builder.
+
+---
+
+## ADR-0026 — Rank correlations use average ranks; published figures are corrected by erratum
+
+**Problem.** The confound audit reported how much of a construct's ordering survives
+adjustment as a rank correlation, ranking with an argsort of an argsort. Tied values
+then take distinct ranks in whatever order the rows arrive. Sixty to sixty-five
+players in each league sit at exactly zero chance creation. Over 1,000 orders of the
+same rows the published Stage 1B figure for Spain ranges from 0.8626 to 0.8741.
+
+**Decision.** Average ranks are the definition and the default. The sort-order
+ranking stays available under its own name, only to reproduce the record, and warns
+when the data are tied. Published reports and result files are records and are not
+rewritten: [M-07](docs/research/M-07-rank-ties.md) is the erratum, with every figure
+recomputed under both policies by `experiments/run_rank_tie_erratum.py`. The two
+runners that produced the records name the sort-order policy explicitly, so a rerun
+reproduces what was published.
+
+**Evidence.** 81 distinct figures recomputed; 29 move. The largest change is
+0.004369 (Stage 1B, chance creation, Germany). The lowest figure is 0.7761 against a
+floor of 0.50. Recomputed under the corrected default, the 35 Stage 1B statuses and
+the seven replication labels are unchanged, and the audit's pass or fail is the same
+in all 75 cells. E-02's frozen runner now executes the corrected default; its test
+T3 has no tied value among 306 players and is identical to the last bit.
+
+**Numerical boundary.** Reproducing a sort-order figure bit for bit is a statement
+about one machine: an unstable sort does not promise the same ranks for ties
+elsewhere. The slow test asserts the corrected figures and compares the published
+ones with the committed files.
+
+**Alternatives rejected.** Rewriting the published tables. Keeping the sort-order
+ranking as the default with a warning: the wrong number by default. Deleting it: the
+record could no longer be reproduced.
+
+**Found on the way.** The Wyscout columns of the Stage 1C table mix two xT turnover
+recipes and do not reproduce from the corpus as it is. The tracked result file
+carried the StatsBomb half of that table in machine-readable form; it is out of the
+tree (see LICENSING). E-01's two rank correlations have no script and are not
+covered.
+
+**Confidence.** High. The corrected statistic is checked against the definition
+written out in the test, against pandas, and against scipy where it is installed.
+
+**Reversal.** None expected. A statistic of the data must not move when the rows do.

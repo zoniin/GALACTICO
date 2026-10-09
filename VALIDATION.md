@@ -6,12 +6,13 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-The Squad Lab and Transfer Lab build passed **1,119 local Python tests** (one more
-skips: the tag sidecar it needs is not built) and **35 browser tests** plus the two
+The Squad Lab and Transfer Lab build passed **1,166 local Python tests** (one more
+skips: the tag sidecar it needs is not built) and **37 browser tests** plus the two
 screenshot captures on 9 October, with the five-league public corpus present. Ruff and the licensing
-guard passed. It lives on the `north-star` branch and **has not run on GitHub
-Actions**: the browser job now ingests all five leagues, and that change is
-untested there.
+guard passed. It lives on the `north-star` branch. GitHub
+Actions run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)
+passed both jobs on `b7bc919`: the data-free checks, and the browser job that now
+ingests all five leagues and runs the suite with the corpus.
 
 What the new tests establish, and what they do not:
 
@@ -55,6 +56,17 @@ said ran on every response was moved to where that is true. What the audit found
 and this branch did not change is listed in
 [KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md). The repairs themselves were not audited
 a second time.
+
+**Decisions delegated by the owner, 9 October.** Four findings that had been left
+for the owner were decided and repaired, each from a failing test: the StatsBomb
+credit and logo on published analysis, three provider postures, goalkeepers
+carrying constructs defined for outfield players (ADR-0025), and tie handling in
+the published rank correlations (ADR-0026, erratum
+[M-07](docs/research/M-07-rank-ties.md)). The erratum recomputed 81 published
+figures under both tie policies: 29 move, the largest by 0.0044, and no status,
+label or verdict changes. On the way it found a machine-readable table of
+StatsBomb-side figures tracked in the repository since Stage 1C was published;
+it is out of the tree.
 
 Reviewed by agents only. No football analyst and no statistician outside the
 project has looked at these pages or these protocols.

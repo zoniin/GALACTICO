@@ -46,7 +46,7 @@ group before no XI can be fielded under the eligibility rules, and two once the
 leaves the declared shortfall where it was, because nothing here measures
 finishing. A page that printed a shortlist would be answering a question this
 data cannot. These print the question back, with what it is conditional on.
-[Decisions](DECISIONS.md) ADR-0018 to ADR-0024 ·
+[Decisions](DECISIONS.md) ADR-0018 to ADR-0026 ·
 [what they cannot say](KNOWN_LIMITATIONS.md)
 
 ![Squad Lab](docs/screenshots/17-squad-lab.png)
@@ -268,6 +268,7 @@ The failures were more instructive than the successes, so they are kept.
 - [M-04](docs/research/M-04-shared-match-worlds.md) — independent teammate bootstraps destroy the covariance needed for comparisons
 - [M-05](docs/research/M-05-optimizer-selection-bias.md) — exact optimization still selects positive estimation noise
 - [M-06](docs/research/M-06-a-guard-that-never-runs.md) — the test behind "no overall rating" had never run in CI
+- [M-07](docs/research/M-07-rank-ties.md) — a rank correlation that changed with the order of the rows; an erratum to the published figures
 
 Every one is the same shape: **verification placement matters as much as
 verification existence.**
