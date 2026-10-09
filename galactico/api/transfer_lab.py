@@ -222,7 +222,9 @@ DEFINITIONS = (
      "definition": "Certified least declared shortfall (largest, sum) over the XIs that field "
                    "him at the declared slot.",
      "why": "With him merely available the value is never above the squad's own, so it would "
-            "show a gain for any noisy figure. The forced value is signed."},
+            "show a gain for any noisy figure. The forced value can be above the squad's own: "
+            "fielding him there can leave the squad further from its minima, and such a row "
+            "still leaves the squad's least shortfall unchanged."},
     {"field": "membership",
      "definition": "In every least-shortfall XI when the forced value is below the squad's own; "
                    "in some when equal; in none when above.",

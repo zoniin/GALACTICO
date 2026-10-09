@@ -10,12 +10,33 @@
    family are still at the version it captured.
 
    Non-claim: the kit knows nothing about football. It adds nothing up, sorts
-   nothing, derives no label from a number and composes no evidence class. Its
-   only arithmetic is the linear placement of a server value on a server scale
-   and the length of a server list; its only comparisons are equality of declared
-   inputs (is this preset what is declared) and of ids. It depends on no page and
-   looks up no element: the helpers that touch the DOM touch only what they are
-   handed.
+   nothing and derives no label from a number. It names no evidence class: every
+   badge is drawn from a class the server sent, on the row or in the catalogue,
+   and the origin of a minimum is the server's label in a bracket mark, with no
+   rung. Its only arithmetic is the linear placement of a server value on a server
+   scale and the length of a server list; its only comparisons are equality of
+   declared inputs (is this preset what is declared) and of ids. It depends on no
+   page and looks up no element: the helpers that touch the DOM touch only what
+   they are handed.
+
+   What is assembled here, exactly:
+   - One description of a figure for assistive technology: the aria-label of a
+     rail, fixed words around server values (the server's label, the attainable
+     range, the declared minimum, and the server's reaches_minimum with its
+     solo_gap).
+   - Fixed words around a server string or a server count, never a clause of
+     their own: "Composition:", "Bound by:", "Experimental by your opt-in:",
+     "minimum", "attainable … to …" under a rail,
+     "listed:" in an outcome band, "Equal on this key", and the line under an
+     order control (fixed words, the first level as the page was told to name it, the
+     server's key label and the server's tie rule).
+   - Fixed copy that varies with no value: GP.COPY, the names of the states a
+     requirement that is not in force can be in, the labels of controls, and the
+     line an empty or unsent list is replaced by.
+   No sentence about football is assembled here from a value or a token. Every
+   claim, non-claim, statement, warning, reason, label and class printed is the
+   server's string. The fixed copy in GP.COPY is authored here and says how to
+   read a control or a figure; it is the same on every reply.
 
    One global, loaded after labs-shared.js. Nothing is declared in script scope,
    and no function Shell exports is written a second time. */
@@ -67,20 +88,28 @@
   }
 
   // One server number. o.approx prefixes ≈ (a rounded figure whose exact value exists),
-  // o.signed prints the sign, o.exact prints the exact number string.
+  // o.signed prints the sign, and the two compose; o.exact prints the exact number string.
+  // An exact zero is "0" in every form: nothing was rounded, so it takes no ≈ and no sign.
   function value(v, d = 3, o = {}) {
     if (!finite(v)) return `<span class="mono gp-missing">${DASH}</span>`;
-    const shown = o.exact ? esc(String(v)) : o.signed ? signed(v, d) : (o.approx ? '≈ ' : '') + num(v, d);
-    return `<span class="mono" data-value="${esc(String(v))}">${shown}</span>`;
+    const shown = v === 0 ? '0' : o.exact ? esc(String(v)) : (o.approx ? '≈ ' : '') + (o.signed ? signed(v, d) : num(v, d));
+    return `<span class="mono gp-value" data-value="${esc(String(v))}">${shown}</span>`;
   }
 
   // The mark of an input the user entered. A shape of its own: DECLARED is not an evidence class.
   const declared = () => '<span class="declared" data-origin="DECLARED">[ DECLARED ]</span>';
 
-  // DECLARED: the bracket mark. POLICY: a convention, so the heuristic rung. Anything else: no rung lit.
-  function origin(token) {
-    if (token === 'DECLARED') return declared();
-    return `<span data-origin="${token === 'POLICY' ? 'POLICY' : 'UNKNOWN'}">${S.evidenceBadge(token === 'POLICY' ? 'HEURISTIC' : {})}</span>`;
+  // Where a minimum came from: the server's own label (origin_label) in the same bracket
+  // mark. It is not an evidence class and lights no rung. No label, no mark.
+  const origin = label => text(label) ? `<span class="declared gp-origin">[ ${esc(label)} ]</span>` : '';
+
+  // The origin mark of a requirement row, then the server's sentence about the source. A
+  // sentence that is the label again and a full stop ("Entered by you." beside "Entered by
+  // you") is printed once, as the mark. Any other sentence is printed whole.
+  function source(row) {
+    const r = object(row) ? row : {};
+    const again = text(r.origin_label) && text(r.source_sentence) && r.source_sentence.trim() === r.origin_label.trim() + '.';
+    return [origin(r.origin_label), text(r.source_sentence) && !again ? esc(r.source_sentence) : ''].filter(Boolean).join(' ');
   }
 
   // A tool's status or completeness token, verbatim.
@@ -268,6 +297,12 @@
     const optIn = d.experimental_opt_in === true;
     const sources = list(catalogue?.minimum_sources).filter(s => object(s) && text(s.source));
     const menu = list(catalogue?.percentile_menu).filter(finite);
+    // A requirement's class is the server's: on the row when it is in force, else the
+    // catalogue's for that requirement. The opt-in carries the classes of the requirements
+    // the catalogue says need it. None sent: none drawn.
+    const served = list(catalogue?.requirements).filter(object);
+    const classOf = r => r.evidence_class ?? served.find(q => q.requirement_id === r.requirement_id)?.evidence_class ?? null;
+    const optInClasses = served.filter(q => q.needs_experimental_opt_in === true && text(q.evidence_class)).map(q => q.evidence_class);
     const blocks = list(rows).filter(r => object(r) && word(r.requirement_id)).map(r => {
       const id = r.requirement_id, name = esc(r.label ?? id);
       if (unmeasured(r)) {
@@ -278,13 +313,13 @@
       const prefill = finite(entry.value) ? entry.value : (finite(r.minimum) ? r.minimum : null);
       const part = (token, label, field) => `<label class="control${source === token ? '' : ' hidden'}" data-for="${token}"><span class="label">${label}</span>${field}</label>`;
       return `<fieldset class="gp-req-edit" data-requirement="${esc(id)}"${wide ? ` data-experimental="true"${optIn ? '' : ' disabled'}` : ''}>` +
-        `<legend><span class="gp-req-name">${name}</span> ${S.evidenceBadge(wide ? 'EXPERIMENTAL' : r.evidence_class ?? null)}${wide ? ` <span class="badge gp-not-opted">${UNDECLARED.EXPERIMENTAL_NOT_OPTED_IN}</span>` : ''}</legend>` +
+        `<legend><span class="gp-req-name">${name}</span> ${S.evidenceBadge(classOf(r))}${wide ? ` <span class="badge gp-not-opted">${UNDECLARED.EXPERIMENTAL_NOT_OPTED_IN}</span>` : ''}</legend>` +
         `<label class="control"><span class="label">Minimum source</span><select data-source aria-label="Minimum source: ${name}">${sources.map(s => option(s.source, s.label ?? s.source, s.source === source)).join('')}</select></label>` +
         part('LEAGUE_PERCENTILE', 'League percentile', `<select data-percentile required aria-label="League percentile: ${name}"${source === 'LEAGUE_PERCENTILE' ? '' : ' disabled'}>${option('', 'Choose a percentile…', !menu.includes(entry.percentile))}${menu.map(p => option(String(p), String(p), p === entry.percentile)).join('')}</select>`) +
         part('EXPLICIT', 'Explicit minimum', `<input type="number" data-value-input min="0" max="1000" step="any" required aria-label="Explicit minimum: ${name}" value="${prefill === null ? '' : esc(String(prefill))}"${source === 'EXPLICIT' ? '' : ' disabled'}>`) +
         '</fieldset>';
     }).join('');
-    return `<label class="gp-optin"><input type="checkbox" id="experimental-opt-in"${optIn ? ' checked' : ''}><span>${esc(COPY.optIn)} ${S.evidenceBadge('EXPERIMENTAL')}</span></label>` +
+    return `<label class="gp-optin"><input type="checkbox" id="experimental-opt-in"${optIn ? ' checked' : ''}><span>${esc(COPY.optIn)} ${optInClasses.filter((c, i) => optInClasses.indexOf(c) === i).map(c => S.evidenceBadge(c)).join(' ')}</span></label>` +
       `<div id="declaration-inputs" class="gp-declare">${blocks}</div>` +
       `<p class="figure-note">${esc(COPY.declarationNote)}</p>` +
       `<div class="actions"><button type="button" id="apply-declarations">${esc(text(o.applyLabel) ? o.applyLabel : 'Apply')}</button></div>`;
@@ -423,7 +458,7 @@
         : `minimum ${value(r.minimum, 3, {exact: true})} · <span class="badge">NOT EVALUATED</span>`;
       return `<div class="gp-req" data-requirement="${id}" data-status="DECLARED"><div class="gp-req-head"><span class="gp-req-name">${name}</span> ${S.evidenceBadge(r.evidence_class ?? null)}</div>` +
         (text(r.unit) ? `<div class="detail">${esc(r.unit)}</div>` : '') +
-        `<div class="detail">${origin(r.origin)}${text(r.source_sentence) ? ' ' + esc(r.source_sentence) : ''}</div>` +
+        `<div class="detail" data-part="source">${source(r)}</div>` +
         rail(r, subjects[r.requirement_id]) + `<div class="gp-caption">${caption}</div></div>`;
     }).join('');
     if (!blocks) return '<div id="requirements"><div class="unavailable">No requirement row was sent.</div></div>';
@@ -581,7 +616,7 @@
   const blocked = s => !object(s) || s.busy === true || s.childBusy === true || s.dirty === true || !object(s.stored) || s.fieldable === false;
 
   root.GP = Object.freeze({
-    signed, value, declared, origin, certificate,
+    signed, value, declared, origin, source, certificate,
     status, completeness,
     scope, claim, eligibility, evidence, warnings, omitted,
     scenarioOptions, formationOptions, presets, presetPressed, applyPreset, exclusions,

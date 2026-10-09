@@ -61,9 +61,9 @@
 <div class="split"><section class="panel"><div class="panel-head"><h2>The declared problem</h2></div><div id="deficiency"></div><div id="deficiency-leads"></div><div id="requirements"></div><h2 style="margin-top:1.4rem">Squad as declared · one least-shortfall XI</h2><div id="baseline-roster"></div></section>
 <section class="panel"><div class="panel-head"><h2 id="pool-title">Pool</h2><span class="badge">Counted before any name</span></div><div id="pool"></div><div id="pool-banner"></div></section></div>
 <section class="panel" id="candidates-panel"><div class="panel-head"><h2 id="candidates-title">Candidates</h2><button type="button" id="search" disabled>Re-solve with each candidate</button></div><p id="search-status" class="small subtle" role="status"></p>
-<div id="search-body" class="hidden"><p id="model-statement" class="small"></p><p id="screened" class="notice small"></p><p id="carried-value" class="small"></p>
+<div id="search-body" class="hidden"><p id="model-statement" class="small"></p><p id="screened" class="notice small"></p><p id="carried-value" class="small"></p><p id="facts-evidence" class="small subtle"></p>
 <div class="tl-head"><label class="control"><span class="label">List inside each group by</span><select id="order" aria-label="Order key"></select></label><label class="control"><span class="label">Conclusion the break-even tests</span><select id="conclusion" aria-label="Conclusion the break-even tests"></select></label><span><span id="fill-status" class="small mono subtle"></span> <button type="button" id="fill-stop" class="hidden">Stop filling</button></span></div>
-<p id="ordered-by" class="figure-note"></p>
+<p id="ordered-by" class="figure-note"></p><div id="single-requirement-slot"></div><p id="forced-definition" class="figure-note"></p>
 <div class="tl-key" id="carry-key" aria-hidden="true"><span><svg viewBox="0 0 14 12"><rect class="k-holds" x="1" y="2" width="9" height="9" fill="#a2a397" stroke="#a2a397"/></svg>holds, solved</span><span><svg viewBox="0 0 14 12"><rect x="1" y="2" width="9" height="9" fill="#a2a397" fill-opacity=".4"/></svg>holds, by the theorem</span><span><svg viewBox="0 0 14 12"><rect x="1" y="2" width="9" height="9" fill="none" stroke="#59655d"/></svg>fails</span><span><svg viewBox="0 0 14 12"><line x1="5.5" x2="5.5" y1="0" y2="5" stroke="#eeeae0"/></svg>an exact solve was run</span><span><svg viewBox="0 0 14 12"><path d="M1 11L10 11L5.5 4Z" fill="#eeeae0"/></svg>break-even · 0.00 → 1.00 of his recorded rates</span></div>
 <div id="reference-slot"></div><div id="candidates-slot"></div>
 <p class="figure-note">Each cell is a fraction of the rates he recorded at his own club. Filled: the conclusion still holds there. Ticked: an exact solve was run. The notch is the smallest fraction at which it holds.</p><aside class="cannot-say" id="list-cannot-say"></aside></div></section>
@@ -73,13 +73,34 @@
 <footer class="provenance">Requirement sums are model inputs added under an unchanged-deployment assumption, not team output. Nothing on this page says which player to keep, sell or sign. Historical Pappalardo/Wyscout data, CC BY 4.0. <a href="https://doi.org/10.6084/m9.figshare.c.4415000">Dataset and attribution</a>.</footer></main>
 <script src="/static/labs-shared.js"></script><script src="/static/planning.js"></script>
 <script>
-/* Transfer Lab. The page holds state and attaches handlers; every number, sentence and order is the server's.
+/* Transfer Lab. The page holds state and attaches handlers. Every number, name, order, statement, warning
+   and label that depends on a reply is the server's value or the server's string, printed as sent.
    Request families: problem > search > fill, and candidate under search. A reply is applied only while its
    ticket is live. Bodies of search, fill and candidate requests are built from the stored inputs of the
-   problem reply on screen, never from live controls. */
+   problem reply on screen, never from live controls.
+
+   What is assembled here, exactly:
+   - Descriptions of figures for assistive technology, from server sentences: a carry-over strip is described
+     by the candidate's name and the server's statement, a world strip by the server's statement, a lane bar
+     by the server's lane_text and lane_statement. The shares place the bars; the page prints and rounds none.
+   - Fixed labels in front of a server value, name or list, never a clause of their own: "least declared
+     shortfall (largest, sum):", "change against the squad's own (largest, sum):", "Left out before any
+     filter:", "Earlier this season:", the label of the players no longer in every least-shortfall XI, the pool line, the facts line of a candidate,
+     the counts under the world strip, "Rows filled", the eyebrow, and the texts of the two buttons and of
+     the status lines that carry a server count.
+   - Fixed words chosen by a server token or a missing value, none built from a number: holds, fails or not
+     determined for a solved cell of the carry-over grid; "foot not recorded"; "(not pooled)"; "Lane shares
+     unavailable: no completed pass in the sample." (the server sends null and no sentence); the state of the
+     deficiency (its token, underscores removed); the name of the first level under the order control.
+   No sentence about football is assembled here from a number, and none of these is worded here: what the
+   outcome groups are when one requirement is in force (single_requirement_statement), the class of the facts
+   beside a candidate (facts_evidence_statement), where his passes started (lane_statement), who was left out
+   of the pool (pool.left_out), where a minimum came from (origin_label). A list row prints no signed change:
+   that number stands in the opened candidate only, beside the certificate of his re-solve. The fixed copy of
+   the page (headings, the key, figure notes, two "cannot say" lines of its own) is the same on every reply. */
 (function () {
 'use strict';
-const S = window.Shell, GP = window.GP, {esc, num, pct, api} = S;
+const S = window.Shell, GP = window.GP, {esc, num, api} = S;
 const $ = id => document.getElementById(id);
 const list = v => Array.isArray(v) ? v : [];
 const finite = v => typeof v === 'number' && Number.isFinite(v);
@@ -131,12 +152,15 @@ function worldStrip(wc) {
 }
 
 // Where his completed passes started, in three lanes. Mirror-symmetric fills: neither side is favoured.
-function lanes(sh, club, small) {
-  if (!sh) return '<div class="tl-facts">Lane shares unavailable: no completed pass in the sample.</div>';
+// The shares place the bars and nothing else. The text under them is the server's lane_text, and the
+// description of the figure is that text and the server's lane_statement: no share is rounded here.
+function lanes(p, small) {
+  const sh = p.lane_shares;
+  if (!sh || typeof p.lane_text !== 'string') return '<div class="tl-facts" data-lanes="none">Lane shares unavailable: no completed pass in the sample.</div>';
   const a = sh.left * 100, b = sh.central * 100, c = sh.right * 100;
-  const label = `Completed-pass origins at ${club}: left wide lane ${pct(sh.left)}, central ${pct(sh.central)}, right wide lane ${pct(sh.right)}, of ${num(sh.completed_passes, 0)} completed passes`;
+  const label = [p.lane_text, p.lane_statement].filter(s => typeof s === 'string').join('. ');
   return `<svg class="lanes${small ? ' small' : ''}" viewBox="0 0 100 ${small ? 4 : 8}" preserveAspectRatio="none" role="img" aria-label="${esc(label)}"><rect class="wide" x="0" y="0" width="${a}" height="8"/><rect class="central" x="${a + 0.4}" y="0" width="${Math.max(b - 0.8, 0)}" height="8"/><rect class="wide" x="${a + b}" y="0" width="${c}" height="8"/></svg>` +
-    `<div class="tl-facts">L <span data-value="${esc(String(sh.left))}">${pct(sh.left)}</span> · C <span data-value="${esc(String(sh.central))}">${pct(sh.central)}</span> · R <span data-value="${esc(String(sh.right))}">${pct(sh.right)}</span> · ${num(sh.completed_passes, 0)} completed passes</div>`;
+    `<div class="tl-facts" data-lane-text>${esc(p.lane_text)}</div>`;
 }
 
 const pair = (p, o = {}) => Array.isArray(p) ? `${GP.value(p[0], 3, o)}, ${GP.value(p[1], 3, o)}` : `<span class="mono">${DASH}</span>`;
@@ -145,10 +169,13 @@ const rates = p => list(problem?.inputs?.requirements).filter(r => r.declared ==
   `<div class="tl-facts" data-requirement="${esc(r.requirement_id)}">${esc(r.label)}: ${GP.value(p.requirement_values?.[r.requirement_id], 3, {approx: true})}</div>`).join('');
 const slotLabel = () => problem?.slot?.label ?? '';
 
-function injectionCell(inj) {
+// What a re-solve with him returned: the server's membership sentence, the certificate and the certified
+// pair. The signed change against the squad's own is printed only when asked for, and only the opened
+// candidate asks: there it stands beside the certificate of his re-solve. A list row never prints it.
+function injectionCell(inj, change) {
   return `<div data-membership="${esc(inj.membership)}">${esc(inj.membership_sentence)}</div>` +
-    `<div class="tl-facts">${GP.certificate(inj.forced_status)} (largest, sum) ${pair(inj.forced_inclusion_objective, {approx: true})}</div>` +
-    `<div class="tl-facts">against the squad's own: ${pair(inj.forced_inclusion_change, {signed: true})}</div>`;
+    `<div class="tl-facts" data-part="pair">${GP.certificate(inj.forced_status)} least declared shortfall (largest, sum): ${pair(inj.forced_inclusion_objective, {approx: true})}</div>` +
+    (change === true ? `<div class="tl-facts" data-part="change">change against the squad's own (largest, sum): ${pair(inj.forced_inclusion_change, {signed: true, approx: true})}</div>` : '');
 }
 
 function carryCell(p, selected) {
@@ -163,9 +190,9 @@ function candidateRow(p) {
   const selected = p.player_id === selectedId;
   return GP.row([
     {label: 'Candidate', html: GP.nameButton(p) + `<div class="small subtle">${esc(p.team_name)} · ${esc(p.competition_label)}</div>` +
-      `<div class="tl-facts">${factsLine(p)}</div>${lanes(p.lane_shares, p.team_name, true)}${rates(p)}` +
+      `<div class="tl-facts">${factsLine(p)}</div>${lanes(p, true)}${rates(p)}` +
       (p.not_strength_adjusted ? `<div class="tl-facts" data-flag="NOT_STRENGTH_ADJUSTED"><span class="badge">Other league · not strength-adjusted</span></div>` : '')},
-    {label: `With him at ${slotLabel()}`, html: injectionCell(p.injection)},
+    {label: `With him at ${slotLabel()}`, html: injectionCell(p.injection, false)},
     {label: 'Break-even carry-over', html: carryCell(p, selected)},
   ], {selected, data: {player: p.player_id, outcome: p.outcome, membership: p.injection.membership, filled: fills.has(p.player_id) ? 'true' : 'false'}});
 }
@@ -233,7 +260,7 @@ function fillProgress() { if (fillQueue) $('fill-status').textContent = `Rows fi
 function invalidateSearch(message) {
   search = null; selectedId = null;
   invalidateFills(); invalidateCandidate();
-  GP.invalidate(searchT, {body: $('search-body'), clear: [$('reference-slot'), $('candidates-slot')], status: $('search-status')}, message ?? '');
+  GP.invalidate(searchT, {body: $('search-body'), clear: [$('reference-slot'), $('candidates-slot'), $('single-requirement-slot'), $('facts-evidence')], status: $('search-status')}, message ?? '');
   renderLedger();
 }
 // A league or a filter changed. While the problem is being set, the reply in flight answers the old
@@ -292,10 +319,11 @@ function renderProblem() {
   $('deficiency').dataset.deficiency = d.state;
   $('deficiency').className = d.state === 'BASELINE_UNFIELDABLE' ? 'error' : 'notice';
   $('deficiency').innerHTML = `<span class="badge">${esc(d.state.replace(/_/g, ' '))}</span> <span id="deficiency-statement">${esc(d.statement)}</span>` +
-    (Array.isArray(r.baseline.objective_vector) ? `<div class="tl-facts">Least declared shortfall without an addition (largest, sum): ${pair(r.baseline.objective_vector, {exact: true})}</div>` : '');
+    // The sentence of a shortfall carries the certified pair itself; in every other state the pair, when there is one, is printed under it.
+    (Array.isArray(r.baseline.objective_vector) && d.state !== 'SHORTFALL' ? `<div class="tl-facts" data-part="baseline-pair">Least declared shortfall without an addition (largest, sum): ${pair(r.baseline.objective_vector, {exact: true})}</div>` : '');
   $('deficiency-leads').innerHTML = none ? leads(r) : '';
   $('requirements').innerHTML = list(r.inputs.requirements).map(q => q.declared === true
-    ? `<div class="gp-req" data-requirement="${esc(q.requirement_id)}" data-status="DECLARED"><div><span class="gp-req-name">${esc(q.label)}</span> ${S.evidenceBadge(q.evidence_class)}</div><div class="detail">minimum ${GP.value(q.minimum, 3, {exact: true})} · ${GP.origin(q.origin)} ${esc(q.source_sentence)}</div><div class="detail">${esc(q.unit)}</div></div>`
+    ? `<div class="gp-req" data-requirement="${esc(q.requirement_id)}" data-status="DECLARED"><div><span class="gp-req-name">${esc(q.label)}</span> ${S.evidenceBadge(q.evidence_class)}</div><div class="detail" data-part="source">minimum ${GP.value(q.minimum, 3, {exact: true})} · ${GP.source(q)}</div><div class="detail">${esc(q.unit)}</div></div>`
     : `<div class="gp-req" data-requirement="${esc(q.requirement_id)}" data-status="${esc(q.status)}"><span class="gp-req-name">${esc(q.label)}</span> <span class="badge">${esc(String(q.status).replace(/_/g, ' '))}</span><div class="detail">${esc(q.reason)}</div></div>`).join('') +
     `<p class="figure-note">${esc(GP.COPY.requirementsNote)}</p>`;
   $('baseline-roster').innerHTML = roster(r.baseline.lineup, r.baseline.lineup_note);
@@ -306,7 +334,7 @@ function renderProblem() {
     `<p class="tl-facts">of ${GP.value(pool.admissible_count, 0)} admitted at ${esc(slot.label)} · ${GP.value(pool.universe_size, 0)} gated in ${esc(list(pool.leagues).map(l => l.label).join(', '))} · by provider position: ${Object.entries(pool.by_provider_position ?? {}).map(([k, v]) => `${esc(k)} ${GP.value(v, 0)}`).join(', ')}</p>` +
     (pool.listed_count === 0 ? `<div class="unavailable">${esc(d.search_statement ?? '')}</div>` : '') +
     `<p class="small" id="pool-definition">${esc(pool.definition)}</p><p class="small subtle" id="pool-filters">${esc(pool.filter_statement)}</p><p class="small subtle">${esc(pool.corpus_exit_statement)}</p>` +
-    `<p class="tl-facts">Left out before any filter: ${Object.entries(pool.omitted_counts ?? {}).map(([k, v]) => `${esc(k.replace(/_/g, ' ').toLowerCase())} ${GP.value(v, 0)}`).join(' · ')}</p>` +
+    `<p class="tl-facts" id="pool-left-out">Left out before any filter: ${list(pool.left_out).map(x => `<span data-reason="${esc(x.reason)}">${esc(x.label)} ${GP.value(x.count, 0)}</span>`).join(' · ')}</p>` +
     `<p class="small" id="carry-over-statement">${esc(r.carry_over_statement)}</p>`;
   $('pool-banner').innerHTML = pool.cross_league_flag ? `<p class="notice small" data-flag="NOT_STRENGTH_ADJUSTED">${esc(pool.cross_league_flag)}</p>` : '';
 
@@ -341,10 +369,10 @@ function leads(r) {
 
 function runSearch() {
   if ($('search').disabled) return;
+  // The search on screen leaves first, with its rows, its open candidate and their ledger rows: a
+  // refused or failed search must not leave them behind.
+  invalidateSearch();
   const stored = problemInput, t = GP.ticket(searchT, problemT), n = problem.pool.listed_count;
-  invalidateFills(); invalidateCandidate(); search = null; selectedId = null; renderLedger();
-  $('search-body').classList.add('hidden');
-  $('search-status').classList.remove('error');
   $('search-status').innerHTML = S.loading(`Re-solving the squad with each of ${num(n, 0)} admissible candidates at ${slotLabel()}`);
   $('search').disabled = true;
   return GP.run(t, () => api('/api/transfer/injection', stored), {
@@ -362,13 +390,20 @@ function renderSearch() {
   $('model-statement').textContent = r.model_statement;
   $('screened').innerHTML = `<span class="badge" id="screened-count" data-value="${esc(String(r.screened_count))}">Screened ${num(r.screened_count, 0)}</span> <span id="selection-statement">${esc(r.selection_statement ?? '')}</span>`;
   $('carried-value').textContent = r.carry_over_statement;
+  $('facts-evidence').textContent = r.facts_evidence_statement ?? '';
+  // One requirement in force: the server says what the outcome groups then are. Null: nothing is printed.
+  $('single-requirement-slot').innerHTML = typeof r.single_requirement_statement === 'string'
+    ? `<p id="single-requirement-statement" class="small tl-note">${esc(r.single_requirement_statement)}</p>` : '';
+  // What the pair in each row is, in the catalogue's own two sentences.
+  const forced = list(catalogue.definitions).find(d => d.field === 'forced_inclusion_objective');
+  $('forced-definition').textContent = forced ? `In each row: ${forced.definition} ${forced.why}` : '';
   $('order').innerHTML = GP.orderOptions(r.listings, orderKey);
   $('list-cannot-say').innerHTML = S.cannotSay(r.list_cannot_say);
   const ref = r.reference_row;
   $('reference-slot').innerHTML = ref ? '<ul id="reference-rows" class="gp-rows">' + GP.row([
     {label: 'Reference · not a player', html: `<span class="gp-mark" aria-hidden="true"></span>${esc(ref.name)}<div class="small subtle" id="reference-statement">${esc(ref.statement)}</div>` +
       rates(ref)},
-    {label: `With it at ${slotLabel()}`, html: injectionCell(ref.injection)},
+    {label: `With it at ${slotLabel()}`, html: injectionCell(ref.injection, false)},
     {label: 'Outcome', html: `<span class="badge">${esc(ref.outcome_label)}</span>`},
   ], {reference: true, data: {outcome: ref.outcome, membership: ref.injection.membership}}) + '</ul>' : '';
   renderList();
@@ -438,29 +473,31 @@ function selectCandidate(id) {
 function renderCandidate() {
   const r = candidate, c = r.candidate, co = candidateCarry.carry_over, wc = c.world_counts, slot = r.slot.label;
   const cell = (label, inner) => `<td data-label="${label}"><div>${inner}</div></td>`;
-  const rateRows = list(r.ledger).filter(x => String(x.row_id).includes('-rates-'));
+  // His recorded rates, with the class the server gives a recorded rate: the rows of this reply's
+  // ledger that are his, not the class of the requirement the rate enters.
+  const rateRows = list(r.ledger).filter(x => String(x.row_id).startsWith(`candidate-${c.player_id}-rates-`));
   $('candidate-status').classList.add('hidden');
   $('candidate-detail').dataset.player = c.player_id;
   $('candidate-detail').innerHTML =
     `<section id="candidate-facts"><h3>${esc(c.name)}</h3><div class="small subtle">${esc(c.team_name)} · ${esc(c.competition_label)}</div><div class="tl-facts">${factsLine(c)}</div>` +
       list(c.other_stints).map(s => `<div class="tl-facts">Earlier this season: ${esc(s.team_name)}, ${GP.value(s.minutes, 0)} min (not pooled)</div>`).join('') +
       `<p class="small">${esc(c.admissible_note)}</p>${GP.claim(r).replace('id="claim"', 'id="candidate-claim"').replace('id="non-claim"', 'id="candidate-non-claim"')}${GP.warnings(r.warnings).replace('id="warnings"', 'id="candidate-warnings"')}</section>` +
-    `<section id="candidate-lanes"><h4>Where his completed passes started</h4>${lanes(c.lane_shares, c.team_name, false)}<p class="figure-note">Where his completed passes originated at ${esc(c.team_name)}. This reflects how he was deployed.</p><aside class="cannot-say">${S.cannotSay(['No role is inferred from it.'])}</aside></section>` +
+    `<section id="candidate-lanes"><h4>Where his completed passes started</h4>${lanes(c, false)}<p class="figure-note" id="lane-statement">${esc(c.lane_statement ?? '')}</p><aside class="cannot-say">${S.cannotSay(['No role is inferred from it.'])}</aside></section>` +
     `<section id="transport"><h4>The rates he recorded</h4><p id="recorded-statement">${esc(c.recorded_statement)}</p>` +
-      rateRows.map(x => `<div class="tl-facts">${esc(x.quantity)}: <span class="mono">${esc(x.value_text ?? DASH)}</span> ${S.evidenceBadge(x.evidence)} ${S.verdictBadge(x.verdict)}</div>`).join('') +
+      rateRows.map(x => `<div class="tl-facts" data-rate-row="${esc(x.row_id)}">${esc(x.quantity)}: <span class="mono">${esc(x.value_text ?? DASH)}</span> ${S.evidenceBadge(x.evidence)} ${S.verdictBadge(x.verdict)}</div>`).join('') +
       (c.flag ? `<p class="notice small" data-flag="NOT_STRENGTH_ADJUSTED">${esc(c.flag)}</p>` : '') + '</section>' +
     `<section class="split equal"><div id="injected-roster"><h4>With him at ${esc(slot)}</h4>${roster(c.forced_lineup, c.lineup_note)}</div>` +
       `<div><h4>By requirement · over every tied XI</h4><table class="ledger" id="candidate-change"><thead><tr><th>Requirement</th><th>Shortfall without him</th><th>With him at ${esc(slot)}</th></tr></thead><tbody>` +
       list(c.requirement_ranges).map(q => `<tr data-requirement="${esc(q.requirement_id)}">${cell('Requirement', esc(q.label))}${cell('Without him', `${GP.value(q.baseline_least, 3, {approx: true})} to ${GP.value(q.baseline_greatest, 3, {approx: true})}`)}${cell('With him', `${GP.value(q.least_shortfall, 3, {approx: true})} to ${GP.value(q.greatest_shortfall, 3, {approx: true})}`)}</tr>`).join('') +
-      `</tbody></table><div class="tl-facts">${injectionCell(c.injection)}</div><p id="candidate-displaced" class="small">${esc(c.tie_statement)}</p>` +
-      (list(c.no_longer_necessary?.names).length ? `<p class="small subtle">No longer in every one: ${list(c.no_longer_necessary.names).map(esc).join(', ')}</p>` : '') + '</div></section>' +
+      `</tbody></table><div class="tl-facts">${injectionCell(c.injection, true)}</div><p id="candidate-displaced" class="small">${esc(c.tie_statement)}</p>` +
+      (list(c.no_longer_necessary?.names).length ? `<p class="small subtle" id="candidate-freed">In every least-shortfall XI without him, not in every one with him available: ${list(c.no_longer_necessary.names).map(esc).join(', ')}</p>` : '') + '</div></section>' +
     `<section><h4>${esc(co.label)} · ${esc(co.conclusion_sentence)}</h4><div id="carry-figure">${carry(co, 'large', true, c.name)}</div>` +
       `<p id="carry-statement"><span class="mono" data-value="${finite(co.break_even) ? esc(String(co.break_even)) : 'none'}">${esc(co.short)}</span> · ${esc(co.reading)} <strong>${esc(co.predicts_nothing)}</strong></p>` +
       GP.warnings(candidateCarry.warnings).replace('id="warnings"', 'id="carry-warnings"') +
       `<table class="ledger" id="carry-solves"><thead><tr><th>Fraction of his recorded rates</th><th>Status</th><th>(largest, sum) with him</th><th>Conclusion</th></tr></thead><tbody>` +
       list(co.grid).filter(g => g.evaluated).map(g => `<tr data-step="${esc(g.step)}"${g.fraction === co.bracket?.fails_at || g.fraction === co.bracket?.holds_at ? ' data-bracket="true"' : ''}>${cell('Fraction', `<span class="mono" data-value="${esc(String(g.fraction))}">${g.fraction.toFixed(2)}</span>`)}${cell('Status', GP.certificate(g.forced_status))}${cell('(largest, sum)', pair(g.forced_inclusion_objective, {approx: true}))}${cell('Conclusion', g.state === 'HOLDS' ? 'holds' : g.state === 'FAILS' ? 'fails' : 'not determined')}</tr>`).join('') +
       `</tbody></table><p class="tl-facts">${list(co.scaling_statements).map(esc).join(' ')}</p>` +
-      `<aside class="cannot-say">${S.cannotSay([co.predicts_nothing, 'It does not estimate how much carries over. No transport model is applied.'])}</aside></section>` +
+      `<aside class="cannot-say">${S.cannotSay(['It does not estimate how much carries over. No transport model is applied.'])}</aside></section>` +
     `<section id="worlds-section"><h4>Resampled worlds</h4>` + (wc
       ? `<div id="worlds-figure">${worldStrip(wc)}</div><p class="tl-facts">in every least-shortfall XI: ${GP.value(wc.forced_lower, 0)} of ${GP.value(wc.used, 0)} · in some: ${GP.value(wc.forced_equal, 0)} · in none: ${GP.value(wc.forced_higher, 0)} · set aside: ${GP.value(wc.set_aside, 0)}</p><p id="worlds-statement" class="small">${esc(wc.statement)}</p><p class="figure-note">Cells are grouped by outcome, not ordered by world.</p>`
       : `<div id="worlds-figure" class="tl-facts">not requested</div><p id="worlds-statement" class="small subtle">${esc(GP.COPY.worlds)}</p>`) + '</section>' +

@@ -2,8 +2,10 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Galáctico — Squad Lab</title>
 <link rel="stylesheet" href="/static/labs.css"><link rel="stylesheet" href="/static/labs-shared.css"><link rel="stylesheet" href="/static/planning.css">
 <style>
-/* Squad Lab only. Tokens are labs.css's. Gold appears on the selected player and nowhere else:
-   his marks on the depth pitch, his name in the depth list, the square of his row. */
+/* Squad Lab only. Tokens are labs.css's. Gold marks the selected player: his marks on the depth
+   pitch, his name in the depth list, the square of his row. One exception is not his: the
+   keyboard focus ring of labs.css (:focus-visible, a 2px gold outline) on whichever control
+   has the focus. A mark on the depth pitch draws its own focus in the text colour instead. */
 .depth-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:2.5rem}
 .depth .depth-mark{cursor:pointer}
 .depth .depth-mark circle{fill:var(--surface);stroke:#abb4ac;stroke-width:.5}
@@ -138,9 +140,33 @@ button.depth-name.selected{color:var(--gold)}
 </main>
 <script src="/static/labs-shared.js"></script><script src="/static/planning.js"></script>
 <script>
-/* Squad Lab. Every number, name, order and sentence about football below is the server's.
-   The script places server values on server scales, counts server lists and maps a status
-   token to a fixed sentence. It adds nothing up and sorts nothing. */
+/* Squad Lab. The page holds state, attaches handlers and places what the server sent. Every
+   number, name, order, statement, warning, reason and label that depends on a reply is the
+   server's value or the server's string, printed as sent. The script places server values on
+   server scales and counts server lists. It adds nothing up and sorts nothing.
+
+   What is assembled here, exactly:
+   - Descriptions of figures for assistive technology, fixed words around server values: the
+     aria-label and title of a mark on the depth pitch (the player's name, the slot's label,
+     which of the server's lists he is in at that slot, his placement status there), the
+     aria-label of the pitch (three server counts) and the aria-label of a league reference
+     strip (the server's label, least, greatest, declared minimum and club median).
+   - Fixed labels in front of a server list, name or number, never a clause of their own:
+     "Below the gate:", "Declared roles:", "Used at", "Without him", "Absence stress", "at
+     least", "the other ten supply", "change from the baseline", the counts beside a slot,
+     the eyebrow.
+   - Fixed words chosen by a server flag, an empty server list or a server token, none built
+     from a number: the caption under a thin-cover figure (by its kind), "No available
+     player.", "Nobody.", "No number on any requirement.", "Excluded by you from every
+     solve.", "Provider position only.", "Only there.", the goalkeeper line of the brief
+     (fixed words around the server's reason), and PINNED: the placement status of one player
+     at one slot, for which the reply carries a token and no sentence.
+   No sentence about football is assembled here from a number, and none of these is worded
+   here: what left a set of absences without an XI (the server's attribution_label and
+   statement), the spare of a tight group (spare_statement), a declared role (role_labels),
+   where a minimum came from (origin_label). The fixed copy of the page (headings, figure
+   notes, the "cannot say" lines) is written in the markup above and is the same on every
+   reply. */
 const {esc, num, api} = Shell;
 const $ = s => document.querySelector(s);
 const DASH = '—';
@@ -262,7 +288,7 @@ function tightGroups(reply) {
   return '<ul id="tight-groups" class="gp-rows">' + groups.map(g => GP.row([
     {label: 'Slots', html: list(g.slot_labels).map(esc).join(', ')},
     {label: 'Available', html: `${GP.value(list(g.available).length, 0)} · ${names(g.available) || DASH}`},
-    {label: 'Spare', html: `${GP.value(g.spare_by_stage?.available, 0)} <span class="subtle small">(${GP.value(g.spare_by_stage?.rule_eligible, 0)} with the gate lifted)</span>`},
+    {label: 'Spare', html: `<span data-part="spare">${typeof g.spare_statement === 'string' ? esc(g.spare_statement) : DASH}</span>`},
     {label: 'Below the gate, eligible there', html: list(g.restored_by_gate).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min`).join(', ') || 'Nobody.'},
   ], {data: {slots: list(g.slot_ids).join('-')}})).join('') + '</ul>';
 }
@@ -300,7 +326,7 @@ function requirementRows() {
     const d = byId.get(r.requirement_id);
     const verdict = list(reference?.ledger).find(row => row.row_id === 'reference-' + r.requirement_id)?.verdict;
     return `<div class="gp-req" data-requirement="${id}" data-status="DECLARED"><div class="gp-req-head"><span class="gp-req-name">${label}</span> ${Shell.evidenceBadge(r.evidence_class)}</div>` +
-      `<div class="detail">${esc(r.unit)}</div><div class="detail">${GP.origin(r.origin)} ${esc(r.source_sentence)}</div>` +
+      `<div class="detail">${esc(r.unit)}</div><div class="detail" data-part="source">${GP.source(r)}</div>` +
       `<div class="gp-caption">minimum ${GP.value(r.minimum, 3, {exact: true})} · shortfalls in units of ${GP.value(r.normalizer, 3, {approx: true})}</div>` +
       (d ? referenceStrip(d) + `<ul class="ref-rows" data-reference="${id}">` + list(d.percentiles).map(p => `<li data-percentile="${esc(p.percentile)}"><span>p${esc(p.percentile)}</span>${GP.value(p.value, 3, {approx: true})}<span>this club's elevens at or below: ${GP.value(p.club_units_at_or_below, 0)} of ${GP.value(d.club?.n_units, 0)}</span></li>`).join('') + '</ul>' +
         `<div class="detail">${Shell.evidenceBadge(d.evidence_class)} ${Shell.verdictBadge(verdict)} ${esc(d.sample_statement)}</div>` : '') + '</div>';
@@ -340,10 +366,10 @@ function playerDetail() {
   return `<h3>${esc(member.name)}${member.state === 'EXCLUDED' ? ' ' + GP.declared() : ''}</h3>` +
     `<p class="player-facts">${esc(member.position)} · ${GP.value(member.minutes, 0)} nominal minutes · matches ${GP.value(member.matches, 0)}, starts ${GP.value(member.starts, 0)} · age ${GP.value(member.age_years, 0)} · foot ${esc(member.foot ?? DASH)}</p>` +
     '<ul class="player-lines">' +
-    `<li><span class="label">Eligibility rule</span>${list(member.role_rules).length ? 'Declared roles: ' + list(member.role_rules).map(esc).join(', ') + '. ' : 'Provider position only. '}Slots: ${list(member.eligible_slots).map(s => esc(s.label)).join(', ') || 'none in this template'}.</li>` +
+    `<li><span class="label">Eligibility rule</span><span data-part="roles">${list(member.role_labels).length ? 'Declared roles: ' + list(member.role_labels).map(esc).join(', ') + '.' : 'Provider position only.'}</span> Slots: ${list(member.eligible_slots).map(s => esc(s.label)).join(', ') || 'none in this template'}.</li>` +
     `<li><span class="label">Recorded on the declared requirements</span>${rates}</li>` +
     (member.state === 'EXCLUDED' ? '<li><span class="label">State</span>Excluded by you from every solve.</li>' : placements) +
-    (removal ? `<li data-removal="${esc(removal.outcome)}"><span class="label">Without him</span>${esc(removal.outcome_label)}${removal.objective_vector ? ': ' + pair(removal.objective_vector) : ''}.</li>` : '') +
+    (removal ? `<li data-removal="${esc(removal.outcome)}"><span class="label">Absence stress</span>${esc(removal.outcome_label)}${removal.objective_vector ? ': ' + pair(removal.objective_vector) : ''}.</li>` : '') +
     '</ul>';
 }
 
@@ -356,27 +382,40 @@ function markSelection() {
 }
 
 /* ---- Absence stress. --------------------------------------------------------------- */
-function coreRow(core) {
+const minuted = players => list(players).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min`).join(', ') || 'Nobody.';
+
+// One smallest absence set that leaves no XI. The sentence under the names is the server's and
+// says what would cover the blocking slots. The last cell exists only when somebody is excluded.
+function coreRow(core, excluded) {
   return GP.row([
-    {label: 'Absent', html: names(core.players)},
+    {label: 'Absent', html: `${names(core.players)}<div class="detail small subtle" data-part="core-statement">${esc(core.statement)}</div>`},
     {label: 'Blocking slots', html: list(core.blocking_slot_labels).map(esc).join(', ')},
     {label: 'Remaining there', html: names(core.remaining) || 'Nobody.'},
-    {label: 'Below the gate, eligible there', html: list(core.covered_by_below_gate).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min`).join(', ') || 'Nobody.'},
+    {label: 'Below the gate, eligible there', html: minuted(core.covered_by_below_gate)},
+    ...(excluded ? [{label: 'Excluded by you, eligible there', html: `<span data-part="covered-by-exclusion">${minuted(core.covered_by_exclusion)}</span>`}] : []),
   ], {data: {attribution: core.attribution, set: list(core.player_ids).join('-')}});
 }
 
 function stressLevel(level) {
   const cores = list(level.minimal_unfieldable?.listed);
-  const block = (title, token, statement) => {
-    const rows = cores.filter(c => c.attribution === token);
-    return `<h4>${title}</h4><p class="level-note" data-statement="${token.toLowerCase()}">${esc(statement)}</p>` + (rows.length ? `<ul class="gp-rows" data-ledger-kind="${token}">${rows.map(coreRow).join('')}</ul>` : '');
+  const excluded = typeof level.statements?.exclusion === 'string';
+  // One list per attribution, in the order of the server's sentences, then any attribution it
+  // sends beside them. The heading is the label the listed sets carry, so a list with no set
+  // has none; the sentence is printed when the server sent one.
+  const said = {GATE: level.statements?.gate, EXCLUSION: level.statements?.exclusion, ELIGIBILITY: level.statements?.eligibility};
+  const kinds = [...new Set([...Object.keys(said), ...cores.map(c => String(c.attribution))])];
+  const block = token => {
+    const rows = cores.filter(c => String(c.attribution) === token), statement = said[token];
+    const label = rows.find(c => typeof c.attribution_label === 'string')?.attribution_label;
+    return (label ? `<h4 data-attribution="${esc(token)}">No fieldable XI · ${esc(label)}</h4>` : '') +
+      (typeof statement === 'string' ? `<p class="level-note" data-statement="${esc(token.toLowerCase())}">${esc(statement)}</p>` : '') +
+      (rows.length ? `<ul class="gp-rows" data-ledger-kind="${esc(token)}">${rows.map(c => coreRow(c, excluded)).join('')}</ul>` : '');
   };
   const raised = list(level.raised?.listed), tied = list(level.worst_sets?.listed);
   return `<div class="level" data-level="${esc(level.k)}"><h3>Every set of ${esc(level.k)}</h3>` +
     `<p class="level-note" data-statement="resolved">${GP.certificate(level.completeness)} ${esc(level.statements?.resolved)}</p>` +
     `<p class="level-note" data-statement="unfieldable">${esc(level.statements?.unfieldable)} ${esc(level.minimal_unfieldable?.statement)}</p>` +
-    block('No fieldable XI · the gate', 'GATE', level.statements?.gate) +
-    block('No fieldable XI · the eligibility rules', 'ELIGIBILITY', level.statements?.eligibility) +
+    kinds.map(block).join('') +
     `<h4>Fieldable · declared shortfall above the baseline</h4><p class="level-note" data-statement="shortfall">${esc(level.statements?.shortfall)}</p>` +
     `<p class="level-note" data-statement="raised">${esc(level.raised?.statement)}</p>` +
     (level.k === 1 && raised.length ? '<p class="level-note">Each is a row of the ledger above.</p>' : '') +
@@ -393,9 +432,10 @@ function removalRow(row) {
   let without;
   if (row.outcome === 'NO_FIELDABLE_XI') {
     const core = row.core ?? {};
-    without = `No fieldable XI · ${core.attribution === 'GATE' ? 'the gate' : 'the eligibility rules'}<div class="detail small subtle">${esc(core.statement)}</div>`;
+    without = 'No fieldable XI' + (typeof core.attribution_label === 'string' ? ` · <span data-part="attribution">${esc(core.attribution_label)}</span>` : '') +
+      (typeof core.statement === 'string' ? `<div class="detail small subtle" data-part="core-statement">${esc(core.statement)}</div>` : '');
   } else if (row.outcome === 'UNKNOWN') without = Shell.notCertified('UNKNOWN');
-  else without = `Fieldable · ${pair(row.objective_vector)}<div class="detail small subtle">change ${signedPair(row.change_from_baseline)}</div>`;
+  else without = `Fieldable · ${pair(row.objective_vector)}<div class="detail small subtle" data-part="change">change from the baseline ${signedPair(row.change_from_baseline)}</div>`;
   return GP.row([
     {label: 'Player', html: `${GP.nameButton(row)}<div class="small subtle mono">${esc(row.position)} · ${GP.value(row.minutes, 0)} min</div>`},
     {label: 'Without him', html: without},
@@ -438,7 +478,9 @@ function renderBrief() {
     (pool ? `<p class="statement" id="brief-pool">${esc(pool.count_statement)}</p><p class="small subtle statement">${esc(pool.definition)}</p>` +
       list(pool.banner).filter(line => line !== pool.cross_league_flag).map(line => `<p class="small subtle statement">${esc(line)}</p>`).join('') +
       (pool.cross_league_flag ? `<p class="notice small">${esc(pool.cross_league_flag)}</p>` : '') : (reply.pool_unavailable ? '' : '<p class="small subtle">The pool was not counted.</p>')) +
-    GP.warnings(reply.warnings) + GP.claim(reply) + `<p class="figure-note">${esc(reply.policy_note)}</p>`;
+    // The server's claim for a brief quotes its own non-claim; a sentence is printed once.
+    GP.warnings(reply.warnings) + GP.claim(typeof reply.claim === 'string' && typeof reply.non_claim === 'string' && reply.claim.includes(reply.non_claim) ? {claim: reply.claim} : reply) +
+    `<p class="figure-note">${esc(reply.policy_note)}</p>`;
   const link = $('#open-transfer');
   link.setAttribute('href', typeof reply.transfer_url === 'string' && /^\/(?!\/)/.test(reply.transfer_url) ? reply.transfer_url : '/transfer');
   $('#brief-body').classList.remove('hidden');
@@ -580,10 +622,12 @@ async function runReference() {
 async function runStress() {
   if ($('#run-stress').disabled) return;
   const body = GP.body(state.auditInput, state.auditInput, {k: state.stressK, confirm_k3: state.stressK === 3 && $('#stress-confirm-k3').checked});
+  // The reply on screen leaves with its panel, its ledger rows and its line in the player's
+  // panel: a refused or failed run must not leave them behind.
+  invalidateStress(COPY.solving);
   const ticket = GP.ticket(T.stress, T.audit), status = $('#stress-status');
   state.stressBusy = true; updateRuns();
-  $('#stress-body').classList.add('hidden');
-  status.classList.remove('error'); status.textContent = COPY.solving;
+  renderLedger(); markSelection();
   await GP.run(ticket, () => api('/api/squad/stress', body), {
     apply(reply) { state.stress = reply; status.textContent = ''; renderStress(); markSelection(); renderLedger(); },
     fail(error) { status.classList.add('error'); status.innerHTML = Shell.errorText('Absence stress', error); },

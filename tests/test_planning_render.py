@@ -142,6 +142,7 @@ def requirement_rows(opt_in: bool) -> list[dict]:
                 "unit": "sum of the per-90 rates of the ten outfield players of an XI",
                 "declared": True, "stated": False, "minimum": 8.123456789012, "normalizer": 7.9,
                 "source": "CLUB_MEDIAN", "percentile": None, "origin": "POLICY",
+                "origin_label": "Shipped default",
                 "source_sentence": "Median of this club's starting-XI sums before 2018-05-21. "
                                    "The shipped default.",
                 "evidence_class": cls, "legacy_evidence_class": "HEURISTIC",
@@ -346,7 +347,9 @@ def test_the_envelope_is_rendered_verbatim_and_every_label_passes_the_scan(tmp_p
     assert 'data-value="8.123456789012">8.123456789012<' in rows
     assert 'data-value="2">≈ 2<' in rows and 'data-value="6">≈ 6<' in rows
     assert rows.count("EXPERIMENTAL · NOT OPTED IN") == 2 and ">UNMEASURED<" in rows
-    assert 'data-origin="POLICY"' in rows and 'data-origin="DECLARED"' not in rows
+    # The origin of the one minimum in force is the server's label in brackets, and no class.
+    assert rows.count('class="declared gp-origin"') == 1 and "[ Shipped default ]" in rows
+    assert got["wide"]["requirements"].count("[ Shipped default ]") == 3
     assert rows.count('class="gp-rail"') == 1
     assert got["wide"]["requirements"].count('class="gp-rail"') == 3
 
@@ -744,7 +747,7 @@ def test_the_ledger_keeps_declared_apart_and_says_nothing_was_tested(tmp_path: P
       console.log(JSON.stringify({
         full: clean('ledger', GP.ledger(E)),
         research: clean('research', GP.research(V, E.research_statement)),
-        marks: [GP.declared(), GP.origin('DECLARED'), GP.origin('POLICY'), GP.origin('OBSERVED'),
+        marks: [GP.declared(), GP.origin('Entered by you'), GP.origin('Shipped default'),
           GP.origin(null)],
         cert: [GP.certificate('EXACT'), GP.certificate(null)]}));
     """, E=sent, V=records)
@@ -780,13 +783,12 @@ def test_the_ledger_keeps_declared_apart_and_says_nothing_was_tested(tmp_path: P
     assert research.count(
         '<td data-label="Statement"><div>No protocol covers this quantity.</div></td>') == 2
     assert research.endswith(f'<p class="figure-note">{NOT_TESTED}</p>')
-    # DECLARED is a bracket mark with no rung; POLICY sits on the heuristic rung; an
-    # origin the kit does not know lights no rung at all.
-    assert got["marks"][0] == got["marks"][1] == \
-        '<span class="declared" data-origin="DECLARED">[ DECLARED ]</span>'
-    assert 'data-origin="POLICY"' in got["marks"][2]
-    assert 'data-evidence="HEURISTIC"' in got["marks"][2]
-    assert all('data-origin="UNKNOWN"' in m and 'class="on"' not in m for m in got["marks"][3:])
+    # DECLARED is a bracket mark with no rung. An origin is the same kind of mark around
+    # the server's own label; with no label there is no mark.
+    assert got["marks"][0] == '<span class="declared" data-origin="DECLARED">[ DECLARED ]</span>'
+    assert got["marks"][1:] == [
+        '<span class="declared gp-origin">[ Entered by you ]</span>',
+        '<span class="declared gp-origin">[ Shipped default ]</span>', ""]
     assert got["cert"] == ['<span class="badge gp-cert" data-status="EXACT">EXACT</span>',
                            '<span class="badge gp-cert" data-status="">NOT SENT</span>']
     # The reply as returned is printed whole and parses back to what was sent.
@@ -794,6 +796,159 @@ def test_the_ledger_keeps_declared_apart_and_says_nothing_was_tested(tmp_path: P
     assert json.loads(html.unescape(block)) == {
         "declared": sent["declared"], "ledger": sent["ledger"], "provenance": sent["provenance"]}
     assert tags(full) <= KIT_TAGS and shell.scan_labels(readable(full)) == []
+
+
+def test_an_origin_is_the_servers_label_and_the_kit_composes_no_evidence_class(
+        tmp_path: Path) -> None:
+    served = [
+        {"requirement_id": "progression", "label": LABELS["progression"], "declarable": True,
+         "evidence_class": "HEURISTIC", "needs_experimental_opt_in": False},
+        *({"requirement_id": rid, "label": LABELS[rid], "declarable": True,
+           "evidence_class": "EXPERIMENTAL", "needs_experimental_opt_in": True} for rid in SIDES)]
+    in_force = requirement_rows(True)
+    rows = [in_force[0], {**in_force[2], "origin_label": "League percentile you chose"},
+            {**in_force[3], "origin_label": None}, requirement_rows(False)[1]]
+    out = run_js(tmp_path, """
+      const draft = {requirements: [], experimental_opt_in: false};
+      console.log(JSON.stringify({
+        marks: [GP.origin('Shipped default'), GP.origin('Entered by you'), GP.origin(HOSTILE),
+          GP.origin(null), GP.origin(undefined), GP.origin(''), GP.origin('  '), GP.origin({}),
+          GP.origin(7)],
+        rows: clean('rows', GP.requirements(ROWS)),
+        sources: [
+          GP.source({origin_label: 'Entered by you', source_sentence: 'Entered by you.'}),
+          GP.source({origin_label: 'Shipped default', source_sentence: MEDIAN}),
+          GP.source({origin_label: 'Entered by you', source_sentence: 'Entered by you, twice.'}),
+          GP.source({origin_label: null, source_sentence: 'Entered by you.'}),
+          GP.source({origin_label: 'Entered by you', source_sentence: null}),
+          GP.source({}), GP.source(null),
+          GP.source({origin_label: HOSTILE, source_sentence: HOSTILE + '.'}),
+          GP.source({origin_label: 'x', source_sentence: HOSTILE})],
+        locked: clean('locked', GP.editor(NOT_OPTED, {...C, requirements: SERVED}, draft)),
+        unsent: clean('unsent', GP.editor(NOT_OPTED, C, draft)),
+      }));
+    """, ROWS=rows, NOT_OPTED=requirement_rows(False), SERVED=served, C=CATALOGUE,
+                 HOSTILE=HOSTILE, MEDIAN=in_force[0]["source_sentence"])
+    got = json.loads(out)
+    marks = got["marks"]
+    # The line beside a minimum is the mark, then the server's sentence. When that sentence is
+    # the label again with a full stop it is printed once; anything else is printed whole.
+    mark = '<span class="declared gp-origin">[ Entered by you ]</span>'
+    sources = got["sources"]
+    assert sources[0] == mark
+    assert sources[1] == ('<span class="declared gp-origin">[ Shipped default ]</span> '
+                          + html.escape(in_force[0]["source_sentence"], quote=True)
+                          .replace("&#x27;", "&#39;"))
+    assert sources[2] == mark + " Entered by you, twice."
+    assert sources[3:7] == ["Entered by you.", mark, "", ""]
+    assert sources[7].count("&lt;img") == 1 and sources[8].count("&lt;img") == 1
+    assert all("<img" not in line for line in sources)
+    assert marks[0] == '<span class="declared gp-origin">[ Shipped default ]</span>'
+    assert marks[1] == '<span class="declared gp-origin">[ Entered by you ]</span>'
+    assert "<img" not in marks[2] and "&lt;img" in marks[2]
+    # No label: no mark. Nothing stands in for it, and a number is not a label.
+    assert marks[3:] == [""] * 6
+    for mark in marks[:3]:
+        assert tags(mark) == {"span"}
+        for sign in ("data-evidence", "ev-rung", "badge", "rect"):
+            assert sign not in mark, sign
+    # One mark per requirement in force whose label was sent; the row in force with no label
+    # and the row not in force draw none.
+    blocks = dict(re.findall(
+        r'<div class="gp-req" data-requirement="(\w+)"(.*?)(?=<div class="gp-req"|$)',
+        got["rows"].split('<p class="figure-note">')[0], flags=re.S))
+    drawn = {rid: re.findall(r'<span class="declared gp-origin">\[ ([^\]]*) \]</span>', body)
+             for rid, body in blocks.items()}
+    assert drawn == {"progression": ["Shipped default"],
+                     "left_pass_origins": ["League percentile you chose"],
+                     "right_pass_origins": [], "chance_creation": []}
+    # The only evidence badge of a requirement row is the class the server gave the requirement.
+    assert re.findall(r'data-evidence="(\w+)"', blocks["left_pass_origins"]) == ["EXPERIMENTAL"]
+    assert re.findall(r'data-evidence="(\w+)"', blocks["progression"]) == ["HEURISTIC"]
+    assert "data-evidence" not in blocks["chance_creation"]
+    # A locked experimental block carries the class the catalogue serves for that requirement;
+    # when the catalogue serves none, no class is drawn for it. The lock does not depend on it.
+    legend = r'<fieldset class="gp-req-edit" data-requirement="(\w+)"(.*?)</legend>'
+    fields = dict(re.findall(legend, got["locked"], flags=re.S))
+    assert {rid: re.findall(r'data-evidence="(\w+)"', body) for rid, body in fields.items()} == {
+        "progression": ["HEURISTIC"], "left_pass_origins": ["EXPERIMENTAL"],
+        "right_pass_origins": ["EXPERIMENTAL"]}
+    opt_in = got["locked"].split('<div id="declaration-inputs"')[0]
+    assert re.findall(r'data-evidence="(\w+)"', opt_in) == ["EXPERIMENTAL"]
+    bare = dict(re.findall(legend, got["unsent"], flags=re.S))
+    assert "data-evidence" not in bare["left_pass_origins"]
+    assert 'data-experimental="true" disabled' in bare["left_pass_origins"]
+    assert "data-evidence" not in got["unsent"].split('<div id="declaration-inputs"')[0]
+    # In the source: no class is written as a literal where a badge is drawn, and the kit
+    # holds no table from an origin token to a class.
+    kit = KIT.read_text(encoding="utf-8")
+    assert re.findall(r"evidenceBadge\([^()]*'[^()]*\)", kit) == []
+    assert "'POLICY'" not in kit and "'HEURISTIC'" not in kit
+
+
+def test_an_exact_zero_is_a_zero_and_carries_no_sign(tmp_path: Path) -> None:
+    out = run_js(tmp_path, """
+      const inner = markup => markup.replace(/<[^>]*>/g, '');
+      console.log(JSON.stringify({
+        approx: [0, -0, 0.0001, 0.4775961767541526, 3.5225999040569667].map(
+          v => inner(GP.value(v, 3, {approx: true}))),
+        plain: [0, -0].map(v => inner(GP.value(v, 5))),
+        signed: [0, -0, 0.0596, -0.06634].map(v => inner(GP.value(v, 3, {signed: true}))),
+        exact: [0, -0, 4.2].map(v => inner(GP.value(v, 3, {exact: true}))),
+        both: [0, -0.06634, 0.0596, 0.00001].map(
+          v => inner(GP.value(v, 3, {signed: true, approx: true}))),
+        markup: GP.value(0, 3, {approx: true}), missing: inner(GP.value(null, 3, {approx: true})),
+      }));
+    """)
+    got = json.loads(out)
+    # The approximate sign marks a rounded figure. Zero is not rounded: it prints bare. A value
+    # that only rounds to zero keeps the sign, because its exact value is another number.
+    assert got["approx"] == ["0", "0", "≈ 0", "≈ 0.478", "≈ 3.523"]
+    assert got["plain"] == ["0", "0"]
+    assert got["signed"] == ["0", "0", "+0.06", "−0.066"]
+    assert got["exact"] == ["0", "0", "4.2"]
+    # A signed figure that was rounded says so too: the two marks compose.
+    assert got["both"] == ["0", "≈ −0.066", "≈ +0.06", "≈ +0"]
+    # A figure never breaks between its mark and its digits.
+    assert got["markup"] == '<span class="mono gp-value" data-value="0">0</span>'
+    assert ".gp-value{white-space:nowrap}" in SHEET.read_text(encoding="utf-8")
+    assert got["missing"] == "—"
+
+
+def test_the_pages_say_what_the_browser_assembles_and_map_no_token_to_words() -> None:
+    squad = (ROOT / "web" / "squad.html").read_text(encoding="utf-8")
+    transfer = (ROOT / "web" / "transfer.html").read_text(encoding="utf-8")
+    kit = KIT.read_text(encoding="utf-8")
+    headers = {
+        "squad": re.search(r"<script>\s*/\*(.*?)\*/", squad, flags=re.S).group(1),
+        "transfer": re.search(r"<script>\s*/\*(.*?)\*/", transfer, flags=re.S).group(1),
+        "kit": re.match(r"/\*(.*?)\*/", kit, flags=re.S).group(1),
+    }
+    for name, header in headers.items():
+        flat = " ".join(header.split())
+        # What is assembled here is said, and so is what is not.
+        assert "assistive technology" in flat, name
+        assert "No sentence about football is" in flat, name
+        # The claims the audit found false are gone.
+        assert "every number, sentence and order is the server's" not in flat, name
+        assert "maps a status token to a fixed sentence" not in flat, name
+    # Gold: the selected player, and the one exception that is not his.
+    gold = " ".join(re.search(r"<style>\s*/\*(.*?)\*/", squad, flags=re.S).group(1).split())
+    assert "and nowhere else" not in gold
+    assert "focus ring" in gold and "labs.css" in gold and ":focus-visible" in gold
+    # No table from a token to words, no share rounded here, no sentence composed here.
+    for gone in ("with the gate lifted", "'the gate'", "'the eligibility rules'", "role_rules"):
+        assert gone not in squad, gone
+    for gone in ("pct(", "toLowerCase()", "omitted_counts", "This reflects how he was deployed",
+                 "Where his completed passes originated"):
+        assert gone not in transfer, gone
+    for field in ("spare_statement", "role_labels", "attribution_label", "covered_by_exclusion"):
+        assert field in squad, field
+    for field in ("single_requirement_statement", "facts_evidence_statement", "lane_text",
+                  "lane_statement", "left_out"):
+        assert field in transfer, field
+    # The signed change stands beside its certificate, in the opened candidate and nowhere else.
+    assert transfer.count("forced_inclusion_change") == 1
 
 
 def test_the_catalogue_the_server_serves_renders_through_the_kit(tmp_path: Path) -> None:

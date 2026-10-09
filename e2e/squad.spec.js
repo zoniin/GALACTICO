@@ -8,7 +8,9 @@ const path = require('path');
 const BASE = process.env.GALACTICO_URL || 'http://127.0.0.1:8142';
 const SHOTS = process.env.GALACTICO_SQUAD_SHOTS || '';
 const GOLD = 'rgb(201, 162, 39)';
-const NACHO = 3304, RONALDO = 3322, HAKIMI = 396475, CARVAJAL = 4501;
+const NACHO = 3304, RONALDO = 3322, HAKIMI = 396475, CARVAJAL = 4501, BALE = 8278;
+const ATTRIBUTIONS = ['GATE', 'EXCLUSION', 'ELIGIBILITY'];
+const BUSY = 'two long computations are already running'; // runtime.LONG_JOBS_BUSY, the 429 detail
 const ZERO_DRAWN = /^0\s*of/; // a count that was never taken must not be printed as one
 
 // Page errors, console errors, failed requests and error statuses all fail a test.
@@ -56,6 +58,41 @@ const goldOwners = page => page.evaluate(gold => {
   return owners;
 }, GOLD);
 const listed = (listings, key) => listings.keys.find(k => k.order_key === key).groups.flatMap(g => g.tie_groups.flatMap(t => t.player_ids));
+// The Spare cell of every tight group is its label and the server's sentence, and nothing else.
+async function spareCells(page, depth) {
+  expect(depth.tight_groups.length).toBeGreaterThan(0);
+  for (const group of depth.tight_groups) {
+    const cell = page.locator(`#tight-groups > li[data-slots="${group.slot_ids.join('-')}"] [data-part="spare"]`);
+    await expect(cell).toHaveText(group.spare_statement);
+    expect(await cell.evaluate(el => el.closest('.gp-cell').textContent)).toBe('Spare' + group.spare_statement);
+  }
+  await expect(page.locator('#tight-groups')).not.toContainText('gate lifted');
+}
+// The smallest absence sets that leave no XI: one list per attribution, headed by the label
+// the sets themselves carry, each row with the server's sentence. No attribution is worded here.
+async function unfieldableLists(el, level) {
+  const sets = level.minimal_unfieldable.listed;
+  expect(sets.every(c => ATTRIBUTIONS.includes(c.attribution))).toBe(true);
+  const excluded = typeof level.statements.exclusion === 'string';
+  for (const kind of ATTRIBUTIONS) {
+    const mine = sets.filter(c => c.attribution === kind);
+    const rows = el.locator(`[data-ledger-kind="${kind}"] > li`);
+    await expect(rows).toHaveCount(mine.length);
+    expect(await rows.evaluateAll(lis => lis.map(li => li.dataset.set))).toEqual(mine.map(c => c.player_ids.join('-')));
+    await expect(el.locator(`h4[data-attribution="${kind}"]`)).toHaveText(mine.length ? ['No fieldable XI · ' + mine[0].attribution_label] : []);
+    await expect(rows.locator('[data-part="core-statement"]')).toHaveText(mine.map(c => c.statement));
+    const covered = rows.locator('[data-part="covered-by-exclusion"]');
+    await expect(covered).toHaveCount(excluded ? mine.length : 0);
+    if (excluded) {
+      expect(await covered.evaluateAll(cells => cells.map(c => [...c.querySelectorAll('[data-value]')].map(v => Number(v.dataset.value)))))
+        .toEqual(mine.map(c => c.covered_by_exclusion.map(p => p.minutes)));
+      for (const [i, core] of mine.entries()) for (const p of core.covered_by_exclusion) await expect(covered.nth(i)).toContainText(p.name);
+    }
+  }
+  const statement = el.locator('[data-statement="exclusion"]');
+  if (excluded) await expect(statement).toHaveText(level.statements.exclusion);
+  else await expect(statement).toHaveCount(0);
+}
 
 async function open(page, query = '') {
   const snapshot = reply(page, '/api/squad/snapshot'), depth = reply(page, '/api/squad/depth'), reference = reply(page, '/api/squad/reference');
@@ -124,12 +161,22 @@ test('Squad Lab draws what the server returned, with the gate beside every count
   expect(await page.locator('#omitted li[data-omitted]').evaluateAll(rows => rows.map(r => Number(r.dataset.player)))).toEqual(depth.omitted.map(p => p.player_id));
   expect(depth.omitted.length).toBe(5);
   await expect(page.locator('#tight-groups > li')).toHaveCount(depth.tight_groups.length);
+  await spareCells(page, depth);
 
   // The league reference: every percentile as sent, and the record-only badge. Nothing was tested.
   const distribution = reference.distributions[0];
   expect(await page.locator('.ref-rows li > span:nth-child(2)').evaluateAll(els => els.map(e => e.dataset.value))).toEqual(distribution.percentiles.map(p => String(p.value)));
   await expect(page.locator('#requirements [data-requirement="progression"] [data-value]').first()).toHaveAttribute('data-value', String(depth.inputs.requirements[0].minimum));
   await expect(page.locator('#requirements [data-status="EXPERIMENTAL_NOT_OPTED_IN"]')).toHaveCount(2);
+  // Where the minimum came from is the server's label in a bracket mark. It is not an evidence
+  // class: the only classes in the row are the requirement's and the reference's, as sent.
+  const inForce = depth.inputs.requirements.filter(r => r.declared);
+  expect(inForce.map(r => r.origin_label)).toEqual(['Shipped default']);
+  await expect(page.locator('#requirements .gp-origin')).toHaveText(inForce.map(r => `[ ${r.origin_label} ]`));
+  await expect(page.locator('#requirements [data-part="source"]')).toHaveText(inForce.map(r => `[ ${r.origin_label} ] ${r.source_sentence}`));
+  await expect(page.locator('#requirements [data-origin], #requirements .gp-origin [data-evidence]')).toHaveCount(0);
+  expect(await page.locator('#requirements [data-requirement="progression"] [data-evidence]').evaluateAll(els => els.map(e => e.dataset.evidence)))
+    .toEqual([inForce[0].evidence_class, distribution.evidence_class]);
   const verdicts = page.locator('.verdict');
   expect(await verdicts.count()).toBeGreaterThan(0);
   expect(await verdicts.evaluateAll(els => els.map(e => e.dataset.basis + '|' + e.textContent))).toEqual(Array(await verdicts.count()).fill('NOT_REGISTERED|RECORD ONLY · NOT TESTED'));
@@ -151,7 +198,7 @@ test('Squad Lab draws what the server returned, with the gate beside every count
 test('gold marks only the selected player, at every slot he is eligible for', async ({ page }) => {
   test.setTimeout(240000);
   const errors = watch(page);
-  const { depth } = await open(page);
+  const { snapshot, depth } = await open(page);
   const slotsOf = id => depth.slots.filter(s => s.available.some(p => p.player_id === id)).map(s => s.slot_id);
   expect(slotsOf(NACHO).length).toBeGreaterThan(1);
 
@@ -162,6 +209,11 @@ test('gold marks only the selected player, at every slot he is eligible for', as
   await expect(page.locator('#player')).toHaveValue(String(NACHO));
   await expect(page.locator('#player-detail h3')).toHaveText('Nacho');
   await expect(page.locator('#player-detail li[data-pinned]')).toHaveCount(slotsOf(NACHO).length);
+  // His declared roles are printed in the server's words, never as role ids.
+  const nacho = snapshot.squad.find(p => p.player_id === NACHO);
+  expect([nacho.role_rules, nacho.role_labels]).toEqual([['cb', 'lb', 'rb'], ['Centre back', 'Left back', 'Right back']]);
+  await expect(page.locator('#player-detail [data-part="roles"]')).toHaveText('Declared roles: ' + nacho.role_labels.join(', ') + '.');
+  expect(await page.locator('#player-detail').innerText()).not.toMatch(/\b(cb|lb|rb)\b/);
   let owners = await goldOwners(page);
   expect(owners.length).toBeGreaterThanOrEqual(2 * slotsOf(NACHO).length);
   expect(new Set(owners)).toEqual(new Set([String(NACHO)]));
@@ -184,6 +236,10 @@ test('gold marks only the selected player, at every slot he is eligible for', as
   expect(await page.locator(`#removals-ledger li[data-player="${NACHO}"] .gp-mark`).evaluate(m => getComputedStyle(m).backgroundColor)).toBe(GOLD);
   owners = await goldOwners(page);
   expect(new Set(owners)).toEqual(new Set([String(NACHO)]));
+  // His line from the stress run is labelled by where it came from; the server's label says the rest once.
+  const removal = page.locator('#player-detail li[data-removal]');
+  await expect(removal.locator('.label')).toHaveText('Absence stress');
+  expect((await removal.innerText()).toLowerCase().split('without him').length - 1).toBe(1);
   await page.locator('#player').selectOption('');
   expect(await goldOwners(page)).toEqual([]);
   expect(errors).toEqual([]);
@@ -230,6 +286,15 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   await expect(page.locator('#depth-pitch g.depth-mark.available line')).toHaveCount(raising.length);
   await expect(page.locator(`#depth-pitch g.depth-mark.excluded[data-player="${RONALDO}"] line`)).toHaveCount(depth.slots.filter(s => s.excluded.length).length);
   await expect(page.locator('#thinness [data-thinness="REQUIREMENT"] p')).toHaveText(depth.thinness[2].statement);
+  // With a player excluded the stages of spare differ, and the cell still prints the server's sentence.
+  expect(depth.tight_groups.some(g => g.spare_by_stage.available !== g.spare_by_stage.gated)).toBe(true);
+  await spareCells(page, depth);
+  const entered = depth.inputs.requirements.find(r => r.declared);
+  expect(entered.origin_label).toBe('Entered by you');
+  await expect(page.locator('#requirements .gp-origin')).toHaveText([`[ ${entered.origin_label} ]`]);
+  // The server's sentence about this source is the label again; the page prints it once.
+  expect(entered.source_sentence).toBe(entered.origin_label + '.');
+  await expect(page.locator('#requirements [data-part="source"]')).toHaveText([`[ ${entered.origin_label} ]`]);
 
   // Pairs of absences. Three need an explicit confirmation before the button works.
   await page.locator('#stress-k button[data-k="3"]').click();
@@ -259,12 +324,10 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   expect(stress.levels.length).toBe(2);
   for (const level of stress.levels) {
     const el = page.locator(`#stress-ledgers [data-level="${level.k}"]`);
-    for (const key of ['gate', 'eligibility', 'shortfall']) await expect(el.locator(`[data-statement="${key}"]`)).toHaveText(level.statements[key]);
+    for (const key of ['gate', 'exclusion', 'eligibility', 'shortfall']) await expect(el.locator(`[data-statement="${key}"]`)).toHaveText(level.statements[key]);
     await expect(el.locator('[data-statement="unfieldable"]')).toHaveText(level.statements.unfieldable + ' ' + level.minimal_unfieldable.statement);
     await expect(el.locator('[data-statement="raised"]')).toHaveText(level.raised.statement);
-    for (const kind of ['GATE', 'ELIGIBILITY']) {
-      await expect(el.locator(`[data-ledger-kind="${kind}"] > li`)).toHaveCount(level.minimal_unfieldable.listed.filter(c => c.attribution === kind).length);
-    }
+    await unfieldableLists(el, level);
     // Single absences above the baseline are rows of the ledger above, not listed twice.
     await expect(el.locator('[data-ledger-kind="RAISED"] > li')).toHaveCount(level.k === 1 ? 0 : level.raised.listed_count);
     if (level.k > 1) expect(await el.locator('[data-ledger-kind="RAISED"] > li').evaluateAll(rows => rows.map(r => r.dataset.set))).toEqual(level.raised.listed.map(r => r.player_ids.join('-')));
@@ -273,8 +336,18 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   expect(pairs.raised.count).toBeGreaterThan(pairs.raised.listed_count); // a cut list says so
   expect(pairs.raised.statement).toContain(`: ${pairs.raised.count}. Listed: ${pairs.raised.listed_count},`);
   expect(pairs.minimal_unfieldable.count).toBeGreaterThan(0);
+  // One of the pairs is covered by the player below the gate and, as well, by the excluded one.
+  // The server's sentence and its list say both; the page adds no word of its own.
+  const both = pairs.minimal_unfieldable.listed.filter(c => c.covered_by_exclusion.length);
+  expect(both.map(c => [c.attribution, c.exclusion_alone_restores, c.covered_by_exclusion.map(p => p.player_id)])).toEqual([['GATE', true, [RONALDO]]]);
+  await expect(page.locator(`#stress-ledgers [data-level="2"] li[data-set="${both[0].player_ids.join('-')}"] [data-part="core-statement"]`)).toHaveText(both[0].statement);
   await expect(page.locator('#stress-model')).toHaveText(stress.model_statement);
   await expect(page.locator('#stress-model')).toContainText('not a statement about the real squad');
+  // A signed change in a row says what it is a change from, and carries the server's two numbers.
+  const changed = stress.single_absences.find(r => r.outcome === 'RAISES_SHORTFALL');
+  const change = page.locator(`#removals-ledger li[data-player="${changed.player_id}"] [data-part="change"]`);
+  await expect(change).toContainText('change from the baseline');
+  expect(await change.locator('[data-value]').evaluateAll(els => els.map(e => e.dataset.value))).toEqual(changed.change_from_baseline.map(String));
 
   // The brief: outfield slots only, and the server's own sentences and numbers.
   expect(await page.locator('#brief-slot option').evaluateAll(os => os.map(o => o.value))).toEqual(['', ...depth.slots.filter(s => s.recruitable).map(s => s.slot_id)]);
@@ -296,6 +369,9 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   await expect(page.locator('#brief-rows > li')).toHaveCount(brief.brief.row_count);
   await expect(page.locator('#brief-rows [data-value]').first()).toHaveAttribute('data-value', String(brief.brief.rows[0].cells[0].need));
   await expect(page.locator('#brief-pool')).toHaveText(brief.pool.count_statement);
+  // The claim and what it does not claim are each printed once, though the claim quotes the other.
+  await expect(page.locator('#brief #claim')).toHaveText(brief.claim);
+  expect((await page.locator('#brief').innerText()).split(brief.non_claim).length - 1).toBe(1);
   await expect(page.locator('#open-transfer')).toHaveAttribute('href', brief.transfer_url);
   // One ledger for every reply on screen, each row once.
   const ledgerIds = await page.locator('#evidence-ledger tr[data-ledger]').evaluateAll(trs => trs.map(t => t.dataset.ledger));
@@ -426,11 +502,140 @@ test('another club is audited under provider positions, and the page says they a
   await expect(page.locator('#presets button[data-preset="exclude-3322"]')).toHaveCount(0); // a Madrid declaration
   await expect(page.locator('#depth-pitch g.depth-mark')).toHaveCount(depth.slots.reduce((n, s) => n + s.available.length + s.below_gate.length, 0));
   expect(new URL(page.url()).search).toBe('?scenario=spain-676-planning-2018-05-21');
+  // No role is declared for this club: the page says so and prints no role.
+  const squad = await page.evaluate(() => state.audit.snapshot.squad.map(p => [p.player_id, p.role_labels.length]));
+  expect(squad.length).toBeGreaterThan(0);
+  expect(squad.every(([, roles]) => roles === 0)).toBe(true);
+  await page.locator('#player').selectOption(String(squad[0][0]));
+  await expect(page.locator('#player-detail [data-part="roles"]')).toHaveText('Provider position only.');
+  await page.locator('#player').selectOption('');
   expect(await page.locator('svg').evaluateAll(svgs => svgs.some(s => /NaN|undefined/.test(s.outerHTML)))).toBe(false);
   expect(await overflows(page)).toBe(false);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await overflows(page)).toBe(false);
   expect(errors).toEqual([]);
+});
+
+test('a set left short by your own exclusion is listed apart, and every attribution is the server\'s label', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await open(page);
+  const run = async () => {
+    const answered = reply(page, '/api/squad/stress');
+    await page.locator('#run-stress').click();
+    const sent = await (await answered).json();
+    await expect(page.locator('#stress-body')).toBeVisible({ timeout: 120000 });
+    return sent;
+  };
+  const exclude = async id => {
+    await page.locator('#player').selectOption(String(id));
+    const answered = reply(page, '/api/squad/depth');
+    await page.locator('#exclude-player').click();
+    await answered;
+    await expect(page.locator(`#constraints button[data-player="${id}"]`)).toBeVisible({ timeout: 60000 });
+  };
+
+  // Nobody is excluded: the server sends no sentence about exclusions, and the page prints none.
+  const plain = await run();
+  expect(plain.levels.map(l => l.statements.exclusion)).toEqual([null]);
+  await unfieldableLists(page.locator('#stress-ledgers [data-level="1"]'), plain.levels[0]);
+  await expect(page.locator('#stress-ledgers [data-statement="exclusion"], #stress-ledgers [data-ledger-kind="EXCLUSION"], #stress-ledgers [data-part="covered-by-exclusion"]')).toHaveCount(0);
+  await expect(page.locator('#stress-ledgers')).not.toContainText('exclu');
+
+  // One right back excluded: three single absences leave no XI. Each row says by what, in the
+  // label its own smallest set carries.
+  await exclude(CARVAJAL);
+  const single = await run();
+  const cores = single.single_absences.filter(r => r.core);
+  expect(cores.length).toBeGreaterThan(0);
+  for (const row of cores) {
+    const el = page.locator(`#removals-ledger li[data-player="${row.player_id}"]`);
+    await expect(el).toHaveAttribute('data-attribution', row.core.attribution);
+    await expect(el.locator('[data-part="attribution"]')).toHaveText(row.core.attribution_label);
+    await expect(el.locator('[data-part="core-statement"]')).toHaveText(row.core.statement);
+  }
+  await expect(page.locator('#removals-ledger [data-part="attribution"]')).toHaveCount(cores.length);
+  await unfieldableLists(page.locator('#stress-ledgers [data-level="1"]'), single.levels[0]);
+
+  // A forward excluded instead: one pair of the two who remain leaves no XI, nobody below the
+  // gate would cover it, and he would. That set is the exclusion's, in a list of its own.
+  const restored = reply(page, '/api/squad/depth');
+  await page.locator(`#constraints button[data-player="${CARVAJAL}"]`).click();
+  await restored;
+  await expect(page.locator(`#constraints button[data-player="${CARVAJAL}"]`)).toHaveCount(0, { timeout: 60000 });
+  await exclude(BALE);
+  await page.locator('#stress-k button[data-k="2"]').click();
+  const stress = await run();
+  const pairs = stress.levels.find(l => l.k === 2);
+  const own = pairs.minimal_unfieldable.listed.filter(c => c.attribution === 'EXCLUSION');
+  expect(own.length).toBeGreaterThan(0);
+  expect(own.every(c => c.attribution_label === 'your exclusion' && c.covered_by_exclusion.some(p => p.player_id === BALE))).toBe(true);
+  for (const level of stress.levels) await unfieldableLists(page.locator(`#stress-ledgers [data-level="${level.k}"]`), level);
+  expect(await overflows(page)).toBe(false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await overflows(page)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('a 429 is printed in the server\'s words, leaves no stale panel, and the next request works', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watch(page);
+  await open(page);
+  const busy = route => route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ detail: BUSY }) });
+
+  // A stress reply is on screen, with its rows in the ledger and in the selected player's panel.
+  let answered = reply(page, '/api/squad/stress');
+  await page.locator('#run-stress').click();
+  await answered;
+  await expect(page.locator('#stress-body')).toBeVisible({ timeout: 120000 });
+  await page.locator('#player').selectOption(String(NACHO));
+  await expect(page.locator('#player-detail li[data-removal]')).toHaveCount(1);
+  await expect(page.locator('#evidence-ledger tr[data-ledger^="stress-"]')).toHaveCount(1);
+
+  // Both build places are taken: the same question is refused.
+  await page.route('**/api/squad/stress', busy);
+  await page.locator('#run-stress').click();
+  const status = page.locator('#stress-status');
+  await expect(status).toHaveText('Absence stress unavailable: ' + BUSY);
+  await expect(status).toHaveClass(/error/);
+  await expect(page.locator('#stress-body')).toBeHidden();
+  await expect(page.locator('#removals')).toBeEmpty();
+  await expect(page.locator('#stress-ledgers')).toBeEmpty();
+  await expect(page.locator('#evidence-ledger tr[data-ledger^="stress-"]')).toHaveCount(0);
+  await expect(page.locator('#player-detail li[data-removal]')).toHaveCount(0);
+  await expect(page.locator('#squad-body')).toBeVisible(); // the audit it was asked of is untouched
+  await expect(page.locator('#run-stress')).toBeEnabled();
+
+  // The next request is answered and drawn; the refusal is gone from the status line.
+  await page.unroute('**/api/squad/stress', busy);
+  answered = reply(page, '/api/squad/stress');
+  await page.locator('#run-stress').click();
+  const stress = await (await answered).json();
+  await expect(page.locator('#stress-body')).toBeVisible({ timeout: 120000 });
+  await expect(status).toHaveText('');
+  await expect(status).not.toHaveClass(/error/);
+  expect(await page.locator('#removals-ledger > li.gp-row').evaluateAll(els => els.map(e => Number(e.dataset.player)))).toEqual(listed(stress.listings, 'name'));
+  await expect(page.locator('#evidence-ledger tr[data-ledger^="stress-"]')).toHaveCount(1);
+
+  // The audit itself refused: the page says so in the same words and shows no audit.
+  await page.route('**/api/squad/depth', busy);
+  await page.locator('#audit').click();
+  await expect(page.locator('#status')).toHaveText('Squad audit unavailable: ' + BUSY);
+  await expect(page.locator('#status')).toHaveClass(/error/);
+  await expect(page.locator('#squad-body')).toBeHidden();
+  await expect(page.locator('#audit')).toBeEnabled();
+  await page.unroute('**/api/squad/depth', busy);
+  const audited = reply(page, '/api/squad/depth');
+  await page.locator('#audit').click();
+  const depth = await (await audited).json();
+  await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#status')).toBeHidden();
+  await expect(page.locator('#shortfall-statement')).toHaveText(depth.baseline.statement);
+  await expect(page.locator('#stress-body')).toBeHidden(); // a new audit starts with no stress reply
+  // Two refusals were sent on purpose, and nothing else went wrong.
+  expect(errors.filter(e => e.startsWith('429: ')).map(e => new URL(e.slice(5)).pathname)).toEqual(['/api/squad/stress', '/api/squad/depth']);
+  expect(errors.filter(e => !e.includes('429'))).toEqual([]);
 });
 
 test('no fieldable XI: nothing unevaluated is drawn as a count, and the page says why stress is off', async ({ page }) => {

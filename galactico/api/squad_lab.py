@@ -276,10 +276,16 @@ def _n(value: float) -> str:
     return format(value, ".3f")
 
 
+def _exact(value: float) -> str:
+    """A certified value as the tools print one: no padding zeros, never rounded twice."""
+    short = f"{value:g}"
+    return short if float(short) == value else repr(value)
+
+
 def _pair(vector: Sequence[float]) -> str:
-    # Five decimals: exact at the shipped quantisation, so a rise of one unit is not printed
-    # as no rise.
-    return f"largest {vector[0]:.5f}, sum {vector[1]:.5f}"
+    # Exact at the shipped quantisation, so a rise of one unit is not printed as no rise,
+    # and a zero is "0" as in the tool's own claim beside it.
+    return f"largest {_exact(vector[0])}, sum {_exact(vector[1])}"
 
 
 def _many(number: int, one: str, many: str) -> str:

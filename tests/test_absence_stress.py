@@ -371,6 +371,26 @@ def test_a_locked_player_is_not_removable_and_locks_never_explain_a_core():
                   excluded=(2,))
 
 
+def test_the_unfieldable_warning_names_the_exclusions_when_some_were_declared():
+    # Slot s0 has three players and s1 has two. A pair of absences can empty either slot;
+    # with player 3 excluded by the caller, that declaration is one of the reasons.
+    players = squad([(1, ("s0",), 5.0), (2, ("s0",), 5.0), (3, ("s0",), 5.0),
+                     (4, ("s1",), 5.0), (5, ("s1",), 5.0)])
+
+    def said(result):
+        return [w for w in result.warnings if w.startswith("Sets that leave no fieldable XI")]
+
+    plain = absence_stress(players, NEED, TWO, k=2, quantization=100)
+    assert said(plain) == [
+        "Sets that leave no fieldable XI reflect the evidence gate and the eligibility rules, "
+        "not the real squad; the omitted players are listed beside this result."]
+    declared = absence_stress(players, NEED, TWO, k=2, excluded=(3,), quantization=100)
+    assert said(declared) == [
+        "Sets that leave no fieldable XI reflect the evidence gate, the eligibility rules and "
+        "the exclusions declared here, not the real squad; the omitted players are listed "
+        "beside this result."]
+
+
 def test_a_squad_with_no_xi_is_reported_before_any_absence_and_inputs_are_validated():
     players = squad([(1, ("s0",), 5.0), (2, ("s0",), 5.0), (3, ("s1",), 5.0)])
     both = absence_stress(players, NEED, TWO, k=1, locked=(3,), excluded=(3,), quantization=100)

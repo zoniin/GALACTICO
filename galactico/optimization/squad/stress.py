@@ -562,9 +562,11 @@ def absence_stress(
             "The solver rejected a model; the affected sets are reported as not resolved."
         )
     if any(level.unfieldable_count for level in levels):
+        causes = ("the evidence gate, the eligibility rules and the exclusions declared here"
+                  if excluded_ids else "the evidence gate and the eligibility rules")
         warnings.append(
-            "Sets that leave no fieldable XI reflect the evidence gate and the eligibility "
-            "rules, not the real squad; the omitted players are listed beside this result."
+            f"Sets that leave no fieldable XI reflect {causes}, not the real squad; the "
+            "omitted players are listed beside this result."
         )
     exact = baseline is not None and not unresolved and not model_invalid
     if base.status == "UNFIELDABLE":

@@ -8,6 +8,7 @@ const BASE = process.env.GALACTICO_URL || 'http://127.0.0.1:8143';
 const SHOTS = process.env.GALACTICO_SHOTS || '';
 const GOLD = 'rgb(201, 162, 39)';
 const SLOW = 150000;
+const BUSY = 'two long computations are already running'; // runtime.LONG_JOBS_BUSY, the 429 detail
 
 function watch(page) {
   const errors = [];
@@ -105,9 +106,25 @@ test('the default problem has no shortfall: the page says so and leads to a decl
   expect(pool.deficiency.state).toBe('NO_DECLARED_DEFICIENCY');
   await expect(page.locator('#deficiency')).toHaveAttribute('data-deficiency', pool.deficiency.state);
   await expect(page.locator('#deficiency-statement')).toHaveText(pool.deficiency.statement);
+  // The statement of this state names no number, so the certified pair is printed under it.
+  expect(await page.locator('#deficiency [data-part="baseline-pair"] [data-value]').evaluateAll(els => els.map(e => e.dataset.value)))
+    .toEqual(pool.baseline.objective_vector.map(String));
   await expect(page.locator('#pool-listed')).toHaveAttribute('data-value', String(pool.pool.listed_count));
   await expect(page.locator('#pool-definition')).toHaveText(pool.pool.definition);
   await expect(page.locator('#carry-over-statement')).toHaveText(pool.carry_over_statement);
+  // Who was left out before any filter: the server's label and count per reason, in its order.
+  expect(pool.pool.left_out.map(x => x.reason)).toEqual(['LEAGUE_NOT_INCLUDED', 'OWN_SQUAD', 'GOALKEEPER', 'BELOW_900_CURRENT_CLUB']);
+  expect(await page.locator('#pool-left-out [data-reason]').evaluateAll(els => els.map(e => [e.dataset.reason, e.querySelector('[data-value]').dataset.value])))
+    .toEqual(pool.pool.left_out.map(x => [x.reason, String(x.count)]));
+  await expect(page.locator('#pool-left-out')).toHaveText(
+    'Left out before any filter: ' + pool.pool.left_out.map(x => `${x.label} ${x.count.toLocaleString('en-US')}`).join(' · '));
+  // The origin of the minimum in force is the server's label, and no evidence class.
+  const inForce = pool.inputs.requirements.filter(r => r.declared);
+  await expect(page.locator('#requirements .gp-origin')).toHaveText(inForce.map(r => `[ ${r.origin_label} ]`));
+  await expect(page.locator('#requirements [data-part="source"]')).toHaveText(inForce.map(r => `minimum ${r.minimum} · [ ${r.origin_label} ] ${r.source_sentence}`));
+  await expect(page.locator('#requirements [data-origin]')).toHaveCount(0);
+  expect(await page.locator('#requirements [data-status="DECLARED"] [data-evidence]').evaluateAll(els => els.map(e => e.dataset.evidence)))
+    .toEqual(inForce.map(r => r.evidence_class));
   await expect(page.locator('#eligibility-banner')).toHaveText(new RegExp(pool.eligibility.banner.slice(0, 40)));
   await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#composed-evidence')).toHaveAttribute('data-evidence', pool.evidence.class);
@@ -139,6 +156,12 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
   await setSlot(page);
   const pool = await (await declareShortfall(page)).json();
   await expect(page.locator('#deficiency-statement')).toHaveText(pool.deficiency.statement);
+  // The server's sentence already carries the certified pair: the page does not print it a second time.
+  await expect(page.locator('#deficiency')).toHaveText('SHORTFALL ' + pool.deficiency.statement);
+  // An entered minimum: the server's sentence about its source is the label again, printed once.
+  const entered = pool.inputs.requirements.find(r => r.declared);
+  expect([entered.origin_label, entered.source_sentence]).toEqual(['Entered by you', 'Entered by you.']);
+  await expect(page.locator('#requirements [data-part="source"]')).toHaveText([`minimum ${entered.minimum} · [ ${entered.origin_label} ]`]);
   await expect(page.locator('#leads')).toHaveCount(0);
   await expect(page.locator('#search')).toBeEnabled();
   await expect(page.locator('#candidates')).toHaveCount(0);  // nothing is re-solved until asked
@@ -153,7 +176,34 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
   await expect(page.locator('#carried-value')).toHaveText(search.carry_over_statement);
   await expect(page.locator('#model-statement')).toHaveText(search.model_statement);
   await expect(page.locator('#reference-statement')).toHaveText(search.reference_row.statement);
+  // What the pair in a row is, in the catalogue's sentences: an unchanged row can show a value above the squad's own.
+  const catalogue = await (await page.request.get(BASE + '/api/transfer/scenarios')).json();
+  const forced = catalogue.definitions.find(d => d.field === 'forced_inclusion_objective');
+  await expect(page.locator('#forced-definition')).toHaveText(`In each row: ${forced.definition} ${forced.why}`);
   await expect(page.locator('#reference-rows button')).toHaveCount(0);
+  // The class of the facts beside each candidate is said once, in the server's sentence.
+  await expect(page.locator('#facts-evidence')).toHaveText(search.facts_evidence_statement);
+  // One requirement is in force: where the page says how the list is grouped, the server says
+  // what the groups are. The sentence stands above the groups it is about.
+  expect(pool.inputs.requirements.filter(r => r.declared).length).toBe(1);
+  expect(typeof search.single_requirement_statement).toBe('string');
+  const single = page.locator('#single-requirement-statement');
+  await expect(single).toHaveText(search.single_requirement_statement);
+  expect(await single.evaluate(el => [
+    Boolean(document.getElementById('ordered-by').compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING),
+    Boolean(el.compareDocumentPosition(document.getElementById('candidates')) & Node.DOCUMENT_POSITION_FOLLOWING),
+    Boolean(el.compareDocumentPosition(document.getElementById('reference-rows')) & Node.DOCUMENT_POSITION_FOLLOWING)])).toEqual([true, true, true]);
+  // No list row and no reference row prints a signed change: a row has the membership sentence,
+  // the certificate and the certified pair. Non-vacuity: the reply does carry the change.
+  const signedChange = /[+−]\s?\d/;
+  expect(search.rows.filter(r => (r.injection.forced_inclusion_change ?? []).some(v => v !== 0)).length).toBeGreaterThan(0);
+  await expect(page.locator('#candidates [data-part="change"], #reference-rows [data-part="change"]')).toHaveCount(0);
+  for (const id of ['#candidates', '#reference-rows']) {
+    const text = await page.locator(id).innerText();
+    expect(text).not.toContain('against the squad');
+    expect(text).not.toMatch(signedChange);
+  }
+  await expect(page.locator('#candidates li.gp-row[data-player] [data-membership]')).toHaveText(listed(search.listings, 'name').map(id => search.rows.find(r => r.player_id === id).injection.membership_sentence));
 
   // Rows sit where the server's listing puts them, under the server's outcome bands.
   expect(await rowIds(page)).toEqual(listed(search.listings, 'name'));
@@ -167,6 +217,9 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
     filled: r.dataset.filled, breakeven: r.querySelector('svg.carry')?.dataset.breakeven ?? null,
     states: [...r.querySelectorAll('svg.carry .cell')].map(c => c.dataset.state + ':' + c.dataset.evaluated),
     minutes: r.querySelector('.tl-facts [data-value]')?.dataset.value,
+    lane: r.querySelector('[data-lane-text]')?.textContent ?? null,
+    laneLabel: r.querySelector('svg.lanes')?.getAttribute('aria-label') ?? null,
+    pair: [...r.querySelectorAll('[data-part="pair"] [data-value]')].map(v => v.dataset.value),
   })));
   expect(drawn.length).toBe(search.rows.length);
   for (const row of drawn) {
@@ -177,7 +230,13 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
     expect(row.breakeven).toBe(carry.break_even === null ? 'none' : String(carry.break_even));
     expect(row.states).toEqual(carry.grid.map(g => `${g.state}:${g.evaluated}`));
     expect(row.states.length).toBe(21);
+    // The lane text is the server's, to its decimal; the figure is described in the server's words.
+    expect(row.lane).toBe(sent.lane_text);
+    expect(row.laneLabel).toBe(sent.lane_text === null ? null : `${sent.lane_text}. ${sent.lane_statement}`);
+    expect(row.pair).toEqual(sent.injection.forced_inclusion_objective.map(String));
   }
+  expect(search.rows.filter(r => r.lane_text !== null).length).toBeGreaterThan(0);
+  expect(search.rows.find(r => r.lane_text !== null).lane_text).toMatch(/^L \d+\.\d% · C \d+\.\d% · R \d+\.\d% · [\d,]+ completed passes$/);
 
   // Another declared key re-places the rows and asks the server nothing.
   let asked = 0;
@@ -206,11 +265,36 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
   await expect(page.locator('#worlds-statement')).toHaveText(detail.candidate.world_counts.statement);
   expect(await page.locator('#worlds-figure [data-world]').count()).toBe(detail.candidate.world_counts.requested);
   await expect(page.locator('#transport .verdict')).toHaveAttribute('data-basis', 'NOT_REGISTERED');
+  // The recorded rate carries the class the server gives a recorded rate (its ledger row),
+  // which is not the class of the XI-level requirement it enters.
+  const rateRows = detail.ledger.filter(x => x.row_id.startsWith(`candidate-${subject.player_id}-rates-`));
+  expect(rateRows.map(x => [x.row_id, x.evidence.class])).toEqual([[`candidate-${subject.player_id}-rates-progression`, 'ESTIMATED']]);
+  expect(pool.inputs.requirements.find(r => r.declared).evidence_class).toBe('HEURISTIC');
+  expect(await page.locator('#transport [data-rate-row]').evaluateAll(els => els.map(e => [e.dataset.rateRow, e.querySelector('[data-evidence]').dataset.evidence])))
+    .toEqual(rateRows.map(x => [x.row_id, x.evidence.class]));
+  // Where his passes started: the server's text under the bars and the server's sentence beside
+  // them. The page writes no sentence about it.
+  await expect(page.locator('#candidate-lanes [data-lane-text]')).toHaveText(detail.candidate.lane_text);
+  await expect(page.locator('#lane-statement')).toHaveText(detail.candidate.lane_statement);
+  await expect(page.locator('#candidate-lanes svg.lanes')).toHaveAttribute('aria-label', `${detail.candidate.lane_text}. ${detail.candidate.lane_statement}`);
+  // The signed change is printed here, beside the certificate of this re-solve, and still in no row.
+  expect(await page.locator('#candidate-detail [data-part="change"] [data-value]').evaluateAll(els => els.map(e => e.dataset.value)))
+    .toEqual(detail.candidate.injection.forced_inclusion_change.map(String));
+  await expect(page.locator('#candidate-detail [data-part="change"]')).toHaveCount(1);
+  // It is a rounded figure and is marked as one, like the pair above it.
+  await expect(page.locator('#candidate-detail [data-part="change"]')).toHaveText(/^change against the squad's own \(largest, sum\): ≈ [+−]\d\S*, ≈ [+−]\d\S*$/);
+  // Who is no longer in every least-shortfall XI: the server's names under a label that says of what.
+  const freed = detail.candidate.no_longer_necessary.names;
+  await expect(page.locator('#candidate-freed')).toHaveText(freed.length
+    ? ['In every least-shortfall XI without him, not in every one with him available: ' + freed.join(', ')] : []);
+  await expect(page.locator('#candidate-change ~ .tl-facts .gp-cert')).toHaveText(detail.candidate.injection.forced_status);
+  await expect(page.locator('#candidates [data-part="change"], #reference-rows [data-part="change"]')).toHaveCount(0);
   const carry = fills.get(subject.player_id);
   await expect(page.locator('#carry-figure svg.carry')).toHaveAttribute(
     'data-breakeven', carry.break_even === null ? 'none' : String(carry.break_even));
   await expect(page.locator('#carry-statement')).toContainText(carry.reading);
   await expect(page.locator('#carry-statement')).toContainText(carry.predicts_nothing);
+  expect((await page.locator('#candidate-detail').innerText()).split(carry.predicts_nothing).length - 1).toBe(1);
   await expect(page.locator('#carry-solves tbody tr')).toHaveCount(carry.grid.filter(g => g.evaluated).length);
   await expect(page.locator('[data-ledger^="candidate-"]').first()).toBeVisible();
   const marks = await gold(page);
@@ -369,8 +453,8 @@ test('changes made while requests are in flight leave no stale row, no wrong cou
   await expect(row).toHaveAttribute('data-outcome', 'UNDETERMINED');
   await expect(row.locator('[data-resolution="UNCERTIFIED"]')).toHaveText(OPEN_SENTENCE);
   await expect(row).not.toContainText('No measured value');
-  await expect(row).toContainText('(largest, sum) —');  // a value nobody proved is a dash, not a zero
-  await expect(row).toContainText("against the squad's own: —");
+  await expect(row.locator('[data-part="pair"]')).toHaveText('UNKNOWN least declared shortfall (largest, sum): —');  // a value nobody proved is a dash, not a zero
+  await expect(row).not.toContainText('against the squad');
   await expect(page.locator('#search-status')).toContainText('Treat as incomplete.');
 
   // Selecting the last solved row while rows fill: his reply fills his row, and the count says so.
@@ -402,6 +486,111 @@ test('changes made while requests are in flight leave no stale row, no wrong cou
   await expect(page.locator(`[data-ledger="candidate-${solved[0]}-injection"]`)).toHaveCount(1, { timeout: SLOW });
   await next.off();
   expect(errors).toEqual([]);
+});
+
+test('with the experimental opt-in declared the server sends no single-requirement sentence and none is printed', async ({ page }) => {
+  test.setTimeout(480000);
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await setSlot(page);
+  await declareShortfall(page);
+  await page.locator('#declarations summary').click();
+  await page.locator('#experimental-opt-in').check();
+  await expect(page.locator('#search')).toBeDisabled(); // an edited declaration is not the problem on screen
+  const set = reply(page, '/api/transfer/universe');
+  await page.locator('#apply-declarations').click();
+  const problem = await (await set).json();
+  await expect(page.locator('#search')).toBeEnabled({ timeout: SLOW });
+  const inForce = problem.inputs.requirements.filter(r => r.declared);
+  expect(problem.inputs.experimental_opt_in).toBe(true);
+  expect(inForce.map(r => r.evidence_class)).toEqual(['HEURISTIC', 'EXPERIMENTAL', 'EXPERIMENTAL']);
+  // Each minimum's origin is the server's label; the class beside a requirement is the
+  // requirement's own, so no shipped default of an experimental descriptor is drawn as heuristic.
+  await expect(page.locator('#requirements .gp-origin')).toHaveText(inForce.map(r => `[ ${r.origin_label} ]`));
+  expect(await page.locator('#requirements [data-status="DECLARED"]').evaluateAll(rows => rows.map(r => [...r.querySelectorAll('[data-evidence]')].map(e => e.dataset.evidence))))
+    .toEqual(inForce.map(r => [r.evidence_class]));
+  await expect(page.locator('#composed-evidence')).toHaveAttribute('data-evidence', 'EXPERIMENTAL');
+
+  const answered = reply(page, '/api/transfer/injection');
+  await page.locator('#search').click();
+  const search = await (await answered).json();
+  await expect(page.locator('#candidates')).toBeVisible({ timeout: SLOW });
+  expect(search.rows.length).toBeGreaterThan(0);
+  expect(search.single_requirement_statement).toBeNull();
+  await expect(page.locator('#single-requirement-statement')).toHaveCount(0);
+  await expect(page.locator('#single-requirement-slot')).toBeEmpty();
+  await expect(page.locator('#facts-evidence')).toHaveText(search.facts_evidence_statement);
+  await expect(page.locator('#candidates [data-part="change"]')).toHaveCount(0);
+  await page.locator('#fill-stop').click();
+  await expect(page.locator('#fill-stop')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+test('a 429 is printed in the server\'s words, leaves no stale panel, and the next request works', async ({ page }) => {
+  test.setTimeout(480000);
+  const errors = watch(page);
+  await setSlot(page);
+  const pool = await (await declareShortfall(page)).json();
+  const busy = route => route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ detail: BUSY }) });
+  const ask = async () => {
+    const answered = reply(page, '/api/transfer/injection');
+    await page.locator('#search').click();
+    const sent = await (await answered).json();
+    await expect(page.locator('#candidates')).toBeVisible({ timeout: SLOW });
+    return sent;
+  };
+
+  // A search is on screen, with a candidate open and their rows in the ledger.
+  const first = await ask();
+  const own = first.ledger.map(r => r.row_id).filter(id => !pool.ledger.some(r => r.row_id === id));
+  expect(own.length).toBeGreaterThan(0);
+  for (const id of own) await expect(page.locator(`[data-ledger="${id}"]`)).toHaveCount(1);
+  await page.locator(`#candidates button.gp-name[data-player="${first.rows[0].player_id}"]`).click();
+  await expect(page.locator('#candidate-detail')).toBeVisible({ timeout: SLOW });
+
+  // Both build places are taken: the search is refused, in the server's sentence.
+  await page.route('**/api/transfer/injection', busy);
+  await page.locator('#search').click();
+  const status = page.locator('#search-status');
+  await expect(status).toHaveText('Search unavailable: ' + BUSY);
+  await expect(status).toHaveClass(/error/);
+  await expect(page.locator('#search-body')).toBeHidden();
+  await expect(page.locator('#candidates, #reference-rows, #single-requirement-statement')).toHaveCount(0);
+  await expect(page.locator('#candidate-detail')).toBeHidden();
+  await expect(page.locator('#candidate-detail')).toBeEmpty();
+  await expect(page.locator('#fill-status')).toHaveText('');
+  for (const id of own) await expect(page.locator(`[data-ledger="${id}"]`)).toHaveCount(0);
+  await expect(page.locator('[data-ledger^="candidate-"]')).toHaveCount(0);
+  await expect(page.locator('#transfer-body')).toBeVisible(); // the problem it was asked of is untouched
+  await expect(page.locator('#deficiency-statement')).toHaveText(pool.deficiency.statement);
+  await expect(page.locator('#search')).toBeEnabled();
+
+  // The next search is answered and drawn; the refusal is gone from the status line.
+  await page.unroute('**/api/transfer/injection', busy);
+  const again = await ask();
+  expect(await rowIds(page)).toEqual(listed(again.listings, 'name'));
+  await expect(status).not.toHaveClass(/error/);
+  await expect(status).not.toContainText(BUSY);
+
+  // The problem itself refused: the page says so in the same words and shows no problem.
+  await page.route('**/api/transfer/universe', busy);
+  await page.locator('#apply').click();
+  await expect(page.locator('#status')).toHaveText('Declared problem unavailable: ' + BUSY);
+  await expect(page.locator('#status')).toHaveClass(/error/);
+  await expect(page.locator('#transfer-body')).toBeHidden();
+  await expect(page.locator('#candidates')).toHaveCount(0);
+  await expect(page.locator('#apply')).toBeEnabled();
+  await page.unroute('**/api/transfer/universe', busy);
+  const set = reply(page, '/api/transfer/universe');
+  await page.locator('#apply').click();
+  const problem = await (await set).json();
+  await expect(page.locator('#transfer-body')).toBeVisible({ timeout: SLOW });
+  await expect(page.locator('#status')).toBeHidden();
+  await expect(page.locator('#deficiency-statement')).toHaveText(problem.deficiency.statement);
+  await expect(page.locator('#search')).toBeEnabled();
+  // Two refusals were sent on purpose, and nothing else went wrong.
+  expect(errors.filter(e => e.startsWith('status 429: ')).map(e => new URL(e.slice(12)).pathname)).toEqual(['/api/transfer/injection', '/api/transfer/universe']);
+  expect(errors.filter(e => !e.includes('429'))).toEqual([]);
 });
 
 test('a baseline that was not certified is drawn as incomplete, never as a squad with no XI', async ({ page }) => {

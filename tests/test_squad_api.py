@@ -875,7 +875,7 @@ def test_experimental_requirements_enter_only_through_the_declared_opt_in(client
     assert payload["experimental_inputs"] == ["left_pass_origins", "right_pass_origins"]
     assert len(payload["evidence"]["binding"]) == 2
     assert payload["baseline"]["kind"] == "SHORTFALL"  # ten rates of 1 against a minimum of 16
-    assert "largest 0.37500, sum 0.75000" in payload["baseline"]["statement"]
+    assert "largest 0.375, sum 0.75" in payload["baseline"]["statement"]
 
 
 def test_unknown_scenario_is_404_and_a_missing_corpus_is_503(client, monkeypatch):

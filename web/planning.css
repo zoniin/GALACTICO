@@ -10,6 +10,7 @@
 .gp-cert{color:var(--text)}
 .gp-state{overflow-wrap:anywhere}
 .gp-missing{color:var(--muted)}
+.gp-value{white-space:nowrap}
 .gp-evidence{margin:.6rem 0 1rem;min-width:0;overflow-wrap:anywhere}
 .gp-evidence .detail{font:11px var(--mono);color:var(--muted);margin-top:.25rem}
 .gp-warnings{list-style:none;margin:.6rem 0 1rem;padding:.1rem 0 .1rem .9rem;border-left:2px solid var(--chalk);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
@@ -20,6 +21,7 @@
 .gp-req .detail{font:11px var(--mono);color:var(--muted);margin-top:.25rem}
 .gp-req-name{font:normal 1.05rem var(--serif)}
 .gp-caption{font:11px var(--mono);color:var(--muted);line-height:2}
+.gp-origin{text-transform:uppercase}
 .gp-rail{display:block;width:100%;max-width:640px;height:auto;margin:.5rem 0 .2rem}
 .gp-rail text{font-family:var(--mono);fill:var(--muted)}
 .gp-rail .gp-tick{stroke:var(--chalk);stroke-width:1}
