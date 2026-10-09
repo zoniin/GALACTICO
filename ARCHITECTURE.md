@@ -10,8 +10,9 @@ VISION, learned role fit, embeddings and opponent utility remain research/stubs.
 ## Implemented historical decision path
 
 `api/player_lab.py` serves the frozen Player Lab and registers `api/decision_lab.py`.
-The API renders three code-native pages under `web/`; JavaScript presents server
-decisions and never computes eligibility, coverage or an objective.
+This path renders three code-native pages under `web/` (the planning path below
+adds two); JavaScript presents server decisions and never computes eligibility,
+coverage or an objective.
 
 | Module | Responsibility |
 |---|---|
@@ -50,6 +51,39 @@ vision/      calibration, detection, tracking, projection, shape
 validation/  pre-registered experiments and baselines
 api/         FastAPI over prepared state
 ```
+
+## Implemented planning path
+
+Squad Lab and Transfer Lab stand beside the historical decision path and edit none
+of it. `historical.py`, the XI solver and the xT grid are imported from, never
+changed: their bytes are hashed into published experiment results.
+
+| Module | Responsibility |
+|---|---|
+| `storage/public.py` | The one guarded reader of the public frames: hosting guard first, provider column checked, explicit files only |
+| `optimization/snapshots.py` | Pre-decision snapshot for any club and decision match or cutoff date under a named eligibility rule set; byte parity with `historical.build_snapshot` for Madrid; `TEAM_MATCHES` or `LEAGUE_MATCHES` worlds |
+| `optimization/reference.py` | League distributions of starting-XI requirement sums before a cutoff (descriptive) |
+| `optimization/squad/kernel.py` | The exact lexicographic shortfall as a linear epigraph; the same integers as `solve_xi`; conservative floor/ceil for hard statements |
+| `optimization/squad/depth.py`, `stress.py`, `brief.py` | Slot depth with attributed drops; exact k-absence stress; the role brief (inverse problem per slot) |
+| `optimization/transfers/universe.py`, `injection.py`, `retention.py` | Gated candidate universe; exact forced-inclusion re-solves; the break-even carry-over fraction |
+| `domain/evidence.py` | The one mapping from shipped vocabularies to `EvidenceClass`, and composition by the weakest |
+| `domain/verdicts.py` | One typed record per preregistered claim; a LOCAL-tier record can label, never gate. Ships empty |
+| `domain/thesis.py` | Walks any payload for rating-like keys by exact key |
+| `api/runtime.py` | How every new request runs: error mapping, server-owned budgets, result cache with single-flight, the boundary check `finalize`, NaN-free responses |
+| `api/shell.py` | What every new page shows: navigation, the not-measured list, evidence and verdict payloads, the copy guard `scan_labels` |
+| `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem and the two lab routers |
+
+Every new response passes `runtime.finalize`: the provider set at any depth of the
+payload must be exactly the hosted one, and no key may read like a rating. Every
+served label passes `shell.scan_labels`: a word such as "best", "weakness" or
+"forecast" may appear only inside a named denial. Product code imports nothing
+from `galactico.validation` or `experiments`; `tests/test_research_firewall.py`
+parses the imports.
+
+`GET /api/evidence/verdicts` returns the registry. `/squad` and `/transfer` and
+their endpoints are listed in the routers. The frontend computes nothing about
+football; `web/labs-shared.js` and `web/planning.js` are render functions over
+server payloads.
 
 ## The provenance core
 

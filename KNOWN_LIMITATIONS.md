@@ -122,9 +122,119 @@ shipped estimator here. This is a limitation of the current evidence/model, not 
 proof that all possible data regimes can never measure them. Cross-provider
 pooling remains guarded; the Bridge remains unvalidated.
 
+## Squad Lab and Transfer Lab describe a gated model, not a squad
+
+- Every number is exact arithmetic on declared inputs: a role-slot template,
+  requirement minima, an eligibility rule set and the evidence gate. None says
+  whom to keep, sell or sign, and nothing orders players by merit.
+- Planning surfaces use the **progression requirement only** by default. The two
+  side pass-origin requirements are EXPERIMENTAL and enter through an explicit
+  opt-in. Finishing, defending, goalkeeping, physical profile, character, fee,
+  wages, contracts and availability are not in the data. A player who mainly
+  finishes, defends or keeps goal contributes little to a passing requirement by
+  construction: removing Cristiano Ronaldo leaves the declared shortfall where it
+  was. That is a statement about what the model contains.
+- Depth, tight slot groups and "leaves no fieldable XI" are properties of the
+  gated candidate set. Most of Madrid's thinness is produced by the 900-minute
+  gate and the manual eligibility rules: at the end of 2017/18 it takes three
+  absences inside one slot group before no XI can be fielded, and two after the
+  gate. Of the 171 pairs of absences, 6 leave no XI, and every one of the six is
+  attributed to the gate. Omitted players are named beside every count. Goalkeepers are exempt from the gate by the shipped rule, so a keeper
+  with 90 minutes counts as depth.
+- Outside Real Madrid, eligibility is the provider's four-class position code,
+  labelled unreviewed. It does not tell a left back from a right back. Depth under
+  it mostly restates the position code.
+- There are no absence likelihoods. Stress is a scenario table over sets of
+  players, not a risk estimate. Stress over resampled worlds is not implemented.
+- A role brief lists what an addition at a slot would have to supply for the
+  declared minima to become reachable. It is the explanation of an exact solve,
+  in conservative integer arithmetic; a raw-boundary case can read as not met.
+- **Whether a recorded rate repeats after a club change has not been tested.**
+  Candidate values are rates recorded at another club, carried over unchanged.
+  The break-even carry-over fraction says how much of those rates a declared
+  conclusion can lose; it predicts nothing. Seven players in the five-league
+  corpus have 900 minutes at each of two clubs, none involving Real Madrid.
+- Candidates from another league are valued on the destination league's surface
+  and are not adjusted for league strength. Nothing in one season of five
+  separate leagues identifies such an adjustment.
+- A player whose latest club is outside the five leagues is invisible to the
+  universe, and anyone with a prior appearance for the destination club is left
+  out of it, including the few who had already moved on.
+- Screening hundreds of candidates and reading off the most favourable result
+  selects estimation noise ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
+  The response states how many were screened and shows a pool-median reference;
+  no correction is applied.
+- On the flagship the squad meets the default minimum with or without Cristiano
+  Ronaldo, and the league's 75th and 90th percentiles of starting-XI progression
+  (1.953, 2.378) lie below Madrid's own median (3.006). So no candidate can lower
+  anything until a minimum is raised by hand, and the page cannot yet say what
+  the squad attains: there is no attainable-range tool. A user tries a value and
+  reads the answer.
+- With the experimental opt-in, both side requirements are in force together.
+  One cannot be declared without the other.
+- Whether a set of absences that leaves no XI is attributed to the gate or to
+  the eligibility rules is decided by counting the players the gate removed
+  from the short slot group, not by an exact cover. It agreed with an exact
+  assignment check on 160 real cases and could be wrong on a contrived squad.
+- Transfer Lab fills the break-even column one candidate at a time. A pool of
+  several hundred (another league included) takes tens of seconds. Superseded
+  requests are dropped by the page, not cancelled on the server.
+- The 404, 422, 429 and 503 states of the two pages are tested at the API and
+  not in the browser. A real deadline was never reached on the shipped
+  scenarios; those states are tested by rewriting replies.
+
+## Drafted, not registered, not run
+
+Five protocols are written under
+[`docs/research/north-star/protocol-drafts/`](docs/research/north-star/README.md):
+new shot and defensive-location candidates (E-09), whether where a team concedes
+is a property of the defender (E-10), provider agreement on the 100 double-coded
+matches (E-11), whether rates survive a club change (E-12), and declared-risk
+selection against selection optimism (E-13). Each was written by one designer and
+was never adversarially reviewed or audited. None has been frozen, none has a
+pipeline, and no outcome has been computed. The verdict registry is empty, so
+every badge on a planning page reads RECORD ONLY · NOT TESTED.
+
+## Found by the October reconnaissance and not repaired
+
+These need the owner's decision; none was changed.
+
+- **StatsBomb logo.** Clause 1.4 of the Public Data User Agreement requires the
+  StatsBomb logo on published analysis formed from its data. The Stage 1C report
+  and E-01 are public without it.
+- **Three provider postures are not supported by the terms as read on 9 October
+  2026.** FPL is listed hostable, and the Premier League terms prohibit building a
+  database from the site. ClubElo is listed public "with credit" and publishes no
+  licence. football-data.co.uk is planned for validation and its owner excludes
+  automated and AI use. No adapter exists for any of them.
+- StatsBomb delisted 272 of 306 Bundesliga 2015/16 matches on 26 May 2026. The
+  files still download. The four-league posture here is unaffected; a fetch that
+  enumerated the events directory instead of the match index would ingest them.
+- All 26 goalkeepers in the Player Lab bundle carry the two pass-origin style
+  constructs, although both declare outfield players as their valid context.
+- The legacy `REGISTRY` in `galactico/domain/metrics.py` still states the
+  superseded on-ball-action denominators and names providers that match no
+  adapter. Nothing in production reads it.
+- The published rank-correlation figures rank ties in sort order, so they depend
+  on row order (about sixty players sit at exactly zero chance creation in every
+  league). Average ranks are implemented behind `ties="average"`; the default
+  reproduces the published figures and warns.
+- The evidence ladder of ADR-0001 is composed on the planning surfaces only.
+  Player, Match and XI Lab still carry their own strings.
+- Three xT turnover recipes are live (Stage 1B, Player Lab, XI Lab). Surfaces
+  differ by up to 0.004 per cell. They were not unified: doing so moves shipped
+  numbers.
+- Lineup minutes are nominal on a flat 90-minute clock; 256 starters sent off
+  across the five leagues are credited 90 minutes or more.
+- The `ROBUST` versus `ROBUST_WITH_SHIFT` boundary is written nowhere: `width`
+  (+10%) was labelled robust and `half_space_share` (−14%) robust with shift.
+- The committed `RELIABILITY_CURVE` values are the Wyscout column of the Stage 1B
+  report. No committed script produces them.
+
 ## Product scope
 
 No LLM invents a number or post-hoc tactical explanation. The frontend renders
-server-computed assignments, constraints, deficits and uncertainty. Full Opponent
-and Transfer Labs, Pareto alternatives, learned embeddings, LIVE and VISION are
-not implemented. VISION's intended target remains team shape, not player ratings.
+server-computed assignments, constraints, deficits and uncertainty. Opponent Lab,
+a Director's desk, certified Pareto frontiers, declared-risk XI modes, minimal
+conflict sets, learned embeddings, LIVE and VISION are not implemented. VISION's
+intended target remains team shape, not player ratings.

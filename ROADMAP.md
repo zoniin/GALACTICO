@@ -73,6 +73,34 @@ The 12-match development diagnostic averages **6.00/11** actual starters, losing
 to the same-eligibility prior-minutes baseline at **6.83/11**. This is a thinking
 aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-requirements.md).
 
+## Squad Lab and Transfer Lab: exact tools implemented, nothing validated
+
+`/squad` and `/transfer` open a planning snapshot: Real Madrid at the end of the
+2017/18 league season by default, any league club under the provider-position
+rule. They state what follows from arithmetic on a declared, gated model and
+nothing else. See [ADR-0020 to ADR-0023](DECISIONS.md).
+
+- One exact kernel for the declared shortfall, equal to the XI solver's integers
+  on real data at 9-25 ms per value against 130-3,000 ms. Snapshots for any club
+  and cutoff date with byte parity for Madrid. League reference distributions of
+  starting-XI sums.
+- Slot depth with every drop attributed to the gate, the eligibility rule or a
+  requirement, and the omitted players named.
+- Absence stress for sets of one, two or (on confirmation) three players: worst
+  sets with ties, sets that leave no fieldable XI and their minimal cores.
+- The role brief: what an addition at a declared slot would have to supply.
+- A gated candidate universe, exact forced-inclusion re-solves with possible and
+  necessary membership, and the break-even carry-over fraction.
+- Planning defaults to the progression requirement only; the side pass-origin
+  requirements are an explicit experimental opt-in. Evidence classes are composed
+  from the domain ladder and shown.
+- Independent exhaustive oracles for every tool, pinned real-data regressions,
+  corpus-free API tests, a copy guard on every served label and browser tests.
+
+Not established by any of it: that the declared minima are the right identity,
+that a requirement sum says anything about results, or that a recorded rate
+repeats after a move. The transfer tools carry rates over unchanged and say so.
+
 ## Partially complete / research-only
 
 - Optimizer's curse quantified in a synthetic requirement model; oracle shrinkage
@@ -80,13 +108,21 @@ aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-re
   ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
 - Opponent foundation: descriptive match/team aggregates exist; no validated
   opponent-to-requirement mapping or conditioned solver is implemented.
-- Transfer foundation: candidate injection and re-solve exist; style similarity,
-  functional replacement and marginal system value are not validated products.
+- Five protocols are **drafted, not frozen and not run**
+  ([drafts](docs/research/north-star/README.md)): E-09 shot and defensive-location
+  candidates, E-10 conceded-territory persistence, E-11 provider agreement on the
+  100 double-coded matches, E-12 rates across a club change, E-13 declared-risk
+  selection. Each needs adversarial review and an audit before it is registered.
+  The verdict registry is empty.
 
 ## Not started or not validated
 
-- Certified Pareto-frontier enumeration, robust/CVaR/minimax-regret modes, continuity utility,
-  role-transition value models and automatic formation identification.
+- Attainable ranges per requirement (what this squad can reach, which Transfer
+  Lab needs before it can suggest a minimum worth declaring), certified
+  Pareto-frontier enumeration, declared-risk (tail, minimax-regret) modes,
+  certified minimal conflict sets, continuity utility, role-transition value models
+  and automatic formation identification. No specification exists for the XI-level
+  tools yet; the squad kernel is the place to build them.
 - External lineup-utility validation, team-outcome association and forced-change
   quasi-experiments. No backtest observes the unplayed counterfactual XI.
 - E-07's first observed-opening forecast protocol was executed but remained
@@ -99,8 +135,12 @@ aid, not evidence of superior selection. See [E-06](docs/research/E-06-lineup-re
   physical metrics may be fabricated from aggregate inputs.
 - Bridge estimation and paired-corpus validation; candidate sources require a
   fresh coverage/licensing check before use.
-- Full Opponent/Transfer Labs, learned embeddings, squad construction and VISION.
+- Opponent Lab, a Director's desk that chains the labs, learned embeddings and
+  VISION. A tag sidecar for the Wyscout detail the neutral schema drops (body
+  part, duel outcome, cards, own goals) is specified and not built; the shot and
+  opponent experiments need it.
 
 The next research gates are identification and out-of-sample decision validation,
-not adding more tactical labels. Exact continuation state lives in
-[ASTRA-CHECKPOINT](docs/ASTRA-CHECKPOINT.md).
+not adding more tactical labels: freeze and run E-11 before E-12, and E-09 and
+E-10 before any shot or opponent quantity reaches a page. Exact continuation state
+lives in [ASTRA-CHECKPOINT](docs/ASTRA-CHECKPOINT.md).

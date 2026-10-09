@@ -2,7 +2,32 @@
 
 ## CURRENT COMMIT
 
-20 September: progression-under-hard-floors core/API is committed as `d99892b`;
+9 October: the Squad Lab / Transfer Lab build is committed on the local branch
+`north-star`, above `feb9f8b` on `main`. **Nothing is pushed.** The
+build ran unattended and no push was requested, and a push matters here: commit
+order is how a preregistration is proved. Review the branch, then push it or
+merge it. `git log --oneline feb9f8b..north-star` lists it.
+
+1,072 Python tests passed and 1 skipped (the tag sidecar is not built); 33
+Playwright tests passed; Ruff and the licence guard clean; desktop and 390 px
+screenshots read. The CI workflow was changed (the browser job ingests five
+leagues and runs two more specs) and that change has never run on GitHub Actions.
+
+Commits, oldest first: `d7e9acc` e2e port from the environment · `f581c56` guards
+that could not fail · `9a7da06` measurement gates that failed open · `c79a3ef`
+Match Lab and XI Lab defects · `850cba1` guarded public loader, one evidence
+mapping, the verdict registry · `cfb36be` the exact kernel, any-club snapshots,
+league references · `ac1d43a` depth, absence stress, role brief · `1d6f7f1`
+candidate universe, exact injection, break-even carry-over · `4668b2a` lab
+runtime and page shell · `e96b81c` ADR-0018 to 0023, M-06, protocol drafts ·
+`36150fb` tool sentences by label · `a8ffe3d` planning API and browser kit ·
+`d9bf28f` Squad Lab and Transfer Lab · then screenshots and documentation.
+
+This build ran in a fresh clone on a second Windows machine with no `uv` and no
+`gh`: `py -3.12 -m venv .venv`, then `pip install -e ".[dev,api]"`. The commands
+below still read `uv run`; substitute `.venv\Scripts\python.exe -m`.
+
+Earlier state, 20 September: progression-under-hard-floors core/API is committed as `d99892b`;
 browser/docs release is HEAD after this update. All implementation is integrated:
 374 Python tests and 13 Playwright tests passed, Ruff/licensing clean, final
 desktop/mobile screenshots inspected. Verify final push/CI using commands below.
@@ -102,20 +127,52 @@ No credentials or proprietary data are needed or committed.
   Screenshots 15/16 and refreshed 11/12 manually inspected. Numeric-overflow
   request validation now returns 422, not a serialization failure.
 
+- 9 October, guards. The test behind "no overall rating" had never run in CI,
+  and six more guards failed open. Each was repaired from a failing test
+  ([M-06](research/M-06-a-guard-that-never-runs.md)). The 864 published figures of
+  the Player Lab bundle are bit-identical after the measurement repairs.
+- 9 October, engine. One exact kernel equal to the XI solver's integers; snapshots
+  for any club and cutoff date with byte parity for Madrid; league references;
+  slot depth; absence stress; the role brief; a gated candidate universe; exact
+  forced-inclusion injection; the break-even carry-over fraction. Independent
+  oracles for each. The frozen files were not edited.
+- 9 October, product. `/squad` and `/transfer` with their routers, a shared
+  runtime (budgets, cache, boundary check) and shell (navigation, evidence and
+  verdict payloads, copy guard). Planning surfaces default to progression only;
+  the side pass-origin requirements are an explicit experimental opt-in. Each
+  page was reviewed in a browser by an agent that did not build it; fourteen
+  defects were repaired.
+- 9 October, record. ADR-0018 to ADR-0023. Five protocol **drafts** (E-09 to
+  E-13) under `docs/research/north-star/protocol-drafts/`.
+
 ## CURRENT STATE MAP
 
 - VERIFIED COMPLETE: frozen Player Lab; historical Match Lab implementation;
-  conditional XI engine/UI; exactness/temporal/browser checks; licensing guard.
-- PARTIALLY COMPLETE: decision usefulness; opponent/transfer foundations.
-- STALE DOCUMENTATION: no known release-state discrepancy after the final audit.
-- UNVERIFIED: external human acceptance, historical fitness, learned utility.
+  conditional XI engine/UI; exactness/temporal/browser checks; licensing guard;
+  the exact squad and transfer tools and their two pages, as arithmetic.
+- PARTIALLY COMPLETE: decision usefulness; the opponent foundation.
+- DRAFTED, NOT REGISTERED, NOT RUN: E-09 to E-13. The design council that wrote
+  them was cut short before adversarial review, reconciliation and audit. The
+  verdict registry is empty.
+- SPECIFIED, NOT BUILT: the tag sidecar (body part, duel outcome, cards, own
+  goals), which E-09 and E-10 need; Opponent Lab; a Director's desk.
+- NOT SPECIFIED: certified XI frontier, declared-risk modes, minimal conflict
+  sets. The XI-level design was lost when the council stopped; the squad kernel
+  is where to build them.
+- UNVERIFIED: external human acceptance, historical fitness, learned utility,
+  whether a rate repeats after a club change, the changed CI workflow.
 - BROKEN: no unresolved release defect known.
-- NOT STARTED: full Opponent/Transfer, Pareto/robust, LIVE/Bridge/VISION products.
+- OWNER DECISIONS OPEN: see OPEN BLOCKERS.
+- NOT STARTED: LIVE/Bridge/VISION products.
 
 ## IN PROGRESS
 
-No unfinished implementation. **374 local Python tests and 13 Playwright tests**
-passed on 20 September, plus Ruff/licensing. All recovery/council/adversarial results
+No unfinished implementation on `north-star`. **1,072 local Python tests and 33
+Playwright tests** passed on 9 October, plus Ruff/licensing. Push and CI are the
+remaining handoff checks. Do not reopen E-07 or E-08.
+
+The 20 September release: **374 local Python tests and 13 Playwright tests**
+passed, plus Ruff/licensing. All recovery/council/adversarial results
 are integrated. Final push/CI is the only remaining handoff check if resuming
 before it completes; do not rebuild the feature or reopen E-08.
 
@@ -154,9 +211,24 @@ One upstream TestClient/httpx deprecation warning remains; it is not a test fail
 
 ## OPEN BLOCKERS
 
-None requiring user authority. External human sign-off is not claimed.
+External human sign-off is not claimed.
 Creation, rest defense and keeper quality are unmeasured in XI Lab: an explicit
 limit on the decision claim, not missing implementation disguised as a result.
+
+Owner decisions the 9 October reconnaissance left open. None was changed; each is
+described in KNOWN_LIMITATIONS under "Found by the October reconnaissance":
+
+1. Push or merge `north-star`, and watch the first CI run of the changed workflow.
+2. The StatsBomb logo that clause 1.4 requires on the two published notes formed
+   from its data (Stage 1C, E-01).
+3. The FPL, ClubElo and football-data.co.uk postures in `providers/base.py`, which
+   the terms read on 9 October do not support. No adapter exists for any of them.
+4. Whether goalkeepers should carry the two pass-origin style constructs (26 do).
+5. Whether the published rank correlations move to average ranks for ties. The
+   implementation is behind `ties="average"`; switching the default changes
+   published figures and needs its own decision record.
+6. Which of the five drafted protocols to review, freeze and run, and in what
+   order. E-11 gates E-12. E-09 and E-10 need the tag sidecar first.
 
 ## EXACT NEXT COMMANDS
 
@@ -165,18 +237,22 @@ To run the committed product from the prepared workspace:
 ```powershell
 uv run ruff check galactico tests
 uv run pytest -q
-npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js
+npx playwright test e2e/smoke.spec.js e2e/labs.spec.js e2e/alternatives.spec.js e2e/tradeoff.spec.js e2e/repairs.spec.js e2e/squad.spec.js e2e/transfer.spec.js
 uv run python scripts/check_licensing.py
 git diff --check
 git status --short
-git log origin/main..HEAD
+git log --oneline origin/main..north-star
 gh run list --branch main --limit 3
 uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090
 ```
 
-Open `/`, `/match?id=2565907` or `/xi` on that server. Check whether a local server
-already listens on port 8090 before starting another. For a fresh checkout,
-follow README's fetch/prepare steps. Do not redownload/rebuild merely to resume.
+Open `/`, `/match?id=2565907`, `/xi`, `/squad` or `/transfer` on that server. Check
+whether a local server already listens on port 8090 before starting another. For a
+fresh checkout, follow README's fetch/prepare steps; Transfer Lab needs
+`scripts/prepare_planning.py` as well. Do not redownload/rebuild merely to resume.
+Set `GALACTICO_E2E_PORT` to run a browser spec on a private port. Running
+`e2e/labs.spec.js` or `e2e/screenshots.spec.js` rewrites tracked screenshots:
+`git restore docs/screenshots` unless the change is intended and inspected.
 
 Next research reproductions (not unfinished release work):
 
@@ -193,6 +269,17 @@ England requires its public corpus. New learned utility or role-transition model
 need a protocol before confirmatory evaluation; do not tune to the 12-match window.
 
 ## EXACT NEXT FILES
+
+For the planning work, in the order to read them:
+`docs/research/north-star/ROOT-DECISIONS.md` (the rules the build ran under; its
+sections on tools that were not built are plans), `DECISIONS.md` ADR-0018 to 0023,
+`galactico/optimization/squad/kernel.py` (every new exact tool goes through it),
+`galactico/api/runtime.py` and `shell.py` (every new route and page goes through
+them), `galactico/api/planning.py`, then the two routers and pages.
+`docs/research/north-star/protocol-drafts/`: five drafts and how a draft becomes a
+protocol. Nothing there may be cited as a result or wired to a page.
+`galactico/domain/verdicts.py`: ships empty. Registering a protocol adds a record
+with its hashes; a LOCAL-tier record can label and can never gate.
 
 `experiments/preregistered/E-08-partial-history/analysis.md` and results.json:
 completed and independently reviewed; do not rerun to resume or tune after the null.
@@ -223,6 +310,16 @@ experiment only after a reliability/meaning audit. No automatic opponent adjustm
 
 ## AGENT RESULTS NOT YET INTEGRATED
 
-None. E-08, equivalent-XI and hard-floor query council/core/API/UI/oracle work is
+From the 9 October build, held by the owner outside the repository because they
+are long, partly raw and include counts derived from the local-only corpus: eight
+subsystem maps, six method reports, two structure-only corpus audits, an
+independent critique, and full specifications for the squad and transfer tools
+(built), the data and API layers (built except the tag sidecar), and the matchday
+pages (the shell is built; Opponent Lab and the XI additions are not). The
+decisions those documents led to are in `docs/research/north-star/` and
+`DECISIONS.md`; the specifications themselves are not needed to work on what
+shipped.
+
+Before that: none. E-08, equivalent-XI and hard-floor query council/core/API/UI/oracle work is
 integrated. Recovery agents' work and fresh release review are complete. Root owns
 the final push/CI check; no agent retains an exclusive unfinished implementation.

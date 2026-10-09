@@ -6,8 +6,48 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-The progression-under-hard-floors release passed **374 local Python tests** and
-**13 Playwright tests** on 20 September. Ruff and the licensing guard passed.
+The Squad Lab and Transfer Lab build passed **1,072 local Python tests** (one more
+skips: the tag sidecar it needs is not built) and **33 Playwright tests** on
+9 October, with the five-league public corpus present. Ruff and the licensing
+guard passed. It lives on the `north-star` branch and **has not run on GitHub
+Actions**: the browser job now ingests all five leagues, and that change is
+untested there.
+
+What the new tests establish, and what they do not:
+
+- **Exactness.** Each tool has an oracle that shares no code with it: exhaustive
+  enumeration in exact Fractions over every assignment, absence set, need vector
+  or carry-over grid value on seeded instances, with pinned tables on the Madrid
+  snapshots for the kernel, absence stress and the role brief. The kernel returns
+  the XI solver's integers on the baseline, all sixteen single removals in both
+  templates and all 120 pairs of the shipped scenario. This is arithmetic. It
+  says nothing about football.
+- **Temporal integrity.** A snapshot built for a bare cutoff date is unchanged
+  when later and same-day matches are poisoned, and is byte-equal to the frozen
+  builder for both shipped Madrid scenarios.
+- **The guards run.** The rating-key walker and the provider check run on every
+  new response at the boundary, not only in tests; a copy guard scans every
+  served label; the research firewall parses imports; preregistration order is
+  read from git. See [M-06](docs/research/M-06-a-guard-that-never-runs.md).
+- **The pages.** Browser tests compare what is drawn with what the server sent,
+  hold replies to prove a stale one changes nothing, and check gold and 390 px
+  overflow. Desktop and 390 px screenshots were read after every change. An
+  independent reviewer used each page on the real corpus and found fourteen
+  defects that the builders' own tests had passed, among them a deadline printed
+  as a finding and a count never taken drawn as zero. Each was repaired from a
+  failing test.
+- **Not established.** That the declared minima describe a style, that a
+  requirement sum relates to results, that provider-position eligibility says
+  where anyone can play, or that a recorded rate repeats after a move. No
+  experiment was run in this build: the five new protocols are
+  [drafts](docs/research/north-star/README.md), unreviewed and unregistered.
+
+Reviewed by agents only. No football analyst and no statistician outside the
+project has looked at these pages or these protocols.
+
+The preceding progression-under-hard-floors release passed **374 local Python
+tests** and **13 Playwright tests** on 20 September. Ruff and the licensing guard
+passed.
 Independent exhaustive enumeration checks 36 randomized assignments plus exact
 rounding boundaries, tightening-floor monotonicity, locks and missing measurements.
 A fresh agent independently ran 37 core/oracle tests and found no remaining release
@@ -56,6 +96,8 @@ This is recorded run evidence, not a promise that future test counts stay fixed.
 | XI correctness | Independent exhaustive oracle on tiny instances; eligibility, uniqueness, ties, locks and infeasibility cases | That the objective measures good football |
 | Temporal integrity | Future and same-day data poisoning leaves historical inputs unchanged | Verified historical fitness or suspension availability |
 | XI uncertainty | Joint match-world recomputation and necessary/possible membership across tied optima | A probability of being the best XI; risk-robust or optimism-corrected utility |
+| Squad tools | Independent enumeration oracles; pinned Madrid tables; tests that a deadline or an undecided solve never becomes a value, a zero or a negative finding | That thin cover in the gated model is thin cover in the squad; any absence likelihood |
+| Transfer tools | Oracle-tested forced-inclusion and break-even arithmetic; separate world namespaces per league; ordering-policy tests | That a rate recorded at one club repeats at another; comparability across leagues |
 | Product | Playwright interactions and manually inspected desktop/mobile screenshots | Football usefulness from HTTP success alone |
 
 Player Lab's implementation is frozen after the shared-world and gate repairs
