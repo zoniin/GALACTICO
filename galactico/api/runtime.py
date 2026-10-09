@@ -1,20 +1,22 @@
 """How every new request runs: errors, budgets, the result cache, the boundary check.
 
-Claim: a new lab endpoint maps its failures to one set of status codes, spends at
-most a server-owned wall-clock budget, computes an identical in-flight request
-once, runs at most two long computations at a time, and returns a response whose
-provenance names the hosted providers and whose keys carry no rating. Each rule
-has one home, here, so five routers cannot hold five versions of it.
+Claim: a new lab endpoint maps its failures to one set of status codes, gives its
+tools at most a server-owned wall-clock budget, computes an identical in-flight
+request once, runs at most two long computations at a time, and returns a response
+whose provenance names the hosted providers, whose keys carry no rating and whose
+served strings carry no banned word outside a named denial. Each rule has one home,
+here, so five routers cannot hold five versions of it.
 
 What a budget is: wall-clock seconds for the whole request, checked between
 solves. It starts when the handler starts, so reading the corpus and waiting for
-a place are inside it; neither is interrupted by it. It is not the per-solve
-deterministic limit a tool records in its certificate. A request that reaches its
-budget is a 200 that says what was not evaluated; it is never called complete and
-never cached.
+a place are inside it; neither is interrupted by it, so a request can last its
+budget plus one build. It is not the per-solve deterministic limit a tool records
+in its certificate. A request that reaches its budget is a 200 that says what was
+not evaluated; it is never called complete and never cached.
 
-What ``finalize`` checks: the provider set and the key names. It is a guard on
-the envelope, not evidence about the numbers inside it. A violation is a fault of
+What ``finalize`` checks: the provider set, the key names and the words of every
+served string (``domain.labels``). It is a guard on the envelope, not evidence
+about the numbers inside it. A violation is a fault of
 the server and is a 500: ``BoundaryViolation`` passes through ``lab_errors``
 untouched, although it is a ``ValueError``.
 
@@ -47,7 +49,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, ValidationError
 
-from ..domain import thesis, verdicts
+from ..domain import labels, thesis, verdicts
 from . import decision_lab
 from .decision_lab import DecisionRoute
 
@@ -494,12 +496,20 @@ def finalize(payload: dict, *, allow_keys: Collection[str] = ()) -> dict:
     (1) ``payload["provenance"]["providers"]`` is exactly the hosted provider set, and
     no ``providers`` or ``provider`` key at any depth names anyone else.
     (2) No key anywhere is a banned word; ``allow_keys`` names exempt paths
-    (``thesis.banned_key_paths`` grammar). Either failure is a ``BoundaryViolation``.
+    (``thesis.banned_key_paths`` grammar).
+    (3) No served string, at any depth outside provenance, contains a word the copy guard
+    bans outside a named denial (``shell.scan_labels``). The guard used to run only in the
+    tests of the replies they asked for; a label nobody asked for was never read.
+    Any failure is a ``BoundaryViolation``, which names the path and the word and never
+    the sentence around it.
     """
     _require_hosted_providers(payload)
     found = thesis.banned_key_paths(payload, allow=allow_keys)
     if found:
         raise BoundaryViolation(f"banned keys in response: {found}")
+    found_labels = labels.scan_labels(payload, keys=False)
+    if found_labels:
+        raise BoundaryViolation(f"banned words in served labels: {found_labels[:5]}")
     return payload
 
 

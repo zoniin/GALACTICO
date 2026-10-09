@@ -22,7 +22,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from galactico.api import decision_lab, runtime
-from galactico.domain import verdicts
+from galactico.domain import labels, verdicts
 from galactico.validation.digests import lf_sha256_text
 
 
@@ -444,6 +444,35 @@ def test_finalize_refuses_a_rating_key_at_any_depth(payload):
     assert runtime.HOSTED_PROVIDERS == ("pappalardo",)
     with pytest.raises(runtime.BoundaryViolation, match="banned keys"):
         runtime.finalize({**payload, "provenance": {"providers": ["pappalardo"]}})
+
+
+@pytest.mark.parametrize(("planted", "path", "word"), [
+    ({"claim": "The best eleven of this squad."}, "claim", "best"),
+    ({"rows": [{"note": {"text": "Ranked by the model, nothing more."}}]},
+     "rows[0].note.text", "ranked"),
+    ({"warnings": ["Clean.", "A FORECAST of his rates."]}, "warnings[1]", "forecast"),
+])
+def test_finalize_refuses_a_banned_word_in_a_served_label_at_any_depth(planted, path, word):
+    # The copy guard used to run only in the tests of the replies they requested (M-06).
+    with pytest.raises(runtime.BoundaryViolation, match="served labels") as caught:
+        runtime.finalize(_envelope(**planted))
+    message = str(caught.value)
+    assert f"{path}: {word}" in message
+    # It names the path and the word, never the sentence around it.
+    assert "eleven" not in message and "nothing more" not in message and "rates" not in message
+
+
+def test_the_label_guard_at_the_boundary_reads_values_and_leaves_keys_to_the_key_walker():
+    # A named denial passes; lineage under provenance is not a label; an exempted key is
+    # judged once, by the key walker's own exemption, and not a second time as a label.
+    payload = _envelope(
+        non_claim="It is not a forecast, and there is no overall rating.",
+        teams=[{"home_score": 2, "score": 2}],
+        universe={"provenance": {"providers": ["pappalardo"], "tie_policy": "best bound"}},
+    )
+    assert runtime.finalize(payload, allow_keys=("teams[].score",)) is payload
+    assert labels.scan_labels({"score": "fine", "label": "top"}, keys=False) == ["label: top"]
+    assert labels.scan_labels({"score": "fine", "label": "top"}) == ["score: score", "label: top"]
 
 
 def test_respond_is_strict_json_and_names_the_cache_outcome():
