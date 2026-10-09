@@ -14,15 +14,21 @@ Four checks:
 4. No credential-shaped strings in tracked text.
 
 Exit code 1 on any violation. Run with ``--staged`` to check only staged files,
-which is what the pre-commit hook uses.
+which is what the pre-commit hook uses. ``--staged`` judges the staged blob, not
+the working copy: the two can differ, and only the blob is committed.
+
+Exit code 2 when the guard could not look at all: no git, or not at the root of
+a git work tree. That used to print "nothing to check" and pass.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -30,7 +36,8 @@ REPO = Path(__file__).resolve().parent.parent
 MAX_BYTES = 512 * 1024
 
 DATA_SUFFIXES = {".parquet", ".duckdb", ".db", ".jsonl", ".csv", ".feather", ".arrow",
-                 ".h5", ".hdf5", ".npz", ".npy", ".pkl", ".mp4", ".mkv", ".avi"}
+                 ".h5", ".hdf5", ".npz", ".npy", ".pkl", ".mp4", ".mkv", ".avi",
+                 ".tsv", ".gz", ".zip", ".xlsx", ".sqlite", ".pickle", ".ipynb"}
 
 FIXTURE_DIRS = {"tests/fixtures", "docs/screenshots"}
 
@@ -61,13 +68,30 @@ PROVIDER_FINGERPRINTS = [
 BULK_RECORD_THRESHOLD = 200
 
 
-def tracked_files(staged_only: bool) -> list[Path]:
-    args = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"] if staged_only \
-        else ["git", "ls-files"]
+class GuardError(RuntimeError):
+    """The guard could not look. That is a failure, never a pass."""
+
+
+def git(*args: str) -> bytes:
     try:
-        out = subprocess.run(args, cwd=REPO, capture_output=True, text=True, check=True).stdout
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        return []
+        return subprocess.run(["git", *args], cwd=REPO, capture_output=True, check=True).stdout
+    except FileNotFoundError as error:
+        raise GuardError("git is not installed or not on PATH") from error
+    except subprocess.CalledProcessError as error:
+        reason = error.stderr.decode("utf-8", errors="replace").strip()
+        raise GuardError(reason or f"git {args[0]} failed") from error
+
+
+def tracked_files(staged_only: bool) -> list[Path]:
+    # A tree exported into some other repository is inside a work tree, and git
+    # lists none of its files. Only the root of our own work tree is checkable.
+    top = git("rev-parse", "--show-toplevel").decode("utf-8", errors="replace").strip()
+    if not top or not os.path.samefile(top, REPO):
+        raise GuardError(f"{REPO} is not the root of a git work tree")
+    # R: a rename stages a path as surely as an add does.
+    args = ["diff", "--cached", "--name-only", "--diff-filter=ACMR"] if staged_only \
+        else ["ls-files"]
+    out = git(*args).decode("utf-8", errors="replace")
     return [REPO / line for line in out.splitlines() if line.strip()]
 
 
@@ -79,10 +103,22 @@ def in_fixtures(rel: str) -> bool:
     return any(rel.startswith(d + "/") for d in FIXTURE_DIRS)
 
 
-def check(paths: list[Path]) -> list[str]:
+def working_copy(path: Path) -> bytes | None:
+    return path.read_bytes() if path.is_file() else None
+
+
+def staged_blob(path: Path) -> bytes | None:
+    """What will be committed. The working copy may have been edited since it was
+    staged, or deleted, and neither changes what the commit contains."""
+    return git("show", f":0:{relative(path)}")
+
+
+def check(paths: list[Path],
+          read: Callable[[Path], bytes | None] = working_copy) -> list[str]:
     problems: list[str] = []
     for path in paths:
-        if not path.is_file():
+        content = read(path)
+        if content is None:
             continue
         rel = relative(path)
 
@@ -96,15 +132,12 @@ def check(paths: list[Path]) -> list[str]:
                 f"gitignored cache; only tiny fixtures under tests/fixtures/ may be committed"
             )
 
-        size = path.stat().st_size
+        size = len(content)
         if size > MAX_BYTES and not in_fixtures(rel):
             problems.append(f"{rel}: {size // 1024} KB exceeds the {MAX_BYTES // 1024} KB ceiling")
 
         if path.suffix.lower() in TEXT_SUFFIXES and size <= MAX_BYTES:
-            try:
-                text = path.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                continue
+            text = content.decode("utf-8", errors="ignore")
             if rel.endswith(".env.example") or rel == "scripts/check_licensing.py":
                 continue
             for pattern, label in CREDENTIAL_PATTERNS:
@@ -127,9 +160,10 @@ def check(paths: list[Path]) -> list[str]:
                             f"{rel}: {records} record keys — this looks like a data dump"
                         )
 
-        if rel == ".env" or rel.startswith(".env."):
-            if not rel.endswith(".example"):
-                problems.append(f"{rel}: environment files must not be committed")
+        # By file name, so an .env one directory down is the same mistake.
+        name = rel.rsplit("/", 1)[-1]
+        if (name == ".env" or name.startswith(".env.")) and not name.endswith(".example"):
+            problems.append(f"{rel}: environment files must not be committed")
 
     return problems
 
@@ -139,12 +173,16 @@ def main() -> int:
     parser.add_argument("--staged", action="store_true", help="check staged files only")
     args = parser.parse_args()
 
-    paths = tracked_files(args.staged)
-    if not paths:
-        print("licensing: nothing to check")
-        return 0
+    try:
+        paths = tracked_files(args.staged)
+        if not paths:
+            print("licensing: nothing to check")
+            return 0
+        problems = check(paths, staged_blob if args.staged else working_copy)
+    except GuardError as error:
+        print(f"licensing: cannot check, so this is not a pass.\n  {error}", file=sys.stderr)
+        return 2
 
-    problems = check(paths)
     if problems:
         print(f"licensing: {len(problems)} violation(s)\n", file=sys.stderr)
         for problem in problems:

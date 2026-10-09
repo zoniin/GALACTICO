@@ -34,7 +34,7 @@ from ..identity import normalise_name
 
 __all__ = [
     "RenderState", "ReferencePopulation", "ConstructResult", "PlayerProfile",
-    "ProfileBundle", "build_profiles", "REJECTED", "RESEARCH_ONLY",
+    "ProfileBundle", "build_profiles", "REJECTED", "RESEARCH_ONLY", "UNTESTED",
 ]
 
 
@@ -86,6 +86,13 @@ RESEARCH_ONLY = {
         "combination. Not established enough to ship, not refuted enough to close.",
     ),
 }
+
+# Proposed with a claim and a registry entry, but not yet through the lifecycle.
+# Counted in the hero and in the generated docs, so 'proposed' has one
+# machine-readable meaning and cannot quietly include abandoned naming ideas.
+# This was two tuples, one in the API and one in the docs generator; a test now
+# asserts it is written once and overlaps none of the three registries above.
+UNTESTED = ("carrying_value", "defensive_action_profile", "shot_profile")
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@ One directory per experiment:
 
     E-XX-slug/
         preregistration.md   committed BEFORE the analysis runs
-        config.yaml          machine-readable thresholds
+        config.json          machine-readable thresholds
         results.json         raw output
         analysis.md          interpretation, written after
 

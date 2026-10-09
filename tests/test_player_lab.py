@@ -2,6 +2,10 @@
 
 These guard the product thesis, not the implementation. If one of them fails,
 Galáctico has started to look like every other football stats site.
+
+Every test here reads the built profile bundle, and the module skips without it.
+A test that needs no data does not belong behind that skip: it goes in
+``test_registry_contract.py``, which runs everywhere and enforces the split.
 """
 
 from __future__ import annotations
@@ -12,8 +16,8 @@ from pathlib import Path
 import pytest
 
 from galactico.domain.constructs import CONSTRUCTS
+from galactico.domain.thesis import banned_key_paths
 from galactico.profiles import REJECTED, RESEARCH_ONLY, RenderState
-from galactico.profiles.build import reliability_at
 
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
 pytestmark = pytest.mark.skipif(not BUNDLE.exists(),
@@ -31,11 +35,15 @@ def test_no_overall_rating_exists_anywhere(bundle) -> None:
     """The single most important assertion in the product. No composite, no
     weighted sum, no hidden score — not now and not by accident later."""
     banned = {"overall", "rating", "score", "index", "grade", "ovr", "total"}
-    for profile in bundle["profiles"][:50]:
+    for profile in bundle["profiles"]:
         for key in profile:
             assert key.lower() not in banned, f"a top-level {key!r} appeared on a profile"
         for construct in profile["constructs"]:
             assert construct["construct_id"] in CONSTRUCTS
+    # The loop reads one level of one list, which is how a rating inside a
+    # construct, or spelled overall_rating, used to pass. The walker reads every
+    # key at every depth of the whole artifact against the wider set.
+    assert banned_key_paths(bundle) == []
 
 
 def test_rejected_metrics_never_reach_a_profile(bundle) -> None:
@@ -97,15 +105,6 @@ def test_style_constructs_are_labelled_style(bundle) -> None:
     assert families["progression"] == "quality"
 
 
-def test_reliability_follows_the_players_own_sample(bundle) -> None:
-    """Reliability rises with minutes, which is why the floor exists. Showing a
-    1,975-minute player the value measured at 900 minutes understates him."""
-    assert reliability_at("chance_creation", 500, None) == 0.544
-    assert reliability_at("chance_creation", 1975, None) == 0.725
-    assert reliability_at("chance_creation", 3000, None) == 0.756
-    assert reliability_at("progression", 1000, 0.89) == 0.89
-
-
 def test_artifacts_carry_the_versions_that_produced_them(bundle) -> None:
     for key in ("xt_version", "dataset_hash", "version_key", "generated_at",
                 "estimator_ids", "construct_versions", "regime"):
@@ -129,57 +128,3 @@ def test_zone_shares_are_a_distribution(bundle) -> None:
         thirds = sum(z[k] for k in ("own_third", "middle_third", "final_third"))
         assert channels == pytest.approx(1.0, abs=1e-6)
         assert thirds == pytest.approx(1.0, abs=1e-6)
-
-
-# --- estimator consistency ----------------------------------------------
-
-def test_denominators_match_the_registry() -> None:
-    """Two functions computed progression_per_action with different denominators
-    under one name. The registry declares completed passes; the shipped estimator
-    must divide by completed passes. This shipped once."""
-    from galactico.features.estimators import ESTIMATOR_DENOMINATORS
-    for construct_id, declared in ESTIMATOR_DENOMINATORS.items():
-        construct = CONSTRUCTS[construct_id]
-        estimator = construct.estimators["wyscout_event_v1"]
-        assert estimator.denominator == declared, (
-            f"{construct_id}: registry says {estimator.denominator!r}, "
-            f"canonical estimator says {declared!r}"
-        )
-
-
-def test_style_bands_are_anchored_to_pitch_geometry() -> None:
-    """Wide is 42% of the pitch's width by area. A 42% width share is therefore
-    NO preference, and any band that calls it 'wide' is stating the opposite."""
-    from galactico.features.estimators import CHANNEL_GEOMETRY, describe_style
-    band, neutral = describe_style("width", CHANNEL_GEOMETRY["width"])
-    assert neutral == 0.42
-    assert "close to" in band and "pitch-area" in band
-    assert "far below" in describe_style("width", 0.25)[0]
-    assert "above" in describe_style("width", 0.60)[0]
-    # The band may only describe the axis measured. "Central" was a claim about a
-    # channel no construct measures: wide's complement is centre PLUS half-space,
-    # and 70 of 345 players called "central-oriented" had a centre share at or
-    # below its own reference. That is the verticality error, regenerated.
-    for v in (0.10, 0.25, 0.42, 0.60, 0.90):
-        assert "central" not in describe_style("width", v)[0]
-    # "in this sample" is load-bearing: these are observed pass origins over one
-    # season, not a disposition. Position is CONSTITUTIVE for these constructs.
-    assert all("in this sample" in describe_style("width", v)[0]
-               for v in (0.20, 0.42, 0.70))
-
-
-def test_spatial_constructs_do_not_claim_a_preference() -> None:
-    """Verticality was rejected because its behavioural reading vanished under
-    conditioning. These survive only because their claim is narrow enough to be
-    true: they describe where passes originated, which includes deployment."""
-    for key in ("half_space_share", "width"):
-        construct = CONSTRUCTS[key]
-        assert "originating" in construct.claim
-        assert "preference" not in construct.claim.lower()
-        assert "pass-origin" in construct.label
-
-
-def test_channel_geometry_sums_to_the_whole_pitch() -> None:
-    from galactico.features.estimators import CHANNEL_GEOMETRY
-    total = sum(CHANNEL_GEOMETRY.values())
-    assert total == pytest.approx(1.0, abs=1e-9)

@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from galactico.domain.constructs import CONSTRUCTS  # noqa: E402
 from galactico.features.spec import SPECS  # noqa: E402
 from galactico.profiles import REJECTED, RESEARCH_ONLY  # noqa: E402
+from galactico.profiles.build import UNTESTED  # noqa: E402
 
 REGIME = "wyscout_event_v1"
 
@@ -64,12 +65,11 @@ def rejected_table() -> str:
 
 
 def counts() -> str:
-    untested = ("carrying_value", "defensive_action_profile", "shot_profile")
-    proposed = len(CONSTRUCTS) + len(REJECTED) + len(RESEARCH_ONLY) + len(untested)
+    proposed = len(CONSTRUCTS) + len(REJECTED) + len(RESEARCH_ONLY) + len(UNTESTED)
     tested = len(CONSTRUCTS) + len(REJECTED) + len(RESEARCH_ONLY)
     return (f"**{proposed} proposed. {tested} tested. {len(CONSTRUCTS)} survive.**\n\n"
             f"{len(REJECTED)} rejected, {len(RESEARCH_ONLY)} research-only, "
-            f"{len(untested)} proposed but not yet through the lifecycle.")
+            f"{len(UNTESTED)} proposed but not yet through the lifecycle.")
 
 
 def fingerprints() -> str:
