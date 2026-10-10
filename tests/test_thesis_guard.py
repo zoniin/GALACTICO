@@ -13,13 +13,16 @@ it says a score was not identified.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from galactico.domain.thesis import BANNED_KEYS, banned_key_paths
+from galactico.domain import thesis
+from galactico.domain.thesis import BANNED_KEY_PARTS, BANNED_KEYS, banned_key_paths
 
 ORIGINAL_SEVEN = {"overall", "rating", "score", "index", "grade", "ovr", "total"}
+EIGHT_PARTS = {"rating", "ratings", "rank", "ranks", "ranking", "ranked", "merit", "overall"}
 
 
 def bundle(n: int = 60) -> dict:
@@ -139,6 +142,71 @@ def test_values_are_never_scanned() -> None:
 def test_spelling_is_not_an_escape(key: str) -> None:
     """Case and separators are spelling, not a different field."""
     assert banned_key_paths({"profile": {key: 7.1}}) == [f"profile.{key}"]
+
+
+# --- parts, where a caller asks for them -----------------------------------------
+
+def test_the_parts_are_eight_words_and_leave_out_the_ones_the_product_uses() -> None:
+    assert BANNED_KEY_PARTS == EIGHT_PARTS
+    # home_score, the data tier of a verdict and a count of completed passes are served keys,
+    # whole or as a part. A part rule that held these words would refuse the product's own
+    # replies.
+    assert not BANNED_KEY_PARTS & {"score", "tier", "fit", "best", "total", "index", "grade"}
+
+
+@pytest.mark.parametrize("key", [
+    # Keys the whole-key rule lets through. The second audit put the first seven through the
+    # boundary check, which passed each.
+    "overall_score", "ratings", "merit", "ranks", "rank_overall", "xi_rating", "rating_value",
+    "ranked_first", "merit_order", "squad_ranking",
+    # Spelling is not an escape for a part either: case, a hyphen, a space, a change of case.
+    "XI_RATING", "xi-rating", "xi rating", "xiRating", "XIRating", "playerMerit", "Rank_Overall",
+])
+def test_a_key_with_a_listed_part_is_found_only_when_parts_are_asked_for(key: str) -> None:
+    payload = {"players": [{"name": "A", key: 1}]}
+    assert banned_key_paths(payload, parts=BANNED_KEY_PARTS) == [f"players[0].{key}"]
+    # Without parts the rule is whole keys, as it always was.
+    assert banned_key_paths(payload) == []
+
+
+@pytest.mark.parametrize("key", [
+    # "score", "tier", "fit" and "best" are not on the list, so a key that holds one passes.
+    "home_score", "score_research", "match_score", "player_score", "fit", "tier", "data_tier",
+    "best_xi", "total_completed_passes", "minutes_total", "quantization",
+    "requirement_set_hash", "rate_assumption", "tolerated_loss",
+    # A part is a whole word between separators, never a fragment of one.
+    "outranking", "frankly", "meritocracy", "overalls", "narrating", "unranked",
+    # A digit is part of its word: it is not a separator.
+    "rating2", "rank1",
+])
+def test_a_part_is_a_whole_word_between_separators(key: str) -> None:
+    assert banned_key_paths({key: 1, "rows": [{key: 2}]}, parts=BANNED_KEY_PARTS) == []
+
+
+def test_names_outside_the_planning_labs_keep_a_part_the_part_rule_would_refuse() -> None:
+    """Three names in this repository hold a listed part: the disclaimer Player Lab serves, a
+    field of the confound verdict and a key of the partial-evaluation result. Their callers
+    judge whole keys, which is why parts are an argument and not the default."""
+    package = Path(thesis.__file__).resolve().parents[1]
+    for key, source in (("orderable_as_ranking", "api/player_lab.py"),
+                        ("rank_correlation_after", "reliability/confound.py"),
+                        ("discrete_rank", "validation/partial_evaluation.py")):
+        assert key in (package / source).read_text(encoding="utf-8")  # the name is still there
+        assert banned_key_paths({key: 1}) == []
+        assert banned_key_paths({key: 1}, parts=BANNED_KEY_PARTS) == [key]
+
+
+def test_whole_keys_and_parts_share_one_walk_and_one_exemption() -> None:
+    payload = {"teams": [{"score": 2, "club_ranking": 3}], "rows": [{"club_ranking": 1}]}
+    assert banned_key_paths(payload, parts=BANNED_KEY_PARTS) == [
+        "teams[0].score", "teams[0].club_ranking", "rows[0].club_ranking"]
+    # One key is reported once, although "overall_rating" is a banned key and holds two parts.
+    assert banned_key_paths({"overall_rating": 1}, parts=BANNED_KEY_PARTS) == ["overall_rating"]
+    allowed = ("teams[].score", "teams[].club_ranking")
+    assert banned_key_paths(payload, parts=BANNED_KEY_PARTS, allow=allowed) == [
+        "rows[0].club_ranking"]
+    with pytest.raises(TypeError, match="parts"):
+        banned_key_paths({"rating": 1}, parts="rating")
 
 
 # --- exemptions ----------------------------------------------------------------

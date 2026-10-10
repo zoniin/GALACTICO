@@ -16,13 +16,21 @@ The surviving player constructs and their qualifications are recorded in the
 [registry](galactico/domain/constructs.py) and the Stage 1 research reports.
 Rejected constructs remain rejected; replication is not decision-utility validation.
 
-## Player Lab: implementation frozen
+## Player Lab: frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027 (October 2026)
 
 The historical API and browser expose quality/style separately, estimator-specific
 sample gates, uncertainty, comparison and scatter. The Stage 2 blocking statistical
 defect was repaired: all players and constructs now use shared match-resampling
 worlds, with identity checks and explicit missing exposure. Comparison and scatter
 respect the same gates. See [M-04](docs/research/M-04-shared-match-worlds.md).
+
+The two later records corrected defects. A construct is published only inside
+the context its registry entry declares, so a goalkeeper carries five withheld
+rows with the reason. The reliability served on chance creation is the curve of
+the declared population ([M-08](docs/research/M-08-reliability-pool.md)). The
+channel bar is binned with the two pass-origin constructs' own predicate. The
+"Why only five?" view carries the credit for the analysis it prints. Whether the
+chance-creation floor of 1,800 minutes should rise is an open owner decision.
 
 Automated and rendered-browser checks cover the release behavior. This freeze does
 not claim an independent human football-review sign-off. Further cosmetic work is
@@ -34,6 +42,10 @@ not a prerequisite for the decision laboratory.
 shots, period-aware positive pass-xT flow, inferred passing network, team
 pass-origin descriptors and player-match contribution vectors. Madrid's 38 league
 matches are the default collection. Data availability and provenance are explicit.
+Since ADR-0027 a registry construct is served on a player row only inside its declared
+context: on a goalkeeper's row each of the five carries the reason and no number, beside
+the recorded counts, which stay. The
+timeline, the passing network and team rows are not gated.
 
 No Wyscout xG is invented. Threat flow is not momentum. Recipients are inferred,
 not directly observed. StatsBomb Match Lab and LIVE Match Lab are not shipped.
@@ -95,7 +107,8 @@ nothing else. See [ADR-0020 to ADR-0023](DECISIONS.md).
   requirements are an explicit experimental opt-in. Evidence classes are composed
   from the domain ladder and shown.
 - Independent exhaustive oracles for every tool, pinned real-data regressions,
-  corpus-free API tests, a copy guard on every served string and browser tests.
+  corpus-free API tests, a copy guard on the string values of every new 200 reply
+  outside its provenance blocks, and browser tests.
 
 Not established by any of it: that the declared minima are the right identity,
 that a requirement sum says anything about results, or that a recorded rate
@@ -112,14 +125,17 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   ([drafts](docs/research/north-star/README.md)): E-09 shot and defensive-location
   candidates, E-10 conceded-territory persistence, E-11 provider agreement on the
   100 double-coded matches, E-12 rates across a club change, E-13 declared-risk
-  selection. Each needs adversarial review and an audit before it is registered.
-  The verdict registry is empty.
+  selection. E-11 went through three rounds of review, revision and independent
+  audit on 9 October 2026; the third audit returned NOT_READY and its three
+  blockers are not yet applied. The other four need adversarial review and an
+  audit before registration. The verdict registry is empty.
 
 ## Not started or not validated
 
-- Attainable ranges per requirement beyond the single certified maximum Transfer
-  Lab states (the least value, joint attainability, the same figure in Squad
-  Lab), certified Pareto-frontier enumeration, declared-risk (tail,
+- Attainable ranges per requirement beyond the two numbers Transfer Lab states,
+  the sum of one XI the solver found and a ceiling no XI exceeds (the least
+  value, joint attainability, the same figures in Squad Lab), certified
+  Pareto-frontier enumeration, declared-risk (tail,
   minimax-regret) modes,
   certified minimal conflict sets, continuity utility, role-transition value models
   and automatic formation identification. No specification exists for the XI-level

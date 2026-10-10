@@ -65,13 +65,18 @@ def test_exactly_the_validated_constructs_ship(bundle) -> None:
 # --- epistemic correctness ----------------------------------------------
 
 def test_every_percentile_names_its_reference_population(bundle) -> None:
-    """A percentile without a denominator is not a fact about a player."""
-    for profile in bundle["profiles"][:80]:
+    """A percentile without a denominator is not a fact about a player. Every row of every
+    profile is read: the first eighty profiles were, which is a sample and not the claim."""
+    named = 0
+    for profile in bundle["profiles"]:
         for c in profile["constructs"]:
             if c["percentile"] is not None:
-                assert c["reference_label"], c["construct_id"]
-                assert c["reference_n"] > 0
-                assert c["reference_population"]
+                assert c["reference_label"], (profile["name"], c["construct_id"])
+                assert c["reference_n"] > 0, (profile["name"], c["construct_id"])
+                assert c["reference_population"], (profile["name"], c["construct_id"])
+                named += 1
+    # 319 outfield profiles, five constructs each.
+    assert named == 1595
 
 
 def test_render_state_respects_the_estimator_minutes_floor(bundle) -> None:
@@ -147,22 +152,40 @@ def test_artifacts_carry_the_versions_that_produced_them(bundle) -> None:
 
 
 def test_every_construct_names_its_estimator(bundle) -> None:
-    for profile in bundle["profiles"][:40]:
+    """Every row of every profile, withheld rows included: a withheld row names the
+    estimator whose declared context left the player out. The first forty profiles were
+    read, so the sentence "every row names its estimator" was about a sample."""
+    rows = withheld = 0
+    for profile in bundle["profiles"]:
         for c in profile["constructs"]:
+            assert c["estimator_id"] == bundle["estimator_ids"][c["construct_id"]], (
+                profile["name"], c["construct_id"])
             assert c["estimator_id"].endswith("_v1")
             assert bundle["regime"] in c["estimator_id"]
+            rows += 1
+            withheld += c["render_state"] == "out_of_context"
+    assert (rows, withheld) == (1725, 130)
 
 
 def test_zone_shares_are_a_distribution(bundle) -> None:
-    for profile in bundle["profiles"][:40]:
+    """On every profile that has a bar. The centre is what is left of the located passes
+    once the two constructs' predicates have taken theirs, so the channels sum to one only
+    if every completed pass has an origin: a pass without one is in no channel."""
+    checked = 0
+    for profile in bundle["profiles"]:
         z = profile["zone_shares"]
         if not z:
             continue
+        assert list(z) == ["left_wide", "left_half", "centre", "right_half", "right_wide",
+                           "own_third", "middle_third", "final_third"], profile["name"]
+        assert all(0.0 <= share <= 1.0 for share in z.values()), profile["name"]
         channels = sum(z[k] for k in ("left_wide", "left_half", "centre",
                                       "right_half", "right_wide"))
         thirds = sum(z[k] for k in ("own_third", "middle_third", "final_third"))
-        assert channels == pytest.approx(1.0, abs=1e-6)
-        assert thirds == pytest.approx(1.0, abs=1e-6)
+        assert channels == pytest.approx(1.0, abs=1e-9), profile["name"]
+        assert thirds == pytest.approx(1.0, abs=1e-9), profile["name"]
+        checked += 1
+    assert checked == 319
 
 
 def test_no_channel_breakdown_is_shipped_where_the_style_constructs_are_withheld(bundle) -> None:
@@ -176,3 +199,92 @@ def test_no_channel_breakdown_is_shipped_where_the_style_constructs_are_withheld
             assert profile["zone_shares"], profile["name"]
             shown += 1
     assert withheld == 26 and shown == 319
+
+
+def test_the_channel_bar_restates_the_two_pass_origin_constructs(bundle) -> None:
+    """The bar binned the same completed passes with edges of its own, so 289 of the 319
+    outfield profiles drew a half-space share that differed from the printed one by more
+    than half a point, and 220 a wide share that did. The bar asks the constructs' own
+    predicate now: left plus right is the printed share, on every profile that has a bar."""
+    checked = 0
+    for profile in bundle["profiles"]:
+        shares = profile["zone_shares"]
+        if not shares:
+            continue
+        served = {c["construct_id"]: c["value"] for c in profile["constructs"]}
+        assert shares["left_half"] + shares["right_half"] == pytest.approx(
+            served["half_space_share"], abs=1e-9), profile["name"]
+        assert shares["left_wide"] + shares["right_wide"] == pytest.approx(
+            served["width"], abs=1e-9), profile["name"]
+        checked += 1
+    assert checked == 319
+
+
+def test_a_withheld_row_carries_no_evidence_class(bundle) -> None:
+    """All 130 goalkeeper rows were written "Estimated": an evidence class for a number
+    that does not exist. A row inside the context is an estimate and says so."""
+    withheld = estimated = 0
+    for profile in bundle["profiles"]:
+        for row in profile["constructs"]:
+            if row["render_state"] == "out_of_context":
+                assert row["evidence"] == "", (profile["name"], row["construct_id"])
+                withheld += 1
+            else:
+                assert row["evidence"] == "Estimated", (profile["name"], row["construct_id"])
+                estimated += 1
+    assert (withheld, estimated) == (130, 1595)
+
+
+def test_the_bundle_was_built_under_the_rules_and_the_registry_in_force(bundle) -> None:
+    """The API refuses a bundle built under other rules. A test that reads the bundle has
+    to notice one too, or everything asserted in this file is about an artifact nobody is
+    served. The registry hashes are the ones the bundle recorded: no entry was edited."""
+    from galactico.profiles.build import BUILD_RULES, construct_version
+
+    assert bundle["build_rules"] == list(BUILD_RULES)
+    assert bundle["construct_versions"] == {key: construct_version(key) for key in CONSTRUCTS}
+
+
+@pytest.mark.slow
+def test_each_pooled_reliability_is_taken_over_the_declared_population(bundle,
+                                                                       spain_frames) -> None:
+    """The bundle names the rule. Nothing recomputed a printed reliability, so the name was
+    true of a bundle only while the build script behaved. The halves here are the script's;
+    the pool is formed by asking the registry, not the builder's helper."""
+    import importlib.util
+
+    from galactico.profiles.build import RELIABILITY_CURVE
+    from galactico.reliability import split_half_reliability
+
+    spec = importlib.util.spec_from_file_location(
+        "build_profiles_script", Path(__file__).resolve().parents[1] / "scripts/build_profiles.py")
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+
+    actions, lineups = spain_frames["actions"], spain_frames["lineups"]
+    position = spain_frames["players"].set_index("player_id")["position"].to_dict()
+    minutes = lineups.groupby("player_id")["minutes"].sum()
+    keep = minutes[minutes >= bundle["minutes_floor"]].index
+    halves = script.split_halves(actions, lineups, keep, script.fit_xt(actions))
+
+    printed: dict[str, set] = {}
+    for profile in bundle["profiles"]:
+        for row in profile["constructs"]:
+            if row["render_state"] != "out_of_context":
+                printed.setdefault(row["construct_id"], set()).add(row["reliability"])
+    pooled_once = set(bundle["construct_versions"]) - set(RELIABILITY_CURVE)
+    assert len(pooled_once) == 4 and pooled_once < set(printed)
+    for construct_id in sorted(pooled_once):
+        first = halves[0][construct_id].dropna().to_dict()
+        second = halves[1][construct_id].dropna().to_dict()
+        inside = [player for player in set(first) & set(second)
+                  if CONSTRUCTS[construct_id].context_excluding(position.get(player)) is None]
+        declared, n = split_half_reliability({player: first[player] for player in inside},
+                                             {player: second[player] for player in inside})
+        everyone, n_everyone = split_half_reliability(first, second)
+        # 333 players have 300 minutes in each half, 23 of them goalkeepers.
+        assert (n_everyone, n) == (333, 310), construct_id
+        (value,) = printed[construct_id]
+        assert value == pytest.approx(declared, abs=1e-12), construct_id
+        # With the goalkeepers pooled back in it is another number, so this can fail.
+        assert abs(everyone - declared) > 5e-4, construct_id

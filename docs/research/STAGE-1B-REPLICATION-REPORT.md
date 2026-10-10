@@ -10,6 +10,8 @@ looked strange.
 
 **Erratum, October 2026:** the ordering ρ computed for this report (`experiments/replication.json`, not printed here) ranked tied values in sort order. See [M-07](M-07-rank-ties.md). No status changes.
 
+**Disclosure, October 2026:** the pool behind the chance-creation minutes-floor table of this report was every player with the minutes, goalkeepers included, for whom the construct is not defined. See [M-08](M-08-reliability-pool.md). No number here changes.
+
 ## Corpus audits
 
 | | ESP | ENG | ITA | GER | FRA |

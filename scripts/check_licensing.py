@@ -5,20 +5,43 @@ This runs before lint and before tests, because a licence mistake is the only
 failure mode here that cannot be fixed by a later commit — once restricted data
 is in the history it stays there.
 
-Four checks:
+Six checks:
 
-1. No file over the size ceiling, outside an explicit allowlist. Event data is
-   large; a stray commit of it is the realistic accident.
-2. No file with a data extension outside ``tests/fixtures``.
+1. No file over the size ceiling. Event data is large; a stray commit of it is the
+   realistic accident.
+2. No file with a data extension.
 3. No path under a restricted provider directory.
 4. No credential-shaped strings in tracked text.
+5. No provider schema keys and no bulk record dump in tracked text, whatever the
+   file is called.
+6. No environment file. A name that ends ``.example`` is not one.
+
+Checks 4 and 5 read a file whose suffix is one of ``TEXT_SUFFIXES`` and whose size
+is within the ceiling, and no other file.
+
+Three exemptions, and no other:
+
+- ``tests/fixtures/`` is exempt from checks 1, 2 and 5. It is where a tiny fixture
+  lives.
+- An image under ``docs/screenshots/`` is exempt from check 1: a full-page capture
+  can be larger than the ceiling. An image is a file with an image suffix whose
+  bytes begin as that format does. Nothing else is waived there: until October 2026
+  the whole directory was exempt from checks 1, 2 and 5, and a Parquet file or a
+  JSON file of provider records placed in it passed.
+- This script is exempt from checks 4 and 5. It holds the patterns they look for.
 
 Exit code 1 on any violation. Run with ``--staged`` to check only staged files,
 which is what the pre-commit hook uses. ``--staged`` judges the staged blob, not
-the working copy: the two can differ, and only the blob is committed.
+the working copy: the two can differ, and only the blob is committed. Without it
+every tracked file is judged by its working copy, or by its blob in the index
+where the working copy has been deleted.
 
-Exit code 2 when the guard could not look at all: no git, or not at the root of
-a git work tree. That used to print "nothing to check" and pass.
+Exit code 2 when the guard could not look: no git, not at the root of a git work
+tree, or a listed file that could not be opened. Each of those used to pass: the
+first two printed "nothing to check", and a file that could not be opened was
+skipped and still counted. Paths are listed NUL-separated because git prints any
+other listing of a name that is not plain ASCII in quotes, with escapes, and that
+string names no file.
 """
 
 from __future__ import annotations
@@ -39,14 +62,26 @@ DATA_SUFFIXES = {".parquet", ".duckdb", ".db", ".jsonl", ".csv", ".feather", ".a
                  ".h5", ".hdf5", ".npz", ".npy", ".pkl", ".mp4", ".mkv", ".avi",
                  ".tsv", ".gz", ".zip", ".xlsx", ".sqlite", ".pickle", ".ipynb"}
 
-FIXTURE_DIRS = {"tests/fixtures", "docs/screenshots"}
+# Exempt from the size ceiling, the data-suffix rule and the content fingerprints.
+FIXTURE_DIRS = {"tests/fixtures"}
+
+# Images here are exempt from the size ceiling and from nothing else.
+SCREENSHOT_DIR = "docs/screenshots"
+IMAGE_SIGNATURES = {
+    ".png": (b"\x89PNG\r\n\x1a\n",),
+    ".jpg": (b"\xff\xd8\xff",),
+    ".jpeg": (b"\xff\xd8\xff",),
+    ".gif": (b"GIF87a", b"GIF89a"),
+}
 
 # Providers whose data must never be committed, per LICENSING.md.
 RESTRICTED_DIRS = {"data/licensed", "data/trial"}
 
 CREDENTIAL_PATTERNS = [
-    (re.compile(r"api[-_]?football[-_]?key\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}", re.I), "API-Football key"),
-    (re.compile(r"sportmonks[-_]?(api[-_]?)?token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}", re.I), "Sportmonks token"),
+    (re.compile(r"api[-_]?football[-_]?key\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}", re.I),
+     "API-Football key"),
+    (re.compile(r"sportmonks[-_]?(api[-_]?)?token\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}", re.I),
+     "Sportmonks token"),
     (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "AWS access key id"),
     (re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"), "private key"),
     (re.compile(r"\bghp_[A-Za-z0-9]{36}\b"), "GitHub token"),
@@ -56,11 +91,15 @@ CREDENTIAL_PATTERNS = [
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".yaml", ".yml", ".json", ".txt", ".cfg",
                  ".ini", ".sh", ".ts", ".js", ".svelte", ".html"}
 
+# Exempt from the content checks: this file holds the patterns they look for.
+GUARD_ITSELF = "scripts/check_licensing.py"
+
 # Extension checks miss the obvious leak: event data committed as .txt or .json.
 # These fingerprint the CONTENT instead — provider schema keys that only appear in
 # real feeds, and the shape of a bulk record dump.
 PROVIDER_FINGERPRINTS = [
-    (re.compile(r'"(possession_team|freeze_frame|obv_total_net|shot_statsbomb_xg)"'), "StatsBomb event data"),
+    (re.compile(r'"(possession_team|freeze_frame|obv_total_net|shot_statsbomb_xg)"'),
+     "StatsBomb event data"),
     (re.compile(r'"(eventId|subEventId|matchPeriod|tagsList)"\s*:'), "Wyscout event data"),
     (re.compile(r'"(player_data|shots_data|rosters_data)"\s*:'), "Understat payload"),
     (re.compile(r'"(x-rapidapi-key|api-football)"'), "API-Football response"),
@@ -89,10 +128,11 @@ def tracked_files(staged_only: bool) -> list[Path]:
     if not top or not os.path.samefile(top, REPO):
         raise GuardError(f"{REPO} is not the root of a git work tree")
     # R: a rename stages a path as surely as an add does.
-    args = ["diff", "--cached", "--name-only", "--diff-filter=ACMR"] if staged_only \
-        else ["ls-files"]
-    out = git(*args).decode("utf-8", errors="replace")
-    return [REPO / line for line in out.splitlines() if line.strip()]
+    # -z: the names as they are, NUL-separated. Without it git prints a name that is not
+    # plain ASCII in quotes with octal escapes, which is not a path to anything.
+    args = ["diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR"] if staged_only \
+        else ["ls-files", "-z"]
+    return [REPO / os.fsdecode(name) for name in git(*args).split(b"\0") if name]
 
 
 def relative(path: Path) -> str:
@@ -103,43 +143,62 @@ def in_fixtures(rel: str) -> bool:
     return any(rel.startswith(d + "/") for d in FIXTURE_DIRS)
 
 
-def working_copy(path: Path) -> bytes | None:
-    return path.read_bytes() if path.is_file() else None
+def is_screenshot(rel: str, suffix: str, content: bytes) -> bool:
+    """An image under docs/screenshots/: the one thing exempt from the size ceiling
+    outside the fixtures. The suffix alone does not make a file an image."""
+    return (rel.startswith(SCREENSHOT_DIR + "/")
+            and content.startswith(IMAGE_SIGNATURES.get(suffix, ())))
 
 
-def staged_blob(path: Path) -> bytes | None:
+def staged_blob(path: Path) -> bytes:
     """What will be committed. The working copy may have been edited since it was
     staged, or deleted, and neither changes what the commit contains."""
     return git("show", f":0:{relative(path)}")
 
 
+def working_copy(path: Path) -> bytes:
+    """What is on disk, or the blob in the index where the file is not on disk.
+
+    A tracked file deleted from the working tree is still in the repository, so it
+    is still judged. A listed path that can be read from neither is a GuardError.
+    """
+    try:
+        return path.read_bytes()
+    except OSError:
+        return staged_blob(path)
+
+
 def check(paths: list[Path],
           read: Callable[[Path], bytes | None] = working_copy) -> list[str]:
+    """Every violation in ``paths``. Each path is opened or the check does not finish:
+    a file that could not be read is not a file that passed."""
     problems: list[str] = []
     for path in paths:
-        content = read(path)
-        if content is None:
-            continue
         rel = relative(path)
+        try:
+            content = read(path)
+        except GuardError as error:
+            raise GuardError(f"{rel}: listed by git and could not be opened. {error}") from error
+        if content is None:
+            raise GuardError(f"{rel}: listed by git and could not be opened")
+        suffix = path.suffix.lower()
 
         for restricted in RESTRICTED_DIRS:
             if rel.startswith(restricted + "/"):
                 problems.append(f"{rel}: lives under {restricted}/, which must never be committed")
 
-        if path.suffix.lower() in DATA_SUFFIXES and not in_fixtures(rel):
+        if suffix in DATA_SUFFIXES and not in_fixtures(rel):
             problems.append(
                 f"{rel}: {path.suffix} is a data file. Data is downloaded at runtime into a "
                 f"gitignored cache; only tiny fixtures under tests/fixtures/ may be committed"
             )
 
         size = len(content)
-        if size > MAX_BYTES and not in_fixtures(rel):
+        if size > MAX_BYTES and not in_fixtures(rel) and not is_screenshot(rel, suffix, content):
             problems.append(f"{rel}: {size // 1024} KB exceeds the {MAX_BYTES // 1024} KB ceiling")
 
-        if path.suffix.lower() in TEXT_SUFFIXES and size <= MAX_BYTES:
+        if suffix in TEXT_SUFFIXES and size <= MAX_BYTES and rel != GUARD_ITSELF:
             text = content.decode("utf-8", errors="ignore")
-            if rel.endswith(".env.example") or rel == "scripts/check_licensing.py":
-                continue
             for pattern, label in CREDENTIAL_PATTERNS:
                 if pattern.search(text):
                     problems.append(f"{rel}: looks like a committed {label}")
@@ -153,7 +212,7 @@ def check(paths: list[Path],
                         )
                         break
                 # A bulk record dump: many repeated object openings on few lines.
-                if path.suffix.lower() in {".json", ".txt"}:
+                if suffix in {".json", ".txt"}:
                     records = text.count('"id"') + text.count('"player_id"')
                     if records > BULK_RECORD_THRESHOLD:
                         problems.append(

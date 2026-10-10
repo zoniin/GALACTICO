@@ -41,6 +41,8 @@ original five could not express.
 | team shape | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | DERIVABLE | HISTORICAL_ONLY | **DERIVABLE** | — |
 | pressing / press resistance | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | UNAVAILABLE | DERIVABLE | HISTORICAL_ONLY | UNAVAILABLE | UNAVAILABLE |
 
+9 October 2026: the "FPL free" column describes a source that is reference only, not one this project may ingest; see [LICENSING.md](../LICENSING.md).
+
 **RESOLVED, against us.** UEFA's physical metrics were the most load-bearing
 unverified claim here. They exist, they are keyless JSON, and they are far richer
 than assumed — 380 per-player per-match statistics including possession-state
@@ -94,6 +96,8 @@ Moving to Sportmonks at roughly €53 buys per-player xG across five leagues —
 the Premier League is already free through FPL, so the true increment is four
 leagues plus a team-level Pressure Index of undocumented granularity. Its
 `ballCoordinates` carry no `player_id` and are not a substitute for event data.
+
+9 October 2026: FPL is reference only, so the Premier League is not free through it for this project; see [LICENSING.md](../LICENSING.md).
 
 **No amount under $100/month unlocks:** current-season event XY, progressive
 passes, press resistance, or **any physical metric Galactico may lawfully use**. Those are historical-only, permanently, until someone

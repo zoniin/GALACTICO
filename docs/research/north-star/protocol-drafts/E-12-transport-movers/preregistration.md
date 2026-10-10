@@ -556,7 +556,7 @@ the protocol commit or twice.
 arm in `results.json`, interpretation in `analysis.md`. If any of them contradicts this
 document, this document wins.*
 
-![StatsBomb](../../../docs/assets/statsbomb/statsbomb-logo.png)
+![StatsBomb](../../../../assets/statsbomb/statsbomb-logo.png)
 
 Data source: StatsBomb. The structural counts above are formed from StatsBomb Open Data
 (lineups only) and from Pappalardo et al. (2019), Scientific Data 6:236, CC BY 4.0. This

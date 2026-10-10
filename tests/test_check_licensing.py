@@ -10,6 +10,15 @@ and it also passed in each of these cases, all reproduced before the fix:
 - an ``.env`` one directory down, and seven common data suffixes;
 - outside a git work tree, where it said "nothing to check" and exited 0.
 
+And in these, found by the second audit and reproduced the same way:
+
+- a tracked data file whose name git prints in quotes (any name that is not plain
+  ASCII): the quoted string is not a path, the file was never opened, and it was
+  counted among the files checked;
+- a tracked file deleted from the working tree: skipped, and counted;
+- anything at all under ``docs/screenshots/``, a Parquet file and a JSON file of
+  provider records included.
+
 No string below spells a credential or a provider key in full, because this file
 is itself scanned by the guard; the last test holds it to that.
 """
@@ -17,6 +26,7 @@ is itself scanned by the guard; the last test holds it to that.
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -186,6 +196,154 @@ def test_tracked_mode_still_reads_the_working_tree(guard, monkeypatch, capsys) -
     write(guard, "notes.md", f'key = "{AWS_KEY}"\n')
     code, said = run(guard, monkeypatch, capsys)
     assert code == 1 and "notes.md: looks like a committed AWS access key id" in said
+
+
+# --- every listed file is opened ---------------------------------------------------
+
+QUOTED_BY_GIT = "docs/Galáctico.parquet"   # git prints it as "docs/Gal\303\241ctico.parquet"
+
+
+def test_a_tracked_file_whose_name_git_quotes_is_opened(guard, monkeypatch, capsys) -> None:
+    """The mode CI runs. The name came back from git in quotes with octal escapes, no
+    such file existed, and the guard said "3 files checked, clean"."""
+    repository(guard)
+    write(guard, QUOTED_BY_GIT)
+    git(guard, "add", "-f", "--", QUOTED_BY_GIT)
+    git(guard, "commit", "-q", "-m", "a data file")
+    assert guard.REPO / QUOTED_BY_GIT in guard.tracked_files(False)
+    code, said = run(guard, monkeypatch, capsys)
+    assert code == 1 and f"{QUOTED_BY_GIT}: .parquet is a data file" in said
+
+
+def test_a_staged_file_whose_name_git_quotes_is_opened(guard, monkeypatch, capsys) -> None:
+    """The hook's mode failed closed on the same name, with git's own error for a path
+    that does not exist. It now reads the blob and names the violation."""
+    repository(guard)
+    write(guard, QUOTED_BY_GIT)
+    git(guard, "add", "-f", "--", QUOTED_BY_GIT)
+    assert guard.tracked_files(True) == [guard.REPO / QUOTED_BY_GIT]
+    code, said = run(guard, monkeypatch, capsys, "--staged")
+    assert code == 1 and f"{QUOTED_BY_GIT}: .parquet is a data file" in said
+
+
+def test_a_tracked_file_deleted_from_the_working_tree_is_read_from_the_index(
+        guard, monkeypatch, capsys) -> None:
+    """Deleting a tracked file from disk does not take it out of the repository."""
+    repository(guard)
+    leak = write(guard, "leak.csv", "a,b\n1,2\n")
+    git(guard, "add", "-f", "leak.csv")
+    git(guard, "commit", "-q", "-m", "a data file")
+    leak.unlink()
+    code, said = run(guard, monkeypatch, capsys)
+    assert code == 1 and "leak.csv: .csv is a data file" in said
+
+    # A clean file deleted from disk is opened too, and only then counted.
+    git(guard, "rm", "-q", "--cached", "leak.csv")
+    git(guard, "commit", "-q", "-m", "out")
+    (guard.REPO / "notes.md").unlink()
+    opened = []
+    index_blob = guard.staged_blob
+    monkeypatch.setattr(guard, "staged_blob",
+                        lambda path: opened.append(path) or index_blob(path))
+    assert run(guard, monkeypatch, capsys) == (0, "licensing: 1 files checked, clean\n")
+    assert opened == [guard.REPO / "notes.md"]
+
+
+def test_a_listed_path_that_cannot_be_opened_is_not_a_pass(guard, monkeypatch, capsys) -> None:
+    """Neither on disk nor in the index: the guard could not look, and says so."""
+    repository(guard)
+    listed = [guard.REPO / "notes.md", guard.REPO / "ghost.parquet"]
+    monkeypatch.setattr(guard, "tracked_files", lambda staged_only: listed)
+    code, said = run(guard, monkeypatch, capsys)
+    assert code == 2 and "cannot check" in said and "ghost.parquet" in said
+    assert "clean" not in said
+
+    # A reader that returns nothing is refused the same way, whatever the reason.
+    with pytest.raises(guard.GuardError, match="notes.md"):
+        guard.check([guard.REPO / "notes.md"], read=lambda path: None)
+
+
+# --- docs/screenshots holds screenshots --------------------------------------------
+
+PNG = b"\x89PNG\r\n\x1a\n"
+
+
+def write_bytes(guard, rel: str, content: bytes) -> Path:
+    path = guard.REPO / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+    return path
+
+
+def test_data_under_screenshots_is_data(guard, monkeypatch, capsys) -> None:
+    """Everything under docs/screenshots/ was exempt from the suffix, size, fingerprint
+    and bulk-record rules: 400 provider records in a JSON file and a 700 KB Parquet
+    file there read as "3 files checked, clean"."""
+    repository(guard)
+    key = "possession" + "_team"
+    records = json.dumps([{key: {"id": number}, "id": number} for number in range(400)])
+    write(guard, "docs/screenshots/events.json", records)
+    write_bytes(guard, "docs/screenshots/frame.parquet", b"\0" * (700 * 1024))
+    git(guard, "add", "-f", "docs/screenshots")
+    git(guard, "commit", "-q", "-m", "not screenshots")
+
+    code, said = run(guard, monkeypatch, capsys)
+    assert code == 1
+    for expected in ("docs/screenshots/events.json: content matches StatsBomb event data",
+                     "docs/screenshots/events.json: 800 record keys",
+                     "docs/screenshots/frame.parquet: .parquet is a data file",
+                     "docs/screenshots/frame.parquet: 700 KB exceeds the 512 KB ceiling"):
+        assert expected in said, expected
+    assert "licensing: 4 violation(s)" in said
+
+    # The same two files anywhere else are judged the same way.
+    elsewhere = [write(guard, "docs/other/events.json", records),
+                 write_bytes(guard, "docs/other/frame.parquet", b"\0" * (700 * 1024))]
+    assert len(guard.check(elsewhere)) == 4
+
+
+def test_the_one_thing_still_allowed_under_screenshots_is_a_large_image(guard) -> None:
+    """A full-page capture can be larger than the ceiling. An image is a file with an
+    image suffix whose bytes begin as that format does, and it is exempt from the size
+    ceiling there and from nothing else, and nowhere else."""
+    large = PNG + b"\0" * guard.MAX_BYTES
+    assert guard.check([write_bytes(guard, "docs/screenshots/page.png", large)]) == []
+    assert "exceeds" in guard.check([write_bytes(guard, "docs/assets/page.png", large)])[0]
+    assert "exceeds" in guard.check([write_bytes(guard, "docs/screenshotsx/page.png", large)])[0]
+
+    # A data file renamed to an image suffix is not an image.
+    renamed = b"PAR1" + b"\0" * guard.MAX_BYTES
+    problems = guard.check([write_bytes(guard, "docs/screenshots/table.png", renamed)])
+    assert len(problems) == 1 and "exceeds" in problems[0]
+    # Text under a size the ceiling allows is still read for what it holds.
+    key = "freeze" + "_frame"
+    notes = write(guard, "docs/screenshots/notes.md", f'{{"{key}": []}}\n')
+    assert "content matches StatsBomb event data" in guard.check([notes])[0]
+    # tests/fixtures is unchanged: small fixtures of any kind.
+    assert guard.check([write(guard, "tests/fixtures/tiny.parquet")]) == []
+
+
+def test_the_other_two_exemptions_are_as_narrow_as_the_script_says(guard) -> None:
+    """The docstring of the script names three exemptions. The image under
+    docs/screenshots/ is above; these are the fixtures and the script itself."""
+    key = "possession" + "_team"
+    events = f'{{"{key}": 1, "rows": [' + ", ".join(['{"id": 1}'] * 300) + "]}\n"
+    credential = f'key = "{AWS_KEY}"\n'
+
+    # tests/fixtures/: a data suffix, any size and provider keys, and never a credential.
+    assert guard.check([write(guard, "tests/fixtures/events.json", events)]) == []
+    assert guard.check([write(guard, "tests/fixtures/large.md", "x" * (guard.MAX_BYTES + 1))]) == []
+    assert len(guard.check([write(guard, "tests/events.json", events)])) == 2
+    problems = guard.check([write(guard, "tests/fixtures/settings.py", credential)])
+    assert len(problems) == 1 and "AWS access key id" in problems[0]
+
+    # The script holds the patterns the content checks look for, and only it is excused.
+    assert guard.check([write(guard, "scripts/check_licensing.py", credential + events)]) == []
+    assert len(guard.check([write(guard, "scripts/check_licensing_2.py", credential)])) == 1
+    assert len(guard.check([write(guard, "tools/scripts/check_licensing.py", credential)])) == 1
+    # It is excused from the content checks and from nothing else.
+    large = write(guard, "scripts/check_licensing.py", "x" * (guard.MAX_BYTES + 1))
+    assert "exceeds" in guard.check([large])[0]
 
 
 # --- failing closed ------------------------------------------------------------

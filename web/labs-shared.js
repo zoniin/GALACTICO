@@ -28,7 +28,11 @@
   const DASH = '—';
 
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-  const num = (v, d = 3) => v === null || v === undefined || !Number.isFinite(Number(v)) ? DASH : Number(v).toLocaleString(undefined, {maximumFractionDigits: d});
+  // One notation for every number the kit prints, whatever the reader's browser is set to:
+  // the server's sentences write "1,468" and "0.06183", and a number printed beside them in
+  // another locale ("2.996 min", "≈ 0,062, ≈ 0,062") reads as another number.
+  const NOTATION = 'en-US';
+  const num = (v, d = 3) => v === null || v === undefined || !Number.isFinite(Number(v)) ? DASH : Number(v).toLocaleString(NOTATION, {maximumFractionDigits: d});
   const pct = (v, d = 0) => v == null ? DASH : num(v * 100, d) + '%';
 
   // GET when body is absent, POST JSON when it is given; a non-2xx reply throws

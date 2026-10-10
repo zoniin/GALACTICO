@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
 
+from ...domain.precision import format_plain
 from ..xi.domain import FORMATIONS, Candidate, Formation, TacticalRequirement
 from ..xi.solver import QUANTIZATION, _applies, _eligible
 from .kernel import (
@@ -60,6 +61,7 @@ __all__ = [
     "ABSENCE_POLICY",
     "LOCK_POLICY",
     "MAX_ABSENCE_SETS",
+    "NO_XI_BY_PROOF",
     "STRESS_CLAIM",
     "STRESS_NON_CLAIM",
     "STRESS_VERSION",
@@ -69,6 +71,7 @@ __all__ = [
     "StressLevel",
     "UnfieldableCore",
     "absence_stress",
+    "why_no_xi",
 ]
 
 STRESS_VERSION = "exhaustive-k-absence-stress-v1"
@@ -102,10 +105,25 @@ _DEADLINE = (
     "bound on the worst case, and more sets may leave no fieldable XI. Unknown is not evidence "
     "either way."
 )
+NO_XI_BY_PROOF = (
+    "No XI satisfies the eligibility rules, the measurements, the exclusions and the locks "
+    "together."
+)
 _SOURCES = ("stress.py", "kernel.py", "../xi/domain.py")
 
 Pair = tuple[int, int]
 Ids = tuple[int, ...]
+
+
+def why_no_xi(value: KernelValue) -> str:
+    """Why a squad with nobody placed has no XI, in a sentence a person reads.
+
+    A reason the kernel reached by counting names a slot or a player and is passed on. When
+    no count shows it and a solve proved it, the kernel's own sentence lists every
+    declaration a call can make, placements ("pins") among them. The squad's value places
+    nobody, so the sentence here names what was declared and nothing else.
+    """
+    return NO_XI_BY_PROOF if value.solves else " ".join(value.reasons)
 
 
 @dataclass(frozen=True)
@@ -241,16 +259,17 @@ def _from_kernel(value: KernelValue) -> _Entry:
     )
 
 
-def _number(value: float) -> str:
-    """The value as the injection sentences print one: no ".0" on a whole number, and never
-    rounded a second time."""
-    short = f"{value:g}"
-    return short if float(short) == value else repr(value)
-
-
 def _phrase(integers: Pair, quantization: int) -> str:
+    """A certified pair as every sentence of the labs prints one: written out, never rounded
+    a second time and never in exponent notation."""
     maximum, total = _floats(integers, quantization)
-    return f"(largest {_number(maximum)}, sum {_number(total)})"
+    return f"(largest {format_plain(maximum)}, sum {format_plain(total)})"
+
+
+def _listed(names: Sequence[str]) -> str:
+    """Names as a list in a sentence: "A", "A and B", "A, B and C"."""
+    *first, last = names
+    return f"{', '.join(first)} and {last}" if first else last
 
 
 def _level_claim(
@@ -288,7 +307,7 @@ def _level_claim(
             f"No set among the {sets} that still leaves a fieldable XI raises the least declared "
             f"shortfall above {_phrase(baseline, quantization)}; {none_left}. {proof}"
         )
-    listed = [" and ".join(names[pid] for pid in ids) for ids in worst_sets]
+    listed = [_listed([names[pid] for pid in ids]) for ids in worst_sets]
     if len(listed) == 1:
         subject = f"If {listed[0]} {'is' if level_k == 1 else 'are'} unavailable"
     else:
@@ -538,8 +557,7 @@ def absence_stress(
     if base.status == "UNFIELDABLE":
         warnings.append(
             "The squad has no fieldable XI in this model before any absence, so no absence set "
-            "was evaluated. The slot depth of the squad explains why. "
-            + " ".join(base.reasons)
+            "was evaluated. The slot depth of the squad explains why. " + why_no_xi(base)
         )
     elif base.status == "MODEL_INVALID":
         warnings.append(

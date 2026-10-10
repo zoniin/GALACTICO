@@ -31,6 +31,7 @@
 .carry text{font-family:var(--mono);fill:var(--muted)}
 .worlds .every{fill:var(--muted);stroke:var(--muted);stroke-width:.6}
 .worlds .none,.worlds .some{fill:none;stroke:var(--chalk);stroke-width:.8}.worlds .some-half{fill:var(--muted)}
+.worlds .no-xi{fill:none;stroke:var(--chalk);stroke-width:.8;stroke-dasharray:1.2 1}
 .lanes .wide{fill:#3a463f}.lanes .central{fill:#6f8471}
 .tl-key{display:flex;flex-wrap:wrap;gap:.3rem 1.3rem;font:10px var(--mono);color:var(--muted);margin:.5rem 0}
 .tl-key svg{width:14px;height:12px;vertical-align:-2px;margin-right:.35rem}
@@ -45,7 +46,7 @@
 </style></head>
 <body><header><a class="brand" href="/">GALÁCTICO</a><span class="lab-tag">Historical LAB</span><nav aria-label="Laboratories" data-nav="v2"><a href="/" data-dest="player">Player<span class="sr-only"> Lab</span></a><a href="/match" data-dest="match">Match<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/xi" data-dest="xi">XI<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/squad" data-dest="squad">Squad<span class="sr-only"> Lab</span></a><a href="/transfer" data-dest="transfer" aria-current="page">Transfer<span class="sr-only"> Lab</span></a></nav></header>
 <main><div class="eyebrow" id="eyebrow">Declared slot · declared shortfall · exact re-solve</div><h1>One slot, declared.<br>Every candidate re-solved.</h1>
-<p class="lede">You name the slot being recruited. The lab lists the gated players whose provider position is admitted there, places each one in the squad at that slot and re-solves exactly. The rates are the ones he recorded at his own club. No role is inferred, no future rate is claimed, and the list is in the order of a key you choose.</p>
+<p class="lede">You name the slot being recruited. The lab lists the gated players whose provider position is admitted there, places each one in the squad at that slot and re-solves exactly. The rates are the ones he recorded at his own club. No role is inferred and no future rate is claimed. The list is grouped first by the outcome of the re-solve, in a fixed sequence; inside a group it is in the order of a key you choose.</p>
 <div id="scope-slot"></div>
 <div class="toolbar"><label class="control wide"><span class="label">Planning point</span><select id="scenario" aria-label="Planning point"></select></label><label class="control"><span class="label">Role-slot template</span><select id="formation" aria-label="Role-slot template"></select></label><label class="control"><span class="label">Slot being recruited</span><select id="slot" aria-label="Slot being recruited"></select></label><button type="button" id="apply" disabled>Set the problem</button></div>
 <p class="figure-note tl-note" id="slot-note"></p>
@@ -85,19 +86,25 @@
      by the server's lane_text and lane_statement. The shares place the bars; the page prints and rounds none.
    - Fixed labels in front of a server value, name or list, never a clause of their own: "least declared
      shortfall (largest, sum):", "change against the squad's own (largest, sum):", "Left out before any
-     filter:", "Earlier this season:", the label of the players no longer in every least-shortfall XI, the pool line, the facts line of a candidate,
-     the counts under the world strip, "Rows filled", the eyebrow, and the texts of the two buttons and of
-     the status lines that carry a server count.
+     filter:", "Earlier this season:", the label of the players no longer in every least-shortfall XI, the
+     pool line, the facts line of a candidate, the five counts under the world strip ("in every
+     least-shortfall XI", "in some", "in none", "no XI without him, or none with him", "set aside"), "Rows
+     filled", the eyebrow, and the texts of the two buttons and of the status lines that carry a server count.
    - Fixed words chosen by a server token or a missing value, none built from a number: holds, fails or not
      determined for a solved cell of the carry-over grid; "foot not recorded"; "(not pooled)"; "Lane shares
      unavailable: no completed pass in the sample." (the server sends null and no sentence); the state of the
-     deficiency (its token, underscores removed); the name of the first level under the order control.
+     deficiency (its token, underscores removed); the server's sentence for an empty pool, printed in the
+     pool panel when the search state is EMPTY_POOL; the name of the first level under the order control.
    No sentence about football is assembled here from a number, and none of these is worded here: what the
-   outcome groups are when one requirement is in force (single_requirement_statement), the class of the facts
-   beside a candidate (facts_evidence_statement), where his passes started (lane_statement), who was left out
-   of the pool (pool.left_out), where a minimum came from (origin_label). A list row prints no signed change:
-   that number stands in the opened candidate only, beside the certificate of his re-solve. The fixed copy of
-   the page (headings, the key, figure notes, two "cannot say" lines of its own) is the same on every reply. */
+   outcome groups and the break-even are when one requirement is in force (single_requirement_statement), the
+   class of the facts and of the recorded rate beside a candidate (facts_evidence_statement), what the
+   reference row says of a candidate and its outcome label (reference_row), what the resampled worlds showed,
+   those proved to have no XI included (world_counts.statement), where his passes started (lane_statement),
+   who was left out of the pool (pool.left_out), where a minimum came from (origin_label). No comparison
+   with a served number decides what is printed: a count is printed as sent, a list when the server sent
+   one, and a state is read off the server's token. A list row prints no signed change: that number stands
+   in the opened candidate only, beside the certificate of his re-solve. The fixed copy of the page
+   (headings, the key, figure notes, two "cannot say" lines of its own) is the same on every reply. */
 (function () {
 'use strict';
 const S = window.Shell, GP = window.GP, {esc, num, api} = S;
@@ -139,9 +146,11 @@ function carry(c, size, selected, name) {
   return `<svg class="carry ${big ? 'large' : 'small'}${selected ? ' selected' : ''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc((name ? name + ': ' : '') + (c.statement ?? ''))}" data-breakeven="${finite(c.break_even) ? String(c.break_even) : 'none'}">${out}</svg>`;
 }
 
-// The world strip: cells grouped by outcome, not ordered by world. Counts are the server's.
+// The world strip: cells grouped by outcome, not ordered by world. Counts are the server's, and
+// the five of them are every requested world once: the three compared outcomes, the worlds
+// proved to have no XI without him or with him (dashed), and the worlds set aside (a dot).
 function worldStrip(wc) {
-  const groups = [['every', wc.forced_lower], ['some', wc.forced_equal], ['none', wc.forced_higher], ['aside', wc.set_aside]];
+  const groups = [['every', wc.forced_lower], ['some', wc.forced_equal], ['none', wc.forced_higher], ['no-xi', wc.no_xi], ['aside', wc.set_aside]];
   let i = 0, out = '';
   for (const [cls, n] of groups) for (let k = 0; k < (Number.isInteger(n) ? n : 0); k += 1, i += 1) {
     const x = 0.5 + 6 * i;
@@ -332,14 +341,14 @@ function renderProblem() {
   $('candidates-title').textContent = `Candidates · admitted at ${slot.label}`;
   $('pool').innerHTML = `<p class="tl-pool-count"><span id="pool-listed" data-value="${esc(String(pool.listed_count))}">${num(pool.listed_count, 0)}</span><small>admissible players listed</small></p>` +
     `<p class="tl-facts">of ${GP.value(pool.admissible_count, 0)} admitted at ${esc(slot.label)} · ${GP.value(pool.universe_size, 0)} gated in ${esc(list(pool.leagues).map(l => l.label).join(', '))} · by provider position: ${Object.entries(pool.by_provider_position ?? {}).map(([k, v]) => `${esc(k)} ${GP.value(v, 0)}`).join(', ')}</p>` +
-    (pool.listed_count === 0 ? `<div class="unavailable">${esc(d.search_statement ?? '')}</div>` : '') +
+    (d.search_state === 'EMPTY_POOL' ? `<div class="unavailable" id="pool-empty">${esc(d.search_statement ?? '')}</div>` : '') +
     `<p class="small" id="pool-definition">${esc(pool.definition)}</p><p class="small subtle" id="pool-filters">${esc(pool.filter_statement)}</p><p class="small subtle">${esc(pool.corpus_exit_statement)}</p>` +
     `<p class="tl-facts" id="pool-left-out">Left out before any filter: ${list(pool.left_out).map(x => `<span data-reason="${esc(x.reason)}">${esc(x.label)} ${GP.value(x.count, 0)}</span>`).join(' · ')}</p>` +
     `<p class="small" id="carry-over-statement">${esc(r.carry_over_statement)}</p>`;
   $('pool-banner').innerHTML = pool.cross_league_flag ? `<p class="notice small" data-flag="NOT_STRENGTH_ADJUSTED">${esc(pool.cross_league_flag)}</p>` : '';
 
-  $('search').textContent = `Re-solve with each of the ${num(pool.listed_count, 0)} candidates`;
-  $('search-status').textContent = d.search_state === 'READY' ? `Nothing is re-solved until you ask. ${num(pool.listed_count, 0)} exact re-solves.` : (d.search_statement ?? '');
+  $('search').textContent = `Re-solve with each listed candidate (${num(pool.listed_count, 0)})`;
+  $('search-status').textContent = d.search_state === 'READY' ? `Nothing is re-solved until you ask. Exact re-solves to run: ${num(pool.listed_count, 0)}.` : (d.search_statement ?? '');
   renderDeclarations(); renderLedger(); syncSearchButton();
   $('transfer-body').classList.remove('hidden');
 }
@@ -373,7 +382,7 @@ function runSearch() {
   // refused or failed search must not leave them behind.
   invalidateSearch();
   const stored = problemInput, t = GP.ticket(searchT, problemT), n = problem.pool.listed_count;
-  $('search-status').innerHTML = S.loading(`Re-solving the squad with each of ${num(n, 0)} admissible candidates at ${slotLabel()}`);
+  $('search-status').innerHTML = S.loading(`Re-solving the squad with each listed candidate at ${slotLabel()}: ${num(n, 0)} to run`);
   $('search').disabled = true;
   return GP.run(t, () => api('/api/transfer/injection', stored), {
     apply: reply => { search = reply; orderKey = reply.listings.default; renderSearch(); startFill(); },
@@ -385,7 +394,7 @@ function runSearch() {
 function renderSearch() {
   const r = search;
   $('search-status').innerHTML = r.search_state === 'READY'
-    ? `${GP.value(r.solved_count, 0)} of ${GP.value(r.screened_count, 0)} candidates re-solved · ${GP.completeness(r.budget)}`
+    ? `Candidates re-solved: ${GP.value(r.solved_count, 0)} of ${GP.value(r.screened_count, 0)} · ${GP.completeness(r.budget)}`
     : esc(r.search_statement ?? '');
   $('model-statement').textContent = r.model_statement;
   $('screened').innerHTML = `<span class="badge" id="screened-count" data-value="${esc(String(r.screened_count))}">Screened ${num(r.screened_count, 0)}</span> <span id="selection-statement">${esc(r.selection_statement ?? '')}</span>`;
@@ -404,7 +413,7 @@ function renderSearch() {
     {label: 'Reference · not a player', html: `<span class="gp-mark" aria-hidden="true"></span>${esc(ref.name)}<div class="small subtle" id="reference-statement">${esc(ref.statement)}</div>` +
       rates(ref)},
     {label: `With it at ${slotLabel()}`, html: injectionCell(ref.injection, false)},
-    {label: 'Outcome', html: `<span class="badge">${esc(ref.outcome_label)}</span>`},
+    {label: 'Outcome', html: `<span class="badge" data-part="reference-outcome">${esc(ref.outcome_label)}</span>`},
   ], {reference: true, data: {outcome: ref.outcome, membership: ref.injection.membership}}) + '</ul>' : '';
   renderList();
   $('search-body').classList.toggle('hidden', r.search_state !== 'READY');
@@ -499,7 +508,7 @@ function renderCandidate() {
       `</tbody></table><p class="tl-facts">${list(co.scaling_statements).map(esc).join(' ')}</p>` +
       `<aside class="cannot-say">${S.cannotSay(['It does not estimate how much carries over. No transport model is applied.'])}</aside></section>` +
     `<section id="worlds-section"><h4>Resampled worlds</h4>` + (wc
-      ? `<div id="worlds-figure">${worldStrip(wc)}</div><p class="tl-facts">in every least-shortfall XI: ${GP.value(wc.forced_lower, 0)} of ${GP.value(wc.used, 0)} · in some: ${GP.value(wc.forced_equal, 0)} · in none: ${GP.value(wc.forced_higher, 0)} · set aside: ${GP.value(wc.set_aside, 0)}</p><p id="worlds-statement" class="small">${esc(wc.statement)}</p><p class="figure-note">Cells are grouped by outcome, not ordered by world.</p>`
+      ? `<div id="worlds-figure">${worldStrip(wc)}</div><p class="tl-facts" id="worlds-counts">in every least-shortfall XI: ${GP.value(wc.forced_lower, 0)} of ${GP.value(wc.used, 0)} · in some: ${GP.value(wc.forced_equal, 0)} · in none: ${GP.value(wc.forced_higher, 0)} · no XI without him, or none with him: ${GP.value(wc.no_xi, 0)} · set aside: ${GP.value(wc.set_aside, 0)}</p><p id="worlds-statement" class="small">${esc(wc.statement)}</p><p class="figure-note">Cells are grouped by outcome, not ordered by world.</p>`
       : `<div id="worlds-figure" class="tl-facts">not requested</div><p id="worlds-statement" class="small subtle">${esc(GP.COPY.worlds)}</p>`) + '</section>' +
     `<details><summary>Re-solve certificate and provenance</summary><pre id="candidate-certificate">${esc(JSON.stringify({certificate: r.certificate, carry_over_certificate: candidateCarry.certificate, provenance: r.provenance.tools}, null, 2))}</pre></details>`;
   $('candidate-detail').classList.remove('hidden');
@@ -594,7 +603,7 @@ async function boot() {
   $('formation').innerHTML = GP.formationOptions(catalogue, catalogue.formations[0]);
   $('slot-note').textContent = catalogue.slot_note;
   $('conclusion').innerHTML = list(catalogue.conclusions).map(c => `<option value="${esc(c.id)}"${c.default ? ' selected' : ''}>${esc(c.sentence)}</option>`).join('');
-  $('worlds').innerHTML = list(catalogue.worlds_menu).map(w => `<option value="${esc(w)}"${w === 12 ? ' selected' : ''}>${w === 0 ? 'No resampling' : esc(w)}</option>`).join('');
+  $('worlds').innerHTML = list(catalogue.worlds_menu).map(w => `<option value="${esc(w)}"${w === 12 ? ' selected' : ''}>${esc(w)}</option>`).join('');
   $('not-measured-slot').innerHTML = GP.notMeasured(catalogue);
   wire();
   resetForScenario();

@@ -12,6 +12,10 @@ const NACHO = 3304, RONALDO = 3322, HAKIMI = 396475, CARVAJAL = 4501, BALE = 827
 const ATTRIBUTIONS = ['GATE', 'EXCLUSION', 'ELIGIBILITY'];
 const BUSY = 'two long computations are already running'; // runtime.LONG_JOBS_BUSY, the 429 detail
 const ZERO_DRAWN = /^0\s*of/; // a count that was never taken must not be printed as one
+// The page's own line under the stress control. It says what the tool's claim says: a set is
+// solved to proof or inherits its answer, never that every set is solved again.
+const STRESS_IDLE = 'Run after an audit. Every absence set is solved to proof or inherits its answer from one that was.';
+const NOBODY_EXCLUDED = /with nobody excluded/i;
 
 // Page errors, console errors, failed requests and error statuses all fail a test.
 function watch(page) {
@@ -152,9 +156,13 @@ test('Squad Lab draws what the server returned, with the gate beside every count
   for (const cause of depth.thinness) {
     const blockEl = page.locator(`#thinness [data-thinness="${cause.kind}"]`);
     await expect(blockEl.locator('p')).toHaveText(cause.statement);
+    // The caption says which squad the two numbers count. It is the server's, as sent.
+    expect(typeof cause.caption).toBe('string');
+    await expect(blockEl.locator('[data-part="caption"]')).toHaveText(cause.caption);
     const figures = await blockEl.locator('.thin-figure [data-value]').evaluateAll(els => els.map(e => e.dataset.value));
     expect(figures).toEqual(cause.kind === 'REQUIREMENT' ? [String(cause.placements.count), String(cause.decided_count)] : [String(cause.kappa_before), String(cause.kappa_after)]);
   }
+  expect(depth.thinness[0].caption).toMatch(NOBODY_EXCLUDED);
   for (const player of depth.thinness[0].players) await expect(page.locator('#thinness [data-thinness="GATE"] .depth-line')).toContainText(`${player.name} ${player.minutes} min`);
   expect(depth.placement_note).toBeNull(); // every placement was decided, so the pitch needs no caveat
   await expect(page.locator('#depth-placement-note')).toBeHidden();
@@ -209,6 +217,10 @@ test('gold marks only the selected player, at every slot he is eligible for', as
   await expect(page.locator('#player')).toHaveValue(String(NACHO));
   await expect(page.locator('#player-detail h3')).toHaveText('Nacho');
   await expect(page.locator('#player-detail li[data-pinned]')).toHaveCount(slotsOf(NACHO).length);
+  // What using him at each slot does is the sentence the server sent for that placement.
+  const placed = depth.slots.filter(s => s.pinned.some(p => p.player_id === NACHO)).map(s => s.pinned.find(p => p.player_id === NACHO).statement);
+  expect(placed.length).toBe(slotsOf(NACHO).length);
+  await expect(page.locator('#player-detail li[data-pinned] [data-part="placement"]')).toHaveText(placed);
   // His declared roles are printed in the server's words, never as role ids.
   const nacho = snapshot.squad.find(p => p.player_id === NACHO);
   expect([nacho.role_rules, nacho.role_labels]).toEqual([['cb', 'lb', 'rb'], ['Centre back', 'Left back', 'Right back']]);
@@ -286,6 +298,15 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   await expect(page.locator('#depth-pitch g.depth-mark.available line')).toHaveCount(raising.length);
   await expect(page.locator(`#depth-pitch g.depth-mark.excluded[data-player="${RONALDO}"] line`)).toHaveCount(depth.slots.filter(s => s.excluded.length).length);
   await expect(page.locator('#thinness [data-thinness="REQUIREMENT"] p')).toHaveText(depth.thinness[2].statement);
+  // A placement that raises the shortfall is said in the server's sentence, pair included: the
+  // page words nothing and formats no number of it.
+  const [raisingId, raisingSlot] = raising[0].split('@');
+  const pin = depth.slots.find(s => s.slot_id === raisingSlot).pinned.find(p => String(p.player_id) === raisingId);
+  expect(pin.statement).toMatch(/^The least declared shortfall rises: with him there it is largest \d[\d.]*, sum \d[\d.]*\.$/);
+  await page.locator('#player').selectOption(raisingId);
+  await expect(page.locator(`#player-detail li[data-slot="${raisingSlot}"] [data-part="placement"]`)).toHaveText(pin.statement);
+  await expect(page.locator('#player-detail')).not.toContainText('With him there');
+  await page.locator('#player').selectOption('');
   // With a player excluded the stages of spare differ, and the cell still prints the server's sentence.
   expect(depth.tight_groups.some(g => g.spare_by_stage.available !== g.spare_by_stage.gated)).toBe(true);
   await spareCells(page, depth);
@@ -320,6 +341,11 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   expect(await rows()).toEqual(listed(stress.listings, 'requirement_value:progression'));
   await expect(page.locator('#removals-ledger')).toHaveAttribute('data-order-key', 'requirement_value:progression');
   expect(posts).toBe(0); // a new order is a way to read the list, not a request
+  // The line under the control says both levels: the outcome groups come first, in a fixed
+  // sequence, and the chosen key orders a group and nothing else.
+  const chosenKey = stress.listings.keys.find(k => k.order_key === 'requirement_value:progression');
+  expect(stress.listing_first_level).toBe('the outcome without him');
+  await expect(page.locator('#removals-ordered-by')).toHaveText(`Grouped by ${stress.listing_first_level}, in a fixed sequence. Inside a group listed by: ${chosenKey.label}. One declared key, not an order of merit. ${stress.listings.tie_rule}`);
   page.off('request', counter);
   expect(stress.levels.length).toBe(2);
   for (const level of stress.levels) {
@@ -328,10 +354,19 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
     await expect(el.locator('[data-statement="unfieldable"]')).toHaveText(level.statements.unfieldable + ' ' + level.minimal_unfieldable.statement);
     await expect(el.locator('[data-statement="raised"]')).toHaveText(level.raised.statement);
     await unfieldableLists(el, level);
-    // Single absences above the baseline are rows of the ledger above, not listed twice.
-    await expect(el.locator('[data-ledger-kind="RAISED"] > li')).toHaveCount(level.k === 1 ? 0 : level.raised.listed_count);
-    if (level.k > 1) expect(await el.locator('[data-ledger-kind="RAISED"] > li').evaluateAll(rows => rows.map(r => r.dataset.set))).toEqual(level.raised.listed.map(r => r.player_ids.join('-')));
+    // The sets above the baseline are printed as sent. Single absences are rows of the list
+    // above: the server says so in its sentence and sends none to print a second time.
+    await expect(el.locator('[data-ledger-kind="RAISED"] > li')).toHaveCount(level.raised.listed_count);
+    expect(await el.locator('[data-ledger-kind="RAISED"] > li').evaluateAll(rows => rows.map(r => r.dataset.set))).toEqual(level.raised.listed.map(r => r.player_ids.join('-')));
+    // The sets tied at the highest value: the server's sentence, and under it the sets the
+    // server sent with it, no more and no fewer.
+    await expect(el.locator('[data-statement="ties"]')).toHaveText(level.worst_sets.statement);
+    expect(await el.locator('[data-part="tied-sets"] [data-set]').evaluateAll(sets => sets.map(x => x.dataset.set))).toEqual(level.worst_sets.listed.map(t => t.player_ids.join('-')));
+    for (const tied of level.worst_sets.listed) for (const player of tied.players) await expect(el.locator(`[data-part="tied-sets"] [data-set="${tied.player_ids.join('-')}"]`)).toContainText(player.name);
   }
+  expect(stress.levels[0].raised.listed).toEqual([]);
+  expect(stress.levels[0].raised.count).toBeGreaterThan(0);
+  expect(stress.levels.some(level => level.worst_sets.listed.length > 0)).toBe(true); // non-vacuity: a list was sent and drawn
   const pairs = stress.levels[1];
   expect(pairs.raised.count).toBeGreaterThan(pairs.raised.listed_count); // a cut list says so
   expect(pairs.raised.statement).toContain(`: ${pairs.raised.count}. Listed: ${pairs.raised.listed_count},`);
@@ -439,7 +474,7 @@ test('a late reply changes nothing: a superseded audit and an invalidated stress
   await consumed(page, '/api/squad/stress');
   await expect(page.locator('#stress-body')).toBeHidden();
   await expect(page.locator('#removals')).toBeEmpty();
-  await expect(page.locator('#stress-status')).toHaveText('Run after an audit. Every absence set is re-solved.');
+  await expect(page.locator('#stress-status')).toHaveText(STRESS_IDLE);
   await expect(page.locator('#stress-k-label')).toHaveText('2');
   await expect(page.locator('#run-stress')).toBeEnabled();
   await expect(page.locator('#evidence-ledger tr[data-ledger^="stress-"]')).toHaveCount(0);
@@ -694,7 +729,7 @@ test('no fieldable XI: nothing unevaluated is drawn as a count, and the page say
   const again = await (await restored).json();
   await expect(page.locator(`#constraints button[data-player="${NACHO}"]`)).toHaveCount(0, { timeout: 60000 });
   expect(again.baseline.kind).not.toBe('NO_FIELDABLE_XI');
-  await expect(page.locator('#stress-status')).toHaveText('Run after an audit. Every absence set is re-solved.');
+  await expect(page.locator('#stress-status')).toHaveText(STRESS_IDLE);
   await expect(page.locator('#run-stress')).toBeEnabled();
   await expect(page.locator('#depth-placement-note')).toBeHidden();
   expect(errors).toEqual([]);
@@ -740,4 +775,106 @@ test('a minimum at a league percentile is labelled once, and a cross-league pool
   for (const line of brief.pool.banner) await expect(page.locator('#brief')).toContainText(line);
   await expect(page.locator('#brief-pool')).toHaveText(brief.pool.count_statement);
   expect(errors).toEqual([]);
+});
+
+test('a count taken before your exclusions says so, with Cristiano Ronaldo and then G. Bale excluded', async ({ page }) => {
+  test.setTimeout(360000);
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await open(page);
+  const audited = async act => {
+    const answered = reply(page, '/api/squad/depth');
+    await act();
+    const depth = await (await answered).json();
+    await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
+    return depth;
+  };
+  const gateWarnings = depth => depth.warnings.filter(w => w.includes('evidence gate'));
+  const gateEl = page.locator('#thinness [data-thinness="GATE"]');
+
+  // Cristiano Ronaldo excluded. Two forwards are left for the centre-forward slot, and the
+  // warning that appears with the exclusion counts three: it says whose count that is.
+  const one = await audited(() => page.locator('#presets button[data-preset="exclude-3322"]').click());
+  expect(one.inputs.excludes).toEqual([RONALDO]);
+  const forward = one.tight_groups.find(g => g.slot_ids.join('-') === 'st');
+  expect([forward.spare_by_stage.available, forward.spare_by_stage.gated, forward.spare_by_stage.rule_eligible]).toEqual([1, 2, 3]);
+  expect(one.warnings).toContain('The slot Centre forward has a spare of 2 after the evidence gate with nobody excluded and 3 before it (eligible players beyond the number of slots). The gate removed Borja Mayoral.');
+  expect(gateWarnings(one).length).toBeGreaterThan(1);
+  for (const warning of gateWarnings(one)) expect(warning).toMatch(NOBODY_EXCLUDED);
+  await expect(page.locator('#warnings li')).toHaveText(one.warnings);
+  await expect(page.locator('#tight-groups > li[data-slots="st"] [data-part="spare"]')).toHaveText(forward.spare_statement);
+  expect(forward.spare_statement).toContain('1 with the squad as declared, exclusions applied; 2 after the evidence gate with nobody excluded;');
+  await expect(gateEl.locator('[data-part="caption"]')).toHaveText(one.thinness[0].caption);
+
+  // Pairs of absences in that state: none raises the shortfall, so every fieldable pair is tied
+  // at the baseline. The server sends no list and a sentence that announces none, and the page
+  // prints that sentence with nothing after it.
+  await page.locator('#stress-k button[data-k="2"]').click();
+  const stressed = reply(page, '/api/squad/stress');
+  await page.locator('#run-stress').click();
+  const stress = await (await stressed).json();
+  await expect(page.locator('#stress-body')).toBeVisible({ timeout: 120000 });
+  expect(stress.levels.map(level => level.k)).toEqual([1, 2]);
+  for (const level of stress.levels) {
+    const el = page.locator(`#stress-ledgers [data-level="${level.k}"]`);
+    expect([level.positive_change_count, level.worst_sets.listed]).toEqual([0, []]);
+    expect(level.worst_sets.count).toBeGreaterThan(0);
+    expect(level.worst_sets.statement).toBe(`No fieldable absence set of size ${level.k} has a least declared shortfall above the baseline: the highest value is the baseline, ${level.worst_sets.count} sets have it, and none is listed.`);
+    expect(level.worst_sets.count).toBe(level.certified_count); // every fieldable set is tied at the baseline
+    await expect(el.locator('[data-statement="ties"]')).toHaveText(level.worst_sets.statement);
+    await expect(el.locator('[data-part="tied-sets"]')).toHaveCount(0);
+    expect(level.worst_sets.statement).not.toContain('Listed:');
+    await expect(el.locator('[data-ledger-kind="RAISED"]')).toHaveCount(0);
+    await expect(el.locator('[data-statement="raised"]')).toHaveText(level.raised.statement);
+  }
+  await expect(page.locator('#stress-ledgers')).not.toContainText('Each is a row of the ledger above');
+
+  // G. Bale excluded as well. One absence now leaves no XI in the reader's own squad; the gate
+  // figure stays at two, and its sentence and its caption say it is the count with nobody excluded.
+  await page.locator('#player').selectOption(String(BALE));
+  const two = await audited(() => page.locator('#exclude-player').click());
+  expect(two.inputs.excludes).toEqual([RONALDO, BALE]);
+  const gate = two.thinness[0];
+  expect([two.kappa_by_stage.available, gate.kappa_before, gate.kappa_after]).toEqual([1, 3, 2]);
+  expect(await gateEl.locator('.thin-figure [data-value]').evaluateAll(els => els.map(e => e.dataset.value))).toEqual(['3', '2']);
+  expect(gate.statement).toContain('After it, with nobody excluded, no XI can be fielded after 2 absences inside one slot group.');
+  await expect(gateEl.locator('p')).toHaveText(gate.statement);
+  expect(gate.caption).toBe('absences until no XI, with nobody excluded: before the gate → after it');
+  await expect(gateEl.locator('[data-part="caption"]')).toHaveText(gate.caption);
+  expect(two.depth_statement.startsWith('With the gated squad and your exclusions, no XI can be fielded after 1 absence inside one slot group.')).toBe(true);
+  await expect(page.locator('#depth-statement')).toHaveText(two.depth_statement);
+  expect(gateWarnings(two).length).toBeGreaterThan(0);
+  for (const warning of gateWarnings(two)) expect(warning).toMatch(NOBODY_EXCLUDED);
+  await expect(page.locator('#warnings li')).toHaveText(two.warnings);
+  // Nothing on the page still says the old caption, which named no stage.
+  await expect(page.locator('#thinness')).not.toContainText('absences until no XI: before the gate');
+  expect(await overflows(page)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test.describe('in a browser set to a comma-decimal locale', () => {
+  test.use({ locale: 'de-DE' });
+
+  test('every number is printed in the notation the server\'s sentences use', async ({ page }) => {
+    test.setTimeout(240000);
+    const errors = watch(page);
+    // Non-vacuity: this browser writes numbers the German way when it is left to.
+    expect(await page.evaluate(() => (1234.5).toLocaleString())).toBe('1.234,5');
+    const { snapshot, depth, reference } = await open(page);
+    const english = (value, digits) => value.toLocaleString('en-US', { maximumFractionDigits: digits });
+    // Nominal minutes above a thousand: "2,250", never "2.250".
+    const member = snapshot.squad.find(p => p.minutes >= 1000);
+    await page.locator('#player').selectOption(String(member.player_id));
+    await expect(page.locator('#player-detail .player-facts')).toContainText(`${english(member.minutes, 0)} nominal minutes`);
+    expect(english(member.minutes, 0)).toContain(',');
+    // A rounded figure with decimals: "≈ 3.006", never "≈ 3,006".
+    const requirement = depth.inputs.requirements.find(r => r.declared);
+    const caption = page.locator('#requirements [data-requirement="progression"] .gp-caption').first();
+    await expect(caption).toHaveText(`minimum ${requirement.minimum} · shortfalls in units of ≈ ${english(requirement.normalizer, 3)}`);
+    expect(await page.locator('.ref-rows li > span:nth-child(2)').allTextContents())
+      .toEqual(reference.distributions[0].percentiles.map(p => `≈ ${english(p.value, 3)}`));
+    // The gate line prints minutes below a thousand, and the same sentence as in any locale.
+    await expect(page.locator('#depth-statement')).toHaveText(depth.depth_statement);
+    expect(errors).toEqual([]);
+  });
 });

@@ -12,11 +12,18 @@ be comparing two different quantities and calling the difference a replication
 result. So both sides are recomputed here over **completed passes only**, which
 both providers represent comparably, and the Wyscout Stage 1B numbers are NOT
 carried over. This is estimator v2 on both sides.
+
+THE RESULT FILES ARE RECORDS. A rerun is compared with each of them value by value:
+one that reproduces a record leaves it as it is, and one that does not says which
+values differ, writes nothing over it and exits 1, unless ``--overwrite-record`` is
+given. On the corpus as it is this runner does not reproduce the Wyscout half it
+published: Spain, England and France were published with another xT turnover recipe
+(docs/research/M-07-rank-ties.md, "Found on the way").
 """
 
 from __future__ import annotations
 
-import json
+import argparse
 from pathlib import Path
 
 import numpy as np
@@ -24,19 +31,31 @@ import pandas as pd
 
 from galactico.features.estimators import harmonised_axes  # noqa: F401
 from galactico.models.xt import PitchGrid, fit_expected_threat
-from galactico.providers.pappalardo import PappalardoProvider
 from galactico.providers.statsbomb import StatsBombProvider
 from galactico.reliability import AxisReliability, discriminant_validity, split_half_reliability
-from galactico.reliability.confound import _spearman
+
+if __package__:
+    from .run_replication import keep_record
+else:
+    from run_replication import keep_record
 
 WY = Path("data/public/parquet/pappalardo")
 SB_ROOT = Path("data/licensed/statsbomb")
 SB_CACHE = Path("data/licensed/parquet/statsbomb")
+# Tracked. It holds the public (Wyscout) half and nothing else.
+RECORD = Path("experiments/external_replication.json")
 # Gitignored. The StatsBomb half of the result is never written into a tracked path.
 LOCAL_RECORD = Path("data/licensed/derived/external_replication_statsbomb.json")
 MINUTES_FLOOR = 900
 HALF_FLOOR = 300
 BASELINE_CEILING = 0.85
+
+# The tie policy of the audit's ordering figure. The records were published with ranks
+# taken in sort order, so that is what a rerun is compared with, and it warns. The
+# corrected figures are in docs/research/M-07-rank-ties.md: the script behind that note,
+# experiments/run_rank_tie_erratum.py, sets this name to "average" for the length of
+# its own run.
+TIE_POLICY = "legacy"
 
 WY_LEAGUES = {"Spain": "ESP", "England": "ENG", "Italy": "ITA", "France": "FRA"}
 SB_LEAGUES = {"La_Liga": "ESP", "Premier_League": "ENG", "Serie_A": "ITA", "Ligue_1": "FRA"}
@@ -122,11 +141,9 @@ def evaluate(actions, lineups, label: str, floor: int = MINUTES_FLOOR) -> dict:
         v = ax[axis].reindex(keep)
         ok = v.notna()
         conf = np.column_stack([touches[ok].to_numpy(), team_oh.loc[ok].to_numpy()])
-        # ties="legacy": the published record used sort-order ranks, and a rerun must
-        # reproduce it. Corrected figures: docs/research/M-07-rank-ties.md.
         dv = discriminant_validity(v[ok].to_numpy(), conf, key=axis,
                                    confound_names=("pass volume", "team"), top_k=12,
-                                   ties="legacy")
+                                   ties=TIE_POLICY)
         cors = {b: safe_corr(v[ok].to_numpy(), bs.loc[ok, b].to_numpy()) for b in bs.columns}
         cors = {k: c for k, c in cors.items() if np.isfinite(c)}
         best = max(cors, key=cors.get)
@@ -137,6 +154,15 @@ def evaluate(actions, lineups, label: str, floor: int = MINUTES_FLOOR) -> dict:
                           mean=float(v.mean()), sd=float(v.std()))
     return {"rows": rows, "axes": ax, "baselines": bs, "xt": xt,
             "minutes": minutes, "n_players": len(keep)}
+
+
+def recorded(results: dict[str, dict]) -> dict:
+    """The blocks of the result files, one for each provider and league, as ``main`` hands
+    them to ``keep_record``: for each construct, the row ``evaluate`` returned, with every
+    number as a float."""
+    return {k: {a: {kk: (float(vv) if isinstance(vv, (int, float, np.floating)) else vv)
+                    for kk, vv in row.items()}
+                for a, row in v["rows"].items()} for k, v in results.items()}
 
 
 def load_statsbomb(competition: str, provider: StatsBombProvider):
@@ -152,7 +178,14 @@ def load_statsbomb(competition: str, provider: StatsBombProvider):
     return actions, lineups
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Stage 1C: external replication under a provider and season shift.")
+    parser.add_argument("--overwrite-record", action="store_true",
+                        help=f"replace {RECORD.as_posix()} and the local record of the "
+                             f"StatsBomb half when this run does not reproduce them")
+    args = parser.parse_args(argv)
+
     sb = StatsBombProvider(SB_ROOT)
     results: dict[str, dict] = {}
 
@@ -178,21 +211,24 @@ def main() -> None:
     header = (f"{'axis':<24}" + "".join(f"{'WY ' + c:>9}" for c in codes)
               + "".join(f"{'SB ' + c:>9}" for c in codes))
     print("\n\nRELIABILITY (harmonised estimator, both providers)")
-    print(header); print("-" * len(header))
+    print(header)
+    print("-" * len(header))
     for axis in AXES:
         cells = "".join(f"{results[f'WY_{c}']['rows'][axis]['r']:>9.2f}" for c in codes)
         cells += "".join(f"{results[f'SB_{c}']['rows'][axis]['r']:>9.2f}" for c in codes)
         print(f"{axis:<24}{cells}")
 
     print("\nCONFOUND R2")
-    print(header); print("-" * len(header))
+    print(header)
+    print("-" * len(header))
     for axis in AXES:
         cells = "".join(f"{results[f'WY_{c}']['rows'][axis]['conf_r2']:>9.2f}" for c in codes)
         cells += "".join(f"{results[f'SB_{c}']['rows'][axis]['conf_r2']:>9.2f}" for c in codes)
         print(f"{axis:<24}{cells}")
 
     print("\nCLOSEST BASELINE |r|")
-    print(header); print("-" * len(header))
+    print(header)
+    print("-" * len(header))
     for axis in AXES:
         cells = "".join(f"{results[f'WY_{c}']['rows'][axis]['baseline_r']:>9.2f}" for c in codes)
         cells += "".join(f"{results[f'SB_{c}']['rows'][axis]['baseline_r']:>9.2f}" for c in codes)
@@ -204,18 +240,16 @@ def main() -> None:
         print(f"  {axis:<24} WY {w['mean']:>9.4f} ±{w['sd']:.4f}   "
               f"SB {s['mean']:>9.4f} ±{s['sd']:.4f}")
 
-    out = {k: {a: {kk: (float(vv) if isinstance(vv, (int, float, np.floating)) else vv)
-                   for kk, vv in row.items()}
-               for a, row in v["rows"].items()} for k, v in results.items()}
+    out = recorded(results)
     # The tracked record holds the public (Wyscout) half only. The StatsBomb half is
     # analysis formed from local-only data: LICENSING.md keeps derived tables out of the
     # repository, so it is written under the gitignored cache and printed above.
     public = {k: v for k, v in out.items() if k.startswith("WY_")}
     local = {k: v for k, v in out.items() if k.startswith("SB_")}
-    Path("experiments/external_replication.json").write_text(json.dumps(public, indent=1),
-                                                             encoding="utf-8")
-    LOCAL_RECORD.parent.mkdir(parents=True, exist_ok=True)
-    LOCAL_RECORD.write_text(json.dumps(local, indent=1), encoding="utf-8")
+    # Each half is a record of what was published. Neither is written over by a run
+    # that does not reproduce it.
+    kept_public = keep_record(RECORD, public, overwrite=args.overwrite_record)
+    kept_local = keep_record(LOCAL_RECORD, local, overwrite=args.overwrite_record)
 
     # --- chance creation minutes curve under StatsBomb ---------------------
     print("\nCHANCE CREATION reliability by minutes floor (StatsBomb, pooled)")
@@ -229,7 +263,8 @@ def main() -> None:
             keep = m[m >= floor].index
             order = {g: i for i, g in enumerate(sorted(actions["game_id"].unique()))}
             for h, d in ((0, fh), (1, sh_)):
-                ah = actions[(actions["game_id"].map(order) % 2 == h) & actions.player_id.isin(keep)]
+                in_half = actions["game_id"].map(order) % 2 == h
+                ah = actions[in_half & actions.player_id.isin(keep)]
                 lh = lineups[lineups["game_id"].map(order) % 2 == h]
                 mh = lh[lh.player_id.isin(keep)].groupby("player_id")["minutes"].sum()
                 mh = mh[mh >= floor / 3]
@@ -239,6 +274,12 @@ def main() -> None:
         r, n = split_half_reliability(fh, sh_)
         print(f"{floor:>7}{n:>7}{r:>8.3f}")
 
+    if kept_public and kept_local:
+        return 0
+    print("\nExit 1: this run did not reproduce a record, and the record was left as it "
+          "is. The values that differ are listed above.")
+    return 1
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

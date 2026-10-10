@@ -262,7 +262,18 @@ def _text(name: str, value: object) -> str:
 
 
 def declared_row(*, key: str, label: str, value_text: str) -> dict:
-    """One input the user declared, exactly as sent. It has an origin, not a class."""
+    """One input the reader declared. It has an origin, not a class.
+
+    ``value_text`` is the router's record of the declaration, and a page prints it unchanged.
+    A number the reader entered is in it as entered, every digit and never rounded
+    (``domain.precision.format_plain``). A value the server reads off the record for a choice
+    the reader made (a league percentile) is marked in it as a rounded figure. A name or a
+    sentence that stands for an id the reader sent is the router's own text.
+
+    A value nobody declared is not a declared row. A shipped default is a ledger row that
+    carries its own origin; this function stamps ``DECLARED`` on whatever it is given, so the
+    router decides what is passed here.
+    """
     return {
         "key": _text("key", key),
         "label": _text("label", label),

@@ -2,8 +2,8 @@
 
 Claim: for the slot the user declared, the pool is the gated universe players whose provider
 broad position that slot admits; each is placed at the slot and the squad is re-solved
-exactly, from the rates he recorded at his own club. A break-even carry-over fraction states
-how much of those rates a declared conclusion can lose and still hold.
+exactly, from the rates he recorded at his own club. A break-even carry-over fraction is the
+smallest share of those rates that must carry over for a declared conclusion to hold.
 
 Not claimed: a forecast, a valuation or advice. No role is inferred: lane shares, foot and
 age are shown for a person to judge. Whether a rate repeats after a move has not been
@@ -40,6 +40,7 @@ from fastapi import APIRouter
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from ..domain.precision import format_plain
 from ..domain.provenance import EvidenceClass
 from . import planning, runtime, shell
 from .decision_lab import DecisionRoute
@@ -51,7 +52,11 @@ __all__ = [
     "FACT_WORDS",
     "LEFT_OUT_LABELS",
     "OUTCOME_LABELS",
+    "OUTCOME_LABELS_NO_XI",
     "PREDICTS_NOTHING",
+    "REFERENCE_OUTCOME_LABELS",
+    "REFERENCE_SENTENCES",
+    "SHORTFALL_RULE",
     "UNIVERSE_BUDGET_SECONDS",
     "TransferFilters",
     "TransferUniverseRequest",
@@ -119,11 +124,40 @@ MODEL_STATEMENT = (
     "This model contains: {labels}. It contains nothing about finishing, defending or "
     "goalkeeping."
 )
-REFERENCE_STATEMENT = (
-    "Reference: a synthetic candidate with the median recorded rate of the {n} listed players "
-    "on each declared requirement, placed at {slot}. A candidate who does no more than this "
-    "row has not been shown to address the shortfall. The reference is not a person."
+REFERENCE_HEAD = (
+    "Reference: a synthetic candidate with the median recorded rate of the {listed} on each "
+    "declared requirement, placed at {slot}."
 )
+_AS_THE_MEDIAN = "a row in that outcome group does what the median of the listed players does."
+REFERENCE_SENTENCES: dict[tuple[bool, str], str] = {
+    (True, "UNCHANGED"): (
+        "A candidate who does no more than this row has not been shown to address the "
+        "shortfall."),
+    (True, "LOWERS_SHORTFALL"): (
+        "Here the reference itself lowers the declared shortfall, still above zero: "
+        + _AS_THE_MEDIAN),
+    (True, "REMOVES_SHORTFALL"): (
+        "Here the reference itself removes the declared shortfall: " + _AS_THE_MEDIAN),
+    (False, "MAKES_FIELDABLE"): (
+        "Here an XI can be fielded with the reference itself placed there: " + _AS_THE_MEDIAN),
+    (False, "UNCHANGED"): (
+        "No XI can be fielded with the reference placed there either: a candidate who does no "
+        "more than this row has not been shown to make an XI fieldable."),
+}
+"""What the reference row says of a candidate, by (the squad as declared has an XI, the
+reference's own outcome). The sentence follows what the row beside it certifies: "has not
+been shown" is said only where the reference changes nothing, and where the squad has no XI
+no sentence speaks of a shortfall, because there is none."""
+REFERENCE_NOT_EVALUABLE = (
+    "No listed player has a recorded rate on a declared requirement that applies at {slot}, so "
+    "the reference has none there and was not re-solved."
+)
+REFERENCE_UNDETERMINED = (
+    "The re-solve of the reference was not certified, so nothing is said of a candidate at the "
+    "median of the listed players. Treat as incomplete."
+)
+"""Also what an outcome ``REFERENCE_SENTENCES`` does not know reads as: never as a finding."""
+REFERENCE_NOT_A_PERSON = "The reference is not a person."
 LIST_CANNOT_SAY = (
     "A candidate in the first group is not a suggestion.",
     "Membership is a fact about this integer model and these declared minima. It is not known "
@@ -153,14 +187,38 @@ OUTCOME_LABELS: dict[str, str] = {
     "NOT_EVALUABLE": "Not evaluable",
     "UNDETERMINED": "Not resolved",
 }
-"""One label per ``injection.OUTCOME_GROUPS`` token, in that sequence (equal by test)."""
+"""One label per ``injection.OUTCOME_GROUPS`` token, in that sequence (equal by test). Each
+is said of a squad that has an XI and a declared shortfall: "it" is that shortfall."""
+OUTCOME_LABELS_NO_XI: dict[str, str] = {
+    **OUTCOME_LABELS, "UNCHANGED": "No XI can be fielded with him either",
+}
+"""The same tokens where the squad as declared has no XI. There is no shortfall there for a
+row to leave unchanged, so the group of rows that change nothing says what did not change."""
+REFERENCE_OUTCOME_LABELS: dict[str, str] = {
+    **OUTCOME_LABELS, "MAKES_FIELDABLE": "An XI can be fielded with it",
+}
+REFERENCE_OUTCOME_LABELS_NO_XI: dict[str, str] = {
+    **REFERENCE_OUTCOME_LABELS, "UNCHANGED": "No XI can be fielded with it either",
+}
+"""The labels of the pool-median row, which is not a person: none says "him"."""
 SINGLE_REQUIREMENT_STATEMENT = (
-    "With one requirement in force ({label}), the forced value of every row, and therefore its "
-    "outcome group, is a function of the one recorded rate printed in that row, a higher "
-    "recorded rate giving a lower declared shortfall or the same one: the groups restate that "
-    "rate under the declared minimum and are not a second piece of evidence about a player."
+    "With one requirement in force ({label}), the forced value of every row is a function of "
+    "the one recorded rate printed in that row, and so are its outcome group and its break-even "
+    "carry-over fraction: a higher recorded rate never gives a higher declared shortfall and "
+    "never a higher break-even. The groups and the break-even restate that rate under the "
+    "declared minimum and are not further evidence about a player."
 )
-"""Said whenever exactly one requirement is in force. With several, no one rate decides a row."""
+"""Said whenever exactly one requirement is in force. With several, no one rate decides a row.
+
+Every candidate is placed at the same slot, so with one requirement his one rate is all the
+model reads of him. The forced value does not rise with it, and every conclusion a break-even
+tests holds from one threshold of the scaled rate upward: the break-even is the smallest grid
+fraction that reaches that threshold, which a higher rate reaches no later."""
+SHORTFALL_RULE = "half-even after float division by the declared normalizer"
+"""How a rate becomes an integer of the shortfall model, in words, for the ledger's "Solver or
+rule" column. ``squad.kernel.SHORTFALL_POLICY`` is this rule and then the function that
+applies it (equal by test); that name is a record and stays in the certificate and the
+provenance."""
 LEFT_OUT_LABELS: dict[str, str] = {
     "LEAGUE_NOT_INCLUDED": "league not included",
     "OWN_SQUAD": "this club's own squad",
@@ -193,6 +251,13 @@ RESOLUTION_SENTENCES: dict[str, str | None] = {
 }
 """What a row says in place of a break-even, per ``InjectionRow.resolution``. A token this
 table does not know reads as not certified, never as a finding."""
+REFERENCE_RESOLUTION_SENTENCES: dict[str, str | None] = {
+    **RESOLUTION_SENTENCES,
+    "NO_MEASURED_ADMISSIBLE_SLOT":
+        "No listed player has a recorded rate on a declared requirement that applies at this "
+        "slot; the reference was not re-solved.",
+}
+"""The same for the pool-median row: it has no club, and no sentence about it says "his"."""
 LINEUP_NOT_CERTIFIED = "No XI is shown: this solve was not certified. Treat as incomplete."
 BASELINE_LINEUP_NOTES = {
     "CERTIFIED": "One least-shortfall XI of this problem. Others may tie with it.",
@@ -221,10 +286,11 @@ DEFINITIONS = (
     {"field": "forced_inclusion_objective",
      "definition": "Certified least declared shortfall (largest, sum) over the XIs that field "
                    "him at the declared slot.",
-     "why": "With him merely available the value is never above the squad's own, so it would "
-            "show a gain for any noisy figure. The forced value can be above the squad's own: "
-            "fielding him there can leave the squad further from its minima, and such a row "
-            "still leaves the squad's least shortfall unchanged."},
+     "why": "With him merely available the value is never above the squad's own, so it could "
+            "only ever show a gain or no change, and noise in his recorded rates could only be "
+            "read as a gain. The forced value can be above the squad's own: fielding him there "
+            "can leave the squad further from its minima, and such a row still leaves the "
+            "squad's least shortfall unchanged."},
     {"field": "membership",
      "definition": "In every least-shortfall XI when the forced value is below the squad's own; "
                    "in some when equal; in none when above.",
@@ -305,14 +371,13 @@ class _Pool:
     listed: tuple  # after the filters
 
 
-def _exact(value: float) -> str:
-    """A certified value in declared units, printed without rounding it a second time."""
-    short = f"{value:g}"
-    return short if float(short) == value else repr(value)
-
-
 def _pair(pair: Any) -> list[float] | None:
     return None if pair is None else [float(pair[0]), float(pair[1])]
+
+
+def _count(number: int, one: str, many: str | None = None) -> str:
+    """A count and its noun, agreeing in number: "1 world", "2 worlds"."""
+    return f"{number} {one if number == 1 else many or one + 's'}"
 
 
 def _lane_text(lanes: Any) -> str | None:
@@ -332,16 +397,46 @@ def _lane_text(lanes: Any) -> str | None:
             f"{'pass' if total == 1 else 'passes'}")
 
 
-def _facts_evidence_statement(shown: Mapping[str, str]) -> str:
-    """One sentence naming the class of each fact beside a candidate, from the tool's mapping."""
+def _listed(words: list[str]) -> str:
+    """Words as a list in a sentence: "A", "A and B", "A, B and C"."""
+    *first, last = words
+    return f"{', '.join(first)} and {last}" if first else last
+
+
+def _rate_classes(problem: planning.DeclaredProblem) -> list[tuple[str, str, EvidenceClass]]:
+    """``(requirement id, label, class)`` of the recorded rate a row prints, per requirement
+    in force. The class is the one the squad's own rates row carries: one recorded rate, one
+    class, whoever's club recorded it (``planning.rate_class``)."""
+    metrics = {metric.metric_id: metric for metric in problem.snapshot.metrics}
+    return [
+        (row["requirement_id"], row["label"], planning.rate_class(metrics[row["metric"]]))
+        for row in problem.requirement_rows if row["declared"]
+    ]
+
+
+def _facts_evidence_statement(shown: Mapping[str, str],
+                              rates: list[tuple[str, str, EvidenceClass]]) -> str:
+    """One sentence naming the class of everything printed beside a candidate.
+
+    The facts and their classes are the tool's mapping. His recorded rates are printed in
+    every row too, one per requirement in force, so the sentence names each with its class.
+    """
     by_class: dict[EvidenceClass, list[str]] = {}
     for fact, name in shown.items():
         by_class.setdefault(EvidenceClass[name], []).append(FACT_WORDS[fact])
-    parts = []
-    for member in sorted(by_class):
-        *first, last = by_class[member]
-        listed = f"{', '.join(first)} and {last}" if first else last
-        parts.append(f"{listed} {'are' if first else 'is'} {member.label}")
+    parts = [
+        f"{_listed(by_class[member])} {'are' if len(by_class[member]) > 1 else 'is'} "
+        f"{member.label}"
+        for member in sorted(by_class)
+    ]
+    rates_by_class: dict[EvidenceClass, list[str]] = {}
+    for _, label, member in rates:
+        rates_by_class.setdefault(member, []).append(label)
+    parts += [
+        f"his recorded {_listed(rates_by_class[member])} "
+        f"{'are' if len(rates_by_class[member]) > 1 else 'is'} {member.label}"
+        for member in sorted(rates_by_class)
+    ]
     return f"Beside each candidate: {'; '.join(parts)}."
 
 
@@ -453,10 +548,12 @@ def _deficiency(pool: _Pool, value: Any) -> dict:
             "NO_DECLARED_DEFICIENCY", SATURATED_WARNING, "NO_DECLARED_DEFICIENCY", NO_SEARCH)
     elif value.status == "CERTIFIED":
         state, search, search_statement = "SHORTFALL", "READY", None
+        # Written out (``format_plain``): a certified value is never rounded a second time
+        # and a small one is never "6e-05".
         statement = (
             f"Without an addition this squad's least declared shortfall is largest "
-            f"{_exact(pair[0])}, sum {_exact(pair[1])}. Each candidate at {slot} is re-solved "
-            "against that."
+            f"{format_plain(pair[0])}, sum {format_plain(pair[1])}. Each candidate at {slot} "
+            "is re-solved against that."
         )
     elif value.status == "UNFIELDABLE":
         state, search, search_statement = "BASELINE_UNFIELDABLE", "READY", None
@@ -477,7 +574,7 @@ def _deficiency(pool: _Pool, value: Any) -> dict:
     declared_by = [{"kind": "EXCLUSION", "label": f"Excluded: {names[pid]}"}
                    for pid in problem.excludes]
     declared_by += [
-        {"kind": "MINIMUM", "label": f"{row['label']} minimum {_exact(row['minimum'])}"}
+        {"kind": "MINIMUM", "label": f"{row['label']} minimum {format_plain(row['minimum'])}"}
         for row in problem.requirement_rows
         if row["declared"] and row["source"] != "CLUB_MEDIAN"
     ]
@@ -556,15 +653,18 @@ def _evidence(pool: _Pool) -> dict:
 
 
 def _solver(certificate: Any) -> str:
-    return (f"{certificate.completeness} · {certificate.shortfall_policy} · "
+    """The "Solver or rule" cell of a re-solve: the rounding rule in words. The function that
+    applies it is named in ``certificate.shortfall_policy``, which is served as a record."""
+    return (f"{certificate.completeness} · {SHORTFALL_RULE} · "
             f"quantisation {certificate.quantization}")
 
 
 def _pool_ledger(pool: _Pool) -> dict:
     return planning.ledger_row(
         stage="SEARCH", row_id=f"pool-{pool.slot.slot_id}", quantity="Admissible pool",
-        value_text=(f"{len(pool.listed)} listed of {len(pool.admissible)} gated players whose "
-                    f"provider position is admitted at {pool.slot.label}"),
+        value_text=(f"{len(pool.listed)} listed of "
+                    f"{_count(len(pool.admissible), 'gated player')} whose provider position "
+                    f"is admitted at {pool.slot.label}"),
         sample=f"{pool.universe.banner[0]} {CARRY_OVER_STATEMENT}",
         evidence=shell.evidence_payload(
             [("Provider position and nominal minutes", EvidenceClass.DERIVED)]),
@@ -577,7 +677,8 @@ def _baseline_ledger(pool: _Pool, value: Any) -> dict:
     return planning.ledger_row(
         stage="AUDIT", row_id="baseline-shortfall",
         quantity="Least declared shortfall without an addition (largest, sum)",
-        value_text=None if pair is None else f"{_exact(pair[0])}, {_exact(pair[1])}",
+        value_text=(None if pair is None
+                    else f"{format_plain(pair[0])}, {format_plain(pair[1])}"),
         sample="Normalised by the club median. Over every eligible XI of the squad as declared.",
         evidence=_evidence(pool),
         solver=f"{value.status} · quantisation {value.quantization}",
@@ -585,15 +686,21 @@ def _baseline_ledger(pool: _Pool, value: Any) -> dict:
 
 
 def _attained_ledger(pool: _Pool, attained: list[dict]) -> list[dict]:
-    """One row per requirement in force: the largest sum the gated squad's XIs reach."""
+    """One row per requirement in force: the sum of one XI, and a ceiling no XI exceeds.
+
+    The first number is the sum of the XI ``planning.attained`` found, which need not be the
+    largest sum any XI reaches: the row is named for what it holds. What the two numbers
+    settle and what they leave open is that tool's sentence, printed here as returned and
+    restated nowhere.
+    """
     return [
         planning.ledger_row(
             stage="AUDIT", row_id=f"attained-{row['requirement_id']}",
-            quantity=(f"Largest sum of {row['label']} over every XI of the gated squad as "
-                      "declared"),
+            quantity=(f"Sum of {row['label']} of one XI of the gated squad as declared, and a "
+                      "ceiling no XI exceeds"),
             value_text=(None if row["reached_text"] is None
                         else f"{row['reached_text']}; none above {row['ceiling_text']}"),
-            sample="Every minimum set aside. Eligibility rules, locks and exclusions kept.",
+            sample=row["statement"],
             evidence=_evidence(pool),
             solver=f"{row['certification']} · quantisation {row['quantization']}",
         )
@@ -662,14 +769,37 @@ def _injection(row: Any) -> dict:
     }
 
 
-def _row(pool: _Pool, candidate: Any, row: Any) -> dict:
+def _outcome_labels(baseline_status: str, *, reference: bool = False) -> dict[str, str]:
+    """The label of every outcome token for one reply.
+
+    Where the squad as declared has no XI there is no shortfall, so no label speaks of one
+    being left unchanged. The pool-median row has labels of its own: it is not a person.
+    """
+    no_xi = baseline_status == "UNFIELDABLE"
+    if reference:
+        return REFERENCE_OUTCOME_LABELS_NO_XI if no_xi else REFERENCE_OUTCOME_LABELS
+    return OUTCOME_LABELS_NO_XI if no_xi else OUTCOME_LABELS
+
+
+def _row(pool: _Pool, candidate: Any, row: Any, labels: Mapping[str, str]) -> dict:
     return {
         **_facts(pool, candidate),
         "requirement_values": dict(row.requirement_values),
         "injection": _injection(row),
         "outcome": row.outcome,
-        "outcome_label": OUTCOME_LABELS[row.outcome],
+        "outcome_label": labels[row.outcome],
     }
+
+
+def _reference_statement(outcome: str, baseline_status: str, listed: int, slot: str) -> str:
+    """What the pool-median row is and what it says of a candidate, chosen by its own outcome."""
+    if outcome == "NOT_EVALUABLE":
+        said = REFERENCE_NOT_EVALUABLE.format(slot=slot)
+    else:
+        said = REFERENCE_SENTENCES.get((baseline_status != "UNFIELDABLE", outcome),
+                                       REFERENCE_UNDETERMINED)
+    head = REFERENCE_HEAD.format(listed=_count(listed, "listed player"), slot=slot)
+    return f"{head} {said} {REFERENCE_NOT_A_PERSON}"
 
 
 def _model_statement(pool: _Pool) -> str:
@@ -731,6 +861,9 @@ def transfer_scenarios() -> Response:
         "default_conclusion": DEFAULT_CONCLUSION,
         "outcomes": [{"outcome": token, "outcome_label": label}
                      for token, label in OUTCOME_LABELS.items()],
+        # The same tokens as a reply labels them where the squad as declared has no XI.
+        "outcomes_without_an_xi": [{"outcome": token, "outcome_label": label}
+                                   for token, label in OUTCOME_LABELS_NO_XI.items()],
         "deficiency_leads": [dict(lead) for lead in DEFICIENCY_LEADS],
         "deficiency_lead_note": DEFICIENCY_LEAD_NOTE,
         "list_cannot_say": list(LIST_CANNOT_SAY),
@@ -830,7 +963,8 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
     problem, slot = pool.problem, pool.slot
     value = _baseline(pool, budget)
     deficiency = _deficiency(pool, value)
-    outcomes = list(OUTCOME_LABELS.items())
+    labels = _outcome_labels(value.status)
+    outcomes = list(labels.items())
     rows: list[dict] = []
     reference = None
     result = None
@@ -844,9 +978,11 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
         )
         by_id = {candidate.player_id: candidate for candidate in pool.listed}
         rows = [dict(row) for row in planning.canonical(
-            [_row(pool, by_id[row.player_id], row) for row in result.rows])]
+            [_row(pool, by_id[row.player_id], row, labels) for row in result.rows])]
         median = result.pool_median_reference
         if median is not None:
+            # The reference is not a person: its sentences and its label are its own, and
+            # the sentence about a candidate is chosen by what this row itself certifies.
             reference = {
                 "synthetic": True,
                 "name": median.name,
@@ -855,12 +991,14 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
                 "requirement_values": dict(median.requirement_values),
                 "injection": {
                     **_injection(median),
+                    "resolution_sentence": REFERENCE_RESOLUTION_SENTENCES.get(
+                        median.resolution, REFERENCE_RESOLUTION_SENTENCES["UNCERTIFIED"]),
                     "membership_sentence": REFERENCE_MEMBERSHIP_SENTENCES[median.membership],
                 },
                 "outcome": median.outcome,
-                "outcome_label": OUTCOME_LABELS[median.outcome],
-                "statement": REFERENCE_STATEMENT.format(n=result.screened_count,
-                                                        slot=slot.label),
+                "outcome_label": _outcome_labels(value.status, reference=True)[median.outcome],
+                "statement": _reference_statement(
+                    median.outcome, value.status, result.screened_count, slot.label),
             }
     values = {candidate.player_id: candidate.values for candidate in pool.listed}
     listings = planning.listings(
@@ -870,6 +1008,7 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
     )
     solved = sum(row["injection"]["resolution"] == "SOLVED" for row in rows)
     in_force = [row["label"] for row in problem.requirement_rows if row["declared"]]
+    rate_classes = _rate_classes(problem)
     completeness = (
         result.certificate.completeness if result is not None
         else "EXACT" if value.status in ("CERTIFIED", "UNFIELDABLE") else "DEADLINE"
@@ -878,7 +1017,7 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
     if result is not None:
         ledger.append(planning.ledger_row(
             stage="SEARCH", row_id="search-injection", quantity="Injected re-solves",
-            value_text=f"{solved} of {result.screened_count} candidates certified",
+            value_text=f"{solved} of {_count(result.screened_count, 'candidate')} certified",
             sample=f"{CARRY_OVER_STATEMENT} {result.selection_statement}",
             evidence=_evidence(pool), solver=_solver(result.certificate),
         ))
@@ -916,8 +1055,10 @@ def _injection_payload(pool: _Pool, request: TransferInjectionRequest,
         membership_counts=None if result is None else dict(result.membership_counts),
         certificate=None if result is None else asdict(result.certificate),
         facts_evidence=dict(pool.universe.provenance["shown_evidence"]),
+        # The class of the recorded rate each row prints, by requirement in force.
+        rate_evidence={rid: member.name for rid, _, member in rate_classes},
         facts_evidence_statement=_facts_evidence_statement(
-            pool.universe.provenance["shown_evidence"]),
+            pool.universe.provenance["shown_evidence"], rate_classes),
         single_requirement_statement=(
             SINGLE_REQUIREMENT_STATEMENT.format(label=in_force[0]) if len(in_force) == 1
             else None),
@@ -943,29 +1084,95 @@ def transfer_injection_detail(request: TransferDetailRequest) -> Response:
     return _serve(ROUTE_DETAIL, scenario, request, compute)
 
 
-def _world_counts(counts: Any) -> dict | None:
+WORLDS_NOTE = (
+    "Worlds resample the matches already played. A count of worlds is not a probability and "
+    "not a forecast."
+)
+NO_XI_SIDES: tuple[str, ...] = ("without_him", "with_him", "both")
+"""Which side of a world it is proved that no XI exists on: the squad without him, the squad
+with him at the slot, or both."""
+
+
+def _no_xi_by_side(counts: Any) -> dict[str, int]:
+    """The worlds proved to have no XI, counted by the side that has none."""
+    sides = dict.fromkeys(NO_XI_SIDES, 0)
+    for world in counts.no_xi:
+        without_him = world["baseline_status"] == "UNFIELDABLE"
+        with_him = world["forced_status"] == "UNFIELDABLE"
+        sides["both" if without_him and with_him
+              else "without_him" if without_him else "with_him"] += 1
+    return sides
+
+
+def _world_sentences(counts: Any, slot: str) -> tuple[str, list[str], str]:
+    """``(the compared worlds, the worlds with no XI by kind, the worlds set aside)``.
+
+    Every requested world is in exactly one of them. A world is compared when a
+    least-shortfall XI was certified on both sides. A world where it is proved that no XI
+    exists on a side is a finding about that world, said for what it is and for what the
+    theorem of the point row makes of it: he is in every XI where there is none without him,
+    and in none where there is none with him. Only a world with no joint exposure, or with a
+    solve that was not decided, is set aside.
+    """
+    if counts.used:
+        compared = (
+            f"In {counts.used} of {_count(counts.requested, 'world')} a least-shortfall XI was "
+            f"certified both without him and with him at {slot}. Every least-shortfall XI of "
+            f"the squad plus him contains him in {counts.forced_lower} of those; some do in "
+            f"{counts.forced_equal}; none does in {counts.forced_higher}."
+        )
+    else:
+        compared = (
+            "In no world was a least-shortfall XI certified both without him and with him at "
+            f"{slot}, so there is no world in which the two are compared."
+        )
+    proved = {
+        "without_him": (f"no XI can be fielded without him and that one can with him at {slot}: "
+                        "every XI there contains him."),
+        "with_him": (f"an XI can be fielded without him and none with him at {slot}: he is in "
+                     "no XI there."),
+        "both": f"no XI can be fielded with him at {slot} or without him.",
+    }
+    no_xi = [f"In {_count(number, 'world')} it is proved that {proved[side]}"
+             for side, number in _no_xi_by_side(counts).items() if number]
+    set_aside = len(counts.discarded) + len(counts.incomplete)
+    aside = "No world was set aside." if not set_aside else (
+        f"{set_aside} of {_count(counts.requested, 'world')} "
+        f"{'was' if set_aside == 1 else 'were'} set aside (no joint exposure, or not certified)."
+    )
+    return compared, no_xi, aside
+
+
+def _world_statement(counts: Any, slot: str) -> str:
+    """What the resampled worlds showed, in the sentences the candidate's panel prints."""
+    compared, no_xi, aside = _world_sentences(counts, slot)
+    return " ".join([compared, *no_xi, aside, counts.namespace_statement, WORLDS_NOTE])
+
+
+def _world_counts(counts: Any, slot: str) -> dict | None:
+    """The world counts as served. The five counts add up to ``requested``: the three
+    compared cells, ``no_xi`` and ``set_aside``."""
     if counts is None:
         return None
-    set_aside = len(counts.discarded) + len(counts.incomplete)
+    _, no_xi, aside = _world_sentences(counts, slot)
     return {
         "requested": counts.requested,
         "used": counts.used,
         "forced_lower": counts.forced_lower,
         "forced_equal": counts.forced_equal,
         "forced_higher": counts.forced_higher,
-        "set_aside": set_aside,
+        "no_xi": len(counts.no_xi),
+        "no_xi_by_side": _no_xi_by_side(counts),
+        "no_xi_worlds": [dict(entry) for entry in counts.no_xi],
+        "no_xi_statements": no_xi,
+        "set_aside": len(counts.discarded) + len(counts.incomplete),
+        "set_aside_statement": aside,
         "discarded": [dict(entry) for entry in counts.discarded],
         "incomplete": [dict(entry) for entry in counts.incomplete],
         "same_namespace": counts.namespace == counts.candidate_namespace,
         "namespace_statement": counts.namespace_statement,
         "interpretation": counts.interpretation,
-        "statement": (
-            f"Every least-shortfall XI contains him in {counts.forced_lower} of {counts.used} "
-            f"worlds; some do in {counts.forced_equal}; none does in {counts.forced_higher}. "
-            f"{set_aside} of {counts.requested} worlds were set aside (no joint exposure, or "
-            f"not certified). {counts.namespace_statement} Worlds resample the matches already "
-            "played. A count of worlds is not a probability and not a forecast."
-        ),
+        "statement": _world_statement(counts, slot),
     }
 
 
@@ -995,11 +1202,12 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
     row = detail.row
     names = _names(pool)
     labels = {r["requirement_id"]: r["label"] for r in problem.requirement_rows}
-    counts = _world_counts(row.world_counts)
+    counts = _world_counts(row.world_counts, slot.label)
     pair = row.forced_inclusion_objective
     evidence = _evidence(pool)
     solver = _solver(detail.certificate)
     metrics = {metric.metric_id: metric for metric in snap.metrics}
+    rate_classes = _rate_classes(problem)
     shown = pool.universe.provenance["shown_evidence"]
     lane_text = _lane_text(candidate.lane_shares)
     ledger = [
@@ -1034,16 +1242,21 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
         planning.ledger_row(
             stage="CANDIDATE", row_id=f"candidate-{pid}-injection",
             quantity=f"Least declared shortfall with him placed at {slot.label} (largest, sum)",
-            value_text=None if pair is None else f"{_exact(pair[0])}, {_exact(pair[1])}",
+            value_text=(None if pair is None
+                        else f"{format_plain(pair[0])}, {format_plain(pair[1])}"),
             sample=MEMBERSHIP_SENTENCES[row.membership], evidence=evidence, solver=solver,
         ),
     ]
     if counts is not None:
+        # The value counts the compared worlds only, and the quantity says so. A world with
+        # no XI on a side is not one of them: the sample says what was proved there.
         ledger.append(planning.ledger_row(
             stage="CANDIDATE", row_id=f"candidate-{pid}-worlds",
-            quantity="Resampled worlds in which every least-shortfall XI contains him",
+            quantity=("Resampled worlds in which every least-shortfall XI contains him, of "
+                      "those with an XI certified both without him and with him"),
             value_text=f"{counts['forced_lower']} of {counts['used']}",
-            sample=f"{counts['namespace_statement']} {counts['interpretation']}.",
+            sample=" ".join([*counts["no_xi_statements"], counts["set_aside_statement"],
+                             counts["namespace_statement"], f"{counts['interpretation']}."]),
             evidence=evidence, solver=solver,
         ))
     payload = planning.envelope(
@@ -1056,7 +1269,7 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
     payload.update(
         slot=_slot_payload(slot),
         candidate={
-            **_row(pool, candidate, row),
+            **_row(pool, candidate, row, _outcome_labels(detail.certificate.baseline_status)),
             "requirement_ranges": [
                 {**asdict(found), "label": labels[found.requirement_id]}
                 for found in detail.requirement_ranges
@@ -1084,7 +1297,8 @@ def _detail_payload(pool: _Pool, candidate: Any, request: TransferDetailRequest,
                        for v in detail.certificate.baseline_integer)),
         certificate=asdict(detail.certificate),
         facts_evidence=dict(shown),
-        facts_evidence_statement=_facts_evidence_statement(shown),
+        rate_evidence={rid: member.name for rid, _, member in rate_classes},
+        facts_evidence_statement=_facts_evidence_statement(shown, rate_classes),
         model_statement=_model_statement(pool),
         carry_over_statement=CARRY_OVER_STATEMENT,
     )

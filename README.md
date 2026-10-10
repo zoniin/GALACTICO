@@ -46,7 +46,7 @@ group before no XI can be fielded under the eligibility rules, and two once the
 leaves the declared shortfall where it was, because nothing here measures
 finishing. A page that printed a shortlist would be answering a question this
 data cannot. These print the question back, with what it is conditional on.
-[Decisions](DECISIONS.md) ADR-0018 to ADR-0026 ·
+[Decisions](DECISIONS.md) ADR-0018 to ADR-0027 ·
 [what they cannot say](KNOWN_LIMITATIONS.md)
 
 ![Squad Lab](docs/screenshots/17-squad-lab.png)
@@ -191,12 +191,16 @@ any attempt to commit one.
 
 <img src="docs/assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
-Data source for two things on this page: the Metronome Fit result
-([E-01](docs/research/E-01-metronome-fit.md)) and the external-replication column of
-the construct table ([Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md)) are
-analysis formed from **StatsBomb** open data, read locally under the StatsBomb Public
-Data User Agreement. No StatsBomb data and no table derived from it is in this
-repository, and nothing derived from it is served.
+Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
+User Agreement. Two things on this page are analysis formed from StatsBomb data and
+carry the StatsBomb logo as clause 1.4 of that agreement requires: the Metronome Fit
+result ([E-01](docs/research/E-01-metronome-fit.md)) and the external-replication
+column of the construct table
+([Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md)). A hosted instance serves
+the external-replication labels and the Metronome Fit conclusion, with this credit,
+and no StatsBomb-derived number. No StatsBomb data is in this repository, and no
+machine-readable table derived from it is in the tree. The StatsBomb-side figures
+printed here are published analysis.
 
 All five shipped labs are **historical**. They run on 2017/18 event data and are badged `LAB` in
 the interface. A LIVE regime would use a different estimator with different
@@ -207,9 +211,11 @@ Two things verified and closed: **FotMob** exposes a season-scope shotmap with
 coordinates, and its terms and `robots.txt` forbid the use — it is Opta underneath,
 unhidden. **UEFA** publishes exactly the physical metrics this project wanted,
 through keyless JSON, and clause 6.2 of its terms bars systematic collection,
-scripted access, and using the content to develop or train any model. Both are
-`REFERENCE_ONLY`. Neither has an adapter. **No LIVE model is shipped; its planned
-scope excludes a physical axis without a permitted source.**
+scripted access, and using the content to develop or train any model. UEFA carries
+the `REFERENCE_ONLY` tier in the provider registry. FotMob has no entry there;
+[LICENSING](LICENSING.md) lists it among the sources not used. Neither has an
+adapter. **No LIVE model is shipped; its planned scope excludes a physical axis
+without a permitted source.**
 [FotMob](docs/research/FOTMOB-RECON.md) ·
 [UEFA](docs/research/UEFA-PHYSICAL-DATA.md) ·
 [gap matrix](docs/LIVE-DATA-GAP-MATRIX.md)
@@ -224,7 +230,7 @@ scope excludes a physical axis without a permitted source.**
 | 1 | Measurement — five leagues | complete |
 | 1B | Replication + reconnaissance | complete |
 | 1C | External provider + season shift | complete |
-| 2 | Player Lab | implementation frozen; statistical/API/browser gates repaired and verified |
+| 2 | Player Lab | frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027 (October 2026); statistical/API/browser gates repaired and verified |
 | Match | Match Lab | public historical v1 implemented |
 | 3 | XI Lab | experimental requirement engine implemented |
 | 4 | Squad Lab / Transfer Lab | exact tools implemented; nothing about carry-over is validated |
@@ -269,6 +275,7 @@ The failures were more instructive than the successes, so they are kept.
 - [M-05](docs/research/M-05-optimizer-selection-bias.md) — exact optimization still selects positive estimation noise
 - [M-06](docs/research/M-06-a-guard-that-never-runs.md) — the test behind "no overall rating" had never run in CI
 - [M-07](docs/research/M-07-rank-ties.md) — a rank correlation that changed with the order of the rows; an erratum to the published figures
+- [M-08](docs/research/M-08-reliability-pool.md) — a reliability served on outfield rows had been taken over a pool with goalkeepers in it
 
 Every one is the same shape: **verification placement matters as much as
 verification existence.**

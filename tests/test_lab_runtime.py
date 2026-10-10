@@ -2,8 +2,9 @@
 
 Each test targets one rule a router would otherwise restate: which failure is
 which status, who owns a budget, what may be cached, that two identical requests
-compute once, that a response naming another provider or carrying a rating key
-does not leave the server.
+compute once, that sixteen requests are past the cache lookup at once and the
+next is refused without waiting, that a response naming another provider or
+carrying a rating key does not leave the server, computed or read from the store.
 """
 
 from __future__ import annotations
@@ -14,15 +15,18 @@ import json
 import re
 import threading
 import time
+from contextlib import ExitStack
 from pathlib import Path
 
+import anyio
+import anyio.to_thread
 import numpy as np
 import pytest
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from galactico.api import decision_lab, runtime
-from galactico.domain import labels, verdicts
+from galactico.domain import labels, thesis, verdicts
 from galactico.validation.digests import lf_sha256_text
 
 
@@ -37,12 +41,15 @@ def _envelope(**extra) -> dict:
     (FileNotFoundError("competition=Spain/actions.parquet"), 503, "historical corpus unavailable"),
     (ValueError("unknown lock id 99"), 422, "unknown lock id 99"),
     (runtime.LongJobsBusy(), 429, "two long computations are already running"),
+    (runtime.TooManyRequests(), 429, "16 requests are already in progress"),
 ])
 def test_lab_errors_maps_each_failure_to_its_status(raised, status, detail):
     with pytest.raises(HTTPException) as caught, runtime.lab_errors():
         raise raised
     assert (caught.value.status_code, caught.value.detail) == (status, detail)
     assert caught.value.__cause__ is raised
+    # A refusal for want of a place says when to ask again. No other failure does.
+    assert caught.value.headers == ({"Retry-After": "5"} if status == 429 else None)
 
 
 def test_a_damaged_or_unreadable_corpus_file_is_a_503_and_never_a_library_sentence(tmp_path):
@@ -351,6 +358,44 @@ def test_result_store_is_off_by_default_and_serves_only_complete_results(tmp_pat
     assert list(tmp_path.iterdir()) and len(moved) == 0
 
 
+@pytest.mark.parametrize(("planted", "refusal", "named"), [
+    ({"players": [{"name": "A", "rating": 9.1}]}, "banned keys", "players[0].rating"),
+    ({"players": [{"name": "A", "squad_merit": 1}]}, "banned keys", "players[0].squad_merit"),
+    ({"claim": "The best eleven, ranked by the model."}, "served labels", "claim: best"),
+])
+def test_a_stored_result_passes_the_boundary_check_like_a_computed_one(
+        planted, refusal, named, tmp_path, monkeypatch):
+    # The store read completeness and providers only, so a stored file would have left the
+    # server with a key or a word no computed reply may carry (BD6). The store is off unless
+    # it is switched on, and here it is switched on the way a deployment switches it on.
+    monkeypatch.setenv(runtime.RESULT_STORE_ENV, "1")
+    monkeypatch.setattr(runtime, "RESULT_STORE_DIR", tmp_path)
+    monkeypatch.setattr(runtime, "source_fingerprint", lambda: "f" * 64)
+    cache = runtime.ResultCache()
+    assert cache.store_dir == tmp_path
+    key = ("squad.depth", "abc", "q")
+    stored = _envelope(**planted)
+    # Non-vacuity: the file is one the two older checks pass, and finalize refuses it computed.
+    assert runtime.is_complete(stored)
+    runtime._require_hosted_providers(stored)
+    with pytest.raises(runtime.BoundaryViolation, match=refusal):
+        runtime.finalize(stored)
+    cache.store_path(key).write_bytes(runtime.dumps(stored))
+
+    def never() -> dict:
+        raise AssertionError("a stored result is read, not computed")
+
+    for _ in range(2):  # refused each time: nothing of it is kept in memory
+        with pytest.raises(runtime.BoundaryViolation, match=refusal) as caught:
+            cache.get_or_compute(key, never, store=runtime.is_complete)
+        assert named in str(caught.value)
+    assert len(cache) == 0 and cache._flights == {}
+    # Opposite case: the same file without the fault is served as stored.
+    clean = runtime.dumps(_envelope(players=[{"name": "A"}], claim="It is not a forecast."))
+    cache.store_path(key).write_bytes(clean)
+    assert cache.get_or_compute(key, never, store=runtime.is_complete) == (clean, True)
+
+
 def test_source_fingerprint_is_the_lf_digest_of_the_served_code():
     assert runtime._lf_digest(b"a\r\nb\rc\n") == lf_sha256_text("a\nb\rc\n")
     package = Path(runtime.__file__).resolve().parents[1]
@@ -380,6 +425,189 @@ def test_at_most_two_long_computations_run_and_a_place_is_always_returned(monkey
         pass                                        # both places came back
     with pytest.raises(KeyError), runtime.long_job("squad.stres"):
         raise AssertionError("a misspelt route skipped the limit")
+
+
+# ---------------------------------------------------------------- places past the cache
+
+@pytest.fixture
+def places(monkeypatch):
+    """A fresh set of places, so a test neither inherits a held place nor leaves one."""
+    fresh = runtime._Places(runtime.IN_FLIGHT_LIMIT)
+    monkeypatch.setattr(runtime, "_IN_FLIGHT", fresh)
+    return fresh
+
+
+def _until(condition) -> None:
+    """Wait for a state another thread is about to reach. No outcome depends on how long."""
+    deadline = time.monotonic() + 10
+    while not condition():
+        assert time.monotonic() < deadline
+        time.sleep(0.001)
+
+
+def test_sixteen_requests_are_past_the_cache_lookup_and_the_seventeenth_is_refused_at_once(
+        places):
+    # The audit's burst: forty-five requests on one cold key took every worker thread, and a
+    # stored reply, a page and a static file then waited for that one computation (BD1). With
+    # sixteen places, sixteen requests are in and the next is refused without waiting.
+    assert runtime.IN_FLIGHT_LIMIT == 16 == places.limit
+    assert runtime.IN_FLIGHT_BUSY == "16 requests are already in progress"
+
+    async def worker_threads() -> float:
+        return anyio.to_thread.current_default_thread_limiter().total_tokens
+
+    # The pool every handler and file read runs in. The bound has to stay well inside it.
+    assert anyio.run(worker_threads) == 40 >= 2 * runtime.IN_FLIGHT_LIMIT
+    cache = runtime.ResultCache()
+    stored, _ = cache.get_or_compute(("stored",), _envelope, store=runtime.is_complete)
+    assert runtime.in_flight() == 0
+    started, release = threading.Semaphore(0), threading.Event()
+    results: list = []
+
+    def slow() -> dict:
+        started.release()
+        assert release.wait(20)
+        return _envelope()
+
+    def request(name: str) -> None:
+        results.append(cache.get_or_compute((name,), slow, store=runtime.is_complete))
+
+    # Twelve different requests and four on one key: three of those wait for the fourth.
+    names = [f"k{i}" for i in range(12)] + ["same"] * 4
+    threads = [threading.Thread(target=request, args=(name,)) for name in names]
+    try:
+        for thread in threads:
+            thread.start()
+        for _ in range(13):                       # thirteen computations are running
+            assert started.acquire(timeout=10)
+        _until(lambda: getattr(cache._flights.get(("same",)), "waiters", 0) == 4)
+        # A request that waits for an identical one holds a place while it waits.
+        assert runtime.in_flight() == 16
+
+        def never() -> dict:
+            raise AssertionError("a refused request must not compute")
+
+        for key in (("seventeenth",), ("same",), ("k0",)):  # a new one, and two that would wait
+            asked = time.perf_counter()
+            with pytest.raises(runtime.TooManyRequests) as caught:
+                cache.get_or_compute(key, never, store=runtime.is_complete)
+            assert time.perf_counter() - asked < 0.5
+            assert str(caught.value) == "16 requests are already in progress"
+        # A refusal takes no place and joins no flight; a stored reply needs no place.
+        assert runtime.in_flight() == 16 and cache._flights[("same",)].waiters == 4
+        asked = time.perf_counter()
+        assert cache.get_or_compute(("stored",), never, store=runtime.is_complete) \
+            == (stored, True)
+        assert time.perf_counter() - asked < 0.5
+    finally:
+        release.set()
+        for thread in threads:
+            thread.join(20)
+    assert len(results) == 16 and sorted(hit for _, hit in results) == [False] * 13 + [True] * 3
+    assert runtime.in_flight() == 0 and cache._flights == {}
+    # Every place came back: the request that was refused is now answered.
+    assert cache.get_or_compute(("seventeenth",), _envelope, store=runtime.is_complete)[1] is False
+
+
+def test_a_place_is_given_back_on_every_way_out_and_none_leaks_over_two_hundred_requests(
+        places, monkeypatch):
+    monkeypatch.setattr(runtime, "_LONG_JOBS", threading.BoundedSemaphore(runtime.LONG_JOB_LIMIT))
+    monkeypatch.setattr(runtime, "LONG_JOB_WAIT_SECONDS", 0.001)
+    cache = runtime.ResultCache()
+    held: list[int] = []
+
+    def reply() -> dict:
+        held.append(runtime.in_flight())           # non-vacuity: a computation holds a place
+        return _envelope()
+
+    def partial() -> dict:
+        return _envelope(completeness="TIME_LIMIT")
+
+    def refused() -> dict:
+        raise ValueError("unknown lock id 99")
+
+    def absent() -> dict:
+        raise FileNotFoundError("competition=Spain/actions.parquet")
+
+    def fault() -> dict:
+        raise KeyError("progression")
+
+    def not_json() -> dict:
+        return _envelope(value=float("nan"))
+
+    def banned() -> dict:
+        return runtime.finalize(_envelope(rating=7.1))
+
+    def long_place() -> dict:
+        with runtime.long_job("squad.stress"):     # both places are held by the test
+            raise AssertionError("a third long computation started")
+
+    ways = [(reply, None), (partial, None), (refused, ValueError), (absent, FileNotFoundError),
+            (fault, KeyError), (not_json, runtime.BoundaryViolation),
+            (banned, runtime.BoundaryViolation), (long_place, runtime.LongJobsBusy)]
+    seen = set()
+    with runtime.long_job("squad.stress"), runtime.long_job("transfer.injection"):
+        for number in range(200):
+            compute, raised = ways[number % len(ways)]
+            key = (compute.__name__, str(number % 24))  # some keys repeat: stored replies too
+            if raised is None:
+                _, hit = cache.get_or_compute(key, compute, store=runtime.is_complete)
+                seen.add((compute.__name__, hit))
+            else:
+                with pytest.raises(raised):
+                    cache.get_or_compute(key, compute, store=runtime.is_complete)
+            assert runtime.in_flight() == 0, (number, compute.__name__)
+        with pytest.raises(ValueError, match="precomputed"):
+            cache.get_or_compute(("p",), reply, store=runtime.is_complete, precomputed_only=True)
+        assert runtime.in_flight() == 0
+    assert held and set(held) == {1}
+    assert seen == {("reply", False), ("reply", True), ("partial", False)}
+    # Nothing leaked and nothing was given back twice: exactly sixteen places can be taken.
+    assert [places.take() for _ in range(17)] == [True] * 16 + [False]
+    assert places.held == 16
+    for _ in range(16):
+        places.give_back()
+    assert places.held == 0
+    with pytest.raises(RuntimeError, match="nobody held"):
+        places.give_back()
+    assert places.held == 0                       # the count never goes below zero
+
+
+def test_the_refusal_is_a_429_with_retry_after_and_stored_replies_and_get_routes_are_served(
+        lab_client, places):
+    calls: list[str] = []
+    catalogue = lab_client(runtime.router)
+    client = lab_client(_skeleton(calls))
+    first = client.post("/api/squad/stress", json={})
+    assert (first.status_code, first.headers["X-Galactico-Cache"]) == (200, "miss")
+    assert runtime.RETRY_AFTER_SECONDS == 5
+    with ExitStack() as stack:
+        for _ in range(runtime.IN_FLIGHT_LIMIT):
+            stack.enter_context(runtime.admission())
+        asked = time.perf_counter()
+        busy = client.post("/api/squad/stress", json={"mode": "TIME_LIMIT"})
+        assert time.perf_counter() - asked < 0.5
+        assert (busy.status_code, busy.json()) \
+            == (429, {"detail": "16 requests are already in progress"})
+        assert busy.headers["Retry-After"] == "5"
+        assert calls == ["COMPLETE"]               # the refused request computed nothing
+        # A stored reply never takes a place, so it is served with every place held.
+        again = client.post("/api/squad/stress", json={})
+        assert (again.status_code, again.headers["X-Galactico-Cache"]) == (200, "hit")
+        assert again.content == first.content
+        # Nor does a request that is refused before the cache, or a GET route.
+        assert client.post("/api/squad/stress", json={"scenario_id": "x"}).status_code == 404
+        assert client.post("/api/squad/stress", json={"worlds": 200}).status_code == 422
+        assert catalogue.get("/api/evidence/verdicts").status_code == 200
+        assert runtime.in_flight() == runtime.IN_FLIGHT_LIMIT
+    assert runtime.in_flight() == 0
+    served = client.post("/api/squad/stress", json={"mode": "TIME_LIMIT"})
+    assert (served.status_code, served.headers["X-Galactico-Cache"]) == (200, "miss")
+    # The other refusal for want of a place tells the client when to ask again, too.
+    busy = client.post("/api/squad/stress", json={"mode": "BUSY"})
+    assert (busy.status_code, busy.json(), busy.headers["Retry-After"]) \
+        == (429, {"detail": "two long computations are already running"}, "5")
+    assert runtime.in_flight() == 0
 
 
 # ---------------------------------------------------------------- boundary check
@@ -444,6 +672,36 @@ def test_finalize_refuses_a_rating_key_at_any_depth(payload):
     assert runtime.HOSTED_PROVIDERS == ("pappalardo",)
     with pytest.raises(runtime.BoundaryViolation, match="banned keys"):
         runtime.finalize({**payload, "provenance": {"providers": ["pappalardo"]}})
+
+
+@pytest.mark.parametrize("key", [
+    "ratings", "merit", "overall_score", "rank_overall", "xi_rating", "rating_value", "ranks",
+    "ranked_first", "squad_ranking", "playerMerit", "Overall-Score",
+])
+def test_finalize_refuses_a_key_one_of_whose_parts_reads_as_a_rating(key):
+    # The thirteen whole keys were the whole rule, and the boundary check passed each of
+    # these (BD5). No reply held one; the check is what would not have stopped it.
+    payload = _envelope(players=[{"name": "A", key: 9.1}])
+    with pytest.raises(runtime.BoundaryViolation, match="banned keys") as caught:
+        runtime.finalize(payload)
+    assert f"players[0].{key}" in str(caught.value)
+    # A path is still what exempts a key, never a word.
+    assert runtime.finalize(payload, allow_keys=(f"players[].{key}",)) is payload
+
+
+def test_finalize_names_exactly_the_parts_it_refuses_and_passes_the_near_words():
+    refused = sorted(thesis.BANNED_KEY_PARTS)
+    assert refused == ["merit", "overall", "rank", "ranked", "ranking", "ranks", "rating",
+                       "ratings"]
+    # "score", "tier", "fit" and "best" are not on the list: a scoreline beside its side, the
+    # data tier of a verdict and a count keep their keys. The label guard does not read keys
+    # here, so this payload answers to the key walker alone.
+    served = _envelope(
+        home_score=2, score_research={"status": "NONE"}, total_completed_passes=412,
+        rows=[{"tier": "PUBLIC", "fit": None, "best_xi": False, "player_score": None,
+               "tolerated_loss": 0.4, "rate_assumption": "as recorded", "outranking": 1}],
+    )
+    assert runtime.finalize(served) is served
 
 
 @pytest.mark.parametrize(("planted", "path", "word"), [

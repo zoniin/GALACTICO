@@ -341,3 +341,110 @@ def test_the_audit_takes_a_declared_tie_policy() -> None:
 
     with pytest.warns(RuntimeWarning, match="tied"):
         discriminant_validity(shots, confound, key="shots", ties="legacy")
+
+
+# --- the leaderboard count: a tie across the last place is not a count ----
+
+# Eight players, a leaderboard of three. The third and fourth largest values are both 7,
+# and so is the fifth: three rows have the same claim on the last place.
+TIED_METRIC = np.array([9.0, 8.0, 7.0, 7.0, 7.0, 3.0, 2.0, 1.0])
+TIED_CONFOUND = np.array([1.0, 5.0, 2.0, 8.0, 3.0, 7.0, 4.0, 6.0]).reshape(-1, 1)
+
+
+def test_a_tie_across_the_last_place_leaves_no_leaderboard_to_count() -> None:
+    """Which of three equal rows a sort puts in the top three depends on the order they
+    arrive in. The count of survivors is then not a number, and the check says so."""
+    verdict = discriminant_validity(TIED_METRIC, TIED_CONFOUND, key="tied", top_k=3)
+    assert verdict.top_k == 3
+    assert verdict.top_k_survivors is None
+    assert (verdict.top_k_tied_raw, verdict.top_k_tied_adjusted) == (3, 0)
+    assert math.isnan(verdict.top_k_survival)
+    assert not verdict.passed
+    assert ("leaderboard survival is undefined: 3 rows share the value at place 3 of the raw "
+            "metric, so the top 3 is not a set of rows (floor 0.5); undefined is not a pass"
+            ) in verdict.failures
+    assert "top-3 survivors        no count" in verdict.report()
+
+    rng = np.random.default_rng(11)
+    for _ in range(50):
+        order = rng.permutation(TIED_METRIC.size)
+        moved = discriminant_validity(TIED_METRIC[order], TIED_CONFOUND[order], key="tied",
+                                      top_k=3)
+        assert moved.top_k_survivors is None and moved.top_k_tied_raw == 3
+
+
+def test_a_leaderboard_is_counted_when_its_last_place_is_decided() -> None:
+    """With a leaderboard of four the three sevens still straddle the last place. With
+    five they all fit (9, 8, 7, 7, 7), and with two none of them is in question."""
+    for top_k, tied in ((4, 3), (5, 0), (2, 0)):
+        verdict = discriminant_validity(TIED_METRIC, TIED_CONFOUND, key="tied", top_k=top_k)
+        assert verdict.top_k_tied_raw == tied
+        assert (verdict.top_k_survivors is None) == bool(tied)
+
+
+def test_a_tie_on_the_adjusted_side_is_counted_too() -> None:
+    """Two rows identical in metric and confound have identical residuals. Here they are
+    the fourth and fifth largest raw values and the third and fourth largest residuals,
+    so a leaderboard of three is defined before the adjustment and not after it."""
+    metric = np.array([10.0, 6.0, 6.0, 5.0, 4.0, 1.0, 8.0, 3.0, 7.0, 2.0])
+    confound = np.array([9.0, 1.0, 1.0, 5.0, 8.0, 7.0, 6.0, 2.0, 9.0, 0.0]).reshape(-1, 1)
+    adjusted = residualise(metric, confound)
+    assert adjusted[1] == adjusted[2] and (adjusted > adjusted[1]).sum() == 2
+    assert (metric > metric[1]).sum() == 3
+
+    verdict = discriminant_validity(metric, confound, key="twins", top_k=3)
+    assert verdict.top_k_survivors is None
+    assert (verdict.top_k_tied_raw, verdict.top_k_tied_adjusted) == (0, 2)
+    assert any("2 rows share the value at place 3 of the adjusted metric, so the top 3 is "
+               "not a set of rows" in reason for reason in verdict.failures)
+
+
+def test_when_every_row_is_in_the_leaderboard_a_tie_decides_nothing() -> None:
+    """Four players and a leaderboard of twelve: all four are in it on both sides."""
+    verdict = discriminant_validity(np.array([1.0, 1.0, 1.0, 2.0]),
+                                    np.array([[0.0], [1.0], [3.0], [2.0]]), key="few")
+    assert (verdict.top_k, verdict.top_k_survivors) == (4, 4)
+    assert (verdict.top_k_tied_raw, verdict.top_k_tied_adjusted) == (0, 0)
+
+
+def test_the_undefined_count_is_said_in_words() -> None:
+    both = a_verdict(top_k_survivors=None, top_k_tied_raw=45, top_k_tied_adjusted=3)
+    assert both.failures == (
+        "leaderboard survival is undefined: 45 rows share the value at place 12 of the raw "
+        "metric and 3 rows share the value at place 12 of the adjusted metric, so the top 12 "
+        "is not a set of rows (floor 0.5); undefined is not a pass",)
+    # No count and no tie recorded: the sentence claims no reason it was not given.
+    bare = a_verdict(top_k_survivors=None)
+    assert bare.failures == (
+        "leaderboard survival is undefined (no count out of 12, floor 0.5); "
+        "undefined is not a pass",)
+    assert math.isnan(bare.top_k_survival) and not bare.passed
+
+
+def test_a_value_that_is_not_finite_leaves_no_leaderboard_to_count() -> None:
+    """NaN sorts last, so a missing value was placed at the head of the leaderboard, and
+    rows that are all NaN after adjustment entered it by row position."""
+    metric = np.arange(50, dtype=float)
+    metric[7] = float("nan")
+    confound = np.random.default_rng(7).normal(size=(50, 1))
+    verdict = discriminant_validity(metric, confound, key="holey")
+    assert verdict.top_k_survivors is None
+    assert any(reason.startswith("leaderboard survival is undefined (no count out of 12")
+               for reason in verdict.failures)
+
+
+def test_the_record_policy_counts_the_leaderboard_as_it_always_did() -> None:
+    """ties="legacy" reproduces the record: the count is taken from the sort, whatever the
+    sort did with the tie, and the policy announces itself."""
+    with pytest.warns(RuntimeWarning, match="tied"):
+        verdict = discriminant_validity(TIED_METRIC, TIED_CONFOUND, key="tied", top_k=3,
+                                        ties="legacy")
+    assert isinstance(verdict.top_k_survivors, int)
+    assert (verdict.top_k_tied_raw, verdict.top_k_tied_adjusted) == (0, 0)
+    assert not any("is not a set of rows" in reason for reason in verdict.failures)
+
+    holey = np.arange(50, dtype=float)
+    holey[7] = float("nan")
+    legacy = discriminant_validity(holey, np.random.default_rng(7).normal(size=(50, 1)),
+                                   key="holey", ties="legacy")
+    assert isinstance(legacy.top_k_survivors, int)

@@ -9,7 +9,9 @@ test reads structure and exact computations on the real flagship scenario.
 
 from __future__ import annotations
 
+import inspect
 import itertools
+import re
 import threading
 import time
 from dataclasses import replace
@@ -295,6 +297,130 @@ def test_a_tight_group_says_its_spare_at_each_stage_under_the_meaning_of_that_st
     assert len(seen) >= 3 and min(declared for declared, _, _ in seen) < 0
 
 
+EVERY_SLOT = ("Goalkeeper, Left back, Left centre back, Right centre back, Right back, Holding "
+              "midfield, Left midfield, Right midfield, Left forward, Centre forward, Right "
+              "forward")
+GATE_CAPTION = "absences until no XI, with nobody excluded: before the gate → after it"
+
+
+def test_a_count_taken_before_your_exclusions_says_so_in_the_sentence_and_the_caption(client):
+    """The gate figure, its sentence, its caption and the gate warnings are counts of the
+    stage before the exclusions. With somebody excluded they differ from the reader's own
+    squad, and each one says which squad it counts."""
+    for excluded, own, fieldable in (((3563,), 0, True), ((3563, 3321), -1, False)):
+        payload = _post(client, "depth", excludes=list(excluded)).json()
+        (group,) = payload["tight_groups"]
+        assert group["slot_ids"] == list(SLOTS)
+        assert _spare(group["slot_ids"], excluded) == (own, 1, 3)
+        assert (payload["baseline"]["kind"] != "NO_FIELDABLE_XI") is fieldable
+        # The warning counts one spare player where the reader has none, or is one short.
+        about_the_gate = [w for w in payload["warnings"] if "evidence gate" in w]
+        assert about_the_gate == [
+            f"The slots {EVERY_SLOT} have a spare of 1 after the evidence gate with nobody "
+            "excluded and 3 before it (eligible players beyond the number of slots). The gate "
+            "removed abel, Zed."]
+        assert len(payload["warnings"]) == (1 if fieldable else 2)
+        gate = payload["thinness"][0]
+        assert (gate["kappa_before"], gate["kappa_after"]) == (1, 1)
+        assert payload["kappa_by_stage"]["available"] == (1 if fieldable else 0)
+        assert gate["statement"] == (
+            "Evidence gate. Under the eligibility rule set and before the gate, no XI can be "
+            "fielded after 1 absence inside one slot group. After it, with nobody excluded, no "
+            "XI can be fielded after 1 absence inside one slot group. 2 squad players below 900 "
+            "nominal minutes and eligible at some slot enter no solve; each is named here and "
+            "beside every slot he is eligible at.")
+        assert gate["caption"] == GATE_CAPTION
+        # The reader's own count is the other sentence, and it is the one that moved.
+        assert payload["depth_statement"].startswith(
+            "With the gated squad and your exclusions, no XI can be fielded "
+            + ("after 1 absence inside one slot group. " if fieldable
+               else "before any absence. "))
+    # A caption that depends on the reply is the server's, for all three figures.
+    plain = _post(client, "depth").json()
+    # With nobody excluded the reader's own count speaks of no exclusion.
+    assert plain["depth_statement"] == (
+        "With the gated squad, no XI can be fielded after 1 absence inside one slot group. "
+        "Counting every player the rule set admits, those below the gate included, no XI can be "
+        "fielded after 1 absence inside one slot group.")
+    assert [t["caption"] for t in plain["thinness"]] == [
+        GATE_CAPTION,
+        "absences until no XI, counting every squad player: by position → under the rule set",
+        "placements that raise the least declared shortfall"]
+    assert _post(client, "depth", excludes=[2]).json()["thinness"][2]["caption"] == (
+        "placements that raise the least declared shortfall: not evaluated")
+
+
+def test_the_spare_sentence_names_everything_the_declared_stage_removes(
+        lab_client, synthetic_snapshot):
+    """Nobody is excluded and a gated player lacks the one rate his slots need: the declared
+    spare is below the gated one, and the gap is not put down to an exclusion nobody made."""
+    snap = _snapshot(synthetic_snapshot)
+    snap = replace(snap, candidates=tuple(
+        {**c, "values": {**c["values"], "progression": None}} if c["player_id"] == 3563 else c
+        for c in snap.candidates))
+    client = lab_client(squad_lab.router, patches=_patches(lambda scenario_id, worlds=0: snap))
+    left_out = ("1 gated player who lacks a recorded minute or a measurement a slot needs left "
+                "out")
+    payload = _post(client, "depth").json()
+    assert payload["inputs"]["excludes"] == []
+    (group,) = payload["tight_groups"]
+    stages = group["spare_by_stage"]
+    assert (stages["available"], stages["measured"], stages["gated"], stages["rule_eligible"]) \
+        == (0, 0, 1, 3)
+    assert group["spare_statement"] == (
+        f"Spare at {EVERY_SLOT}, eligible players beyond the number of slots: 0 with the squad "
+        f"as declared, exclusions applied and {left_out}; 1 after the evidence gate with nobody "
+        "excluded and that player counted; 3 under the eligibility rules before the gate.")
+    unmeasured = {slot["slot_id"]: [p["player_id"] for p in slot["unmeasured"]]
+                  for slot in payload["slots"] if slot["unmeasured"]}
+    assert unmeasured == {"lcm": [3563], "rcm": [3563]}
+    # The sentence about the reader's own squad says the same of its count, and speaks of no
+    # exclusion: nobody is excluded.
+    assert payload["depth_statement"] == (
+        "With the gated squad, and without the gated players who lack a recorded minute or a "
+        "measurement a slot needs, no XI can be fielded after 1 absence inside one slot group. "
+        "Counting every player the rule set admits, those below the gate included, no XI can be "
+        "fielded after 1 absence inside one slot group.")
+    # An exclusion on top of it: both removals are named, each with what it removed.
+    both = _post(client, "depth", excludes=[3321]).json()
+    assert both["depth_statement"] == (
+        "With the gated squad and your exclusions, and without the gated players who lack a "
+        "recorded minute or a measurement a slot needs, no XI can be fielded before any absence. "
+        "Counting every player the rule set admits, those below the gate and those you excluded "
+        "included, no XI can be fielded after 1 absence inside one slot group.")
+    (group,) = both["tight_groups"]
+    assert group["spare_statement"] == (
+        f"Spare at {EVERY_SLOT}, eligible players beyond the number of slots: -1 with the squad "
+        f"as declared, exclusions applied and {left_out}; 1 after the evidence gate with nobody "
+        "excluded and that player counted; 3 under the eligibility rules before the gate.")
+    assert squad_lab.spare_statement("Front, Back", {
+        "available": 1, "measured": 2, "gated": 4, "rule_eligible": 5}) == (
+        "Spare at Front, Back, eligible players beyond the number of slots: 1 with the squad as "
+        "declared, exclusions applied and 2 gated players who lack a recorded minute or a "
+        "measurement a slot needs left out; 4 after the evidence gate with nobody excluded and "
+        "those players counted; 5 under the eligibility rules before the gate.")
+
+
+def test_a_placement_is_said_in_the_servers_sentence_with_its_certified_pair(client):
+    payload = _post(client, "depth").json()
+    said = {(pin["player_id"], slot["slot_id"]): (pin["status"], pin["statement"])
+            for slot in payload["slots"] for pin in slot["pinned"]}
+    assert len(said) == 19
+    assert oracle(pinned=(3563, "lcm")) == Fraction(3, 16)
+    assert said[3563, "lcm"] == (
+        "RAISES_SHORTFALL",
+        "The least declared shortfall rises: with him there it is largest 0.1875, sum 0.1875.")
+    assert said[7, "lcm"] == ("NEUTRAL", "The least declared shortfall is unchanged.")
+    assert said[3322, "st"] == (
+        "UNFIELDABLE_IF_PINNED", "Another slot or a declared lock is left unfilled.")
+    for (player, slot), (status, sentence) in said.items():
+        value = oracle(pinned=(player, slot))
+        if status == "RAISES_SHORTFALL":
+            assert sentence.endswith(f"largest {float(value)}, sum {float(value)}.")
+        else:
+            assert not any(character.isdigit() for character in sentence), sentence
+
+
 def test_depth_names_who_each_stage_dropped_and_keeps_three_kinds_of_thinness_apart(client):
     payload = _post(client, "depth").json()
     assert payload["baseline"]["kind"] == "NONE" and oracle() == 0
@@ -405,7 +531,7 @@ def test_an_absence_set_is_attributed_to_your_exclusion_when_that_is_what_leaves
 
     def attributed(below_gate, excluded):
         made = squad_lab._core(core, names, labels, {"lcm": below_gate, "rcm": below_gate},
-                               {"lcm": excluded, "rcm": excluded})
+                               {"lcm": excluded, "rcm": excluded}, excluding=bool(excluded))
         assert shell.scan_labels(made) == []
         return made
 
@@ -425,9 +551,19 @@ def test_an_absence_set_is_attributed_to_your_exclusion_when_that_is_what_leaves
     assert "every squad player counted" not in yours["statement"]
     # Short even with everyone counted, the excluded included.
     lone = SimpleNamespace(player_ids=(7, 8), blocking_slot_ids=("lcm", "rcm"), remaining_ids=())
-    rules = squad_lab._core(lone, names, labels, {}, {"lcm": out, "rcm": out})
+    rules = squad_lab._core(lone, names, labels, {}, {"lcm": out, "rcm": out}, excluding=True)
     assert (rules["attribution"], rules["exclusion_alone_restores"]) == ("ELIGIBILITY", False)
-    assert "your exclusions included" in rules["statement"]
+    assert rules["statement"].endswith(
+        "the group is still short: it stays short with every squad player counted, your "
+        "exclusions included.")
+    # Nobody excluded and one player below the gate who is not enough: the same count, and
+    # no word about an exclusion nobody made.
+    short = squad_lab._core(lone, names, labels, {"lcm": below, "rcm": below}, {},
+                            excluding=False)
+    assert short["attribution"] == "ELIGIBILITY"
+    assert short["statement"].endswith(
+        "Counting Zed, below the 900-minute gate, the group is still short: it stays short "
+        "with every squad player counted.")
 
     # Through the route: with 3563 excluded, the absence of 7 leaves one midfielder for two
     # slots. Zed, below the gate, would cover; so would the player the user excluded.
@@ -611,6 +747,221 @@ def test_a_large_tie_is_cut_with_its_count_and_never_silently(client, monkeypatc
     assert len(ties["listed"]) == 1 and f": {len(tied)}. Listed: 1," in ties["statement"]
     cores = level["minimal_unfieldable"]
     assert (cores["count"], cores["listed_count"]) == (9, 1)
+
+
+def test_the_tied_sets_are_listed_or_not_by_the_server_with_a_sentence_true_of_the_list(client):
+    """Whether the sets tied at the highest value are printed is not the page's decision. The
+    reply carries the list to print and a sentence that is true of that list."""
+    reply = _post(client, "stress", k=1).json()
+    level = reply["levels"][0]
+    assert level["positive_change_count"] == 2
+    ties = level["worst_sets"]
+    assert [entry["player_ids"] for entry in ties["listed"]] == [[7], [8]]
+    assert ties["statement"] == (
+        "Fieldable absence sets of size 1 tied at the highest value: 2. All are listed.")
+    # A single absence above the baseline is a row of the single absences, with its value.
+    # The reply says where it is and sends no second list for a page to print or to hide.
+    above = [row["player_id"] for row in reply["single_absences"]
+             if row["outcome"] == "RAISES_SHORTFALL"]
+    assert above == [7, 8]
+    assert level["raised"] == {
+        "listed": [], "count": 2, "listed_count": 0, "complete": False,
+        "statement": "Fieldable absence sets of size 1 with a least declared shortfall above the "
+                     "baseline: 2. Each is one of the single absences, listed there with its "
+                     "value."}
+    # The sentence about what was sent names the lists this reply holds, and no other.
+    assert reply["table_statement"] == (
+        "12 absence sets were valued. Sent here: every single absence, the smallest sets that "
+        "leave no fieldable XI and, where the highest value is above the baseline, the sets "
+        "tied at it, each list with its count.")
+    assert _post(client, "stress", k=2).json()["table_statement"] == (
+        "78 absence sets were valued. Sent here: every single absence, the smallest sets that "
+        "leave no fieldable XI, the sets of two or more above the baseline and, where the "
+        "highest value is above the baseline, the sets tied at it, each list with its count.")
+    # A squad with no XI before any absence: nothing was valued, and no list is spoken of.
+    nothing = _post(client, "stress", k=2, excludes=[1]).json()
+    assert (nothing["baseline"]["kind"], nothing["table_count"], nothing["levels"]) \
+        == ("NO_FIELDABLE_XI", 0, [])
+    assert nothing["table_statement"] == "No absence set was valued."
+    # A minimum of zero: no absence raises anything, so every fieldable set is tied at the
+    # baseline. The server sends no list and a sentence with no listing clause.
+    zero = [{"requirement_id": "progression", "source": "EXPLICIT", "value": 0.0}]
+    one, two = _post(client, "stress", k=2, requirements=zero).json()["levels"]
+    fieldable = [pid for pid in SQUAD if oracle(absent=(pid,)) is not None]
+    assert (one["positive_change_count"], one["certified_count"]) == (0, len(fieldable)) == (0, 3)
+    assert one["worst_sets"] == {
+        "listed": [], "count": 3, "listed_count": 0, "complete": False,
+        "statement": "No fieldable absence set of size 1 has a least declared shortfall above "
+                     "the baseline: the highest value is the baseline, 3 sets have it, and none "
+                     "is listed."}
+    # No pair leaves an XI at all: there is no highest value, and the sentence says that.
+    assert all(oracle(absent=pair) is None for pair in itertools.combinations(sorted(SQUAD), 2))
+    assert (two["certified_count"], two["unfieldable_count"]) == (0, two["set_count"])
+    assert two["worst_sets"] == {
+        "listed": [], "count": 0, "listed_count": 0, "complete": True,
+        "statement": "No absence set of size 2 leaves a fieldable XI, so there is no highest "
+                     "value."}
+    assert squad_lab._tied_at_the_baseline(2, 1).endswith(
+        "the highest value is the baseline, 1 set has it, and none is listed.")
+
+
+def test_no_sentence_says_every_absence_set_is_re_solved(client):
+    """Most sets inherit their answer from a subset's proof, as the tool's own claim says.
+    The catalogue and the page's fixed copy say what the claim says."""
+    stress = client.get("/api/squad/scenarios").json()["stress"]
+    assert stress["confirmation_statement"] == (
+        "Sets of three absences are examined only on your explicit confirmation: there are "
+        "many more of them than pairs, and each is solved to proof or inherits its answer from "
+        "one that was.")
+    assert stress["intro"] == (
+        "Every set of the chosen number of absent players, each solved to proof or inheriting "
+        "its answer from one that was. An absence is a scenario you choose. No absence "
+        "likelihood is estimated.")
+    html = client.get("/squad").text
+    assert re.findall(r"re-solve[sd]\b", html) == []
+    assert "Every absence set is solved to proof or inherits its answer from one that was." in html
+    payload = _post(client, "stress", k=2).json()
+    certificate = payload["certificate"]
+    # Non-vacuity: on this squad sets are inherited, so "every set is re-solved" is false here.
+    inherited = certificate["sets_inherited_value"] + certificate["sets_inherited_unfieldable"]
+    assert inherited > 0 and certificate["sets_solved"] + inherited == payload["table_count"]
+    assert {row["resolution"] for row in payload["single_absences"]} \
+        == {"SOLVED", "INHERITED_VALUE"}
+    assert payload["claim"].endswith(
+        "Every set was solved to proof or inherited from one that was.")
+    assert payload["listing_first_level"] == "the outcome without him"
+
+
+def test_a_small_shortfall_is_written_out_in_every_sentence_and_cell(client):
+    # Six hundred-thousandths of the normaliser above what the squad reaches.
+    declared = [{"requirement_id": "progression", "source": "EXPLICIT", "value": 16.00096}]
+    depth = _post(client, "depth", requirements=declared).json()
+    assert depth["baseline"]["objective_vector"] == [6e-05, 6e-05]
+    assert depth["baseline"]["statement"] == (
+        "No eligible XI meets every declared minimum. Least declared shortfall: largest 0.00006, "
+        "sum 0.00006, in units of this club's own median. Certified for the integer model.")
+    cells = {row["row_id"]: row["value_text"] for row in depth["ledger"]}
+    assert cells["audit-shortfall"] == "largest 0.00006, sum 0.00006"
+    stress = _post(client, "stress", k=1, requirements=declared).json()
+    assert ("rises from (largest 0.00006, sum 0.00006) to (largest 0.18756, sum 0.18756)"
+            in stress["claim"])
+    assert stress["levels"][0]["statements"]["shortfall"].endswith(
+        "The highest is largest 0.18756, sum 0.18756, reached by 2 sets.")
+
+    def strings(node, key=""):
+        if isinstance(node, str):
+            yield node
+        elif isinstance(node, dict):
+            for name, value in node.items():
+                if name != "provenance":
+                    yield from strings(value, name)
+        elif isinstance(node, list):
+            for value in node:
+                yield from strings(value, key)
+
+    for reply in (depth, stress):
+        exponents = [text for text in strings(reply) if re.search(r"\d(\.\d+)?e-\d", text)]
+        assert exponents == []
+
+
+def test_the_four_modules_print_through_the_one_formatter_and_keep_no_copy_of_their_own():
+    from galactico.api import transfer_lab
+    from galactico.domain.precision import format_plain
+    from galactico.optimization.squad import stress
+    from galactico.optimization.transfers import injection
+
+    for module in (squad_lab, transfer_lab, stress, injection):
+        source = inspect.getsource(module)
+        assert module.format_plain is format_plain, module.__name__
+        # "{value:g}" turns to exponent notation below 0.0001. Only a time limit in seconds
+        # is still printed that way.
+        general = re.findall(r"\{([^{}:]+):g\}", source)
+        assert all("time_limit" in name for name in general), (module.__name__, general)
+        assert "repr(value)" not in source, module.__name__
+        assert not hasattr(module, "_exact") and not hasattr(module, "_number"), module.__name__
+
+
+def test_counts_in_sentences_agree_in_number_and_a_zero_is_followed_by_no_list(
+        client, lab_client, synthetic_snapshot):
+    pairs = squad_lab._pairs_sentence
+    assert pairs(0) == "No player-slot pair is admitted by position and not by the rule set."
+    assert pairs(1) == ("1 player-slot pair is admitted by position and not by the rule set; it "
+                        "is named beside its slot.")
+    assert pairs(42) == ("42 player-slot pairs are admitted by position and not by the rule "
+                         "set; they are named beside each slot.")
+    below = squad_lab._below_gate_sentence
+    assert below(0) == "No squad player below 900 nominal minutes is eligible at any slot."
+    assert below(1) == ("1 squad player below 900 nominal minutes and eligible at some slot "
+                        "enters no solve; he is named here and beside every slot he is eligible "
+                        "at.")
+    assert below(5) == ("5 squad players below 900 nominal minutes and eligible at some slot "
+                        "enter no solve; each is named here and beside every slot he is "
+                        "eligible at.")
+    cell = squad_lab._stress_cell
+    assert cell({"certified_count": 170, "unfieldable_count": 1, "set_count": 171,
+                 "positive_change_count": 0, "unknown_count": 0}) == (
+        "171 of 171 resolved; 1 leaves no fieldable XI; 0 above the baseline")
+    assert cell({"certified_count": 3, "unfieldable_count": 1, "set_count": 6,
+                 "positive_change_count": 1, "unknown_count": 2}) == (
+        "4 of 6 resolved; at least 1 leaves no fieldable XI; at least 1 above the baseline")
+    assert squad_lab._unresolved(1) == "1 set is unresolved"
+    assert squad_lab._unresolved(2) == "2 sets are unresolved"
+
+    # The same sentences where the routes print them.
+    depth = _post(client, "depth").json()
+    eligibility = depth["thinness"][1]
+    assert eligibility["pair_count"] > 1
+    assert pairs(eligibility["pair_count"]) in eligibility["statement"]
+    assert below(2) in depth["thinness"][0]["statement"]
+    one = _post(client, "stress", k=1).json()
+    ledger = {row["row_id"]: row["value_text"] for row in one["ledger"]}
+    assert ledger["stress-k1"] == "12 of 12 resolved; 9 leave no fieldable XI; 2 above the baseline"
+    size = {row["key"]: row["value_text"] for row in one["declared"]}["declared-absence-size"]
+    assert size == "Every single absence of a removable player."
+    two = _post(client, "stress", k=2).json()
+    size = {row["key"]: row["value_text"] for row in two["declared"]}["declared-absence-size"]
+    assert size == "Every set of 1 to 2 of the removable players."
+    assert "1 to 1" not in str(one["declared"])
+
+    # A list with nothing in it is a count of zero and no "All are listed.".
+    zero = [{"requirement_id": "progression", "source": "EXPLICIT", "value": 0.0}]
+    none = _post(client, "depth", requirements=zero).json()["thinness"][2]
+    assert none["placements"]["statement"] == (
+        "Placements that raise the least declared shortfall: 0.")
+    assert depth["thinness"][2]["placements"]["statement"] == (
+        "Placements that raise the least declared shortfall: 2. All are listed.")
+    level = _post(client, "stress", k=1, requirements=zero).json()["levels"][0]
+    assert level["raised"]["statement"] == (
+        "Fieldable absence sets of size 1 with a least declared shortfall above the baseline: "
+        "0.")
+    assert level["statements"]["gate"] == (
+        "Smallest absence sets of size 1 that leave no fieldable XI where players below the "
+        "900-minute gate would cover the blocking slots: 2. The players are named beside each "
+        "set.")
+    # A squad with nobody below the gate: no set is the gate's, so nobody is "named beside
+    # each set", and the gate sentence does not say that each of no players is named.
+    whole = replace(_snapshot(synthetic_snapshot), omitted=(), prior_minutes={})
+    gateless = lab_client(squad_lab.router,
+                          patches=_patches(lambda scenario_id, worlds=0: whole))
+    level = _post(gateless, "stress", k=1).json()["levels"][0]
+    assert level["statements"]["gate"] == (
+        "Smallest absence sets of size 1 that leave no fieldable XI where players below the "
+        "900-minute gate would cover the blocking slots: 0.")
+    assert below(0) in _post(gateless, "depth").json()["thinness"][0]["statement"]
+
+    # "Your exclusions included" is said when something is excluded, and not otherwise.
+    def keeper_core(reply):
+        return next(row["core"]["statement"] for row in reply["single_absences"]
+                    if row["player_id"] == 1)
+
+    assert keeper_core(one) == (
+        "Without P1: Goalkeeper has 0 remaining players for 1 slot. No squad player below the "
+        "gate is eligible there: the group stays short with every squad player counted.")
+    declared = _post(client, "stress", k=1, excludes=[3563]).json()
+    assert keeper_core(declared) == (
+        "Without P1: Goalkeeper has 0 remaining players for 1 slot. No squad player below the "
+        "gate is eligible there: the group stays short with every squad player counted, your "
+        "exclusions included.")
 
 
 def test_brief_is_refused_for_the_goalkeeper_and_counts_the_pool_by_exact_solves(client):
@@ -907,6 +1258,12 @@ def test_flagship_on_the_real_corpus(corpus_root, lab_client):
     assert (pairs["set_count"], pairs["unfieldable_count"]) == (171, 6)
     assert {c["attribution"] for c in pairs["minimal_unfieldable"]["listed"]} == {"GATE"}
     assert pairs["worst_sets"]["count"] == 165 and not pairs["worst_sets"]["complete"]
+    # No pair raises the shortfall: the 165 fieldable pairs are tied at the baseline. The
+    # reply sends none to print, and its sentence announces no list.
+    assert pairs["positive_change_count"] == 0 and pairs["worst_sets"]["listed"] == []
+    assert pairs["worst_sets"]["statement"] == (
+        "No fieldable absence set of size 2 has a least declared shortfall above the baseline: "
+        "the highest value is the baseline, 165 sets have it, and none is listed.")
     brief = client.post("/api/squad/brief", json={**departure, "slot_id": "st"}).json()
     assert brief["brief"]["status"] == "BRIEF" and brief["pool"]["admissible"] == 58
     snapshot = client.post("/api/squad/snapshot", json=departure).json()
@@ -926,6 +1283,32 @@ def test_flagship_on_the_real_corpus(corpus_root, lab_client):
         "under the eligibility rules before the gate.")
     assert [p["name"] for p in forward["available"]] == ["G. Bale", "K. Benzema"]
     assert [p["name"] for p in forward["restored_by_gate"]] == ["Borja Mayoral"]
+    # The warning beside that sentence counts the stage before the exclusion, and says so:
+    # the reader has two forwards for the slot, the warning's spare of two is three forwards.
+    lowered = ("With nobody excluded, the evidence gate lowers the fewest absences that leave "
+               "no fieldable XI from 3 to 2: that thinness is a property of the evidence, not "
+               "of the squad.")
+    assert ("The slot Centre forward has a spare of 2 after the evidence gate with nobody "
+            "excluded and 3 before it (eligible players beyond the number of slots). The gate "
+            "removed Borja Mayoral.") in declared["warnings"]
+    assert lowered in declared["warnings"]
+    # A second exclusion, G. Bale: one absence now leaves no XI. The gate figure stays at
+    # two, and its sentence and caption say it is the count with nobody excluded.
+    both = client.post("/api/squad/depth", json={"excludes": [3322, 8278]}).json()
+    gate = both["thinness"][0]
+    assert (both["kappa_by_stage"]["available"], gate["kappa_before"], gate["kappa_after"]) \
+        == (1, 3, 2)
+    assert ("After it, with nobody excluded, no XI can be fielded after 2 absences inside one "
+            "slot group.") in gate["statement"]
+    assert gate["caption"] == GATE_CAPTION
+    assert both["depth_statement"].startswith(
+        "With the gated squad and your exclusions, no XI can be fielded after 1 absence inside "
+        "one slot group.")
+    assert lowered in both["warnings"]
+    for reply in (declared, both):
+        about_the_gate = [w for w in reply["warnings"] if "evidence gate" in w]
+        assert about_the_gate and all("with nobody excluded" in w.lower()
+                                      for w in about_the_gate)
     ledger = {row["row_id"]: row for row in declared["ledger"]}
     assert ledger["audit-placements"]["value_text"] == "17 of 36"
     assert ledger["audit-placements"]["sample"] == (
@@ -936,3 +1319,48 @@ def test_flagship_on_the_real_corpus(corpus_root, lab_client):
         == (["cb", "lb", "rb"], ["Centre back", "Left back", "Right back"])
     assert {c["attribution_label"] for c in pairs["minimal_unfieldable"]["listed"]} \
         == {"the evidence gate"}
+    # A placement that raises the shortfall is said in one served sentence, pair included.
+    raising = [pin for slot in declared["slots"] for pin in slot["pinned"]
+               if pin["status"] == "RAISES_SHORTFALL"]
+    assert len(raising) == 17
+
+    def written_out(value: float) -> str:  # five decimals are exact at this quantisation
+        return f"{value:.5f}".rstrip("0").rstrip(".")
+
+    for pin in raising:
+        largest, total = pin["objective_vector"]
+        assert pin["statement"] == (
+            "The least declared shortfall rises: with him there it is largest "
+            f"{written_out(largest)}, sum {written_out(total)}.")
+    # With nobody excluded the reader's own count speaks of no exclusion.
+    assert depth["depth_statement"] == (
+        "With the gated squad, no XI can be fielded after 2 absences inside one slot group. "
+        "Counting every player the rule set admits, those below the gate included, no XI can be "
+        "fielded after 3 absences inside one slot group.")
+
+
+@pytest.mark.slow
+def test_a_gated_player_without_a_recorded_minute_is_named_in_the_spare_sentence(
+        corpus_root, league_available, lab_client):
+    """SPAL with nobody excluded: three goalkeepers passed the gate and one never played. The
+    declared spare at Goalkeeper is one below the gated spare, and no exclusion made it so."""
+    league_available("Italy")
+    client = lab_client(squad_lab.router)
+    reply = client.post("/api/squad/depth",
+                        json={"scenario_id": "italy-3204-planning-2018-05-21"}).json()
+    assert reply["inputs"]["excludes"] == []
+    keeper = next(g for g in reply["tight_groups"] if g["slot_ids"] == ["gk"])
+    stages = keeper["spare_by_stage"]
+    assert (stages["available"], stages["measured"], stages["gated"]) == (1, 1, 2)
+    assert keeper["spare_statement"] == (
+        "Spare at Goalkeeper, eligible players beyond the number of slots: 1 with the squad as "
+        "declared, exclusions applied and 1 gated player who lacks a recorded minute or a "
+        "measurement a slot needs left out; 2 after the evidence gate with nobody excluded and "
+        "that player counted; 2 under the eligibility rules before the gate.")
+    slot = next(s for s in reply["slots"] if s["slot_id"] == "gk")
+    assert [(p["minutes"], p["detail"]) for p in slot["unmeasured"]] == [
+        (0, ["no recorded minutes"])]
+    assert reply["depth_statement"].startswith(
+        "With the gated squad, and without the gated players who lack a recorded minute or a "
+        "measurement a slot needs, no XI can be fielded after 2 absences inside one slot group.")
+    assert "your exclusions" not in reply["depth_statement"]

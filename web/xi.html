@@ -26,7 +26,7 @@
 <details><summary>Eligibility, omitted candidates and provenance</summary><pre id="provenance"></pre></details><footer class="provenance">The unplayed XI is unobserved. This model cannot establish which team would have won. Player style and role eligibility are not universal quality ratings. Historical Pappalardo/Wyscout data, CC BY 4.0. <a href="https://doi.org/10.6084/m9.figshare.c.4415000">Dataset and attribution</a>.</footer></div></main>
 <script>
 const $=s=>document.querySelector(s),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const num=(v,d=3)=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':Number(v).toLocaleString(undefined,{maximumFractionDigits:d});
+const num=(v,d=3)=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':Number(v).toLocaleString('en-US',{maximumFractionDigits:d});
 const pct=v=>v==null?'—':num(v*100,0)+'%';
 async function api(url,body){const r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined),d=await r.json();if(!r.ok)throw new Error(typeof d.detail==='string'?d.detail:JSON.stringify(d.detail??d));return d;}
 let result=null,scenarioMeta=null,selectedPlayer=null,locks=new Set(),excludes=new Set(),minimums={},busy=false,requestVersion=0,solvedInput=null,alternativeVersion=0,alternativeBusy=false,minimumsDirty=false,tradeoffVersion=0,tradeoffBusy=false;

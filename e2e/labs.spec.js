@@ -41,6 +41,73 @@ test('Match Lab renders actual events, pitch maps and a vector without a rating'
   await page.screenshot({ path: path.join('docs', 'screenshots', '10-match-lab.png'), fullPage: true });
 });
 
+// A registry construct is published only inside the context its registry entry declares
+// (ADR-0025). Match Lab printed all five as numbers on a goalkeeper's card.
+test('Match Lab prints the reason and no number where a registry construct is outside its declared context', async ({ page }, testInfo) => {
+  test.setTimeout(240000);
+  const errors = watch(page);
+  const REASON = 'Defined for outfield players; this player is recorded as GK.';
+  const escaped = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  await page.setViewportSize({ width: 1400, height: 900 });
+  const detail = page.waitForResponse(r => r.url().endsWith('/api/matches/2565907'), { timeout: 150000 });
+  await page.goto(BASE + '/match?id=2565907');
+  const match = await (await detail).json();
+  await expect(page.locator('#match-body')).toBeVisible({ timeout: 150000 });
+
+  // What the server sent for the goalkeeper: the five registry constructs, each with no
+  // value, the status Match Lab gives a number it does not publish, and the reason.
+  const constructs = Object.keys(match.provenance.construct_fingerprints);
+  expect(constructs).toHaveLength(5);
+  const keeper = match.player_match_profiles.find(p => p.name === 'K. Navas');
+  expect(keeper, 'K. Navas has a row in this match').toBeTruthy();
+  expect(keeper.position).toBe('GK');
+  const withheld = keeper.metrics.filter(m => constructs.includes(m.id));
+  expect(withheld.map(m => [m.id, m.value, m.status, m.reason]))
+    .toEqual(constructs.map(id => [id, null, 'UNAVAILABLE', REASON]));
+  const counted = keeper.metrics.filter(m => !constructs.includes(m.id));
+  expect(counted.length).toBeGreaterThan(0);
+  expect(counted.filter(m => m.status !== 'DIRECT' || !Number.isInteger(m.value) || 'reason' in m)).toEqual([]);
+
+  await page.locator('#players button[data-player="' + keeper.player_id + '"]').click();
+  const card = page.locator('#player-detail');
+  await expect(card.locator('h3')).toHaveText('K. Navas');
+  // A row is found by the label it starts with; the labels are the server's.
+  const row = metric => card.locator('tbody tr').filter({ hasText: new RegExp('^\\s*' + escaped(metric.label)) });
+  for (const width of [1400, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(card.locator('tbody tr')).toHaveCount(keeper.metrics.length);
+    // A value cell exists for each recorded count and for nothing else on the card.
+    await expect(card.locator('td.mono')).toHaveCount(counted.length);
+    for (const metric of withheld) {
+      await expect(row(metric), metric.id).toHaveCount(1);
+      await expect(row(metric), metric.id).toContainText(metric.status);
+      await expect(row(metric), metric.id).toContainText(REASON);
+      await expect(row(metric).getByText(REASON), metric.id + ' at ' + width + ' px').toBeVisible();
+      // No value, no zero, and no dash standing where a value would.
+      expect(await row(metric).innerText(), metric.id + ' at ' + width + ' px').not.toMatch(/[0-9—]/);
+    }
+    // What was recorded for him is still printed as a number.
+    for (const metric of counted) {
+      await expect(row(metric).locator('td.mono'), metric.id).toHaveText(new RegExp('^' + metric.value + '\\s*' + escaped(metric.unit) + '$'));
+      await expect(row(metric), metric.id).not.toContainText(REASON);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), 'horizontal overflow at ' + width + ' px').toBe(false);
+    await card.screenshot({ path: testInfo.outputPath('match-keeper-card-' + width + '.png') });
+  }
+
+  // An outfield player's card in the same match still prints the five as numbers.
+  const outfield = match.player_match_profiles.find(p => p.position !== 'GK' && p.metrics.every(m => m.value !== null));
+  await page.locator('#players button[data-player="' + outfield.player_id + '"]').click();
+  await expect(card.locator('h3')).toHaveText(outfield.name);
+  await expect(card).not.toContainText(REASON);
+  await expect(card).not.toContainText('UNAVAILABLE');
+  for (const metric of outfield.metrics.filter(m => constructs.includes(m.id))) {
+    expect(metric.status).toBe('DERIVABLE');
+    await expect(row(metric).locator('td.mono'), metric.id).toHaveText(/^-?[0-9]/);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('XI Lab renders eleven unique players and lock/reoptimize preserves the instruction', async ({ page }) => {
   test.setTimeout(240000);
   const errors = watch(page);

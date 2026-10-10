@@ -7,9 +7,19 @@ script recomputes each published figure from the local corpora with the ranks it
 was published with (``ties="legacy"``) and with the corrected ones, and prints
 both. It is the source of every number in docs/research/M-07-rank-ties.md.
 
-It does not re-derive anything. Each published pipeline is run as it stands and
-the arrays it hands to the audit are recorded on the way in, so both policies are
-evaluated on exactly the input the published figure came from.
+It does not re-derive anything. Each published pipeline is run with its own code
+and the arrays it hands to the audit are recorded on the way in, so both policies
+are evaluated on exactly the input the published figure came from.
+
+The two runners name the sort-order policy of the record. For the length of a run
+made here that name is set to average ranks and then put back (``tie_policy``), so
+the statuses and labels this script compares with the committed ones are those of
+the gauntlet under the corrected policy, and the script says which policy the
+gauntlet's own audit calls ran under.
+
+It also runs each runner's own computation under the runner's own policy, on the
+public corpus as it is, and says how many values of the record such a rerun would
+change. The runners compare in the same way before they write.
 
 It writes nothing: not a result file, not a cache. Figures formed from StatsBomb
 data are printed as aggregates only, never per competition or per construct.
@@ -20,8 +30,10 @@ data are printed as aggregates only, never per competition or per construct.
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import warnings
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -50,6 +62,8 @@ STAGE_1C_RECORD = REPO / "experiments/external_replication.json"
 E02 = REPO / "experiments/preregistered/E-02-metronome-confirmatory"
 
 ORDERING_FLOOR = 0.50   # ConfoundVerdict.min_rank_correlation and E-02's frozen T3
+# What an audit call that names no tie policy runs under.
+DEFAULT_TIES = inspect.signature(discriminant_validity).parameters["ties"].default
 
 # Stage 1C's Wyscout columns for these three leagues were fitted on a corpus that
 # had no `dangerous_loss` column, so its xT surface absorbed failed passes only.
@@ -90,11 +104,26 @@ class Cell:
     passed_average: bool
     leaderboard_boundary_tied: bool
     """Whether the 12th and 13th values are equal, raw or adjusted. Where they
-    are, the top-12 count depends on row order too."""
+    are, the sort-order top-12 count depends on row order too, and the corrected
+    policy gives no count."""
+
+    kept_published: float | None = None
+    """The committed top-12 count, or None where no record holds one."""
+
+    kept_legacy: int | None = None
+    kept_average: int | None = None
+    """The top-12 count under each policy. None under average ranks where the
+    twelfth place is tied."""
 
     @property
     def reproduced(self) -> bool:
         return self.published is not None and self.legacy == self.published
+
+    @property
+    def count_reproduced(self) -> bool:
+        """The committed top-12 count is the count under both policies."""
+        return (self.kept_published is not None
+                and self.kept_legacy == self.kept_published == self.kept_average)
 
     @property
     def moved(self) -> bool:
@@ -123,14 +152,31 @@ def audited(module) -> Iterator[list]:
         module.discriminant_validity = original
 
 
+@contextmanager
+def tie_policy(module, policy: str) -> Iterator[None]:
+    """Run a published pipeline under ``policy`` and put its own policy back.
+
+    Each runner passes the audit one module-level name, TIE_POLICY, which is the
+    sort-order policy of the record. A run made inside this block is the same code
+    under the other policy; nothing else about the runner is touched.
+    """
+    recorded = module.TIE_POLICY
+    module.TIE_POLICY = policy
+    try:
+        yield
+    finally:
+        module.TIE_POLICY = recorded
+
+
 def _boundary_tied(values: np.ndarray, k: int) -> bool:
     ordered = np.sort(values)
     return bool(values.size > k and ordered[-k] == ordered[-k - 1])
 
 
 def both(report: str, league: str, key: str, metric: np.ndarray, confounds: np.ndarray,
-         options: dict, published: float | None) -> Cell:
-    # The runners now name the policy of the record themselves; both are asked here.
+         options: dict, published: dict) -> Cell:
+    """One cell under both policies. ``published`` is its row of the record, or {}."""
+    # Whatever policy the pipeline ran under, both are asked for here.
     options = {name: value for name, value in options.items() if name != "ties"}
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)   # the legacy policy announces itself
@@ -139,11 +185,13 @@ def both(report: str, league: str, key: str, metric: np.ndarray, confounds: np.n
     k = legacy.top_k
     return Cell(
         report=report, construct=key, league=league, n=legacy.n, tied=_tied(metric),
-        published=published,
+        published=published.get("rho"),
         legacy=legacy.rank_correlation_after, average=average.rank_correlation_after,
         passed_legacy=legacy.passed, passed_average=average.passed,
         leaderboard_boundary_tied=(_boundary_tied(metric, k)
                                    or _boundary_tied(residualise(metric, confounds), k)),
+        kept_published=published.get("top12"),
+        kept_legacy=legacy.top_k_survivors, kept_average=average.top_k_survivors,
     )
 
 
@@ -153,26 +201,29 @@ def stage_1b() -> tuple[list[Cell], list[Cell], dict, dict]:
     """The five-league gauntlet. Spain's rows are also the Stage 1 report's.
 
     Returns the Stage 1 cells, the Stage 1B cells, the statuses the gauntlet
-    assigns under the corrected default against the committed ones, and the
-    arrays of each cell for the row-order experiment.
+    assigns under average ranks against the committed ones, and the arrays of each
+    cell for the row-order experiment. ``statuses["audited_under"]`` counts the
+    gauntlet's own audit calls by the tie policy they ran under.
     """
     record = {(row["axis"], row["league"]): row
               for row in json.loads(STAGE_1B_RECORD.read_text(encoding="utf-8"))}
     stage_1_record = {row["axis"]: row
                       for row in json.loads(STAGE_1_RECORD.read_text(encoding="utf-8"))}
     stage_1, cells, results, arrays = [], [], [], {}
+    audited_under: Counter[str] = Counter()
     for league in stage_1b_run.LEAGUES:
         code = stage_1b_run.CODE[league]
-        with audited(stage_1b_run) as seen:
+        with tie_policy(stage_1b_run, "average"), audited(stage_1b_run) as seen:
             league_results, _ = stage_1b_run.run_league(league)
         results.extend(league_results)
+        audited_under.update(options.get("ties", DEFAULT_TIES) for *_, options in seen)
         for key, metric, confounds, options in seen:
             cells.append(both("Stage 1B", code, key, metric, confounds, options,
-                              record[(key, league)]["rho"]))
+                              record[(key, league)]))
             arrays[(key, code)] = (metric, confounds)
             if league == "Spain":
                 stage_1.append(both("Stage 1", code, key, metric, confounds, options,
-                                    stage_1_record[key]["rho"]))
+                                    stage_1_record[key]))
 
     recomputed = {(r.axis, r.league): r.status.value for r in results}
     committed = {key: row["status"] for key, row in record.items()}
@@ -180,8 +231,25 @@ def stage_1b() -> tuple[list[Cell], list[Cell], dict, dict]:
     for result in results:
         by_axis.setdefault(result.axis, []).append(result)
     labels = {axis: classify_replication(tuple(rows))[0].value for axis, rows in by_axis.items()}
-    statuses = {"recomputed": recomputed, "committed": committed, "replication": labels}
+    statuses = {"recomputed": recomputed, "committed": committed, "replication": labels,
+                "audited_under": dict(audited_under)}
     return stage_1, cells, statuses, arrays
+
+
+def stage_1b_rerun() -> tuple[list[tuple], int]:
+    """A rerun of the Stage 1B runner as it stands: its own code under its own tie policy.
+
+    Returns every value that differs from the tracked record, as the runner itself would
+    list it, and how many values the record holds. Nothing is written.
+    """
+    results: list = []
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)   # the record's policy announces itself
+        for league in stage_1b_run.LEAGUES:
+            results.extend(stage_1b_run.run_league(league)[0])
+    rerun = json.loads(json.dumps(stage_1b_run.recorded(results)))
+    record = json.loads(STAGE_1B_RECORD.read_text(encoding="utf-8"))
+    return stage_1b_run.record_differences(record, rerun), stage_1b_run.count_values(rerun)
 
 
 def stage_1_grids() -> list[tuple[str, float, float, float, int, int, bool]]:
@@ -218,20 +286,20 @@ def stage_1_grids() -> list[tuple[str, float, float, float, int, int, bool]]:
 
 def _stage_1c_cells(report: str, label: str, actions: pd.DataFrame, lineups: pd.DataFrame,
                     record: dict) -> list[Cell]:
-    with audited(stage_1c_run) as seen:
+    with tie_policy(stage_1c_run, "average"), audited(stage_1c_run) as seen:
         stage_1c_run.evaluate(actions, lineups, label)
     code = label[-3:]
     return [both(report, code, key, metric, confounds, options,
-                 record.get(label, {}).get(key, {}).get("rho"))
+                 record.get(label, {}).get(key, {}))
             for key, metric, confounds, options in seen]
 
 
-def stage_1c_wyscout(*, as_published: bool = True) -> list[Cell]:
-    """The Wyscout columns of Stage 1C, on the input that reproduces the
-    publication or on the corpus as it is.
+def stage_1c_wyscout() -> list[Cell]:
+    """The Wyscout columns of Stage 1C, on the input that reproduces the publication.
 
-    The two differ for three leagues and for a reason that has nothing to do
-    with ties; see PUBLISHED_WITHOUT_DANGEROUS_LOSS.
+    That input differs from the corpus as it is for three leagues, and for a reason
+    that has nothing to do with ties; see PUBLISHED_WITHOUT_DANGEROUS_LOSS. The
+    corpus as it is: ``stage_1c_rerun``.
     """
     record = json.loads(STAGE_1C_RECORD.read_text(encoding="utf-8"))
     cells: list[Cell] = []
@@ -239,11 +307,38 @@ def stage_1c_wyscout(*, as_published: bool = True) -> list[Cell]:
         folder = stage_1c_run.WY / f"competition={competition}"
         actions = pd.read_parquet(folder / "actions.parquet")
         lineups = pd.read_parquet(folder / "lineups.parquet")
-        if as_published and competition in PUBLISHED_WITHOUT_DANGEROUS_LOSS:
+        if competition in PUBLISHED_WITHOUT_DANGEROUS_LOSS:
             actions = actions.drop(columns=["dangerous_loss"])
         cells.extend(_stage_1c_cells("Stage 1C (Wyscout)", f"WY_{code}", actions, lineups,
                                      record))
     return cells
+
+
+def stage_1c_rerun() -> tuple[list[Cell], list[tuple], int]:
+    """A rerun of the Stage 1C runner as it stands, for the Wyscout half: its own code
+    under its own tie policy, on the corpus as it is.
+
+    Returns the cells, every value that differs from the tracked record, as the runner
+    itself would list it, and how many values that half of the record holds. Nothing is
+    written.
+    """
+    record = json.loads(STAGE_1C_RECORD.read_text(encoding="utf-8"))
+    cells: list[Cell] = []
+    results: dict[str, dict] = {}
+    for competition, code in stage_1c_run.WY_LEAGUES.items():
+        folder = stage_1c_run.WY / f"competition={competition}"
+        actions = pd.read_parquet(folder / "actions.parquet")
+        lineups = pd.read_parquet(folder / "lineups.parquet")
+        label = f"WY_{code}"
+        with warnings.catch_warnings(), audited(stage_1c_run) as seen:
+            warnings.simplefilter("ignore", RuntimeWarning)   # as above
+            results[label] = stage_1c_run.evaluate(actions, lineups, label)
+        cells.extend(both("Stage 1C (Wyscout)", code, key, metric, confounds, options,
+                          record.get(label, {}).get(key, {}))
+                     for key, metric, confounds, options in seen)
+    rerun = json.loads(json.dumps(stage_1c_run.recorded(results)))
+    return (cells, stage_1b_run.record_differences(record, rerun),
+            stage_1b_run.count_values(rerun))
 
 
 def stage_1c_statsbomb() -> list[Cell] | None:
@@ -338,6 +433,20 @@ def table_row(cell: Cell) -> str:
             f"| {cell.average:.6f} | {cell.difference:+.6f} |")
 
 
+def print_rerun(what: str, differences: list[tuple], values: int) -> None:
+    """One line on what a rerun of a runner would change in its record. A difference is
+    ``(path, recorded, recomputed)`` and the last part of a path is the field."""
+    line = f"a rerun of {what} differs from the record in {len(differences)} of {values} values"
+    if differences:
+        sizes = [abs(now - was) for _, was, now in differences
+                 if isinstance(was, float) and isinstance(now, float)]
+        line += (f": {len({at[:-1] for at, _, _ in differences})} cells; ordering figures "
+                 f"among them {sum(at[-1] == 'rho' for at, _, _ in differences)}; fields "
+                 f"{', '.join(sorted({str(at[-1]) for at, _, _ in differences}))}; largest "
+                 f"absolute difference {max(sizes, default=float('nan')):.1e}")
+    print(line)
+
+
 def print_public(title: str, cells: list[Cell]) -> None:
     moved = [cell for cell in cells if cell.moved]
     print(f"\n## {title}")
@@ -357,6 +466,8 @@ def print_public(title: str, cells: list[Cell]) -> None:
           f"{sum(c.passed_legacy != c.passed_average for c in cells)}/{len(cells)}")
     print(f"top-12 boundary tied: "
           f"{sum(c.leaderboard_boundary_tied for c in cells)}/{len(cells)}")
+    print(f"top-12 count equal to the committed one under both policies: "
+          f"{sum(c.count_reproduced for c in cells)}/{len(cells)}")
 
 
 def main() -> None:
@@ -366,10 +477,14 @@ def main() -> None:
 
     same = sum(statuses["recomputed"][key] == statuses["committed"][key]
                for key in statuses["committed"])
-    print(f"\nStage 1B statuses under the corrected default equal to the committed ones: "
+    under = ", ".join(f"{policy} in {count}" for policy, count in
+                      sorted(statuses["audited_under"].items()))
+    print(f"\nStage 1B gauntlet, tie policy of its own audit calls: {under}")
+    print(f"statuses of that run equal to the committed ones: "
           f"{same}/{len(statuses['committed'])}")
-    print("replication labels: " + ", ".join(f"{k} {v}" for k, v in
-                                             sorted(statuses["replication"].items())))
+    print("replication labels of that run: " + ", ".join(
+        f"{k} {v}" for k, v in sorted(statuses["replication"].items())))
+    print_rerun("experiments/run_replication.py as it stands", *stage_1b_rerun())
 
     print(f"\n## Stage 1B chance creation over {ROW_ORDERS} orders of the same rows "
           f"(seed {ROW_ORDER_SEED})")
@@ -387,12 +502,13 @@ def main() -> None:
     print("\n## Stage 1 grid sensitivity (printed in the report; no committed script)")
     print("| Grid | Printed | Legacy | Corrected | Top 10 | Top 25 | Reproduced, no ties |")
     print("|---|---:|---:|---:|---:|---:|---|")
-    for grid, printed, legacy, average, top_10, top_25, reproduced in stage_1_grids():
+    grids = stage_1_grids()
+    for grid, printed, legacy, average, top_10, top_25, reproduced in grids:
         print(f"| {grid} | {printed:.3f} | {legacy:.4f} | {average:.4f} | {top_10} | {top_25} "
               f"| {'yes' if reproduced and legacy == average else 'NO'} |")
 
     as_published = stage_1c_wyscout()
-    as_it_is = stage_1c_wyscout(as_published=False)
+    as_it_is, rerun_differences, rerun_values = stage_1c_rerun()
     print_public("Stage 1C, Wyscout columns as published "
                  "(experiments/external_replication.json)", as_published)
     recipe = max(abs(now.legacy - then.legacy) for now, then in zip(as_it_is, as_published,
@@ -404,6 +520,8 @@ def main() -> None:
           f"{max(abs(c.average - c.legacy) for c in as_it_is):.6f}; lowest corrected "
           f"{min(c.average for c in as_it_is):.4f}; verdicts differing "
           f"{sum(c.passed_legacy != c.passed_average for c in as_it_is)}/{len(as_it_is)}")
+    print_rerun("experiments/run_external_replication.py as it stands, Wyscout half,",
+                rerun_differences, rerun_values)
 
     statsbomb = stage_1c_statsbomb()
     print("\n## Stage 1C, StatsBomb columns (aggregate only; data source: StatsBomb)")
@@ -425,6 +543,12 @@ def main() -> None:
               f"between policies: {sum(c.passed_legacy != c.passed_average for c in statsbomb)}"
               f"/{len(statsbomb)}; top-12 boundary tied: "
               f"{sum(c.leaderboard_boundary_tied for c in statsbomb)}/{len(statsbomb)}")
+        counted = (f"equal to the local record under both policies: "
+                   f"{sum(c.count_reproduced for c in recorded)}/{len(recorded)}" if recorded
+                   else f"the same under both policies: "
+                        f"{sum(c.kept_legacy == c.kept_average for c in statsbomb)}"
+                        f"/{len(statsbomb)}")
+        print(f"top-12 count {counted}")
 
     t3 = e02()
     print("\n## E-02, T3 (preregistered gate)")
@@ -436,6 +560,34 @@ def main() -> None:
     public = [*stage_1b_cells, *as_published]
     print(f"\nlargest absolute difference, public corpus: "
           f"{max(abs(c.difference) for c in public):.6f}")
+
+    # The totals, and which figure is the lowest. A StatsBomb-side figure is counted and
+    # compared, never printed.
+    local = statsbomb or []
+    parts = [len(stage_1b_cells), len(as_published), len(local), 1, len(grids)]
+    moved = [sum(c.moved for c in cells) for cells in (stage_1b_cells, as_published, local)]
+    moved += [int(t3["average"] != t3["legacy"]), sum(row[2] != row[3] for row in grids)]
+    print("\n## All records (Stage 1B, Stage 1C Wyscout, Stage 1C StatsBomb, E-02 T3, "
+          "grid table)")
+    if statsbomb is None:
+        print("the StatsBomb columns are not in these totals: no local cache")
+    print(f"distinct figures recomputed: {sum(parts)} ({' + '.join(map(str, parts))}); "
+          f"moved: {sum(moved)} ({' + '.join(map(str, moved))})")
+    low = min(public, key=lambda c: min(c.average, c.published))
+    low_value = min(low.average, low.published)
+    print(f"lowest of the {len(public)} audit figures on the public corpus: {low_value:.4f} "
+          f"({low.report}, {low.league}, {low.construct}; tied values {low.tied}; "
+          f"published {low.published:.4f}, corrected {low.average:.4f})")
+    if local:
+        print(f"StatsBomb-side audit figures below that one under either policy: "
+              f"{sum(min(c.legacy, c.average) < low_value for c in local)}/{len(local)}")
+    print(f"lowest grid figure: {min(min(row[2], row[3]) for row in grids):.4f}; "
+          f"E-02's T3: {min(t3['legacy'], t3['average']):.4f}; all against a floor of "
+          f"{ORDERING_FLOOR:.2f}")
+    margin = min(t3["legacy"], t3["average"]) - ORDERING_FLOOR
+    largest = max(abs(c.difference) for c in public)
+    print(f"margin of E-02's T3 above the floor: {margin:.4f}, which is "
+          f"{margin / largest:.1f} times the largest correction ({largest:.6f})")
 
 
 if __name__ == "__main__":

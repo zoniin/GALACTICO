@@ -42,6 +42,7 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
+from ...domain.precision import format_plain
 from ..reference import PERCENTILE_RULE, _nearest_order_statistic
 from ..squad.kernel import (
     KERNEL_VERSION,
@@ -81,6 +82,7 @@ __all__ = [
     "inclusion_facts",
     "inject_candidates",
     "injection_detail",
+    "selection_statement",
 ]
 
 INJECTION_VERSION = "forced-inclusion-injection-v1"
@@ -121,16 +123,20 @@ OUTCOME_STATEMENTS: Mapping[str, str] = {
 }
 SATURATED_WARNING = (
     "The declared minima are already reachable without an addition. No candidate can lower a "
-    "shortfall of zero. Declare a departure, an absence or a higher minimum first."
+    "shortfall of zero. Declare a departure, raise a minimum or take a league percentile first."
 )
+"""Its last sentence names the three ways Transfer Lab offers to declare a shortfall, in the
+words of its leads (``api.transfer_lab.DEFICIENCY_LEADS``; equal by test)."""
 UNFIELDABLE_WARNING = (
     "The squad has no fieldable XI under the declared exclusions and locks without an addition "
     "at this or another slot."
 )
-SELECTION_STATEMENT = (
-    "{n} players were screened: reading off the most favourable of many noisy estimates "
-    "overstates it, and no correction is applied."
+_SELECTION_CAUTION = (
+    "reading off the most favourable of many noisy estimates overstates it, and no correction "
+    "is applied."
 )
+SELECTION_STATEMENT = "{n} players were screened: " + _SELECTION_CAUTION
+"""For any number of screened players but one; ``selection_statement`` agrees in number."""
 NON_CLAIM = (
     "This is arithmetic on rates recorded at another club; whether they repeat after a move "
     "has not been established. It is not a transfer value and not a forecast."
@@ -140,9 +146,11 @@ CARRY_OVER = "other club, untested"
 # admits a named denial only, so the same statement is worded as one here.
 WORLD_INTERPRETATION = "Conditional algorithm stability across resampled matches; not a probability"
 SAME_NAMESPACE = "Squad and candidate values in a world come from one resample of the same matches."
+# Which resample each side was drawn in is a field (``WorldCounts.namespace``,
+# ``candidate_namespace``) and the result's provenance. A sentence carries no identifier.
 OTHER_NAMESPACE = (
-    "The candidate's values come from a separate resample of other matches (namespace "
-    "{namespace}); a world pairs two independent draws."
+    "The candidate's values come from a separate resample of other matches; a world pairs two "
+    "independent draws."
 )
 _HOLE = "missing shared-world exposure"
 _PROVEN = ("CERTIFIED", "UNFIELDABLE")
@@ -166,18 +174,29 @@ class InclusionFacts:
 
 @dataclass(frozen=True)
 class WorldCounts:
-    """Counts over shared worlds. Divided by nothing: "{forced_lower} of {used}"."""
+    """Counts over shared worlds. Divided by nothing: "{forced_lower} of {used}".
+
+    Every requested world is in exactly one of four places: one of the three compared cells
+    (an XI was certified both without him and with him at the slot), ``no_xi`` (it is proved
+    that no XI exists on one side or on both), ``discarded`` (no joint exposure) or
+    ``incomplete`` (a solve was not decided). A proved absence of an XI is a finding about
+    that world and is never filed with the worlds nothing was decided about.
+    """
 
     namespace: str  # the resample the squad's values were drawn in
     candidate_namespace: str  # the resample his values were drawn in; another league's differs
     namespace_statement: str
     requested: int
-    used: int
+    used: int  # worlds in the three cells below
     forced_lower: int  # worlds with z_c < z_0: in every least-shortfall XI there
     forced_equal: int  # z_c == z_0: in some
     forced_higher: int  # z_c > z_0: in none
+    # {"world_id", "baseline_status", "forced_status"}, each CERTIFIED or UNFIELDABLE and at
+    # least one UNFIELDABLE. By the theorem of the module docstring he is in every XI of such
+    # a world when only the baseline is UNFIELDABLE, and in none otherwise.
+    no_xi: tuple[dict, ...]
     discarded: tuple[dict, ...]  # {"world_id", "reason"}
-    incomplete: tuple[dict, ...]  # {"world_id", "status"}
+    incomplete: tuple[dict, ...]  # {"world_id", "status"}: UNKNOWN or MODEL_INVALID
     interpretation: str
 
 
@@ -604,7 +623,7 @@ class _SharedWorlds:
     def counts(self, candidate: Candidate, kernel: ShortfallKernel, deadline: float) -> WorldCounts:
         problem, pid = self.problem, candidate.player_id
         cells = {"lower": 0, "equal": 0, "higher": 0}
-        discarded, incomplete = [], []
+        discarded, incomplete, no_xi = [], [], []
         for world_id in self.ids:
             base = self.baseline(world_id, deadline)
             vector = self.pool.get(world_id, {}).get(pid)
@@ -621,10 +640,16 @@ class _SharedWorlds:
                 kernel, candidate, deadline, {**self.squad_vectors(world_id), pid: vector}
             )
             self.solves += forced.solves
-            unproven = next((v.status for v in (base, forced) if v.status != "CERTIFIED"), None)
-            if unproven is not None:
-                self.invalid |= unproven == "MODEL_INVALID"
-                incomplete.append({"world_id": world_id, "status": unproven})
+            statuses = (base.status, forced.status)
+            # Either side undecided: the world is open, whatever the other side proved.
+            undecided = next((status for status in statuses if status not in _PROVEN), None)
+            if undecided is not None:
+                self.invalid |= "MODEL_INVALID" in statuses
+                incomplete.append({"world_id": world_id, "status": undecided})
+                continue
+            if "UNFIELDABLE" in statuses:
+                no_xi.append({"world_id": world_id, "baseline_status": base.status,
+                              "forced_status": forced.status})
                 continue
             own, squad = _pair(forced), _pair(base)
             cells["lower" if own < squad else "equal" if own == squad else "higher"] += 1
@@ -633,14 +658,14 @@ class _SharedWorlds:
             namespace=self.namespace,
             candidate_namespace=own_namespace,
             namespace_statement=(
-                SAME_NAMESPACE if own_namespace == self.namespace
-                else OTHER_NAMESPACE.format(namespace=own_namespace)
+                SAME_NAMESPACE if own_namespace == self.namespace else OTHER_NAMESPACE
             ),
             requested=len(self.ids),
             used=sum(cells.values()),
             forced_lower=cells["lower"],
             forced_equal=cells["equal"],
             forced_higher=cells["higher"],
+            no_xi=tuple(no_xi),
             discarded=tuple(discarded),
             incomplete=tuple(incomplete),
             interpretation=WORLD_INTERPRETATION,
@@ -814,11 +839,9 @@ def _certificate(problem: _Problem, baseline: KernelValue, rows: Sequence[Inject
     )
     incomplete = incomplete or baseline.status not in _PROVEN or any(
         _value_left_open(r)
-        # A world with no fieldable XI is a proved fact about that world, not a missed deadline.
-        or any(
-            world["status"] not in _PROVEN
-            for world in (r.world_counts.incomplete if r.world_counts else ())
-        )
+        # A world with no fieldable XI is a proved fact about that world and is counted in
+        # ``no_xi``; ``incomplete`` holds only the worlds a solve left undecided.
+        or bool(r.world_counts and r.world_counts.incomplete)
         for r in rows
     )
     counts = dict.fromkeys(("NONE", "NO_VARIABLE", "ZERO_WITNESS", "SATURATED_BASELINE"), 0)
@@ -851,17 +874,26 @@ def _baseline_warnings(problem: _Problem, baseline: KernelValue) -> list[str]:
     return []
 
 
-def _number(units: int, scale: int) -> str:
-    """The certified integer in declared units, printed without rounding it a second time."""
-    value = units / scale
-    short = f"{value:g}"
-    return short if float(short) == value else repr(value)
+def selection_statement(screened: int) -> str:
+    """The selection caution for a pool of this size, agreeing in number with it."""
+    if screened == 1:
+        return f"1 player was screened: {_SELECTION_CAUTION}"
+    return SELECTION_STATEMENT.format(n=screened)
 
 
-def _words(pair: Pair | None, status: str, scale: int) -> str:
-    if pair is None:
-        return "no fieldable XI" if status == "UNFIELDABLE" else "not determined"
-    return f"(largest {_number(pair[0], scale)}, sum {_number(pair[1], scale)})"
+def _side(pair: Pair | None, status: str, scale: int, subject: str) -> str:
+    """One side of a claim as a clause of its own, whatever was proved about that side.
+
+    A certified pair is printed in declared units, written out: never rounded a second time
+    and never in exponent notation. A proved absence of an XI is said as that, and never as
+    the value of ``subject`` ("the least declared shortfall", or "it" once that was named).
+    """
+    if pair is not None:
+        return (f"{subject} is (largest {format_plain(pair[0] / scale)}, "
+                f"sum {format_plain(pair[1] / scale)})")
+    if status == "UNFIELDABLE":
+        return "no XI can be fielded"
+    return f"{subject} is not determined"
 
 
 def _parent_payload(problem: _Problem, squad_worlds, namespace: str, provenance) -> dict:
@@ -992,15 +1024,23 @@ def inject_candidates(
             f"{'that candidate is' if cut_off == 1 else 'those candidates are'} in a "
             "least-shortfall XI was still proved; no value is implied."
         )
-    selection = SELECTION_STATEMENT.format(n=len(pool))
+    selection = selection_statement(len(pool))
     scale = problem.quantization
     base = _pair(baseline)
+    pool_namespaces = (
+        {} if worlds is None
+        else {str(pid): name for pid, name in sorted(worlds.pool_namespaces.items())}
+    )
+    screened = (f"For each of {len(pool)} screened candidates" if len(pool) != 1
+                else "For the 1 screened candidate")
     result_provenance = {
         **scrub_lineage(provenance),
         "injection_version": INJECTION_VERSION,
         "kernel_version": KERNEL_VERSION,
         "solver_package_version": parent["kernel"]["solver_package_version"],
         "world_namespace": world_namespace,
+        # Candidates whose worlds were drawn in another resample than the squad's, by id.
+        "pool_world_namespaces": pool_namespaces,
         "screened_count": len(pool),
         "selection_statement": selection,
         "order_key": ordering.order_key,
@@ -1014,10 +1054,7 @@ def inject_candidates(
             **parent,
             "pool": [_canonical(candidate) for candidate in pool],
             "pool_worlds": fingerprint(_canonical_worlds(pool_worlds)),
-            "pool_world_namespaces": (
-                {} if worlds is None
-                else {str(pid): name for pid, name in sorted(worlds.pool_namespaces.items())}
-            ),
+            "pool_world_namespaces": pool_namespaces,
             "ordering": [ordering.order_key, ordering.requirement_id, ordering.descending],
             "ages": None if order_by != "AGE" else {str(k): ages[k] for k in sorted(ages)},
         }),
@@ -1045,12 +1082,11 @@ def inject_candidates(
         excluded=problem.excluded,
         warnings=tuple(warnings),
         claim=(
-            f"Without an addition the least declared shortfall is "
-            f"{_words(base, baseline.status, scale)}. For each of {len(pool)} screened "
-            f"candidates placed at {_slot_label(problem)}: the least declared shortfall with "
-            "him forced into "
-            "the XI, and whether he is in every, some or no least-shortfall XI of the squad "
-            "plus him."
+            "Without an addition "
+            f"{_side(base, baseline.status, scale, 'the least declared shortfall')}. "
+            f"{screened} placed at {_slot_label(problem)}: the least declared shortfall with "
+            "him forced into the XI, and whether he is in every, some or no least-shortfall "
+            "XI of the squad plus him."
         ),
         non_claim=f"{NON_CLAIM} {ordering.statement} {selection}",
         provenance=result_provenance,
@@ -1213,12 +1249,21 @@ def injection_detail(
         "NOT_POSSIBLE": "in no least-shortfall XI",
         "UNDETERMINED": "of undetermined membership",
     }[row.membership]
-    # No solve was run for a candidate the model cannot place: that is a proof, not a deadline.
-    forced_words = (
-        "not defined (the model cannot place him at this slot)"
+    # Each side is a clause of its own. No solve was run for a candidate the model cannot
+    # place: that is a proof, not a deadline. A side with no XI has no shortfall to name, so
+    # "it" stands for the shortfall only when the clause before it named one.
+    shortfall = "the least declared shortfall"
+    no_xi_with_him = (row.resolution != "NO_MEASURED_ADMISSIBLE_SLOT"
+                      and row.forced_inclusion_integer is None
+                      and row.forced_status == "UNFIELDABLE")
+    with_him = (
+        f"{shortfall} is not defined (the model cannot place him at this slot)"
         if row.resolution == "NO_MEASURED_ADMISSIBLE_SLOT"
-        else _words(row.forced_inclusion_integer, row.forced_status, scale)
+        else _side(row.forced_inclusion_integer, row.forced_status, scale, shortfall)
     )
+    without_him = _side(base, baseline.status, scale, shortfall if no_xi_with_him else "it")
+    if no_xi_with_him and base is None and baseline.status == "UNFIELDABLE":
+        without_him += " either"
     return InjectionDetail(
         row=row,
         requirement_ranges=ranges,
@@ -1234,11 +1279,8 @@ def injection_detail(
         evidence=_evidence(problem, {"candidate_player_id": candidate.player_id}),
         warnings=tuple(warnings),
         claim=(
-            f"With {candidate.name} placed at {_slot_label(problem)}, the least declared "
-            "shortfall is "
-            f"{forced_words}; without him it "
-            f"is {_words(base, baseline.status, scale)}. In the squad plus him he is "
-            f"{membership_words}."
+            f"With {candidate.name} placed at {_slot_label(problem)}, {with_him}; without him "
+            f"{without_him}. In the squad plus him he is {membership_words}."
         ),
         non_claim=NON_CLAIM,
         provenance={
@@ -1247,6 +1289,8 @@ def injection_detail(
             "kernel_version": KERNEL_VERSION,
             "solver_package_version": parent["kernel"]["solver_package_version"],
             "world_namespace": world_namespace,
+            # The resample his world values were drawn in; None when it is the squad's.
+            "candidate_world_namespace": candidate_world_namespace,
             "carry_over": CARRY_OVER,
             "input_fingerprint": fingerprint({
                 **parent,

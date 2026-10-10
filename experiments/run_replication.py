@@ -3,16 +3,24 @@
 
 Thresholds, definitions and negative controls are the Stage 1 ones. Nothing here
 is tuned per league.
+
+The result file is a record. A rerun is compared with it value by value: one that
+reproduces it leaves it as it is, and one that does not says which values differ,
+writes nothing over it and exits 1, unless ``--overwrite-record`` is given.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
+import math
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from galactico.domain.precision import format_plain
 from galactico.features.axes import SPECS, compute_axes, compute_baselines
 from galactico.models.xt import PitchGrid, fit_expected_threat
 from galactico.reliability import (
@@ -20,7 +28,6 @@ from galactico.reliability import (
     discriminant_validity,
     split_half_reliability,
 )
-from galactico.reliability.confound import _spearman
 from galactico.validation.lifecycle import Status
 from galactico.validation.replication import (
     AxisReplication,
@@ -29,6 +36,7 @@ from galactico.validation.replication import (
 )
 
 ROOT = Path("data/public/parquet/pappalardo")
+RECORD = Path("experiments/replication.json")
 LEAGUES = ("Spain", "England", "Italy", "Germany", "France")
 CODE = {"Spain": "ESP", "England": "ENG", "Italy": "ITA", "Germany": "GER", "France": "FRA"}
 MINUTES_FLOOR = 900
@@ -38,6 +46,107 @@ HALF_FLOOR = 300
 BASELINE_CEILING = 0.85     # above this, the axis adds nothing over a trivial statistic
 RELIABILITY_NUMBER = 0.70   # graded on the lower bound of the Fisher-z interval
 RELIABILITY_BAND = 0.50
+
+# The tie policy of the audit's ordering figure. The record was published with ranks
+# taken in sort order, so that is what a rerun is compared with, and it warns. The
+# corrected figures are in docs/research/M-07-rank-ties.md: the script behind that note,
+# experiments/run_rank_tie_erratum.py, sets this name to "average" for the length of
+# its own run.
+TIE_POLICY = "legacy"
+
+
+class _Absent:
+    """The value of a key or a row that one side of a comparison does not have."""
+
+    def __repr__(self) -> str:
+        return "absent"
+
+
+ABSENT = _Absent()
+
+
+def record_differences(recorded, recomputed, at: tuple = ()) -> list[tuple]:
+    """Every place where a recomputed record differs from the recorded one.
+
+    Both are JSON values. The comparison is exact: a number that differs in its last
+    digit differs, an integer is not a float, and a key or a row that one side lacks is
+    a difference. Each difference is ``(path, recorded, recomputed)``, the path being
+    the keys and row numbers that lead to the value. The order of keys is not compared.
+    """
+    if isinstance(recorded, dict) and isinstance(recomputed, dict):
+        keys = [*recorded, *(key for key in recomputed if key not in recorded)]
+        return [found for key in keys
+                for found in record_differences(recorded.get(key, ABSENT),
+                                                recomputed.get(key, ABSENT), (*at, key))]
+    if isinstance(recorded, list) and isinstance(recomputed, list):
+        rows = max(len(recorded), len(recomputed))
+        return [found for row in range(rows)
+                for found in record_differences(
+                    recorded[row] if row < len(recorded) else ABSENT,
+                    recomputed[row] if row < len(recomputed) else ABSENT, (*at, row))]
+    both_missing = (isinstance(recorded, float) and isinstance(recomputed, float)
+                    and math.isnan(recorded) and math.isnan(recomputed))
+    if type(recorded) is type(recomputed) and (recorded == recomputed or both_missing):
+        return []
+    return [(at, recorded, recomputed)]
+
+
+def count_values(value) -> int:
+    """How many values a record holds: the leaves of the JSON value."""
+    if isinstance(value, dict):
+        return sum(count_values(item) for item in value.values())
+    if isinstance(value, list):
+        return sum(count_values(item) for item in value)
+    return 1
+
+
+def _written_out(value) -> str:
+    if value is ABSENT:
+        return repr(value)
+    return format_plain(value) if isinstance(value, float) else json.dumps(value)
+
+
+def _path_in_words(at: tuple) -> str:
+    return " / ".join(str(part) for part in at) or "the whole record"
+
+
+def keep_record(path: Path, payload, *, overwrite: bool,
+                where: Callable[[tuple], str] | None = None) -> bool:
+    """Compare a recomputed result with the record at ``path`` before writing it.
+
+    No record yet: the result is written. A record the result reproduces: it is left as
+    it is, byte for byte. A record it does not reproduce: every value that differs is
+    printed, and nothing is written over the record unless ``overwrite`` is set. Returns
+    whether the record now holds this result. ``where`` puts a path into words.
+    """
+    text = json.dumps(payload, indent=1)
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(f"{path.as_posix()}: written (there was no record)")
+        return True
+
+    recomputed = json.loads(text)
+    differences = record_differences(json.loads(path.read_text(encoding="utf-8")), recomputed)
+    if not differences:
+        print(f"{path.as_posix()}: this run reproduces the record in all "
+              f"{count_values(recomputed)} values; the file is left as it is")
+        return True
+
+    where = where or _path_in_words
+    print(f"\n{path.as_posix()}: {len(differences)} of {count_values(recomputed)} values "
+          f"differ from the record")
+    for at, recorded, value in differences:
+        was, now = _written_out(recorded), _written_out(value)
+        kind = " (the same number, held as another kind of value)" if was == now else ""
+        print(f"  {where(at)}: recorded {was}, recomputed {now}{kind}")
+    if not overwrite:
+        print("The file is a record, so nothing was written over it. To replace it with "
+              "this run, pass --overwrite-record.")
+        return False
+    path.write_text(text, encoding="utf-8")
+    print("The record was replaced with this run, as --overwrite-record asks.")
+    return True
 
 
 def _safe_abs_corr(a: np.ndarray, b: np.ndarray) -> float:
@@ -136,11 +245,9 @@ def run_league(league: str) -> tuple[list[LeagueResult], dict]:
         ok = values.notna() & base["touches"].reindex(keep).notna()
         confounds = np.column_stack([base.loc[ok, "touches"].to_numpy(),
                                      team_oh.loc[ok].to_numpy()])
-        # ties="legacy": the published record used sort-order ranks, and a rerun must
-        # reproduce it. Corrected figures: docs/research/M-07-rank-ties.md.
         dv = discriminant_validity(values[ok].to_numpy(), confounds, key=key,
                                    confound_names=("touch volume", "team"), top_k=12,
-                                   ties="legacy")
+                                   ties=TIE_POLICY)
 
         cors = {b: _safe_abs_corr(values[ok].to_numpy(), base.loc[ok, b].to_numpy())
                 for b in base.columns if b != "minutes"}
@@ -158,7 +265,9 @@ def run_league(league: str) -> tuple[list[LeagueResult], dict]:
             reliability_high=float(band[1]),
             confound_r2=float(dv.variance_explained_by_confounds),
             ordering_rho=float(dv.rank_correlation_after),
-            top12_kept=int(dv.top_k_survivors),
+            # None only under average ranks, where a tie at the twelfth place leaves no
+            # count. The policy of the record always counts.
+            top12_kept=None if dv.top_k_survivors is None else int(dv.top_k_survivors),
             closest_baseline=best, baseline_r=float(best_r),
             status=status,
         ))
@@ -173,7 +282,33 @@ def run_league(league: str) -> tuple[list[LeagueResult], dict]:
     return results, extras
 
 
-def main() -> None:
+def recorded(results: list[LeagueResult]) -> list[dict]:
+    """The rows of the result file, one for each construct in each league, as ``main``
+    hands them to ``keep_record``."""
+    return [{"axis": r.axis, "league": r.league, "n": r.n_players, "r": r.reliability,
+             "r_lo": r.reliability_low, "r_hi": r.reliability_high,
+             "confound_r2": r.confound_r2, "rho": r.ordering_rho, "top12": r.top12_kept,
+             "baseline": r.closest_baseline, "baseline_r": r.baseline_r,
+             "status": r.status.value} for r in results]
+
+
+def row_in_words(rows: list[dict]) -> Callable[[tuple], str]:
+    """Names a place in the result file: the row by its construct and league, then the
+    field."""
+    def where(at: tuple) -> str:
+        if at and isinstance(at[0], int) and at[0] < len(rows):
+            at = (rows[at[0]]["axis"], rows[at[0]]["league"], *at[1:])
+        return _path_in_words(at)
+
+    return where
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--overwrite-record", action="store_true",
+                        help=f"replace {RECORD.as_posix()} when this run does not reproduce it")
+    args = parser.parse_args(argv)
+
     all_results: list[LeagueResult] = []
     per_league: dict[str, dict] = {}
     for league in LEAGUES:
@@ -192,13 +327,14 @@ def main() -> None:
         replications.append(AxisReplication(axis, tuple(results), status, note))
 
     codes = tuple(CODE[league] for league in LEAGUES)
-    header = f"{'axis':<24}" + "".join(f"{c:>7}" for c in codes) + f"{'r lo':>7}{'r hi':>6}   replication"
+    header = (f"{'axis':<24}" + "".join(f"{c:>7}" for c in codes)
+              + f"{'r lo':>7}{'r hi':>6}   replication")
     print("\n" + header)
     print("-" * len(header))
     for rep in sorted(replications, key=lambda r: r.axis):
         by_league = {r.league: r for r in rep.results}
-        cells = "".join(f"{_ab(by_league[l].status):>7}" if l in by_league else f"{'—':>7}"
-                        for l in LEAGUES)
+        cells = "".join(f"{_ab(by_league[league].status):>7}" if league in by_league
+                        else f"{'—':>7}" for league in LEAGUES)
         lo, hi = rep.reliability_range
         print(f"{rep.axis:<24}{cells}{lo:>7.2f}{hi:>6.2f}   {rep.replication.value}")
 
@@ -206,18 +342,16 @@ def main() -> None:
     for rep in sorted(replications, key=lambda r: r.axis):
         print(f"\n{rep.axis}  ({rep.replication.value}: {rep.note})")
         for r in rep.results:
+            kept = "no count" if r.top12_kept is None else f"{r.top12_kept:>2}"
             print(f"    {CODE[r.league]}  r={r.reliability:.2f} "
                   f"[{r.reliability_low:.2f},{r.reliability_high:.2f}]  "
                   f"confR2={r.confound_r2:.2f}  rho={r.ordering_rho:.2f}  "
-                  f"top12={r.top12_kept:>2}  {r.closest_baseline}={r.baseline_r:.2f}  "
+                  f"top12={kept}  {r.closest_baseline}={r.baseline_r:.2f}  "
                   f"{r.status.value}")
 
-    Path("experiments/replication.json").write_text(json.dumps(
-        [{"axis": r.axis, "league": r.league, "n": r.n_players, "r": r.reliability,
-          "r_lo": r.reliability_low, "r_hi": r.reliability_high,
-          "confound_r2": r.confound_r2, "rho": r.ordering_rho, "top12": r.top12_kept,
-          "baseline": r.closest_baseline, "baseline_r": r.baseline_r,
-          "status": r.status.value} for r in all_results], indent=1), encoding="utf-8")
+    rows = recorded(all_results)
+    kept_record = keep_record(RECORD, rows, overwrite=args.overwrite_record,
+                              where=row_in_words(rows))
 
     # Cache under data/, which is gitignored. Writing derived artefacts into a
     # tracked directory is how a 418 MB pickle reached HEAD once already.
@@ -225,8 +359,9 @@ def main() -> None:
     cache = Path("data/licensed/cache")
     cache.mkdir(parents=True, exist_ok=True)
     with (cache / "league_axes.pkl").open("wb") as fh:
-        pickle.dump({l: {k: v for k, v in e.items() if k != "xt"}
-                     for l, e in per_league.items()}, fh)
+        pickle.dump({league: {k: v for k, v in e.items() if k != "xt"}
+                     for league, e in per_league.items()}, fh)
+    return 0 if kept_record else 1
 
 
 def _ab(status: Status) -> str:
@@ -235,4 +370,4 @@ def _ab(status: Status) -> str:
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

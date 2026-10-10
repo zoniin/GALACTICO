@@ -52,6 +52,7 @@ from .kernel import (
     scrub_lineage,
     source_fingerprints,
 )
+from .stress import why_no_xi
 
 __all__ = [
     "DEPTH_NON_CLAIM",
@@ -64,6 +65,7 @@ __all__ = [
     "SlotDepth",
     "SlotGroup",
     "SquadDepth",
+    "gated_stage_words",
     "squad_depth",
 ]
 
@@ -78,8 +80,25 @@ PROVIDER_POSITION_WARNING = (
     "position code (GK, DF, MF, FW). A club with one FW has one player for a striker slot by "
     "construction."
 )
+_NOBODY_EXCLUDED = "with nobody excluded"
+_UNMEASURED_COUNTED = (
+    "with nobody excluded and counting the gated players who lack a recorded minute or a "
+    "measurement a slot needs"
+)
 _MAX_SLOTS = 16  # 2**slots slot groups are counted exhaustively
 _SOURCES = ("depth.py", "kernel.py", "../xi/domain.py")
+
+
+def gated_stage_words(unmeasured_change_it: bool) -> str:
+    """How a sentence names a count taken at the ``gated`` stage.
+
+    That stage is before the user's exclusions, so a reader who excluded somebody sees fewer
+    players on his own page than the count has: the words always say "with nobody excluded".
+    It is also before the measured stage. ``unmeasured_change_it``: the same count at the
+    measured stage is another number, so the words say those players are counted too, and
+    the gap is not put down to exclusions alone.
+    """
+    return _UNMEASURED_COUNTED if unmeasured_change_it else _NOBODY_EXCLUDED
 
 
 @dataclass(frozen=True)
@@ -475,36 +494,43 @@ def squad_depth(
     warnings = []
     if not manual:
         warnings.append(PROVIDER_POSITION_WARNING)
+    # Warnings are read by a person: no symbol of the docstring, no slot id and none of this
+    # module's own words for a placement ("pin", "pinned value") appears in one.
     if squad.status == "UNFIELDABLE":
         warnings.append(
-            "The squad has no fieldable XI in this model before any absence, so no pinned value "
-            "was computed. The slot groups with negative spare explain it; if none has, the "
-            "declared locks and exclusions cannot all be honoured. " + " ".join(squad.reasons)
+            "The squad has no fieldable XI in this model before any absence"
+            + (", so no placement was evaluated. " if pinned_values else ". ")
+            + "The slot groups with negative spare explain it; if none has, the declared locks "
+            "and exclusions cannot all be honoured. " + why_no_xi(squad)
         )
     elif squad.status != "CERTIFIED" and pinned_values:
         warnings.append(
             "The squad's least declared shortfall was not decided within the time limit, so no "
-            "pinned value can be compared with it."
+            "placement can be compared with it."
         )
     if pinned_unknown:
         # Equal slots share one solve, so the rows left unknown can outnumber the solves
         # skipped: the count is of the rows the reader sees.
         unknown_rows = sum(pin.status == "UNKNOWN" for row in slot_rows for pin in row.pinned)
         warnings.append(
-            f"{unknown_rows} player-slot pairs were not evaluated before the time limit. "
-            "Unknown is not evidence that a player raises the shortfall."
+            f"{_count(unknown_rows, 'player-slot pair')} {'was' if unknown_rows == 1 else 'were'} "
+            "not evaluated before the time limit. Unknown is not evidence that a player raises "
+            "the shortfall."
         )
-    # Warnings are read by a person: no symbol of the docstring and no slot id appears in one.
     if locked_ids:
         warnings.append(
             "The slot groups and the count of absences before no XI can be fielded are taken "
             "over all available players and ignore the declared locks."
         )
+    # The two gate warnings print counts of the gated stage, which is before the user's
+    # exclusions. Each says so: on a page where somebody is excluded the reader has fewer
+    # players than the count, and the difference is his declaration, not the gate.
     if kappa["gated"] < kappa["rule_eligible"]:
+        stage = gated_stage_words(kappa["measured"] != kappa["gated"])
         warnings.append(
-            "The evidence gate lowers the fewest absences that leave no fieldable XI from "
-            f"{kappa['rule_eligible']} to {kappa['gated']}: that thinness is a property of the "
-            "evidence, not of the squad."
+            f"{stage[0].upper()}{stage[1:]}, the evidence gate lowers the fewest absences that "
+            f"leave no fieldable XI from {kappa['rule_eligible']} to {kappa['gated']}: that "
+            "thinness is a property of the evidence, not of the squad."
         )
     roster_names = {r["player_id"]: r["name"] for r in roster}
     slot_labels = {slot.slot_id: slot.label for slot in slots}
@@ -513,11 +539,14 @@ def squad_depth(
             where = ", ".join(slot_labels[sid] for sid in group.slot_ids)
             subject = (f"The slot {where} has" if len(group.slot_ids) == 1
                        else f"The slots {where} have")
+            spare = group.spare_by_stage
+            unmeasured = spare["measured"] != spare["gated"]
+            stage = gated_stage_words(unmeasured)
+            after = f", {stage}," if unmeasured else f" {stage}"
             warnings.append(
-                f"{subject} a spare of {group.spare_by_stage['gated']} after the evidence "
-                "gate and "
-                f"{group.spare_by_stage['rule_eligible']} before it (eligible players beyond "
-                "the number of slots). The gate removed "
+                f"{subject} a spare of {spare['gated']} after the evidence gate{after} and "
+                f"{spare['rule_eligible']} before it (eligible players beyond the number of "
+                "slots). The gate removed "
                 f"{', '.join(roster_names[pid] for pid in group.restored_by_gate_ids)}."
             )
 

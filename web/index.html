@@ -105,10 +105,14 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
 .style-row{display:grid;grid-template-columns:15rem 1fr;gap:1.6rem;align-items:center;
   padding:1.15rem 0;border-bottom:1px solid var(--ink-700)}
 @media(max-width:800px){.style-row{grid-template-columns:1fr}}
-.zones{display:flex;height:30px;border:1px solid var(--ink-600);overflow:hidden}
-.zones div{position:relative}
-.zones div span{position:absolute;inset:auto 0 -1.35rem 0;text-align:center;
+/* The channel names sit under the bar, outside its box. The box used to clip what
+   overflowed it, so the names its legend explains were never drawn. A channel too narrow
+   to hold its name shows none, rather than one that runs into its neighbour's. */
+.zones{display:flex;height:30px;border:1px solid var(--ink-600)}
+.zones div{position:relative;container-type:inline-size}
+.zones div span{position:absolute;inset:auto 0 -1.35rem 0;text-align:center;white-space:nowrap;
   font-family:var(--mono);font-size:.58rem;color:var(--bone-500);letter-spacing:.08em}
+@container (max-width:1.2rem){.zones div span{visibility:hidden}}
 .spectrum{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;color:var(--bone-500)}
 
 /* badges */
@@ -140,6 +144,16 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
 .why p{color:var(--bone-500);font-size:.85rem;margin:0}
 .tag{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
 .t-ship{color:var(--pos)} .t-rej{color:var(--neg)} .t-res{color:var(--warn)}
+
+/* The credit for analysis formed from StatsBomb data. The logo is the provider's own
+   file and is drawn as it is: on a plain plate, with no filter, tint or opacity. */
+.credit{display:grid;grid-template-columns:auto 1fr;gap:1rem 1.6rem;align-items:start;
+  margin-top:1.8rem}
+@media(max-width:800px){.credit{grid-template-columns:1fr}}
+.credit .plate{background:#fff;padding:.6rem .8rem;line-height:0;justify-self:start}
+.credit img{display:block;width:170px;max-width:100%;height:auto}
+.credit p{margin:0 0 .5rem;color:var(--bone-300);font-size:.85rem;max-width:62ch}
+.credit p.notes{font-family:var(--mono);font-size:.72rem;color:var(--bone-500);margin:0}
 
 /* compare */
 .cmp{display:grid;grid-template-columns:1fr 9rem 1fr;gap:.8rem;align-items:center;
@@ -255,6 +269,7 @@ details dt{color:var(--bone-500)}
         confound audit, construct validity, incremental information, robustness. Three failed at
         three different stages, and the differences matter more than the failures.</p>
       <div class="why" id="why"></div>
+      <div class="credit" id="why-credit"></div>
     </section>
   </div>
 
@@ -264,6 +279,13 @@ details dt{color:var(--bone-500)}
 <script>
 const $ = s => document.querySelector(s);
 const api = p => fetch(p).then(r => r.ok ? r.json() : Promise.reject(r.status));
+// A served string printed as text or inside an attribute. A research note's title holds
+// quotation marks. A string that was not sent prints as nothing, never as "null".
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+// A count of minutes, written one way in every browser. The browser's own format writes
+// 1,800 as "1.800" under a German or a Spanish locale, inside an English sentence.
+const whole = n => n.toLocaleString('en-US');
 const UNITS = {progression:"xT / 90", progression_per_action:"xT / pass",
   chance_creation:"xT / 90", half_space_share:"share", width:"share"};
 let META = null, CONSTRUCTS = null;
@@ -289,7 +311,7 @@ function wireSearch(input, box, onPick){
       box.innerHTML = d.players.map(p =>
         `<button data-id="${p.player_id}"><span>${p.name}</span>
          <span class="t">${p.team} · ${p.position}</span>
-         <span class="m">${p.minutes.toLocaleString()}′</span></button>`).join('')
+         <span class="m">${whole(p.minutes)}′</span></button>`).join('')
         || '<button disabled><span class="t">no match</span></button>';
       box.classList.remove('hidden');
       box.querySelectorAll('button[data-id]').forEach(btn => btn.onclick = () => {
@@ -364,8 +386,8 @@ async function showPlayer(id){
       return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div></div>
         <div class="insufficient">INSUFFICIENT SIGNAL
-          <small>This estimator needs ${c.minutes_floor.toLocaleString()} minutes before a point
-          estimate is shown; he played ${p.minutes.toLocaleString()}.</small></div>
+          <small>This estimator needs ${whole(c.minutes_floor)} minutes before a point
+          estimate is shown; he played ${whole(p.minutes)}.</small></div>
         <div><div class="val" style="color:var(--bone-500)">—</div>
           <div class="unit">${UNITS[c.construct_id]||''}</div></div></div>`;
     const signal = c.signal;
@@ -373,7 +395,7 @@ async function showPlayer(id){
       <div><div class="name">${label(c.construct_id)}</div>
         <div class="claim">${def.claim||''}</div></div>
       <div><div class="strip">${strip(c.percentile, POPULATION[c.construct_id])}</div>
-        <div class="pctsub">${c.percentile===null?'':Math.round(c.percentile)+'th percentile among '}${c.reference_label} · n=${c.reference_n}</div></div>
+        <div class="pctsub">${esc(c.percentile_note)}</div></div>
       <div><div class="val">${c.display ?? '—'}</div>
         <div class="unit">${UNITS[c.construct_id]||''}</div>
         ${c.quantiles ? `<div class="unit" style="opacity:.7;margin-top:.35rem">uncertainty in this estimate</div>
@@ -382,7 +404,7 @@ async function showPlayer(id){
           quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
           <div class="unit" style="opacity:.7">90% ${c.quantiles[0].toFixed(3)}–${c.quantiles[c.quantiles.length-1].toFixed(3)}</div>` : ''}
         <div style="margin-top:.4rem;text-align:right"><span class="badge g-${signal}"
-          title="How repeatable this ESTIMATOR is over comparable samples: r = ${(c.reliability||0).toFixed(2)}. This is not the uncertainty in this player's own estimate.">estimator signal: ${signal}</span></div>
+          title="${esc(c.signal_note)}">estimator signal: ${signal}</span></div>
       </div></div>`;
   }).join('');
 
@@ -415,7 +437,7 @@ async function showPlayer(id){
       <div><h1>${p.name}</h1>
         <div class="sub">${p.team} · ${p.position} · ${p.competition} ${p.season}</div></div>
       <div class="facts">
-        <div class="fact"><div class="k">Minutes</div><div class="v">${p.minutes.toLocaleString()}</div></div>
+        <div class="fact"><div class="k">Minutes</div><div class="v">${whole(p.minutes)}</div></div>
         <div class="fact"><div class="k">Estimator</div><div class="v" style="font-size:.8rem">${p.regime}_v1</div></div>
       </div>
     </div>
@@ -423,7 +445,7 @@ async function showPlayer(id){
     <h2 style="margin-top:2.4rem">Observed location — descriptive, no good direction</h2>
     <div class="cards">${styleRows}</div>
     ${Object.keys(p.zone_shares || {}).length
-      ? `<div style="margin-top:1rem">${zoneBar(p.zone_shares)}</div>
+      ? `<div style="margin-top:1rem;padding-bottom:.7rem">${zoneBar(p.zone_shares)}</div>
     <div class="spectrum">Share of completed passes by origin channel. LW / LH = left wide and left
       half-space, C = centre, RH / RW = right. Where a player's passes started is
       partly where he was deployed; this describes the season, not a disposition.</div>`
@@ -463,6 +485,11 @@ function geoBar(v, neutral){
     '</svg></span>';
 }
 
+// The bar at the height it is drawn for. Left to itself the drawing takes the height its
+// width gives it, a hundred pixels and more in a list, and the mark, which sits a fixed
+// five pixels from the top, floats far above the line it belongs to.
+const inStrip = bar => '<div class="strip">' + bar + '</div>';
+
 let POPULATION = {};
 
 /* The player's OWN uncertainty, from a match-level block bootstrap. Drawn as
@@ -480,9 +507,8 @@ function quantileDots(quantiles, lo, hi){
 }
 
 // Display names come from the registry, so a narrowed claim cannot leave the
-// interface still using the stronger word.
-const label = k => (CONSTRUCTS.shipped.find(c => c.id === k) || {}).label
-  || k.replace(/_/g, ' ').replace(/^./, m => m.toUpperCase());
+// interface still using the stronger word. No name is built here from an id.
+const label = k => (CONSTRUCTS.shipped.find(c => c.id === k) || {}).label || k;
 
 /* ---------- scatter ---------- */
 let scatterData = null;
@@ -536,28 +562,26 @@ async function initExplore(){
   loadExplore(CONSTRUCTS.shipped[0].id);
 }
 async function loadExplore(id){
-  const d = await api('/api/explore/' + id);
-  const head = d.orderable_as_ranking
-    ? `<p class="lede">Ordered high to low. This is a quality construct, so the ordering is meaningful.</p>`
-    : `<p class="lede"><strong>Not a ranking.</strong> This is a style construct — there is no good
-       direction, so rows are ordered by how far they sit from the pitch's own geometry
-       (dashed tick), in either direction.</p>`;
-  const max = Math.max(...d.rows.map(r=>r.value));
-  const neutral = (CONSTRUCTS.channel_geometry||{})[id];
-  // Style is ordered by DEPARTURE from the pitch's own geometry and drawn against
-  // that neutral, not as a descending fill from zero. Filled bars sorted high-to-low
-  // in the accent colour are the most fixed "more is better" idiom in the medium,
-  // and a line of grey disclaimer text does not override one.
-  const rows = d.orderable_as_ranking ? d.rows
-    : [...d.rows].sort((a,b) => Math.abs(b.value-neutral) - Math.abs(a.value-neutral));
-  $('#explore-body').innerHTML = head + `<div class="cards">` + rows.slice(0,40).map(r => {
+  // The server orders every row, cuts the list, and says in words which order it used and
+  // how many rows it listed. This draws the rows as they arrive and sorts nothing: the sort
+  // that was here ran on a list already cut to the highest values, under a sentence that
+  // said "in either direction".
+  const d = await api('/api/explore/' + id + '?limit=40');
+  const top = d.population_range ? d.population_range[1] : 0;
+  // Style is drawn against the pitch-area reference the server ordered by, not as a
+  // descending fill from zero. Filled bars sorted high-to-low in the accent colour are
+  // the most fixed "more is better" idiom in the medium, and a line of grey disclaimer
+  // text does not override one.
+  $('#explore-body').innerHTML = `<p class="lede" style="margin-bottom:.5rem">${esc(d.order_note)}</p>
+    <p class="pctsub" style="margin:0 0 1.2rem">${esc(d.listed_note)}</p>` +
+    `<div class="cards">` + d.rows.map(r => {
     const withheld = r.render_state === 'insufficient_signal';
-    return `<div class="card" style="grid-template-columns:14rem 1fr 7rem;padding:.55rem 0">
+    return `<div class="card" data-player="${r.player_id}" style="grid-template-columns:14rem 1fr 7rem;padding:.55rem 0">
       <div><span>${r.name}</span> <span class="pctsub">${r.team} · ${r.minutes}′</span></div>
       <div>${d.orderable_as_ranking
         ? `<div style="height:8px;background:var(--ink-700)"><i style="display:block;height:100%;
-             width:${(r.value/max*100).toFixed(1)}%;background:var(--ink-600)"></i></div>`
-        : geoBar(r.value, neutral)}</div>
+             width:${top > 0 ? (r.value/top*100).toFixed(1) : 0}%;background:var(--ink-600)"></i></div>`
+        : d.reference === null ? '' : inStrip(geoBar(r.value, d.reference))}</div>
       <div class="mono" style="text-align:right;font-size:.82rem;color:${withheld?'var(--bone-500)':'inherit'}">${
         withheld ? '— withheld' : r.value.toFixed(4)}</div>
     </div>`; }).join('') + `</div>`;
@@ -575,11 +599,12 @@ async function runCompare(){
       const st = d.deltas.filter(x => x.family === 'style');
       const section = (title, note) =>
         `<h2 style="margin:2rem 0 .6rem">${title}</h2>` +
-        (note ? `<p class="lede" style="margin-bottom:.8rem">${note}</p>` : '');
+        (note ? `<p class="lede" style="margin-bottom:.8rem">${esc(note)}</p>` : '');
+      // The note above the observed-location rows is the server's, true of the rows it
+      // sent: marks for both players, or none and why. The note written here spoke of
+      // marks above rows that drew none.
       return section('Quality') + q.map(row).join('') +
-        section('Observed location',
-          'Descriptive shares. Neither player is ahead here — the marks show where each ' +
-          'one\'s completed passes started, against the same pitch-area reference.') +
+        section('Observed location', d.observed_location_note) +
         st.map(row).join('');
     })();
 
@@ -591,10 +616,10 @@ async function runCompare(){
       if (x.family === 'style') {
         const n = (CONSTRUCTS.channel_geometry||{})[x.construct_id];
         return `<div class="cmp" style="grid-template-columns:1fr 12rem 1fr">
-          <div>${geoBar(x.left, n)}</div>
+          <div>${inStrip(geoBar(x.left, n))}</div>
           <div class="mid">${label(x.construct_id)}<br>
             <span class="badge b-none" style="margin-top:.3rem">not ranked</span></div>
-          <div>${geoBar(x.right, n)}</div>
+          <div>${inStrip(geoBar(x.right, n))}</div>
           <div class="lang">${x.language}</div></div>`;
       }
       const m = Math.max(Math.abs(x.left), Math.abs(x.right)) || 1;
@@ -614,17 +639,35 @@ async function runCompare(){
 }
 
 /* ---------- why only five ---------- */
+/* Two things in this view are analysis formed from StatsBomb data: the external-replication
+   label of each shipped construct and the research-only conclusion. Each links to its
+   research note, and the credit under the cards names the source beside the provider's
+   logo. The words of a label, the name of a construct, the title of a note and the credit
+   are the server's: nothing here is built from a token. */
+const noteLink = (note, text, keep = '') =>
+  `<a href="${esc(note.url)}" title="${esc(note.title)}" target="_blank" rel="noopener"${keep}>${esc(text)}</a>`;
+const TOGETHER = ' style="white-space:nowrap"';  // a label's words stay on one line
 function renderWhy(){
   const ship = CONSTRUCTS.shipped.map(c => `<div>
-    <div class="tag t-ship">Shipped</div><h3>${label(c.id)}</h3>
-    <p>${c.claim}<br><span class="mono" style="font-size:.72rem">external replication: ${c.external_replication.replace(/_/g,' ')}</span></p></div>`);
+    <div class="tag t-ship">Shipped</div><h3>${esc(c.label)}</h3>
+    <p>${esc(c.claim)}<br><span class="mono" style="font-size:.72rem">external replication: ${
+      c.external_replication_note
+        ? noteLink(c.external_replication_note, c.external_replication_label, TOGETHER)
+        : esc(c.external_replication_label)}</span></p></div>`);
   const rej = CONSTRUCTS.rejected.map(c => `<div>
-    <div class="tag t-rej">Rejected</div><h3>${label(c.id)||c.id}</h3>
-    <p><strong style="color:var(--bone-300)">${c.headline}.</strong> ${c.detail}</p></div>`);
+    <div class="tag t-rej">Rejected</div><h3>${esc(c.label)}</h3>
+    <p><strong style="color:var(--bone-300)">${esc(c.headline)}.</strong> ${esc(c.detail)}</p></div>`);
   const res = CONSTRUCTS.research_only.map(c => `<div>
-    <div class="tag t-res">Research only</div><h3>Metronome fit</h3>
-    <p><strong style="color:var(--bone-300)">${c.headline}.</strong> ${c.detail}</p></div>`);
+    <div class="tag t-res">Research only</div><h3>${esc(c.label)}</h3>
+    <p><strong style="color:var(--bone-300)">${esc(c.headline)}.</strong> ${esc(c.detail)}${
+      c.note ? `<br><span class="mono" style="font-size:.72rem">research note: ${
+        noteLink(c.note, c.note.title)}</span>` : ''}</p></div>`);
   $('#why').innerHTML = [...ship, ...rej, ...res].join('');
+  const credit = CONSTRUCTS.statsbomb_credit;
+  $('#why-credit').innerHTML = `<div class="plate"><img src="${esc(credit.logo)}"
+      alt="${esc(credit.source)}" width="170"></div>
+    <div><p>${esc(credit.sentence)}</p>
+      <p class="notes">${credit.notes.map(n => noteLink(n, n.title)).join(' &nbsp;·&nbsp; ')}</p></div>`;
 }
 
 /* ---------- boot ---------- */

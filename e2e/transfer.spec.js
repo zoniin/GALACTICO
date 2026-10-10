@@ -9,6 +9,10 @@ const SHOTS = process.env.GALACTICO_SHOTS || '';
 const GOLD = 'rgb(201, 162, 39)';
 const SLOW = 150000;
 const BUSY = 'two long computations are already running'; // runtime.LONG_JOBS_BUSY, the 429 detail
+const NACHO = 3304, CARVAJAL = 4501;
+const PRONOUN = /\b(he|him|his)\b/i; // the pool-median reference is not a person
+// The five counts under the world strip, in the order the page prints them.
+const worldCounts = wc => [wc.forced_lower, wc.used, wc.forced_equal, wc.forced_higher, wc.no_xi, wc.set_aside].map(String);
 
 function watch(page) {
   const errors = [];
@@ -176,6 +180,12 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
   await expect(page.locator('#carried-value')).toHaveText(search.carry_over_statement);
   await expect(page.locator('#model-statement')).toHaveText(search.model_statement);
   await expect(page.locator('#reference-statement')).toHaveText(search.reference_row.statement);
+  // The reference is not a person: its outcome label and every word of its row are the
+  // server's, and none says he, him or his.
+  await expect(page.locator('#reference-rows [data-part="reference-outcome"]')).toHaveText(search.reference_row.outcome_label);
+  await expect(page.locator('#reference-rows li div[data-membership]')).toHaveText(search.reference_row.injection.membership_sentence);
+  expect(await page.locator('#reference-rows').innerText()).not.toMatch(PRONOUN);
+  expect(search.reference_row.statement.endsWith(' The reference is not a person.')).toBe(true);
   // What the pair in a row is, in the catalogue's sentences: an unchanged row can show a value above the squad's own.
   const catalogue = await (await page.request.get(BASE + '/api/transfer/scenarios')).json();
   const forced = catalogue.definitions.find(d => d.field === 'forced_inclusion_objective');
@@ -183,6 +193,15 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
   await expect(page.locator('#reference-rows button')).toHaveCount(0);
   // The class of the facts beside each candidate is said once, in the server's sentence.
   await expect(page.locator('#facts-evidence')).toHaveText(search.facts_evidence_statement);
+  // His recorded rate is printed in every row, and that sentence names it with its class: the
+  // class of the same rate in the squad's own ledger row.
+  expect(search.rate_evidence).toEqual({ progression: 'ESTIMATED' });
+  expect(search.facts_evidence_statement.endsWith('; his recorded Positive completed-pass xT per 90 is Estimated.')).toBe(true);
+  await expect(page.locator('#candidates li.gp-row[data-player] [data-requirement="progression"]')).toHaveCount(search.rows.length);
+  await expect(page.locator('[data-ledger="rates-progression"] [data-evidence]')).toHaveAttribute('data-evidence', search.rate_evidence.progression);
+  // The line under the order control says both levels of the order, as the lede does.
+  await expect(page.locator('#ordered-by')).toHaveText('Grouped by the exact outcome of the injected re-solve, in a fixed sequence. Inside a group listed by: Name. One declared key, not an order of merit. ' + search.listings.tie_rule);
+  await expect(page.locator('p.lede')).toContainText('The list is grouped first by the outcome of the re-solve, in a fixed sequence; inside a group it is in the order of a key you choose.');
   // One requirement is in force: where the page says how the list is grouped, the server says
   // what the groups are. The sentence stands above the groups it is about.
   expect(pool.inputs.requirements.filter(r => r.declared).length).toBe(1);
@@ -264,6 +283,15 @@ test('a declared shortfall: rows, order, strips, gold and the certificate equal 
   await expect(page.locator('#recorded-statement')).toHaveText(detail.candidate.recorded_statement);
   await expect(page.locator('#worlds-statement')).toHaveText(detail.candidate.world_counts.statement);
   expect(await page.locator('#worlds-figure [data-world]').count()).toBe(detail.candidate.world_counts.requested);
+  // Every requested world is in exactly one of the five counts, and each is printed as sent.
+  const wc = detail.candidate.world_counts;
+  expect(wc.forced_lower + wc.forced_equal + wc.forced_higher + wc.no_xi + wc.set_aside).toBe(wc.requested);
+  expect(await page.locator('#worlds-counts [data-value]').evaluateAll(els => els.map(e => e.dataset.value))).toEqual(worldCounts(wc));
+  expect(wc.statement).not.toContain('namespace');
+  // The ledger's "Solver or rule" column says the rule in words and names no function.
+  const solverCells = await page.locator('#evidence-ledger td[data-label="Solver or rule"]').allTextContents();
+  expect(solverCells.some(cell => cell.includes('half-even after float division by the declared normalizer'))).toBe(true);
+  expect(solverCells.filter(cell => /xi\.solver|_q\b/.test(cell))).toEqual([]);
   await expect(page.locator('#transport .verdict')).toHaveAttribute('data-basis', 'NOT_REGISTERED');
   // The recorded rate carries the class the server gives a recorded rate (its ledger row),
   // which is not the class of the XI-level requirement it enters.
@@ -642,4 +670,101 @@ test('at 390 px nothing overflows, in the default state and with a candidate ope
   await page.setViewportSize({ width: 320, height: 700 });
   expect(await overflows(page)).toBe(false);
   expect(errors).toEqual([]);
+});
+
+test('no XI without an addition: worlds proved to have none are counted on their own, and no sentence speaks of a shortfall', async ({ page }) => {
+  test.setTimeout(480000);
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const first = reply(page, '/api/transfer/universe');
+  await page.goto(BASE + '/transfer?slot=rb');
+  await first;
+  await expect(page.locator('#transfer-body')).toBeVisible({ timeout: SLOW });
+  // Both players the rule set admits at right back are excluded through the page.
+  let pool;
+  for (const id of [CARVAJAL, NACHO]) {
+    await expect(page.locator('#leads')).toBeVisible({ timeout: SLOW });
+    const answered = reply(page, '/api/transfer/universe');
+    await page.locator('#exclude-player').selectOption(String(id));
+    await page.locator('#exclude').click();
+    pool = await (await answered).json();
+    await expect(page.locator('#transfer-body')).toBeVisible({ timeout: SLOW });
+  }
+  expect(pool.inputs.excludes).toEqual([NACHO, CARVAJAL]);
+  expect([pool.baseline.status, pool.deficiency.state]).toEqual(['UNFIELDABLE', 'BASELINE_UNFIELDABLE']);
+  await expect(page.locator('#deficiency')).toHaveAttribute('data-deficiency', 'BASELINE_UNFIELDABLE');
+  await expect(page.locator('#deficiency-statement')).toHaveText(pool.deficiency.statement);
+
+  const answered = reply(page, '/api/transfer/injection');
+  await page.locator('#search').click();
+  const search = await (await answered).json();
+  await expect(page.locator('#candidates')).toBeVisible({ timeout: SLOW });
+  await page.locator('#fill-stop').click({ timeout: 5000 }).catch(() => {}); // the rows need not fill for this
+  // The reference row: an XI can be fielded with the pool median placed there. Its sentence and
+  // its label say that, speak of no shortfall, and call it neither he nor him.
+  const reference = search.reference_row;
+  expect([reference.outcome, reference.outcome_label]).toEqual(['MAKES_FIELDABLE', 'An XI can be fielded with it']);
+  expect(reference.statement).toContain('Here an XI can be fielded with the reference itself placed there: a row in that outcome group does what the median of the listed players does.');
+  expect(reference.statement).not.toContain('shortfall');
+  await expect(page.locator('#reference-statement')).toHaveText(reference.statement);
+  await expect(page.locator('#reference-rows [data-part="reference-outcome"]')).toHaveText(reference.outcome_label);
+  expect(await page.locator('#reference-rows').innerText()).not.toMatch(PRONOUN);
+  // The groups are labelled as sent. The group of rows that change nothing names no shortfall.
+  const groups = search.listings.keys.find(k => k.order_key === 'name').groups;
+  await expect(page.locator('#candidates .gp-outcome-band')).toHaveText(groups.map(g => `${g.outcome_label} · listed: ${g.count}`));
+  expect(groups.map(g => g.outcome_label)).not.toContain('Leaves it unchanged');
+  expect(groups[0].outcome_label).toBe('An XI can be fielded with him');
+
+  // The first listed candidate, opened with the default of twelve worlds.
+  const subject = search.rows.find(r => r.outcome === 'MAKES_FIELDABLE');
+  const detailed = reply(page, '/api/transfer/injection/detail');
+  await page.locator(`#candidates button.gp-name[data-player="${subject.player_id}"]`).click();
+  const detail = await (await detailed).json();
+  await expect(page.locator('#candidate-detail')).toBeVisible({ timeout: SLOW });
+  const wc = detail.candidate.world_counts;
+  expect(detail.budget.completeness).toBe('EXACT');
+  // No XI without him in any world, and one with him: twelve findings, none of them set aside.
+  expect([wc.requested, wc.used, wc.no_xi, wc.set_aside]).toEqual([12, 0, 12, 0]);
+  expect(wc.no_xi_by_side).toEqual({ without_him: 12, with_him: 0, both: 0 });
+  expect(wc.statement).toContain('In 12 worlds it is proved that no XI can be fielded without him and that one can with him at Right back: every XI there contains him. No world was set aside.');
+  expect(wc.statement).not.toContain('set aside (');
+  await expect(page.locator('#worlds-statement')).toHaveText(wc.statement);
+  await expect(page.locator('#worlds-figure [data-world="no-xi"]')).toHaveCount(12);
+  await expect(page.locator('#worlds-figure [data-world]')).toHaveCount(12);
+  await expect(page.locator('#worlds-figure svg.worlds')).toHaveAttribute('aria-label', wc.statement);
+  expect(await page.locator('#worlds-counts [data-value]').evaluateAll(els => els.map(e => e.dataset.value))).toEqual(worldCounts(wc));
+  await expect(page.locator('#worlds-counts')).toHaveText('in every least-shortfall XI: 0 of 0 · in some: 0 · in none: 0 · no XI without him, or none with him: 12 · set aside: 0');
+  // The point row says what those worlds say: he is in every XI there is.
+  expect(detail.candidate.injection.membership_sentence).toBe('In every least-shortfall XI of the squad plus him.');
+  await expect(page.locator('#candidate-detail [data-membership]')).toHaveText(detail.candidate.injection.membership_sentence);
+  // The claim is a sentence on both sides.
+  expect(detail.claim).toMatch(/; without him no XI can be fielded\. In the squad plus him he is in every least-shortfall XI\.$/);
+  expect(detail.claim).not.toContain('it is no fieldable XI');
+  await expect(page.locator('#candidate-claim')).toHaveText(detail.claim);
+  const row = page.locator(`[data-ledger="candidate-${subject.player_id}-worlds"]`);
+  await expect(row).toContainText('0 of 0');
+  await expect(row).toContainText('of those with an XI certified both without him and with him');
+  await expect(row).toContainText('every XI there contains him');
+  expect(await overflows(page)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test.describe('in a browser set to a comma-decimal locale', () => {
+  test.use({ locale: 'de-DE' });
+
+  test('counts are printed in the notation the server\'s sentences use', async ({ page }) => {
+    test.setTimeout(240000);
+    const errors = watch(page);
+    // Non-vacuity: this browser writes numbers the German way when it is left to.
+    expect(await page.evaluate(() => (1234.5).toLocaleString())).toBe('1.234,5');
+    const pool = await (await setSlot(page)).json();
+    const english = value => value.toLocaleString('en-US');
+    expect(pool.pool.left_out.some(x => x.count >= 1000)).toBe(true);
+    await expect(page.locator('#pool-left-out')).toHaveText(
+      'Left out before any filter: ' + pool.pool.left_out.map(x => `${x.label} ${english(x.count)}`).join(' · '));
+    expect(await page.locator('#pool-left-out [data-value]').allTextContents()).toEqual(pool.pool.left_out.map(x => english(x.count)));
+    // The attained sentence is the server's, in the same notation as the numbers beside it.
+    await expect(page.locator('#leads [data-attained="progression"]')).toHaveText(pool.deficiency.attained[0].statement);
+    expect(errors).toEqual([]);
+  });
 });

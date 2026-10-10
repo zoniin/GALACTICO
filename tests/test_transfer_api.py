@@ -198,9 +198,14 @@ def test_no_declared_shortfall_is_said_plainly_and_nothing_is_searched(client, t
     ledger = {row["row_id"]: row for row in pool["ledger"]}
     printed = f"{attained['reached_text']}; none above {attained['ceiling_text']}"
     assert ledger["attained-progression"]["value_text"] == printed
+    # The first number is the sum of the XI the solver found, which need not be the largest
+    # sum any XI reaches: the row is named for what it holds, and says the rest in the
+    # sentence planning.attained returned, printed and not restated.
     assert ledger["attained-progression"]["quantity"] == (
-        "Largest sum of Positive completed-pass xT per 90 over every XI of the gated squad as "
-        "declared")
+        "Sum of Positive completed-pass xT per 90 of one XI of the gated squad as declared, and "
+        "a ceiling no XI exceeds")
+    assert "Largest" not in ledger["attained-progression"]["quantity"]
+    assert ledger["attained-progression"]["sample"] == attained["statement"]
     assert ledger["attained-progression"]["verdict"] is None  # arithmetic, no empirical claim
 
     search = _post(client, "injection", MET)
@@ -279,13 +284,15 @@ def test_injection_lists_by_name_and_groups_by_outcome_then_one_key(client, thes
     assert reference["synthetic"] and "player_id" not in reference
     assert "not a person" in reference["statement"] and reference["listed_count"] == 5
 
-    # One requirement in force: the reply says the groups are that one rate, restated.
+    # One requirement in force: the reply says the groups are that one rate, restated, and so
+    # is the break-even printed in the same row.
     assert search["single_requirement_statement"] == (
         "With one requirement in force (Positive completed-pass xT per 90), the forced value of "
-        "every row, and therefore its outcome group, is a function of the one recorded rate "
-        "printed in that row, a higher recorded rate giving a lower declared shortfall or the "
-        "same one: the groups restate that rate under the declared minimum and are not a "
-        "second piece of evidence about a player.")
+        "every row is a function of the one recorded rate printed in that row, and so are its "
+        "outcome group and its break-even carry-over fraction: a higher recorded rate never "
+        "gives a higher declared shortfall and never a higher break-even. The groups and the "
+        "break-even restate that rate under the declared minimum and are not further evidence "
+        "about a player.")
     # And it is true of these rows: equal rates, equal values; a higher rate, never a higher
     # value; nothing was removed from a row.
     rated = sorted((row["requirement_values"]["progression"],
@@ -294,16 +301,48 @@ def test_injection_lists_by_name_and_groups_by_outcome_then_one_key(client, thes
                    if row["requirement_values"]["progression"] is not None)
     assert len(rated) == 4 and all(change is not None for _, _, change in rated)
     assert [value for _, value, _ in rated] == sorted((v for _, v, _ in rated), reverse=True)
+    # ... and it is true of the break-even too: taken in falling order of the one rate, the
+    # break-even never falls, and a row with none is followed by rows with none.
+    by_rate = sorted((row for row in rows if row["requirement_values"]["progression"]
+                      is not None), key=lambda row: -row["requirement_values"]["progression"])
+    breaks = [_post(client, "retention", {**SHORT, "player_id": row["player_id"]})
+              ["carry_over"]["break_even"] for row in by_rate]
+    assert breaks == [0.3, 0.55, None, None]
+    # Whichever conclusion the break-even tests. A row with none has no fraction on the grid.
+    for conclusion in transfer_lab.CONCLUSION_IDS:
+        found = [_post(client, "retention", {**SHORT, "player_id": row["player_id"],
+                                             "conclusion": conclusion})["carry_over"]["break_even"]
+                 for row in by_rate]
+        on_grid = [2.0 if value is None else value for value in found]
+        assert on_grid == sorted(on_grid), (conclusion, found)
+        assert found[0] is not None, conclusion  # non-vacuity: the highest rate has one
     opted = _post(client, "injection", {**SHORT, "experimental_opt_in": True})
     assert len(opted["experimental_inputs"]) == 2
     assert opted["single_requirement_statement"] is None
 
     # The class of each fact beside a candidate, read from the mapping the reply carries.
+    # A candidate's recorded rate is printed in every row: the sentence names it and its
+    # class, which is the class of the same rate in the squad's own ledger row.
     assert search["facts_evidence"] == dict(universe_module.SHOWN_EVIDENCE)
+    assert search["rate_evidence"] == {"progression": "ESTIMATED"}
     assert search["facts_evidence_statement"] == (
         "Beside each candidate: foot and provider position are Observed; lane shares with "
         "their completed-pass count, age at the cutoff, nominal minutes, matches, starts and "
-        "earlier clubs are Derived.")
+        "earlier clubs are Derived; his recorded Positive completed-pass xT per 90 is "
+        "Estimated.")
+    squad_rates = next(r for r in search["ledger"] if r["row_id"] == "rates-progression")
+    assert squad_rates["evidence"]["class"] == search["rate_evidence"]["progression"]
+    # With the opt-in the wide-channel rates are printed too, under their own class.
+    assert opted["rate_evidence"] == {
+        "progression": "ESTIMATED", "left_pass_origins": "EXPERIMENTAL",
+        "right_pass_origins": "EXPERIMENTAL"}
+    assert opted["facts_evidence_statement"].endswith(
+        "earlier clubs are Derived; his recorded Positive completed-pass xT per 90 is "
+        "Estimated; his recorded Left wide-channel pass origins per 90 and Right wide-channel "
+        "pass origins per 90 are Experimental.")
+    for reply in (search, opted):
+        printed = {rid for row in reply["rows"] for rid in row["requirement_values"]}
+        assert printed == set(reply["rate_evidence"])  # every printed rate has its class
     assert by_name["Able"]["lane_text"] == "L 25.0% · C 50.0% · R 25.0% · 400 completed passes"
     assert by_name["Able"]["lane_statement"] == (
         "The lanes are where his completed passes originated at Club 101, which reflects how "
@@ -343,7 +382,8 @@ def test_the_facts_sentence_follows_the_mapping_and_every_lane_share_is_its_own_
         assert reply["facts_evidence_statement"] == (
             "Beside each candidate: provider position is Observed; lane shares with their "
             "completed-pass count, foot, age at the cutoff, nominal minutes, matches, starts "
-            "and earlier clubs are Derived.")
+            "and earlier clubs are Derived; his recorded Positive completed-pass xT per 90 is "
+            "Estimated.")
         assert shell.scan_labels(reply) == []
 
 
@@ -402,17 +442,43 @@ def test_other_leagues_are_an_opt_in_and_every_such_row_is_flagged(client, thesi
     assert _post(client, "injection", SHORT)["pool"]["cross_league_flag"] is None
 
     # His own namespace reaches the tool: the worlds of another league are not shared worlds.
+    # The sentence says the draws are separate; which resample his is, is provenance.
     detail = _post(client, "injection/detail", {**both, "player_id": 201, "worlds": 12})
     _clean(detail, thesis_guard)
     counts = detail["candidate"]["world_counts"]
-    assert counts["same_namespace"] is False and ENGLAND_NS in counts["statement"]
+    assert counts["same_namespace"] is False
+    assert "The candidate's values come from a separate resample of other matches; a world " \
+        "pairs two independent draws." in counts["statement"]
+    lineage = detail["provenance"]["tools"]["injection_detail"]
+    assert (lineage["world_namespace"], lineage["candidate_world_namespace"]) \
+        == (SQUAD_NS, ENGLAND_NS)
+    for sentence in (counts["statement"], counts["namespace_statement"],
+                     *(row["sample"] for row in detail["ledger"])):
+        assert ENGLAND_NS not in sentence and "namespace" not in sentence
     assert "not a probability and not a forecast" in counts["statement"]
     home = _post(client, "injection/detail", {**SHORT, "player_id": 101, "worlds": 12})
     counts = home["candidate"]["world_counts"]
     assert counts["same_namespace"] is True and counts["requested"] == 12
+    # Every requested world is in exactly one of the counts.
     assert counts["forced_lower"] + counts["forced_equal"] + counts["forced_higher"] \
-        + counts["set_aside"] == 12
+        + counts["no_xi"] + counts["set_aside"] == 12
     assert counts["forced_lower"] == 12  # every synthetic world equals the point estimate
+    assert (counts["no_xi"], counts["set_aside"]) == (0, 0)
+    assert counts["no_xi_by_side"] == {"without_him": 0, "with_him": 0, "both": 0}
+    assert counts["statement"] == (
+        "In 12 of 12 worlds a least-shortfall XI was certified both without him and with him at "
+        "Centre forward. Every least-shortfall XI of the squad plus him contains him in 12 of "
+        "those; some do in 0; none does in 0. No world was set aside. Squad and candidate values "
+        "in a world come from one resample of the same matches. Worlds resample the matches "
+        "already played. A count of worlds is not a probability and not a forecast.")
+    worlds = next(r for r in home["ledger"] if r["row_id"] == "candidate-101-worlds")
+    assert (worlds["quantity"], worlds["value_text"]) == (
+        "Resampled worlds in which every least-shortfall XI contains him, of those with an XI "
+        "certified both without him and with him", "12 of 12")
+    assert worlds["sample"] == (
+        "No world was set aside. Squad and candidate values in a world come from one resample "
+        "of the same matches. Conditional algorithm stability across resampled matches; not a "
+        "probability.")
     assert home["candidate"]["forced_lineup"][9] == {
         "slot_id": "st", "slot_label": "Centre forward", "player_id": 101, "name": "Able",
         "added": True}
@@ -486,6 +552,370 @@ def test_filters_remove_rows_before_the_solve_and_the_count_says_so(client):
     nobody = _post(client, "universe", {**SHORT, "filters": {"min_minutes": 4000}})
     assert nobody["deficiency"]["search_state"] == "EMPTY_POOL"
     assert nobody["deficiency"]["search_statement"] == transfer_lab.EMPTY_POOL
+
+
+WORLD_TAIL = (" Squad and candidate values in a world come from one resample of the same "
+              "matches. Worlds resample the matches already played. A count of worlds is not a "
+              "probability and not a forecast.")
+NOT_COMPARED = ("In no world was a least-shortfall XI certified both without him and with him "
+                "at Centre forward, so there is no world in which the two are compared.")
+
+
+def test_a_world_proved_to_have_no_xi_is_counted_on_its_own_and_agrees_with_the_point_row(
+        client, thesis_guard):
+    """Without P3321 the three forward slots share two players: no XI without an addition.
+    Every resampled world proves the same. Such a world is a finding, not a world that was
+    set aside for want of exposure or of a certificate."""
+    made = _post(client, "injection/detail",
+                 {**SHORT, "excludes": [3321], "player_id": 101, "worlds": 12})
+    _clean(made, thesis_guard)
+    assert made["budget"]["completeness"] == "EXACT"
+    assert made["certificate"]["baseline_status"] == "UNFIELDABLE"
+    counts = made["candidate"]["world_counts"]
+    assert (counts["requested"], counts["used"], counts["set_aside"]) == (12, 0, 0)
+    assert (counts["forced_lower"], counts["forced_equal"], counts["forced_higher"]) == (0, 0, 0)
+    assert counts["no_xi"] == 12
+    assert counts["no_xi_by_side"] == {"without_him": 12, "with_him": 0, "both": 0}
+    assert counts["discarded"] == [] and counts["incomplete"] == []
+    assert counts["statement"] == (
+        NOT_COMPARED + " In 12 worlds it is proved that no XI can be fielded without him and "
+        "that one can with him at Centre forward: every XI there contains him. No world was "
+        "set aside." + WORLD_TAIL)
+    # Every requested world is in exactly one of the counts, and the page draws one cell each.
+    assert counts["forced_lower"] + counts["forced_equal"] + counts["forced_higher"] \
+        + counts["no_xi"] + counts["set_aside"] == counts["requested"]
+    assert sum(counts["no_xi_by_side"].values()) == counts["no_xi"]
+    # The point row says the same of the squad as recorded: he is in every XI there is.
+    injection_row = made["candidate"]["injection"]
+    assert (made["candidate"]["outcome"], injection_row["membership"]) \
+        == ("MAKES_FIELDABLE", "NECESSARY")
+    assert injection_row["membership_sentence"] == (
+        "In every least-shortfall XI of the squad plus him.")
+    # The claim of the same reply is a sentence on both sides.
+    assert made["claim"] == (
+        "With Able placed at Centre forward, the least declared shortfall is (largest 0, sum "
+        "0); without him no XI can be fielded. In the squad plus him he is in every "
+        "least-shortfall XI.")
+    worlds = next(r for r in made["ledger"] if r["row_id"] == "candidate-101-worlds")
+    assert worlds["quantity"] == (
+        "Resampled worlds in which every least-shortfall XI contains him, of those with an XI "
+        "certified both without him and with him")
+    assert worlds["value_text"] == "0 of 0"
+    assert worlds["sample"] == (
+        "In 12 worlds it is proved that no XI can be fielded without him and that one can with "
+        "him at Centre forward: every XI there contains him. No world was set aside. Squad and "
+        "candidate values in a world come from one resample of the same matches. Conditional "
+        "algorithm stability across resampled matches; not a probability.")
+
+    # No keeper: no XI with him or without him, in the point solve and in every world.
+    none = _post(client, "injection/detail",
+                 {**SHORT, "excludes": [1], "player_id": 101, "worlds": 12})
+    counts = none["candidate"]["world_counts"]
+    assert counts["no_xi_by_side"] == {"without_him": 0, "with_him": 0, "both": 12}
+    assert (counts["no_xi"], counts["used"], counts["set_aside"]) == (12, 0, 0)
+    assert counts["statement"] == (
+        NOT_COMPARED + " In 12 worlds it is proved that no XI can be fielded with him at "
+        "Centre forward or without him. No world was set aside." + WORLD_TAIL)
+    assert none["candidate"]["injection"]["membership"] == "NOT_POSSIBLE"
+    assert none["claim"] == (
+        "With Able placed at Centre forward, no XI can be fielded; without him no XI can be "
+        "fielded either. In the squad plus him he is in no least-shortfall XI.")
+    assert none["budget"]["completeness"] == "EXACT"
+    for reply in (made, none):
+        said = reply["candidate"]["world_counts"]["statement"]
+        assert "set aside (" not in said and "not certified" not in said
+        assert "no joint exposure" not in said
+
+
+def test_the_world_sentence_agrees_in_number_and_names_each_kind_of_world_once():
+    said = transfer_lab._world_statement
+    tail = " S. Worlds resample the matches already played. A count of worlds is not a " \
+           "probability and not a forecast."
+
+    def counts(lower=0, equal=0, higher=0, no_xi=(), discarded=0, incomplete=0):
+        sides = {"without_him": ("UNFIELDABLE", "CERTIFIED"),
+                 "with_him": ("CERTIFIED", "UNFIELDABLE"), "both": ("UNFIELDABLE",) * 2}
+        return SimpleNamespace(
+            forced_lower=lower, forced_equal=equal, forced_higher=higher,
+            used=lower + equal + higher, namespace_statement="S.",
+            no_xi=tuple({"world_id": i, "baseline_status": sides[side][0],
+                         "forced_status": sides[side][1]} for i, side in enumerate(no_xi)),
+            discarded=({"world_id": 90, "reason": "x"},) * discarded,
+            incomplete=({"world_id": 91, "status": "UNKNOWN"},) * incomplete,
+            requested=lower + equal + higher + len(no_xi) + discarded + incomplete)
+
+    def compared(used, of, every, some, none):
+        return (f"In {used} of {of} worlds a least-shortfall XI was certified both without him "
+                "and with him at One. Every least-shortfall XI of the squad plus him contains "
+                f"him in {every} of those; some do in {some}; none does in {none}.")
+
+    assert said(counts(lower=1, discarded=1), "One") == (
+        compared(1, 2, 1, 0, 0)
+        + " 1 of 2 worlds was set aside (no joint exposure, or not certified)." + tail)
+    assert said(counts(lower=3, higher=2, no_xi=("with_him",), incomplete=2), "One") == (
+        compared(5, 8, 3, 0, 2)
+        + " In 1 world it is proved that an XI can be fielded without him and none with him at "
+          "One: he is in no XI there. 2 of 8 worlds were set aside (no joint exposure, or not "
+          "certified)." + tail)
+    mixed = said(counts(equal=1, no_xi=("without_him", "both", "both")), "One")
+    assert mixed == (
+        compared(1, 4, 0, 1, 0)
+        + " In 1 world it is proved that no XI can be fielded without him and that one can "
+          "with him at One: every XI there contains him. In 2 worlds it is proved that no XI "
+          "can be fielded with him at One or without him. No world was set aside." + tail)
+    nothing = said(counts(no_xi=("with_him", "with_him"), discarded=1), "One")
+    assert nothing == (
+        "In no world was a least-shortfall XI certified both without him and with him at One, "
+        "so there is no world in which the two are compared. In 2 worlds it is proved that an "
+        "XI can be fielded without him and none with him at One: he is in no XI there. 1 of 3 "
+        "worlds was set aside (no joint exposure, or not certified)." + tail)
+
+
+def test_the_reference_sentence_follows_the_references_own_outcome(client, monkeypatch):
+    """The second sentence of the reference row was one constant whatever the row certified.
+    It is chosen by the reference's own outcome, and no word about it says "him"."""
+    head = ("Reference: a synthetic candidate with the median recorded rate of the {listed} on "
+            "each declared requirement, placed at Centre forward. ")
+    tail = " The reference is not a person."
+
+    def strings(node):
+        if isinstance(node, str):
+            yield node
+        elif isinstance(node, dict):
+            for value in node.values():
+                yield from strings(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from strings(value)
+
+    def reference(body, baseline="CERTIFIED"):
+        reply = _post(client, "injection", {**SHORT, **body})
+        assert reply["baseline"]["status"] == baseline
+        row = reply["reference_row"]
+        ledger = next(r for r in reply["ledger"] if r["row_id"] == "search-reference")
+        assert (ledger["value_text"], ledger["sample"]) == (row["outcome_label"],
+                                                            row["statement"])
+        # The reference is not a person: nothing sent about it says he, him or his.
+        said = list(strings(row))
+        assert {row["outcome_label"], row["statement"],
+                row["injection"]["membership_sentence"]} <= set(said)
+        for text in said:
+            assert not re.search(r"\b(him|he|his)\b", text, re.IGNORECASE), text
+        assert row["statement"].endswith(tail)
+        return row
+
+    same = ": a row in that outcome group does what the median of the listed players does."
+    # The four rated candidates: the median rate is the squad's own, and changes nothing.
+    row = reference({})
+    assert (row["outcome"], row["outcome_label"]) == ("UNCHANGED", "Leaves it unchanged")
+    assert row["statement"] == (
+        head.format(listed="5 listed players")
+        + "A candidate who does no more than this row has not been shown to address the "
+          "shortfall." + tail)
+    # baker alone: the median is his 2.0, and 9 + 2 is nearer 12 than 10 is.
+    row = reference({"filters": {"min_age": 28}})
+    assert (row["outcome"], row["outcome_label"]) == (
+        "LOWERS_SHORTFALL", "Lowers it, still above zero")
+    assert row["statement"] == (
+        head.format(listed="1 listed player")
+        + "Here the reference itself lowers the declared shortfall, still above zero" + same
+        + tail)
+    assert "has not been shown" not in row["statement"]
+    # Able and Eze: the one recorded rate is 4.0, and 9 + 4 reaches 12.
+    row = reference({"filters": {"max_age": 27, "foot": "left"}})
+    assert (row["outcome"], row["outcome_label"]) == (
+        "REMOVES_SHORTFALL", "Removes the declared shortfall")
+    assert row["statement"] == (
+        head.format(listed="2 listed players")
+        + "Here the reference itself removes the declared shortfall" + same + tail)
+    assert "has not been shown" not in row["statement"]
+    # No XI without an addition: there is no shortfall to speak of, and none is spoken of.
+    row = reference({"excludes": [3321]}, baseline="UNFIELDABLE")
+    assert (row["outcome"], row["outcome_label"]) == (
+        "MAKES_FIELDABLE", "An XI can be fielded with it")
+    assert row["statement"] == (
+        head.format(listed="5 listed players")
+        + "Here an XI can be fielded with the reference itself placed there" + same + tail)
+    assert "shortfall" not in row["statement"]
+    row = reference({"excludes": [1]}, baseline="UNFIELDABLE")
+    assert (row["outcome"], row["outcome_label"]) == (
+        "UNCHANGED", "No XI can be fielded with it either")
+    assert row["statement"] == (
+        head.format(listed="5 listed players")
+        + "No XI can be fielded with the reference placed there either: a candidate who does "
+          "no more than this row has not been shown to make an XI fieldable." + tail)
+    assert "shortfall" not in row["statement"]
+    # Eze alone has no recorded rate: there is no median to place.
+    row = reference({"filters": {"max_age": 22}})
+    assert (row["outcome"], row["outcome_label"]) == ("NOT_EVALUABLE", "Not evaluable")
+    assert row["statement"] == (
+        head.format(listed="1 listed player")
+        + "No listed player has a recorded rate on a declared requirement that applies at "
+          "Centre forward, so the reference has none there and was not re-solved." + tail)
+    assert row["injection"]["resolution_sentence"] == (
+        "No listed player has a recorded rate on a declared requirement that applies at this "
+        "slot; the reference was not re-solved.")
+    # A re-solve of the reference that was not certified says nothing either way.
+    solve = injection.inject_candidates
+
+    def open_reference(*args, **kwargs):
+        result = solve(*args, **kwargs)
+        left_open = replace(
+            result.pool_median_reference, outcome="UNDETERMINED", resolution="UNCERTIFIED",
+            forced_status="UNKNOWN", forced_inclusion_integer=None,
+            forced_inclusion_objective=None, forced_inclusion_change=None,
+            with_candidate_integer=None, with_candidate_objective=None,
+            membership="UNDETERMINED", possible=None, necessary=None)
+        return replace(result, pool_median_reference=left_open,
+                       certificate=replace(result.certificate, completeness="DEADLINE"))
+
+    monkeypatch.setattr(injection, "inject_candidates", open_reference)
+    row = reference({"excludes": [8]})
+    assert (row["outcome"], row["outcome_label"]) == ("UNDETERMINED", "Not resolved")
+    assert row["statement"] == (
+        head.format(listed="5 listed players")
+        + "The re-solve of the reference was not certified, so nothing is said of a candidate "
+          "at the median of the listed players. Treat as incomplete." + tail)
+
+
+def test_where_the_squad_has_no_xi_a_group_label_names_no_shortfall(client):
+    # Candidates in the group of rows that change nothing are told what did not change: with
+    # a shortfall, the shortfall; with no XI, that there is still none.
+    short = _post(client, "injection", SHORT)
+    labels = {row["outcome"]: row["outcome_label"] for row in short["rows"]}
+    assert labels["UNCHANGED"] == "Leaves it unchanged"
+    no_keeper = _post(client, "injection", {**SHORT, "excludes": [1]})
+    assert no_keeper["baseline"]["status"] == "UNFIELDABLE"
+    labels = {row["outcome"]: row["outcome_label"] for row in no_keeper["rows"]}
+    assert labels["UNCHANGED"] == "No XI can be fielded with him either"
+    bands = {group["outcome"]: group["outcome_label"]
+             for group in no_keeper["listings"]["keys"][0]["groups"]}
+    assert bands["UNCHANGED"] == "No XI can be fielded with him either"
+    made = _post(client, "injection", {**SHORT, "excludes": [3321]})
+    labels = {row["outcome"]: row["outcome_label"] for row in made["rows"]}
+    assert labels == {"MAKES_FIELDABLE": "An XI can be fielded with him",
+                      "NOT_EVALUABLE": "Not evaluable"}
+    # The opened candidate carries the label his row has in the list.
+    opened = _post(client, "injection/detail",
+                   {**SHORT, "excludes": [1], "player_id": 101, "worlds": 0})["candidate"]
+    assert (opened["outcome"], opened["outcome_label"]) == (
+        "UNCHANGED", "No XI can be fielded with him either")
+    opened = _post(client, "injection/detail", {**SHORT, "player_id": 103, "worlds": 0})
+    assert (opened["candidate"]["outcome"], opened["candidate"]["outcome_label"]) == (
+        "UNCHANGED", "Leaves it unchanged")
+    # The catalogue lists both sets of labels, token for token.
+    catalogue = client.get("/api/transfer/scenarios").json()
+    for key, table in (("outcomes", transfer_lab.OUTCOME_LABELS),
+                       ("outcomes_without_an_xi", transfer_lab.OUTCOME_LABELS_NO_XI)):
+        assert [(entry["outcome"], entry["outcome_label"]) for entry in catalogue[key]] \
+            == list(table.items())
+        assert tuple(table) == injection.OUTCOME_GROUPS
+    # The pool-median row is not a person, whatever it certifies.
+    for table in (transfer_lab.REFERENCE_OUTCOME_LABELS,
+                  transfer_lab.REFERENCE_OUTCOME_LABELS_NO_XI):
+        assert tuple(table) == injection.OUTCOME_GROUPS
+        for label in table.values():
+            assert not re.search(r"\b(him|he|his)\b", label, re.IGNORECASE), label
+
+
+def test_a_small_shortfall_is_written_out_and_the_ledger_names_no_function(client):
+    # Ten outfield rates of 1.0 against a normaliser of 12: a minimum of 10.00032 is six
+    # hundred-thousandths of the normaliser above what the squad reaches.
+    body = {**SHORT, "requirements": [
+        {"requirement_id": "progression", "source": "EXPLICIT", "value": 10.00032}]}
+    pool = _post(client, "universe", body)
+    assert pool["baseline"]["objective_vector"] == [6e-05, 6e-05]
+    assert pool["deficiency"]["statement"] == (
+        "Without an addition this squad's least declared shortfall is largest 0.00006, sum "
+        "0.00006. Each candidate at Centre forward is re-solved against that.")
+    assert pool["deficiency"]["declared_by"] == [
+        {"kind": "MINIMUM", "label": "Positive completed-pass xT per 90 minimum 10.00032"}]
+    cells = {row["row_id"]: row["value_text"] for row in pool["ledger"]}
+    assert cells["baseline-shortfall"] == "0.00006, 0.00006"
+    detail = _post(client, "injection/detail", {**body, "player_id": 104, "worlds": 0})
+
+    def units(rate) -> int:  # one rate over the normaliser, half-even, in 1e-5 units
+        return round(Fraction(rate) / 12 * 100000)
+
+    # Nine squad rates of 1.0 and Dunn's 0.5 against the entered minimum, by hand.
+    assert units(Fraction("10.00032")) - 9 * units(1) - units(Fraction(1, 2)) == 4172
+    assert detail["claim"] == (
+        "With Dunn placed at Centre forward, the least declared shortfall is (largest 0.04172, "
+        "sum 0.04172); without him it is (largest 0.00006, sum 0.00006). In the squad plus him "
+        "he is in no least-shortfall XI.")
+    cells = {row["row_id"]: row["value_text"] for row in detail["ledger"]}
+    assert cells["candidate-104-injection"] == "0.04172, 0.04172"
+    search = _post(client, "injection", body)
+    retention_reply = _post(client, "retention", {**body, "player_id": 101})
+
+    def strings(node, key=""):
+        if isinstance(node, str):
+            yield key, node
+        elif isinstance(node, dict):
+            for name, value in node.items():
+                if name != "provenance":
+                    yield from strings(value, name)
+        elif isinstance(node, list):
+            for value in node:
+                yield from strings(value, key)
+
+    for reply in (pool, search, detail, retention_reply):
+        assert [text for _, text in strings(reply) if re.search(r"\d(\.\d+)?e-\d", text)] == []
+        # The "Solver or rule" column says the rule in words. The function that applies it
+        # is named in the certificate and the provenance, where a record belongs.
+        cells = [row["solver"] for row in reply["ledger"] if row["solver"]]
+        assert cells and not any("xi.solver" in cell or "_q" in cell for cell in cells)
+    assert {row["row_id"]: row["solver"] for row in search["ledger"]}["search-injection"] == (
+        "EXACT · half-even after float division by the declared normalizer · quantisation "
+        "100000")
+    from galactico.optimization.squad import kernel
+
+    assert kernel.SHORTFALL_POLICY == transfer_lab.SHORTFALL_RULE + " (xi.solver._q)"
+    for reply in (search, detail, retention_reply):
+        assert reply["certificate"]["shortfall_policy"] == kernel.SHORTFALL_POLICY
+
+
+def test_fixed_sentences_say_what_is_offered_and_what_was_computed(client):
+    catalogue = client.get("/api/transfer/scenarios").json()
+    # The warning of a saturated problem names the three leads the page offers, in their words.
+    first, second, third = (lead["label"] for lead in catalogue["deficiency_leads"])
+    assert injection.SATURATED_WARNING.endswith(
+        f" {first}, {second[0].lower()}{second[1:]} or {third[0].lower()}{third[1:]} first.")
+    assert "an absence" not in injection.SATURATED_WARNING
+    # Why the forced value is shown: a gain is all the other value could ever show.
+    forced = next(d for d in catalogue["definitions"]
+                  if d["field"] == "forced_inclusion_objective")
+    assert forced["why"] == (
+        "With him merely available the value is never above the squad's own, so it could only "
+        "ever show a gain or no change, and noise in his recorded rates could only be read as "
+        "a gain. The forced value can be above the squad's own: fielding him there can leave "
+        "the squad further from its minima, and such a row still leaves the squad's least "
+        "shortfall unchanged.")
+    # It is true of the default search: with him merely available no row is above the squad's
+    # own, while forced rows are.
+    search = _post(client, "injection", SHORT)
+    own = search["baseline"]["objective_vector"]
+    solved = [row["injection"] for row in search["rows"]
+              if row["injection"]["resolution"] == "SOLVED"]
+    assert all(row["with_candidate_objective"] <= own for row in solved)
+    assert any(row["forced_inclusion_objective"] > own for row in solved)
+    # The module's own claim states the break-even the way the served reading does.
+    claim = " ".join(transfer_lab.__doc__.split())
+    assert ("A break-even carry-over fraction is the smallest share of those rates that must "
+            "carry over for a declared conclusion to hold.") in claim
+    assert "can lose and still hold" not in claim
+    carry = _post(client, "retention", {**SHORT, "player_id": 101})["carry_over"]
+    assert (carry["break_even"], carry["bracket"]["fails_at"]) == (0.3, 0.25)
+    assert "it holds at 0.30 of them and fails at 0.25" in carry["reading"]
+    # A count of one is in the singular.
+    one = _post(client, "injection", {**SHORT, "filters": {"min_age": 28}})
+    cells = {row["row_id"]: row["value_text"] for row in one["ledger"]}
+    assert cells["pool-st"] == (
+        "1 listed of 5 gated players whose provider position is admitted at Centre forward")
+    assert cells["search-injection"] == "1 of 1 candidate certified"
+    assert one["selection_statement"].startswith("1 player was screened: ")
+    cells = {row["row_id"]: row["value_text"] for row in search["ledger"]}
+    assert cells["search-injection"] == "4 of 5 candidates certified"
 
 
 def _twice(client, path: str, body: dict) -> tuple[dict, list[str]]:
@@ -772,3 +1202,80 @@ def test_flagship_on_the_real_corpus(lab_client, corpus_root, league_available, 
         == search["pool"]["omitted_counts"]
     assert search["deficiency"]["declared_by"][0] == {
         "kind": "EXCLUSION", "label": "Excluded: Cristiano Ronaldo"}
+    # A forward at the pool median changes nothing here, and the reference row says so.
+    reference = search["reference_row"]
+    assert (reference["outcome"], reference["outcome_label"]) == (
+        "UNCHANGED", "Leaves it unchanged")
+    assert reference["statement"].endswith(
+        "A candidate who does no more than this row has not been shown to address the "
+        "shortfall. The reference is not a person.")
+    assert search["rate_evidence"] == {"progression": "ESTIMATED"}
+    assert search["facts_evidence_statement"].endswith(
+        "; his recorded Positive completed-pass xT per 90 is Estimated.")
+
+    # The same declarations at Left centre back: the pool median itself lowers the declared
+    # shortfall, and at a minimum of 3.82 it removes it. The reference row says what it
+    # certifies, and no longer denies it.
+    same = ": a row in that outcome group does what the median of the listed players does."
+    lowered = _post(client, "injection", {**declared, "slot_id": "lcb"})
+    reference = lowered["reference_row"]
+    assert (reference["outcome"], reference["outcome_label"]) == (
+        "LOWERS_SHORTFALL", "Lowers it, still above zero")
+    assert ("Here the reference itself lowers the declared shortfall, still above zero" + same
+            ) in reference["statement"]
+    assert "has not been shown" not in reference["statement"]
+    assert lowered["outcome_counts"]["LOWERS_SHORTFALL"] > 0
+    removed = _post(client, "injection", {**declared, "slot_id": "lcb", "requirements": [
+        {"requirement_id": "progression", "source": "EXPLICIT", "value": 3.82}]})
+    reference = removed["reference_row"]
+    assert reference["outcome"] == "REMOVES_SHORTFALL"
+    assert "Here the reference itself removes the declared shortfall" + same \
+        in reference["statement"]
+    assert "has not been shown" not in reference["statement"]
+
+    # Both players the rule set admits at right back excluded: no XI without an addition.
+    none = {"slot_id": "rb", "excludes": [3304, 4501]}
+    unfieldable = _post(client, "injection", none)
+    _clean(unfieldable, thesis_guard)
+    assert unfieldable["baseline"]["status"] == "UNFIELDABLE"
+    reference = unfieldable["reference_row"]
+    assert (reference["outcome"], reference["outcome_label"]) == (
+        "MAKES_FIELDABLE", "An XI can be fielded with it")
+    assert "shortfall" not in reference["statement"]
+    for text in (reference["statement"], reference["outcome_label"],
+                 reference["injection"]["membership_sentence"]):
+        assert not re.search(r"\b(him|he|his)\b", text, re.IGNORECASE), text
+    assert "Leaves it unchanged" not in {row["outcome_label"] for row in unfieldable["rows"]}
+    # One candidate opened with twelve worlds. Every world proves what the point solve proves:
+    # no XI without him, one with him. They are findings, counted on their own.
+    subject = next(row for row in unfieldable["rows"] if row["outcome"] == "MAKES_FIELDABLE")
+    detail = _post(client, "injection/detail",
+                   {**none, "player_id": subject["player_id"], "worlds": 12})
+    _clean(detail, thesis_guard)
+    counts = detail["candidate"]["world_counts"]
+    assert detail["budget"]["completeness"] == "EXACT"
+    assert (counts["requested"], counts["used"], counts["no_xi"], counts["set_aside"]) \
+        == (12, 0, 12, 0)
+    assert counts["no_xi_by_side"] == {"without_him": 12, "with_him": 0, "both": 0}
+    assert ("In 12 worlds it is proved that no XI can be fielded without him and that one can "
+            "with him at Right back: every XI there contains him. No world was set aside."
+            ) in counts["statement"]
+    assert "set aside (" not in counts["statement"]
+    assert detail["candidate"]["injection"]["membership_sentence"] == (
+        "In every least-shortfall XI of the squad plus him.")
+    assert detail["claim"].endswith(
+        "; without him no XI can be fielded. In the squad plus him he is in every "
+        "least-shortfall XI.")
+    assert "no fieldable XI" not in detail["claim"]
+
+    # A minimum six hundred-thousandths above what the squad reaches, as the attained
+    # sentence's own second number makes it: the shortfall is written out in every sentence.
+    edge = {"slot_id": "st", "excludes": [3322], "requirements": [
+        {"requirement_id": "progression", "source": "EXPLICIT", "value": 3.8143}]}
+    pool = _post(client, "universe", edge)
+    assert pool["baseline"]["objective_vector"] == [6e-05, 6e-05]
+    assert pool["deficiency"]["statement"].startswith(
+        "Without an addition this squad's least declared shortfall is largest 0.00006, sum "
+        "0.00006. ")
+    assert {row["row_id"]: row["value_text"] for row in pool["ledger"]}["baseline-shortfall"] \
+        == "0.00006, 0.00006"

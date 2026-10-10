@@ -244,7 +244,7 @@ def facts_of(row):
 
 def test_rows_equal_the_enumeration_on_seeded_instances():
     seen = {"membership": set(), "shortcut": set(), "outcome": set(), "leading": set(),
-            "sum_at_optimum": set(), "discarded": 0, "used": 0, "cells": set()}
+            "sum_at_optimum": set(), "discarded": 0, "used": 0, "cells": set(), "no_xi": set()}
     for number, (squad, pool, requirements, scale, slot_id, declared, worlds) in instances():
         options = dict(slot_id=slot_id, quantization=scale, **declared)
         if worlds:
@@ -297,7 +297,7 @@ def test_rows_equal_the_enumeration_on_seeded_instances():
             seen["shortcut"].add(row.shortcut)
             seen["outcome"].add(row.outcome)
             if worlds and row.resolution == "SOLVED":
-                expected = {"lower": 0, "equal": 0, "higher": 0, "discarded": [], "incomplete": []}
+                expected = {"lower": 0, "equal": 0, "higher": 0, "discarded": [], "no_xi": []}
                 for world_id in sorted(worlds[0]):
                     squad_values = worlds[0][world_id]
                     own = worlds[1][world_id].get(cid)
@@ -319,7 +319,14 @@ def test_rows_equal_the_enumeration_on_seeded_instances():
                     there = truth(squad, candidate, requirements, SHAPE, scale, slot_id,
                                   values={**squad_values, cid: own}, **declared)
                     if there["base"] is None or there["forced"] is None:
-                        expected["incomplete"].append(world_id)
+                        # No XI on a side is a proved fact about that world: it is counted
+                        # on its own, with what was proved on each side.
+                        expected["no_xi"].append({
+                            "world_id": world_id,
+                            "baseline_status":
+                                "UNFIELDABLE" if there["base"] is None else "CERTIFIED",
+                            "forced_status":
+                                "UNFIELDABLE" if there["forced"] is None else "CERTIFIED"})
                         continue
                     cell = "lower" if there["forced"] < there["base"] else (
                         "equal" if there["forced"] == there["base"] else "higher")
@@ -328,11 +335,16 @@ def test_rows_equal_the_enumeration_on_seeded_instances():
                 assert (counts.forced_lower, counts.forced_equal, counts.forced_higher) == (
                     expected["lower"], expected["equal"], expected["higher"]), (number, cid)
                 assert [d["world_id"] for d in counts.discarded] == expected["discarded"]
-                assert [d["world_id"] for d in counts.incomplete] == expected["incomplete"]
+                assert list(counts.no_xi) == expected["no_xi"], (number, cid)
+                assert counts.incomplete == ()  # every world here was decided
                 assert counts.requested == 3 and counts.namespace == "test"
                 assert counts.used == sum(expected[k] for k in ("lower", "equal", "higher"))
+                # Every world is in exactly one of: compared, no XI, set aside.
+                assert counts.used + len(counts.no_xi) + len(counts.discarded) == 3
                 seen["discarded"] += len(counts.discarded)
                 seen["used"] += counts.used
+                seen["no_xi"] |= {(w["baseline_status"], w["forced_status"])
+                                  for w in counts.no_xi}
             else:
                 assert row.world_counts is None or row.resolution != "SOLVED"
         # J5: a row's facts do not depend on who else was screened, the pool order or the key.
@@ -348,6 +360,9 @@ def test_rows_equal_the_enumeration_on_seeded_instances():
     assert seen["leading"] == {True, False}
     assert seen["sum_at_optimum"] >= {-1}  # the rising sum is the hand-built instance below
     assert seen["discarded"] > 0 and seen["used"] > 0
+    # A world with no XI without him and one with him occurs here; the other two kinds are
+    # built by hand below.
+    assert ("UNFIELDABLE", "CERTIFIED") in seen["no_xi"]
 
 
 # ----------------------------------------------------------------- J8: detail
@@ -545,7 +560,7 @@ def test_a_lower_maximum_can_come_with_a_higher_sum_and_the_row_says_both():
         "With him available the least declared shortfall (largest, then sum) is lower and "
         "still above zero. The sum alone can be higher.")
     for sentence in (*injection.OUTCOME_STATEMENTS.values(), result.claim, result.non_claim):
-        assert not re.search(r"(maximum|total)", sentence), sentence
+        assert not re.search(r"\b(maximum|total)\b", sentence), sentence
 
 
 # ------------------------------------------------------------------ J6: ordering
@@ -913,7 +928,8 @@ def test_who_is_forced_out_is_read_off_proved_memberships_never_off_an_open_row(
         assert "of undetermined membership" in detail.claim
 
 
-def test_a_world_that_was_not_decided_or_has_no_xi_is_counted_in_no_cell(monkeypatch):
+def test_an_undecided_world_is_in_no_cell_and_a_world_with_no_xi_is_counted_on_its_own(
+        monkeypatch):
     squad = pair_squad()
     worlds = dict(squad_worlds={0: {p.player_id: dict(p.values) for p in squad}},
                   pool_worlds={0: {9: {"r": 0.31}}}, world_namespace="n")
@@ -927,13 +943,48 @@ def test_a_world_that_was_not_decided_or_has_no_xi_is_counted_in_no_cell(monkeyp
         assert (counts.used, counts.forced_lower, counts.forced_equal, counts.forced_higher) == (
             0, 0, 0, 0), on_call
         assert counts.incomplete == ({"world_id": 0, "status": "UNKNOWN"},), on_call
+        assert counts.no_xi == ()
         assert result.certificate.completeness == "DEADLINE", on_call
-    # No XI without him in that world: a proved fact, recorded, and in no cell either.
-    row, result = only_row(newcomer(0.31), squad, one_need(), excluded=(1,), **worlds)
+
+    def proved(**declared):
+        row, result = only_row(newcomer(0.31), squad, one_need(), **declared, **worlds)
+        counts = row.world_counts
+        assert (counts.used, counts.requested, counts.incomplete, counts.discarded) == (
+            0, 1, (), ())
+        assert (counts.forced_lower, counts.forced_equal, counts.forced_higher) == (0, 0, 0)
+        assert result.certificate.completeness == "EXACT"  # proved, not left open
+        (world,) = counts.no_xi
+        return row, world
+
+    # No XI without him in that world and one with him: a proved fact. It is not an
+    # undecided world and not one of the three compared cells; it is counted on its own, and
+    # what was proved on each side is what the point row says.
+    row, world = proved(excluded=(1,))
+    assert (row.outcome, row.membership) == ("MAKES_FIELDABLE", "NECESSARY")
+    assert world == {"world_id": 0, "baseline_status": "UNFIELDABLE",
+                     "forced_status": "CERTIFIED"}
+    # No XI either way: the other slot is empty with or without him.
+    row, world = proved(excluded=(2,))
+    assert (row.outcome, row.membership) == ("UNCHANGED", "NOT_POSSIBLE")
+    assert world == {"world_id": 0, "baseline_status": "UNFIELDABLE",
+                     "forced_status": "UNFIELDABLE"}
+    # An XI without him and none with him at the slot: Ann is locked and plays only there.
+    row, world = proved(locked=(1,))
+    assert (row.outcome, row.membership) == ("UNCHANGED", "NOT_POSSIBLE")
+    assert world == {"world_id": 0, "baseline_status": "CERTIFIED",
+                     "forced_status": "UNFIELDABLE"}
+
+    # No XI without him, and the solve with him was not decided: that world is open. The
+    # proved half does not make it a finding. (With Ann excluded the baseline needs no solve:
+    # point forced 1-3, world forced 4-6.)
+    with monkeypatch.context() as patch:
+        override_status(patch, 5, cp_model.UNKNOWN)
+        row, result = only_row(newcomer(0.31), squad, one_need(), excluded=(1,), **worlds)
     counts = row.world_counts
-    assert (row.outcome, counts.used, counts.requested) == ("MAKES_FIELDABLE", 0, 1)
-    assert counts.incomplete == ({"world_id": 0, "status": "UNFIELDABLE"},)
-    assert result.certificate.completeness == "EXACT"
+    assert row.membership == "NECESSARY"  # the point solve is untouched
+    assert (counts.used, counts.no_xi) == (0, ())
+    assert counts.incomplete == ({"world_id": 0, "status": "UNKNOWN"},)
+    assert result.certificate.completeness == "DEADLINE"
 
 
 # ----------------------------------- review: identity of a row, and numbers in sentences
@@ -980,9 +1031,14 @@ def test_world_counts_name_the_namespace_each_side_was_drawn_in():
     assert (away.namespace, away.candidate_namespace) == ("home", "away")
     assert home.namespace_statement == (
         "Squad and candidate values in a world come from one resample of the same matches.")
+    # A sentence says the draws are separate. Which resample each is, is a field and the
+    # result's provenance: an identifier is not prose.
     assert away.namespace_statement == (
-        "The candidate's values come from a separate resample of other matches (namespace "
-        "away); a world pairs two independent draws.")
+        "The candidate's values come from a separate resample of other matches; a world pairs "
+        "two independent draws.")
+    assert "away" not in away.namespace_statement and "namespace" not in away.namespace_statement
+    assert mixed.provenance["pool_world_namespaces"] == {"10": "away"}
+    assert plain.provenance["pool_world_namespaces"] == {}
     assert before[10].world_counts.candidate_namespace == "home"
     # The declaration is an input: it moves his identity and the result's, nobody else's.
     assert rows[10].input_fingerprint != before[10].input_fingerprint
@@ -993,6 +1049,8 @@ def test_world_counts_name_the_namespace_each_side_was_drawn_in():
                               candidate_worlds=worlds["pool_worlds"], world_namespace="home",
                               slot_id="s1", quantization=100)
     assert facts_of(detail.row) == facts_of(rows[10])
+    assert (detail.provenance["world_namespace"],
+            detail.provenance["candidate_world_namespace"]) == ("home", "away")
     for refused in ({"pool_world_namespaces": {10: ""}}, {"pool_world_namespaces": {10: 7}}):
         with pytest.raises(ValueError):
             inject_candidates(pool, squad, one_need(), PAIR, **options, **refused)
@@ -1025,3 +1083,79 @@ def test_sentences_print_the_certified_integers_exactly_and_name_an_unplaceable_
         "With New placed at One, the least declared shortfall is not defined (the model cannot "
         "place him at this slot); without him it is (largest 0.3, sum 0.3). In the squad plus "
         "him he is in no least-shortfall XI.")
+    # A shortfall of six hundred-thousandths is written out in every sentence that carries it.
+    small = dict(slot_id="s1")
+    assert injection.QUANTIZATION == 100_000
+    result = inject_candidates([newcomer(0.31)], pair_squad(), one_need(0.70006), PAIR, **small)
+    assert result.certificate.baseline_integer == (6, 6)
+    assert result.baseline_objective == (6e-05, 6e-05)
+    assert result.claim.startswith(
+        "Without an addition the least declared shortfall is (largest 0.00006, sum 0.00006). ")
+    detail = injection_detail(newcomer(0.31), pair_squad(), one_need(0.70006), PAIR, **small)
+    assert detail.claim == (
+        "With New placed at One, the least declared shortfall is (largest 0, sum 0); without "
+        "him it is (largest 0.00006, sum 0.00006). In the squad plus him he is in every "
+        "least-shortfall XI.")
+    for sentence in (result.claim, detail.claim):
+        assert not re.search(r"\de[-+]?\d", sentence), sentence
+
+
+def test_the_claim_is_a_sentence_when_a_side_has_no_xi():
+    squad = pair_squad()
+
+    def claims(value=0.2, **declared):
+        options = dict(slot_id="s1", quantization=100, **declared)
+        detail = injection_detail(newcomer(value), squad, one_need(), PAIR, **options)
+        return detail, inject_candidates([newcomer(value)], squad, one_need(), PAIR, **options)
+
+    # No XI without him, one with him: each side is a clause of its own.
+    detail, bulk = claims(excluded=(1,))
+    assert (detail.certificate.baseline_status, detail.row.forced_status) == (
+        "UNFIELDABLE", "CERTIFIED")
+    assert detail.claim == (
+        "With New placed at One, the least declared shortfall is (largest 0.4, sum 0.4); "
+        "without him no XI can be fielded. In the squad plus him he is in every "
+        "least-shortfall XI.")
+    assert bulk.claim == (
+        "Without an addition no XI can be fielded. For the 1 screened candidate placed at One: "
+        "the least declared shortfall with him forced into the XI, and whether he is in every, "
+        "some or no least-shortfall XI of the squad plus him.")
+    # No XI with him or without him.
+    detail, _ = claims(excluded=(2,))
+    assert (detail.certificate.baseline_status, detail.row.forced_status) == (
+        "UNFIELDABLE", "UNFIELDABLE")
+    assert detail.claim == (
+        "With New placed at One, no XI can be fielded; without him no XI can be fielded "
+        "either. In the squad plus him he is in no least-shortfall XI.")
+    # An XI without him and none with him at the slot: the shortfall is named where it exists.
+    detail, bulk = claims(locked=(1,))
+    assert (detail.certificate.baseline_status, detail.row.forced_status) == (
+        "CERTIFIED", "UNFIELDABLE")
+    assert detail.claim == (
+        "With New placed at One, no XI can be fielded; without him the least declared "
+        "shortfall is (largest 0.3, sum 0.3). In the squad plus him he is in no "
+        "least-shortfall XI.")
+    assert bulk.claim.startswith(
+        "Without an addition the least declared shortfall is (largest 0.3, sum 0.3). For the 1 "
+        "screened candidate placed at One: ")
+    # Opposite case: both sides have an XI, and the sentence is the one it always was.
+    detail, _ = claims(0.31)
+    assert detail.claim.startswith(
+        "With New placed at One, the least declared shortfall is (largest 0.29, sum 0.29); "
+        "without him it is (largest 0.3, sum 0.3). ")
+    several = inject_candidates([newcomer(0.2), newcomer(0.3, 10, "Other")], squad, one_need(),
+                                PAIR, slot_id="s1", quantization=100)
+    assert "For each of 2 screened candidates placed at One: " in several.claim
+    assert several.selection_statement.startswith("2 players were screened: ")
+    _, bulk = claims()
+    assert bulk.selection_statement == (
+        "1 player was screened: reading off the most favourable of many noisy estimates "
+        "overstates it, and no correction is applied.")
+    assert bulk.selection_statement in bulk.non_claim
+
+
+def test_the_saturated_warning_names_ways_to_declare_a_shortfall_and_no_other():
+    assert SATURATED_WARNING == (
+        "The declared minima are already reachable without an addition. No candidate can lower "
+        "a shortfall of zero. Declare a departure, raise a minimum or take a league percentile "
+        "first.")

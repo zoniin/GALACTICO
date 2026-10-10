@@ -6,13 +6,17 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-The Squad Lab and Transfer Lab build passed **1,166 local Python tests** (one more
-skips: the tag sidecar it needs is not built) and **37 browser tests** plus the two
-screenshot captures on 9 October, with the five-league public corpus present. Ruff and the licensing
-guard passed. It lives on the `north-star` branch. GitHub
-Actions run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)
-passed both jobs on `b7bc919`: the data-free checks, and the browser job that now
-ingests all five leagues and runs the suite with the corpus.
+The Squad Lab and Transfer Lab build, with the repairs of two audits, passed **1,476
+local Python tests** on 10 October (one more skips: the tag sidecar it needs is not
+built) and **52 browser tests** plus the two screenshot captures. That run had the
+five-league public corpus, the built Player Lab bundle and the local StatsBomb cache
+present; without that cache one more test skips. Ruff and the licensing guard passed.
+It lives on the `north-star` branch. GitHub Actions passed both jobs on `b7bc919`
+(run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165))
+and on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713)):
+the data-free checks, and the browser job that now ingests all five leagues and runs
+the suite with the corpus. The commits after `7899c76` had not been pushed when this
+was written, so no run of them is cited here; the Actions page holds it.
 
 What the new tests establish, and what they do not:
 
@@ -27,46 +31,90 @@ What the new tests establish, and what they do not:
   when later and same-day matches are poisoned, and is byte-equal to the frozen
   builder for both shipped Madrid scenarios.
 - **The guards run.** The rating-key walker and the provider check run on every
-  new response at the boundary, not only in tests; so does the
-  copy guard, on every served string; the research firewall parses imports; preregistration order is
-  read from git. See [M-06](docs/research/M-06-a-guard-that-never-runs.md).
+  new 200 reply at the boundary, not only in tests; so does the copy guard, on
+  every string value outside a provenance block. A reply read from the result
+  store passes the same check. An error body passes none of it. The research
+  firewall parses imports; preregistration order is read from git. See
+  [M-06](docs/research/M-06-a-guard-that-never-runs.md).
 - **The pages.** Browser tests compare what is drawn with what the server sent,
   hold replies to prove a stale one changes nothing, and check gold and 390 px
   overflow. Desktop and 390 px screenshots were read after every change. An
   independent reviewer used each page on the real corpus and found fourteen
   defects that the builders' own tests had passed, among them a deadline printed
-  as a finding and a count never taken drawn as zero. Each was repaired from a
-  failing test.
+  as a finding and a count never taken drawn as zero. Each fix is covered by a
+  test; three of the Transfer page's assertions were not seen failing before the
+  fix.
 - **Not established.** That the declared minima describe a style, that a
   requirement sum relates to results, that provider-position eligibility says
   where anyone can play, or that a recorded rate repeats after a move. No
   experiment was run in this build: the five new protocols are
-  [drafts](docs/research/north-star/README.md), unreviewed and unregistered.
+  [drafts](docs/research/north-star/README.md) and none is registered. Four are
+  unreviewed; E-11 was reviewed and audited three times and found not ready.
 
 **The final audit.** Before the branch was handed over, three reviewers that had
 written none of it audited it read-only: every claim of the new documents against
 code and data, the HTTP boundary attacked on the real corpus, and the two pages
-read state by state against the constitution. They reported 36 findings, four of
-them high. The README described the break-even fraction backwards. A cached
-request waited 21 seconds behind other clubs' builds, outside any budget. Squad
-Lab labelled a count with the wrong stage. Transfer Lab printed a signed modelled
-change beside every name while these documents said nothing orders players by
-merit. Each was repaired from a failing test, and the copy guard that the documents
-said ran on every response was moved to where that is true. What the audit found
-and this branch did not change is listed in
-[KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md). The repairs themselves were not audited
-a second time.
+read state by state against the constitution. They reported 36 findings: five
+high, 15 medium and 16 low. The README described the break-even fraction
+backwards. A cached request waited 21 seconds behind other clubs' builds, outside
+any budget. Transfer Lab built its snapshot and candidate pool before its budget
+started and outside the gate, so a request that took 8.5 seconds reported 0.032.
+Squad Lab labelled a count with the wrong stage. Transfer Lab printed a signed
+modelled change beside every name while these documents said nothing orders
+players by merit. The code findings were repaired from failing tests. The README
+sentence was corrected in a commit of documents only, and no test pins its
+wording. The copy guard that the documents said ran on every response was moved
+to the boundary. What the audit found and this branch did not change is listed in
+[KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md). The commit message of `4faa22a` says
+four findings were high and that all were repaired from failing tests; it cannot
+be changed. The repairs were audited with the rest of the branch in the second
+audit, below.
 
 **Decisions delegated by the owner, 9 October.** Four findings that had been left
 for the owner were decided and repaired, each from a failing test: the StatsBomb
 credit and logo on published analysis, three provider postures, goalkeepers
 carrying constructs defined for outfield players (ADR-0025), and tie handling in
 the published rank correlations (ADR-0026, erratum
-[M-07](docs/research/M-07-rank-ties.md)). The erratum recomputed 81 published
-figures under both tie policies: 29 move, the largest by 0.0044, and no status,
-label or verdict changes. On the way it found a machine-readable table of
+[M-07](docs/research/M-07-rank-ties.md)). The erratum recomputed the published ordering
+figures of Stage 1, Stage 1B, Stage 1C and E-02 under both tie policies; E-01's two rank
+correlations have no script and were not recomputed. On the public corpus that is 61 figures:
+35 of Stage 1B, 20 in the Wyscout columns of Stage 1C, 5 of the Stage 1 grid
+sensitivity and E-02's T3. 17 move, the largest by 0.0044, and no status, label or
+verdict changes; the audit verdict was compared in 55 cells. The other half of
+Stage 1C was recomputed the same way and is reported in M-07, which carries the
+credit its figures need. On the way the erratum found a machine-readable table of
 StatsBomb-side figures tracked in the repository since Stage 1C was published;
 it is out of the tree.
+
+**The second audit, 9 October.** A second read-only audit covered the branch up to
+`f4d0410`, the first audit's repairs and the owner's four decisions included, in
+five lenses: rank ties and licensing, the truth of the documents, goalkeepers and
+declared contexts, the HTTP boundary, and the two planning pages. It reported 67
+findings, each reproduced by a second reviewer: 6 high, 20 medium and 41 low by
+the second reviewer's grading (5, 23 and 39 as filed). Some are one defect seen
+through two lenses. The high ones: Match Lab served every registry construct for
+goalkeepers; the reliability served on chance-creation rows was the curve of a
+pool with goalkeepers in it; analysis formed from StatsBomb data was served, and
+printed in documents, with no credit; and the credit sentence that denied it was
+false. [ADR-0027](DECISIONS.md) records the rulings.
+
+Six builders, each with its own files, repaired the code from those rulings, and
+these documents were then written from the tree. What was found and left is in
+[KNOWN_LIMITATIONS](KNOWN_LIMITATIONS.md) under "Found while repairing the second
+audit and not repaired". The account's usage limit stopped five of the six
+part-way, and they were relaunched on a half-repaired tree. For the work the
+first attempt had left there, no test was seen failing before its fix. Each
+builder instead ran those tests against the old behaviour, put back in memory or
+taken from the last commit in a scratch copy, and saw them fail; each report says
+which tests were seen failing first and which were shown to fail that way. The
+repairs of the second audit have not themselves been audited. The one exception
+is these documents. A second reader checked every changed sentence against the
+tree and found seventeen false or unsupported, one of them a claim that nothing
+had been computed across the two providers, which the E-11 draft's own
+prior-exposure table contradicts. Each was replaced with the reader's sentence.
+The sentences written after that reading were not read a second time: the test
+counts and CI runs above, the wording about the merge, and a few lines the
+reader had listed as stale.
 
 Reviewed by agents only. No football analyst and no statistician outside the
 project has looked at these pages or these protocols.
@@ -126,8 +174,9 @@ This is recorded run evidence, not a promise that future test counts stay fixed.
 | Transfer tools | Oracle-tested forced-inclusion and break-even arithmetic; separate world namespaces per league; ordering-policy tests | That a rate recorded at one club repeats at another; comparability across leagues |
 | Product | Playwright interactions and manually inspected desktop/mobile screenshots | Football usefulness from HTTP success alone |
 
-Player Lab's implementation is frozen after the shared-world and gate repairs
-([M-04](docs/research/M-04-shared-match-worlds.md)); no independent human football
+Player Lab's implementation is frozen since ADR-0011, after the shared-world and
+gate repairs ([M-04](docs/research/M-04-shared-match-worlds.md)), except the
+corrections of ADR-0025 and ADR-0027 (October 2026); no independent human football
 acceptance is claimed. Test counts belong to the executable run, not a roadmap.
 
 ### Executed research: nulls remain visible

@@ -33,6 +33,19 @@ Regenerate with `python scripts/generate_docs.py`.
 | `width` — Wide-channel pass-origin share | style | completed passes | — | robust |
 <!-- /generated:constructs -->
 
+<img src="docs/assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
+
+Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
+User Agreement. Three things on this page are analysis formed from StatsBomb data and
+carry the StatsBomb logo as clause 1.4 of that agreement requires: the
+external-replication column of the table above, and the StatsBomb row and the
+comparison of the two published curves under "Chance creation is estimator-gated",
+all from [Stage 1C](docs/research/STAGE-1C-EXTERNAL-REPLICATION.md); and the Metronome Fit
+conclusion under "What does not ship", from
+[E-01](docs/research/E-01-metronome-fit.md). No StatsBomb data is in this repository,
+and no machine-readable table derived from it is in the tree. The StatsBomb-side
+figures printed here are published analysis.
+
 Quality and style are separate families rendered in separate panels. A player
 whose passes originated wide is not thereby better than one whose did not, and a
 UI that sorts on a style axis makes a claim the data does not support.
@@ -112,15 +125,21 @@ A test asserts none of these can reach a profile.
 ## Chance creation is estimator-gated
 
 Reliability rises with minutes, so the floor belongs to the estimator rather than
-the construct:
+the construct. A reliability belongs to the pool it was taken over, and each
+figure below is given with its pool:
 
-| Estimator | Minutes floor | Reliability at floor |
-|---|---:|---:|
-| `wyscout_event_v1` | 1,800 | 0.725 |
-| `statsbomb_event_v1` | 450 | 0.821 |
+| Estimator | Minutes floor | Reliability at floor | Pool |
+|---|---:|---:|---|
+| `wyscout_event_v1` | 1,800 | 0.725 | as published in Stage 1B: every player with the minutes, goalkeepers included |
+| `wyscout_event_v1` | 1,800 | 0.699 | the declared population, outfield players ([M-08](docs/research/M-08-reliability-pool.md)) |
+| `statsbomb_event_v1` | 450 | 0.821 | as published in Stage 1C: every player with the minutes, goalkeepers included |
 
-Under StatsBomb the axis is more reliable at 450 minutes than Wyscout is at 2,250,
-which says the Wyscout instability was key-pass tag noise rather than event
-sparsity. Below the floor the interface renders INSUFFICIENT SIGNAL and the
-explorer withholds the value — the same number cannot be both unavailable and
-published.
+Player Lab serves the curve of the second row. On it the reliability at the floor
+is under the 0.70 number threshold, and whether the floor should rise is an open
+owner decision. The two published curves were taken over pools of the same kind.
+On them the axis is more reliable under StatsBomb at 450 minutes than under
+Wyscout at 2,250, which Stage 1C read as key-pass tag noise rather than event
+sparsity. The StatsBomb curve has not been recomputed on the declared population,
+so no figure of it stands beside the second row. Below the floor the interface
+renders INSUFFICIENT SIGNAL and the explorer withholds the value — the same number
+cannot be both unavailable and published.

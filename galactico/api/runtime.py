@@ -2,22 +2,35 @@
 
 Claim: a new lab endpoint maps its failures to one set of status codes, gives its
 tools at most a server-owned wall-clock budget, computes an identical in-flight
-request once, runs at most two long computations at a time, and returns a response
-whose provenance names the hosted providers, whose keys carry no rating and whose
-served strings carry no banned word outside a named denial. Each rule has one home,
+request once, lets at most sixteen requests past the cache lookup and refuses the
+next one at once, runs at most two long computations at a time, and returns a
+response whose provenance names the hosted providers, none of whose keys is a
+banned key or holds a banned key part, and none of whose strings outside
+provenance carries a banned word outside a named denial. Each rule has one home,
 here, so five routers cannot hold five versions of it.
 
 What a budget is: wall-clock seconds for the whole request, checked between
-solves. It starts when the handler starts, so reading the corpus and waiting for
-a place are inside it; neither is interrupted by it, so a request can last its
-budget plus one build. It is not the per-solve deterministic limit a tool records
-in its certificate. A request that reaches its budget is a 200 that says what was
-not evaluated; it is never called complete and never cached.
+solves. It starts when the handler starts, so reading the corpus, waiting for a
+place and waiting for an identical request in flight are inside it; none of them
+is interrupted by it, so a request can last its budget plus one build, or as long
+as the request it waits for. It is not the per-solve deterministic limit a tool
+records in its certificate. A request that reaches its budget is a 200 that says
+what was not evaluated; it is never called complete and never cached.
 
-What ``finalize`` checks: the provider set, the key names and the words of every
-served string (``domain.labels``). It is a guard on the envelope, not evidence
-about the numbers inside it. A violation is a fault of
-the server and is a 500: ``BoundaryViolation`` passes through ``lab_errors``
+What the sixteen places are: a bound on worker threads, not on time. A request
+whose reply is in memory takes none. Any other planning POST takes one where it
+enters ``ResultCache.get_or_compute`` and keeps it until it returns or raises;
+with all sixteen held the next is a 429 at once, with ``Retry-After``. A GET
+route, a page and a static file never ask for one. Without the bound, forty
+requests waiting on one computation held every worker thread, and a stored reply
+and a static file waited with them.
+
+What ``finalize`` checks: the provider set, every key (thirteen whole keys and
+eight parts of a key, ``domain.thesis``) and the words of every string value
+outside a provenance subtree (``domain.labels``), in a computed reply and in one
+read from the result store. An error body does not pass through it. It is a guard
+on the envelope, not evidence about the numbers inside it. A violation is a fault
+of the server and is a 500: ``BoundaryViolation`` passes through ``lab_errors``
 untouched, although it is a ``ValueError``.
 
 Non-claim: no copy, no markup, no football definition (those are ``api/shell.py``
@@ -64,9 +77,13 @@ __all__ = [
     "LONG_JOB_LIMIT",
     "LONG_JOB_WAIT_SECONDS",
     "MIN_REMAINING_SECONDS",
+    "IN_FLIGHT_LIMIT",
+    "IN_FLIGHT_BUSY",
+    "RETRY_AFTER_SECONDS",
     "RESULT_STORE_DIR",
     "RESULT_STORE_ENV",
     "LongJobsBusy",
+    "TooManyRequests",
     "BoundaryViolation",
     "Budget",
     "ResultCache",
@@ -80,6 +97,8 @@ __all__ = [
     "match_snapshot",
     "lab_errors",
     "long_job",
+    "admission",
+    "in_flight",
     "finalize",
     "respond",
     "router",
@@ -140,6 +159,80 @@ MIN_REMAINING_SECONDS = 0.001
 """What a spent budget still hands a tool. Every squad and transfer tool refuses a time
 limit that is not positive with a ``ValueError``, which ``lab_errors`` would report as
 a 422. With this the tool starts, finds its deadline passed and answers ``DEADLINE``."""
+
+IN_FLIGHT_LIMIT = 16
+"""Most requests that may be past the cache lookup at once: computing, waiting for a place
+or a build, or waiting for an identical request in flight. The seventeenth is refused at
+once. Handlers and file reads run in the thread pool of the ASGI stack, 40 threads by
+default, and a request that waits holds one. The bound is well below 40, so the planning
+routes alone cannot hold every thread: whatever these sixteen wait for, a stored reply, a
+catalogue, a page and a static file still find one."""
+IN_FLIGHT_BUSY = f"{IN_FLIGHT_LIMIT} requests are already in progress"
+RETRY_AFTER_SECONDS = 5
+"""The ``Retry-After`` of every 429. ``LONG_JOB_WAIT_SECONDS``, rounded: the longest this
+server itself waits for a place. A hint to the client, not a promise that a place is free."""
+
+
+class TooManyRequests(RuntimeError):
+    """Every place for a request past the cache lookup is taken. Refused at once: no wait."""
+
+    def __init__(self, message: str = IN_FLIGHT_BUSY) -> None:
+        super().__init__(message)
+
+
+class _Places:
+    """A fixed number of places, each taken or refused at once. Nothing waits here."""
+
+    def __init__(self, limit: int) -> None:
+        if type(limit) is not int or limit < 1:
+            raise ValueError("a set of places holds at least one")
+        self.limit = limit
+        self._held = 0
+        self._guard = threading.Lock()
+
+    @property
+    def held(self) -> int:
+        return self._held
+
+    def take(self) -> bool:
+        with self._guard:
+            if self._held >= self.limit:
+                return False
+            self._held += 1
+            return True
+
+    def give_back(self) -> None:
+        with self._guard:
+            if self._held <= 0:
+                # More returns than takes would let a seventeenth request in later.
+                raise RuntimeError("a place was given back that nobody held")
+            self._held -= 1
+
+
+_IN_FLIGHT = _Places(IN_FLIGHT_LIMIT)
+
+
+def in_flight() -> int:
+    """How many of the ``IN_FLIGHT_LIMIT`` places are held now."""
+    return _IN_FLIGHT.held
+
+
+@contextmanager
+def admission() -> Iterator[None]:
+    """Hold one of the ``IN_FLIGHT_LIMIT`` places for the block, or raise at once.
+
+    ``TooManyRequests`` (a 429 with ``Retry-After`` inside ``lab_errors``) when every place
+    is held. It never waits. The place goes back on every way out of the block: a return,
+    a refusal, an error. The one caller is ``ResultCache.get_or_compute``, which every
+    planning POST handler passes through; see there for what is and is not counted.
+    """
+    places = _IN_FLIGHT  # read once: the place goes back to the set it was taken from
+    if not places.take():
+        raise TooManyRequests()
+    try:
+        yield
+    finally:
+        places.give_back()
 
 
 @dataclass
@@ -266,6 +359,9 @@ class ResultCache:
     decides whether a computed payload is kept; a payload that is not kept is
     returned to its caller and computed again for the next one.
 
+    A reply found in memory is returned at once and is not counted. Everything after
+    that lookup happens inside one of the ``IN_FLIGHT_LIMIT`` places (``admission``).
+
     The store directory is read, never written, by this class.
     """
 
@@ -302,38 +398,55 @@ class ResultCache:
 
         ``precomputed_only`` is for a world count in ``PRECOMPUTED_WORLDS``: with
         no stored result it raises ``ValueError`` (a 422) instead of computing.
+
+        A key that is in memory is returned at once: it takes no place and waits for
+        nobody. Any other request must hold one of the ``IN_FLIGHT_LIMIT`` places from
+        here until it returns or raises, and when every place is held it raises
+        ``TooManyRequests`` at once, having computed nothing and joined no flight. What
+        holds a place: a computation, with the builds and long-computation places it
+        waits for inside ``compute``; a read of the result store; and a request that
+        waits for an identical request in flight. That last wait has no time limit of
+        its own. The request holds its place, and its worker thread, until the request
+        ahead of it returns or fails, and if that one fails it computes in its turn.
+        A failure is not shared: behind a request refused for want of a long-computation
+        place, each identical request asks for a place in its own turn and can be
+        refused ``LONG_JOB_WAIT_SECONDS`` after the one before it. Sixteen places bound
+        how many threads can be waiting like that; they do not shorten the wait.
         """
         key = tuple(key)
         with self._guard:
             data = self._hit(key)
-            if data is not None:
-                return data, True
-            flight = self._flights.setdefault(key, _Flight())
-            flight.waiters += 1
-        try:
-            with flight.lock:
-                with self._guard:
-                    data = self._hit(key)
-                if data is None:
-                    data = self._from_store(key)
+        if data is not None:
+            return data, True
+        with admission():
+            with self._guard:
+                flight = self._flights.setdefault(key, _Flight())
+                flight.waiters += 1
+            try:
+                with flight.lock:
+                    # Stored by the request ahead of this one, or since the first look.
+                    with self._guard:
+                        data = self._hit(key)
+                    if data is None:
+                        data = self._from_store(key)
+                        if data is not None:
+                            with self._guard:
+                                self._put(key, data)
                     if data is not None:
+                        return data, True
+                    if precomputed_only:
+                        raise ValueError(PRECOMPUTED_ONLY)
+                    payload = compute()
+                    data = dumps(payload)
+                    if store(payload):
                         with self._guard:
                             self._put(key, data)
-                if data is not None:
-                    return data, True
-                if precomputed_only:
-                    raise ValueError(PRECOMPUTED_ONLY)
-                payload = compute()
-                data = dumps(payload)
-                if store(payload):
-                    with self._guard:
-                        self._put(key, data)
-                return data, False
-        finally:
-            with self._guard:
-                flight.waiters -= 1
-                if flight.waiters == 0 and self._flights.get(key) is flight:
-                    del self._flights[key]
+                    return data, False
+            finally:
+                with self._guard:
+                    flight.waiters -= 1
+                    if flight.waiters == 0 and self._flights.get(key) is flight:
+                        del self._flights[key]
 
     def _hit(self, key: tuple[str, ...]) -> bytes | None:
         data = self._entries.get(key)
@@ -364,7 +477,10 @@ class ResultCache:
             raise BoundaryViolation(f"stored result {path.name} is not JSON") from exc
         if not is_complete(payload):
             raise BoundaryViolation(f"stored result {path.name} is not a complete response")
-        _require_hosted_providers(payload)
+        # A stored file leaves the server like a computed reply, so it passes the same
+        # check: providers, keys and the words of its strings. The store has no route to
+        # ask for exempt key paths, and no caller of ``finalize`` passes any.
+        finalize(payload)
         return data
 
 
@@ -398,12 +514,18 @@ def match_snapshot(scenario_id: str, worlds: int):
     return decision_lab.snapshot(match_scenario(scenario_id)["match_id"], worlds)
 
 
+def _retry_after() -> dict[str, str]:
+    return {"Retry-After": str(RETRY_AFTER_SECONDS)}
+
+
 @contextmanager
 def lab_errors(*, not_found: str = "unknown scenario") -> Iterator[None]:
     """Map what a loader or a tool raises to the status a client should see.
 
     ``OSError`` (a file that is absent, ``FileNotFoundError``, or cannot be read) -> 503,
-    ``ValueError`` -> 422 with the tool's own sentence, ``LongJobsBusy`` -> 429.
+    ``ValueError`` -> 422 with the tool's own sentence, ``LongJobsBusy`` and
+    ``TooManyRequests`` -> 429, each with its own sentence and a ``Retry-After`` header of
+    ``RETRY_AFTER_SECONDS``.
     ``KeyError`` and ``BoundaryViolation`` pass through and are a 500. An
     ``HTTPException`` raised inside passes through too. A pydantic ``ValidationError``
     is a 422 that lists location, message and type and never the rejected value.
@@ -428,7 +550,9 @@ def lab_errors(*, not_found: str = "unknown scenario") -> Iterator[None]:
             for error in exc.errors()
         ]) from exc
     except LongJobsBusy as exc:
-        raise HTTPException(429, LONG_JOBS_BUSY) from exc
+        raise HTTPException(429, LONG_JOBS_BUSY, headers=_retry_after()) from exc
+    except TooManyRequests as exc:
+        raise HTTPException(429, IN_FLIGHT_BUSY, headers=_retry_after()) from exc
     except OSError as exc:
         raise HTTPException(503, CORPUS_UNAVAILABLE) from exc
     except ValueError as exc:
@@ -495,16 +619,26 @@ def finalize(payload: dict, *, allow_keys: Collection[str] = ()) -> dict:
 
     (1) ``payload["provenance"]["providers"]`` is exactly the hosted provider set, and
     no ``providers`` or ``provider`` key at any depth names anyone else.
-    (2) No key anywhere is a banned word; ``allow_keys`` names exempt paths
-    (``thesis.banned_key_paths`` grammar).
-    (3) No served string, at any depth outside provenance, contains a word the copy guard
-    bans outside a named denial (``shell.scan_labels``). The guard used to run only in the
-    tests of the replies they asked for; a label nobody asked for was never read.
+    (2) No key at any depth, provenance included, is refused by the key walker
+    (``thesis.banned_key_paths``). Two things are refused, and nothing else. A key that is
+    one of the thirteen ``thesis.BANNED_KEYS`` as a whole (``rating``, ``score``, ``rank``,
+    ``fit_score`` and the like), whatever its case and separators. And a key one of whose
+    parts is one of the eight ``thesis.BANNED_KEY_PARTS``: rating, ratings, rank, ranks,
+    ranking, ranked, merit, overall. A part is what an underscore, a hyphen, whitespace or
+    a change of case separates, so ``xi_rating``, ``overall_score`` and ``playerMerit`` are
+    refused and ``outranking`` is not. ``score``, ``tier``, ``fit`` and ``best`` are not
+    parts: ``home_score``, the data ``tier`` of a verdict and ``best_xi`` pass this check.
+    So it is narrower than "no key reads like a rating": a key under another name passes.
+    ``allow_keys`` names exempt paths in the walker's grammar; no route passes any.
+    (3) No string value, at any depth outside a ``provenance`` subtree, contains a word the
+    copy guard bans outside a named denial (``labels.scan_labels``). Keys are not read by
+    the copy guard here, strings under provenance are not read, and an error body never
+    comes this way.
     Any failure is a ``BoundaryViolation``, which names the path and the word and never
     the sentence around it.
     """
     _require_hosted_providers(payload)
-    found = thesis.banned_key_paths(payload, allow=allow_keys)
+    found = thesis.banned_key_paths(payload, parts=thesis.BANNED_KEY_PARTS, allow=allow_keys)
     if found:
         raise BoundaryViolation(f"banned keys in response: {found}")
     found_labels = labels.scan_labels(payload, keys=False)

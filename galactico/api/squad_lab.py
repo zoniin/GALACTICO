@@ -18,6 +18,14 @@ No resampled world is used here and no absence likelihood is estimated.
 Rows are returned once, by name then id. Every other order is data beside the rows: grouped
 by an exact categorical outcome, then by one declared key. A list that is a large tie is cut
 at ``LIST_CAP`` and its full count is stated in the same object; nothing is cut silently.
+Each list is sent with a sentence that is true of what was sent: the sets tied at a highest
+value that is the baseline, and the single absences above the baseline (rows of the single
+absences already), are counted and not listed, and their sentences say so. A page prints
+the list it was sent and decides nothing about it.
+
+A count is named for the stage it was taken at. The gate's figures are counts with nobody
+excluded, and say so in their sentence, their caption and their warnings; the reader's own
+squad, exclusions applied, is another sentence.
 
 Every handler is the runtime skeleton: start the route's budget, resolve the scenario or 404,
 key the result cache on the request as resolved and on the corpus files it reads, and only
@@ -36,6 +44,7 @@ from fastapi import APIRouter
 from fastapi.responses import FileResponse, Response
 from pydantic import Field
 
+from ..domain.precision import format_plain
 from ..domain.provenance import EvidenceClass
 from . import planning, runtime, shell
 from .decision_lab import DecisionRoute
@@ -45,10 +54,12 @@ __all__ = [
     "GOALKEEPER_BRIEF",
     "LIST_CAP",
     "MODEL_STATEMENT",
+    "PLACEMENT_STATEMENTS",
     "POOL_UNAVAILABLE",
     "RECORD_BUDGETS",
     "ROLE_LABELS",
     "SPARE_STATEMENT",
+    "SPARE_STATEMENT_UNMEASURED",
     "SQUAD_CLAIM",
     "SQUAD_NON_CLAIM",
     "STRESS_SIZES",
@@ -58,6 +69,7 @@ __all__ = [
     "SquadSnapshotRequest",
     "SquadStressRequest",
     "router",
+    "spare_statement",
 ]
 
 router = APIRouter(route_class=DecisionRoute)
@@ -128,18 +140,24 @@ POLICY_NOTE = (
     "conservative floor integers of the hard-floor query. At a boundary the two can disagree; "
     "both statements are then shown as they are."
 )
+# A set is not solved when a subset's proof already settles it (``squad.stress``): no sentence
+# says every set is re-solved. Both say what the tool's own claim says.
 CONFIRM_K3 = (
     "Sets of three absences are examined only on your explicit confirmation: there are many "
-    "more of them than pairs, and each is re-solved."
+    "more of them than pairs, and each is solved to proof or inherits its answer from one that "
+    "was."
 )
 STRESS_INTRO = (
-    "Every set of the chosen number of absent players, each fully re-solved. An absence is a "
-    "scenario you choose. No absence likelihood is estimated."
+    "Every set of the chosen number of absent players, each solved to proof or inheriting its "
+    "answer from one that was. An absence is a scenario you choose. No absence likelihood is "
+    "estimated."
 )
 REMOVAL_WARNING = (
     "Players who mainly finish, defend or keep goal move these figures little by "
     "construction. A row with no change says nothing about the player."
 )
+SINGLE_ABSENCES_ELSEWHERE = "Each is one of the single absences, listed there with its value."
+"""Said of the single absences above the baseline: they are rows of ``single_absences``."""
 POSITION_GROUPS: tuple[tuple[str, str], ...] = (
     ("GK", "Goalkeepers"), ("DF", "Defenders"), ("MF", "Midfielders"), ("FW", "Forwards"),
 )
@@ -162,7 +180,38 @@ SPARE_STATEMENT = (
     "{rule_eligible} under the eligibility rules before the gate."
 )
 """One sentence per tight group. Each number is the spare at the ``depth.STAGES`` stage its
-words name, so a page prints it and names no stage itself."""
+words name, so a page prints it and names no stage itself. Said when the declared stage
+differs from the gated one by the exclusions alone."""
+SPARE_STATEMENT_UNMEASURED = (
+    "Spare at {slots}, eligible players beyond the number of slots: {available} with the squad "
+    "as declared, exclusions applied and {left_out} left out; {gated} after the evidence gate "
+    "with nobody excluded and {those} counted; {rule_eligible} under the eligibility rules "
+    "before the gate."
+)
+"""The same sentence when the declared stage also leaves out a gated player the slots cannot
+use (no recorded minute, or no value on a requirement that applies there). It names him, so
+the gap between its first two numbers is not put down to an exclusion nobody made."""
+UNMEASURED = "who lacks a recorded minute or a measurement a slot needs"
+UNMEASURED_MANY = "who lack a recorded minute or a measurement a slot needs"
+PLACEMENT_STATEMENTS: Mapping[str, str] = {
+    "NEUTRAL": "The least declared shortfall is unchanged.",
+    "RAISES_SHORTFALL": "The least declared shortfall rises: with him there it is {pair}.",
+    "UNFIELDABLE_IF_PINNED": "Another slot or a declared lock is left unfilled.",
+    "UNKNOWN": "Not evaluated. Treat as incomplete.",
+}
+"""What using one player at one slot does, per ``depth.PinnedValue.status``. A sentence that
+carries a certified value is the server's: the page prints it and words nothing."""
+THINNESS_CAPTIONS: Mapping[str, str] = {
+    "GATE": "absences until no XI, {stage}: before the gate → after it",
+    "ELIGIBILITY": ("absences until no XI, counting every squad player: by position → under "
+                    "the rule set"),
+    "REQUIREMENT": "placements that raise the least declared shortfall",
+    "REQUIREMENT_DECIDED": "decided placements that raise the least declared shortfall",
+    "REQUIREMENT_NOT_EVALUATED": ("placements that raise the least declared shortfall: not "
+                                  "evaluated"),
+}
+"""The caption under each thin-cover figure. It says which squad the two numbers count, and
+for the placements what was counted, so it depends on the reply and is sent with it."""
 ATTRIBUTION_LABELS: Mapping[str, str] = {
     "GATE": "the evidence gate",
     "EXCLUSION": "your exclusion",
@@ -276,42 +325,112 @@ def _n(value: float) -> str:
     return format(value, ".3f")
 
 
-def _exact(value: float) -> str:
-    """A certified value as the tools print one: no padding zeros, never rounded twice."""
-    short = f"{value:g}"
-    return short if float(short) == value else repr(value)
-
-
 def _pair(vector: Sequence[float]) -> str:
-    # Exact at the shipped quantisation, so a rise of one unit is not printed as no rise,
-    # and a zero is "0" as in the tool's own claim beside it.
-    return f"largest {_exact(vector[0])}, sum {_exact(vector[1])}"
+    # Written out exactly (``format_plain``): a rise of one unit is not printed as no rise, a
+    # zero is "0" as in the tool's own claim beside it, and a small value is never "6e-05".
+    return f"largest {format_plain(vector[0])}, sum {format_plain(vector[1])}"
 
 
 def _many(number: int, one: str, many: str) -> str:
     return f"{number} {one if number == 1 else many}"
 
 
-def _capped(entries: Sequence[dict], what: str, *, open_ended: bool = False) -> dict:
+def _unresolved(number: int) -> str:
+    return _many(number, "set is unresolved", "sets are unresolved")
+
+
+def _capped(entries: Sequence[dict], what: str, *, open_ended: bool = False,
+            elsewhere: str | None = None) -> dict:
     """A list cut at ``LIST_CAP`` with its full count beside it. Never cut silently.
 
     ``open_ended``: the search behind the list stopped at a deadline, so its length is what
     was found, not how many there are. The statement says so; an empty list is then not
-    "none".
+    "none". A list with nothing in it is a count of zero and no word about a listing.
+
+    ``elsewhere``: the entries are rows of another list of the same reply. They are counted
+    here and not sent a second time, and this sentence says where they are. What a page
+    prints under the statement is the list sent with it, so the statement is true of it.
     """
-    listed = list(entries[:LIST_CAP])
+    listed = [] if elsewhere else list(entries[:LIST_CAP])
     count = (
         f"{what}, found so far: {len(entries)}. More may exist among what was not resolved."
         if open_ended else f"{what}: {len(entries)}."
     )
     statement = count + (
-        "" if open_ended and not entries
+        "" if not entries
+        else f" {elsewhere}" if elsewhere
         else " All are listed." if len(listed) == len(entries)
         else f" Listed: {len(listed)}, the first in name order. "
         "The selection is by name, never by a value."
     )
     return {"listed": listed, "count": len(entries), "listed_count": len(listed),
             "complete": len(listed) == len(entries), "statement": statement}
+
+
+def _tied_at_the_baseline(size: int, count: int) -> str:
+    """The sentence for sets tied at the highest value when that value is the baseline.
+
+    Every fieldable set of the level is then tied, none stands out, and the reply sends none
+    to print: the sentence announces no list.
+    """
+    return (
+        f"No fieldable absence set of size {size} has a least declared shortfall above the "
+        f"baseline: the highest value is the baseline, {_many(count, 'set has', 'sets have')} "
+        "it, and none is listed."
+    )
+
+
+def _pairs_sentence(pairs: int) -> str:
+    """Player-slot pairs the position code admits and the rule set does not, in number."""
+    if not pairs:
+        return "No player-slot pair is admitted by position and not by the rule set."
+    if pairs == 1:
+        return ("1 player-slot pair is admitted by position and not by the rule set; it is "
+                "named beside its slot.")
+    return (f"{pairs} player-slot pairs are admitted by position and not by the rule set; they "
+            "are named beside each slot.")
+
+
+def _below_gate_sentence(players: int) -> str:
+    """Squad players the gate left out who are eligible somewhere, in number."""
+    if not players:
+        return "No squad player below 900 nominal minutes is eligible at any slot."
+    if players == 1:
+        return ("1 squad player below 900 nominal minutes and eligible at some slot enters no "
+                "solve; he is named here and beside every slot he is eligible at.")
+    return (f"{players} squad players below 900 nominal minutes and eligible at some slot enter "
+            "no solve; each is named here and beside every slot he is eligible at.")
+
+
+def _stress_cell(level: Mapping[str, Any]) -> str:
+    """The ledger cell of one absence-set size. At a deadline each count is a lower bound."""
+    floor = "at least " if level["unknown_count"] else ""
+    none_left = level["unfieldable_count"]
+    return (
+        f"{level['certified_count'] + none_left} of {level['set_count']} resolved; "
+        f"{floor}{none_left} {'leaves' if none_left == 1 else 'leave'} no fieldable XI; "
+        f"{floor}{level['positive_change_count']} above the baseline"
+    )
+
+
+def spare_statement(slots: str, spare: Mapping[str, int]) -> str:
+    """The spare of one tight slot group at the three stages a page prints, in one sentence.
+
+    ``spare`` is ``depth.SlotGroup.spare_by_stage``. The declared stage is the gated one less
+    the players excluded and less the gated players the group's slots cannot use; the count
+    of the second kind is the difference between the gated and the measured stage, and when
+    it is not zero the sentence names it.
+    """
+    unmeasured = spare["gated"] - spare["measured"]
+    if not unmeasured:
+        return SPARE_STATEMENT.format(slots=slots, **spare)
+    one = unmeasured == 1
+    return SPARE_STATEMENT_UNMEASURED.format(
+        slots=slots, **spare,
+        left_out=(f"{unmeasured} gated {'player' if one else 'players'} "
+                  f"{UNMEASURED if one else UNMEASURED_MANY}"),
+        those="that player" if one else "those players",
+    )
 
 
 def _in_force(problem: planning.DeclaredProblem) -> list[dict]:
@@ -615,8 +734,19 @@ def squad_reference(request: SquadReferenceRequest) -> Response:
 
 def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
               eligibility: Any) -> list[dict]:
-    """The three things that make cover thin, each stated apart from the other two."""
+    """The three things that make cover thin, each stated apart from the other two.
+
+    Each carries the caption of its figure. The gate's two numbers and the eligibility
+    rules' two numbers are counts taken before the user's exclusions, and the sentence and
+    the caption of each say so: with somebody excluded the reader's own squad has fewer
+    players than they count.
+    """
+    from ..optimization.squad.depth import gated_stage_words
+
     kappa = result.kappa_by_stage
+    # The gated stage is before the exclusions and before a gated player without a
+    # measurement is left out; its words name the second only where it changes the count.
+    gated_stage = gated_stage_words(kappa["measured"] != kappa["gated"])
     pairs = sum(len(slot["not_rule_eligible_other_slot"])
                 + len(slot["not_rule_eligible_unreviewed"]) for slot in slots)
     placements = [
@@ -635,8 +765,9 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
     evaluated = certificate.pinned_requested and certificate.squad_status == "CERTIFIED"
     decided = len(placements) - unknown
     plain_ring = "A ring without an underline says nothing about a placement here."
+    caption = THINNESS_CAPTIONS["REQUIREMENT" if evaluated else "REQUIREMENT_NOT_EVALUATED"]
     if not certificate.pinned_requested:
-        why = "pinned values were not requested"
+        why = "the request asked for no placement to be evaluated"
         note = f"No placement was evaluated: {why}. {plain_ring}"
         requirement = f"Declared requirements. Not evaluated: {why}."
     elif certificate.squad_status == "UNFIELDABLE":
@@ -650,30 +781,35 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
         note = f"No placement was evaluated: {why}. {plain_ring} Treat as incomplete."
         requirement = f"Declared requirements. Not evaluated: {why}."
     elif unknown:
+        caption = THINNESS_CAPTIONS["REQUIREMENT_DECIDED"]
+        open_ones = (f"{unknown} of {len(placements)} placements "
+                     f"{'was' if unknown == 1 else 'were'} not evaluated before the time limit")
         note = (
-            f"{unknown} of {len(placements)} placements were not evaluated before the time "
-            "limit. For those, a ring without an underline is not a finding. Treat as "
-            "incomplete."
+            f"{open_ones}. For {'that one' if unknown == 1 else 'those'}, a ring without an "
+            "underline is not a finding. Treat as incomplete."
         )
         requirement = (
             f"Declared requirements. {len(raising)} of {decided} decided player-slot "
-            "placements raise the least declared shortfall when the player is used there; "
-            f"{len(stranding)} leave another slot or a declared lock unfilled. {unknown} of "
-            f"{len(placements)} were not evaluated before the time limit. Unknown is not "
-            "evidence either way."
+            f"placements {'raises' if len(raising) == 1 else 'raise'} the least declared "
+            "shortfall when the player is used there; "
+            f"{len(stranding)} {'leaves' if len(stranding) == 1 else 'leave'} another slot or a "
+            f"declared lock unfilled. {unknown} of {len(placements)} "
+            f"{'was' if unknown == 1 else 'were'} not evaluated before the time limit. Unknown "
+            "is not evidence either way."
         )
     else:
         note = None
         requirement = (
             f"Declared requirements. {len(raising)} of {len(placements)} player-slot "
-            "placements raise the least declared shortfall when the player is used there; "
-            f"{len(stranding)} leave another slot or a declared lock unfilled."
+            f"placements {'raises' if len(raising) == 1 else 'raise'} the least declared "
+            "shortfall when the player is used there; "
+            f"{len(stranding)} {'leaves' if len(stranding) == 1 else 'leave'} another slot or a "
+            "declared lock unfilled."
         )
     gate = (
         f"Evidence gate. Under the eligibility rule set and before the gate, "
-        f"{_after(kappa['rule_eligible'])}. After it, {_after(kappa['gated'])}. "
-        f"{_many(len(below_gate), 'squad player', 'squad players')} below 900 nominal minutes "
-        "and eligible at some slot enter no solve; each is named here and beside every slot."
+        f"{_after(kappa['rule_eligible'])}. After it, {gated_stage}, {_after(kappa['gated'])}. "
+        f"{_below_gate_sentence(len(below_gate))}"
     )
     if kappa["gated"] < kappa["rule_eligible"]:
         gate += " Thin cover made by the gate is a property of the evidence, not of the squad."
@@ -683,6 +819,7 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
             "label": "The 900-minute evidence gate",
             "kappa_before": kappa["rule_eligible"],
             "kappa_after": kappa["gated"],
+            "caption": THINNESS_CAPTIONS["GATE"].format(stage=gated_stage),
             "statement": gate,
             "players": list(below_gate),
         },
@@ -691,13 +828,13 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
             "label": "The eligibility rules",
             "kappa_before": kappa["position_admissible"],
             "kappa_after": kappa["rule_eligible"],
+            "caption": THINNESS_CAPTIONS["ELIGIBILITY"],
             "statement": (
                 f"Eligibility rules ({eligibility.version}, "
                 f"{planning.REVIEW_STATUS_LABELS[eligibility.review_status]}). "
                 "Counting every squad player at each slot his provider position admits, "
                 f"{_after(kappa['position_admissible'])}. Under the rule set, "
-                f"{_after(kappa['rule_eligible'])}. {pairs} player-slot pairs are admitted by "
-                "position and not by the rule set; they are named beside each slot. "
+                f"{_after(kappa['rule_eligible'])}. {_pairs_sentence(pairs)} "
                 "Eligibility is a declared football rule, not a measurement."
             ),
             "pair_count": pairs,
@@ -705,6 +842,7 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
         {
             "kind": "REQUIREMENT",
             "label": "The declared requirements",
+            "caption": caption,
             "statement": requirement,
             "evaluated": evaluated,
             "note": note,
@@ -725,6 +863,18 @@ def _thinness(result: Any, slots: Sequence[dict], below_gate: Sequence[dict],
     ]
 
 
+def _placement_statement(pin: Any) -> str:
+    """What using this player at this slot does, in one sentence. A status this table does
+    not know, and a raise with no certified pair, read as not evaluated: never as a finding."""
+    known = pin.status in PLACEMENT_STATEMENTS and (
+        pin.status != "RAISES_SHORTFALL" or pin.objective_vector is not None)
+    if not known:
+        return PLACEMENT_STATEMENTS["UNKNOWN"]
+    if pin.status == "RAISES_SHORTFALL":
+        return PLACEMENT_STATEMENTS[pin.status].format(pair=_pair(pin.objective_vector))
+    return PLACEMENT_STATEMENTS[pin.status]
+
+
 def _depth_slots(result: Any, formation: Any) -> list[dict]:
     geometry = {slot.slot_id: slot for slot in formation.slots}
     rows = []
@@ -733,7 +883,8 @@ def _depth_slots(result: Any, formation: Any) -> list[dict]:
         pinned = [
             {"player_id": pin.player_id, "name": pin.name, "status": pin.status,
              "objective_vector": None if pin.objective_vector is None
-             else list(pin.objective_vector)}
+             else list(pin.objective_vector),
+             "statement": _placement_statement(pin)}
             for pin in slot.pinned
         ]
         rows.append({
@@ -796,10 +947,20 @@ def squad_depth(request: SquadDepthRequest) -> Response:
             stage: len({p["player_id"] for slot in slots for p in slot[stage]})
             for stage in ("available", "below_gate", "excluded")
         }
+        # The reader's own squad: the gated squad, less his exclusions, and less a gated
+        # player at the slots that cannot use him. The last is said when there is one, so
+        # the gap to the other count is not put down to the gate and the exclusions alone.
+        # An exclusion is spoken of only when one was declared.
+        unmeasured = any(slot["unmeasured"] for slot in slots)
+        excluding = bool(problem.excludes)
         depth_statement = (
-            f"With the gated squad and your exclusions, {_after(kappa['available'])}. "
-            "Counting every player the rule set admits, those below the gate and those you "
-            f"excluded included, {_after(kappa['rule_eligible'])}."
+            "With the gated squad"
+            + (" and your exclusions" if excluding else "")
+            + (f", and without the gated players {UNMEASURED_MANY}" if unmeasured else "")
+            + f", {_after(kappa['available'])}. "
+            "Counting every player the rule set admits, those below the gate "
+            + ("and those you excluded " if excluding else "")
+            + f"included, {_after(kappa['rule_eligible'])}."
         )
         raising = sum(pin["status"] == "RAISES_SHORTFALL" for s in slots for pin in s["pinned"])
         placements = sum(len(slot["pinned"]) for slot in slots)
@@ -865,9 +1026,9 @@ def squad_depth(request: SquadDepthRequest) -> Response:
                     "slot_ids": list(group.slot_ids),
                     "slot_labels": [labels[sid] for sid in group.slot_ids],
                     "spare_by_stage": dict(group.spare_by_stage),
-                    "spare_statement": SPARE_STATEMENT.format(
-                        slots=", ".join(labels[sid] for sid in group.slot_ids),
-                        **group.spare_by_stage),
+                    "spare_statement": spare_statement(
+                        ", ".join(labels[sid] for sid in group.slot_ids),
+                        group.spare_by_stage),
                     "available": _named(group.available_ids, names),
                     "restored_by_gate": [
                         {**player, "minutes": int(snap.prior_minutes[player["player_id"]])
@@ -910,7 +1071,7 @@ def _eligible_there(by_slot: Mapping[str, Sequence[dict]], slot_ids: Sequence[st
 
 def _core(core: Any, names: Mapping[int, str], labels: Mapping[str, str],
           below_by_slot: Mapping[str, Sequence[dict]],
-          excluded_by_slot: Mapping[str, Sequence[dict]]) -> dict:
+          excluded_by_slot: Mapping[str, Sequence[dict]], *, excluding: bool) -> dict:
     """One smallest absence set that leaves no XI, attributed by counting.
 
     GATE when the blocking slot group would have a player for every slot once its
@@ -919,8 +1080,11 @@ def _core(core: Any, names: Mapping[int, str], labels: Mapping[str, str],
     leaves no XI on account of a declaration, and saying "the eligibility rules" would
     blame the model for it. ELIGIBILITY when the group stays short with every squad
     player counted. ``exclusion_alone_restores`` says whether withdrawing the exclusion,
-    with the gate left as it is, would already be enough.
+    with the gate left as it is, would already be enough. ``excluding``: the request
+    excluded somebody; a sentence speaks of "your exclusions" only then.
     """
+    everyone = ("every squad player counted, your exclusions included" if excluding
+                else "every squad player counted")
     cover = _eligible_there(below_by_slot, core.blocking_slot_ids)
     back = _eligible_there(excluded_by_slot, core.blocking_slot_ids)
     slots, left = len(core.blocking_slot_ids), len(core.remaining_ids)
@@ -958,13 +1122,12 @@ def _core(core: Any, names: Mapping[int, str], labels: Mapping[str, str],
             f"{below}, below the 900-minute gate" if cover else "",
             f"{yours}, whom you excluded" if back else "") if part)
         statement += (
-            f"Counting {counted}, the group is still short: it stays short with every squad "
-            "player counted, your exclusions included."
+            f"Counting {counted}, the group is still short: it stays short with {everyone}."
         )
     else:
         statement += (
             "No squad player below the gate is eligible there: the group stays short with "
-            "every squad player counted, your exclusions included."
+            f"{everyone}."
         )
     return {
         "player_ids": list(core.player_ids),
@@ -979,11 +1142,6 @@ def _core(core: Any, names: Mapping[int, str], labels: Mapping[str, str],
         "exclusion_alone_restores": alone,
         "statement": statement,
     }
-
-
-def _floor(level: Mapping[str, Any]) -> str:
-    """The words before a count of a level that stopped at its deadline."""
-    return "at least " if level["unknown_count"] else ""
 
 
 def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
@@ -1013,24 +1171,38 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
     # It is said as one, and an empty list is never "none".
     cut = bool(level.unknown_count)
     more = " More may exist among the unresolved sets."
-    worst = _capped(
-        highest, f"Fieldable absence sets of size {size} tied at the highest value"
-    )
+    open_sets = level.unknown_count
+    are_open = f"{open_sets} {'is' if open_sets == 1 else 'are'} unresolved"
+    # A gate set is named with the players who would cover it; with none there is nobody.
+    named = " The players are named beside each set." if by_gate else ""
+    # The sets tied at the highest value, as the list to print and a sentence true of that
+    # list. The page prints both and decides nothing: when the highest value is the baseline
+    # every fieldable set is tied at it, none stands out, and none is sent to be listed.
+    title = f"Fieldable absence sets of size {size} tied at the highest value"
     if cut:
-        worst["statement"] = (
-            f"No highest value is stated for sets of size {size}: {level.unknown_count} are "
-            "unresolved."
-        )
+        worst = {**_capped([], title), "statement": (
+            f"No highest value is stated for sets of size {size}: {are_open}.")}
+    elif level.worst_integer is None:
+        worst = {**_capped([], title), "statement": (
+            f"No absence set of size {size} leaves a fieldable XI, so there is no highest "
+            "value.")}
+    elif tuple(level.worst_integer) == baseline:
+        worst = {"listed": [], "count": len(highest), "listed_count": 0, "complete": False,
+                 "statement": _tied_at_the_baseline(size, len(highest))}
+    else:
+        worst = _capped(highest, title)
+    if cut:
         unfieldable = (
             f"Absence sets of size {size} proven to leave no fieldable XI: at least "
-            f"{level.unfieldable_count} of {level.set_count}. {level.unknown_count} sets are "
-            "unresolved, and more of them may leave none. With no smaller subset that "
-            f"already does, found so far: {len(cores)}."
+            f"{level.unfieldable_count} of {level.set_count}. "
+            + ("1 set is unresolved, and it may leave none too. " if open_sets == 1
+               else f"{open_sets} sets are unresolved, and more of them may leave none. ")
+            + f"With no smaller subset that already does, found so far: {len(cores)}."
         )
         gate = (
             f"Smallest absence sets of size {size}, found so far, that leave no fieldable XI "
             "where players below the 900-minute gate would cover the blocking slots: "
-            f"{by_gate}.{more} The players are named beside each set."
+            f"{by_gate}.{more}{named}"
         )
         eligibility = (
             f"Smallest absence sets of size {size}, found so far, that leave no fieldable XI "
@@ -1051,7 +1223,7 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
         gate = (
             f"Smallest absence sets of size {size} that leave no fieldable XI where "
             "players below the 900-minute gate would cover the blocking slots: "
-            f"{by_gate}. The players are named beside each set."
+            f"{by_gate}.{named}"
         )
         eligibility = (
             f"Smallest absence sets of size {size} that leave no fieldable XI while the "
@@ -1067,7 +1239,7 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
         shortfall = (
             f"Among the absence sets of size {size} resolved so far, the least declared "
             f"shortfall is above the baseline in {level.positive_change_count}. "
-            f"{level.unknown_count} are unresolved, so no highest value is stated."
+            f"{are_open}, so no highest value is stated."
         )
     elif level.worst_objective is None:
         shortfall = f"No absence set of size {size} leaves a fieldable XI."
@@ -1094,9 +1266,12 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
             cores, f"Smallest absence sets of size {size} that leave no fieldable XI",
             open_ended=cut,
         ),
+        # A single absence above the baseline is a row of ``single_absences``, which the
+        # reply carries in full with every value: it is counted here and listed there.
         "raised": _capped(
             raised, f"Fieldable absence sets of size {size} with a least declared shortfall "
             "above the baseline", open_ended=cut,
+            elsewhere=SINGLE_ABSENCES_ELSEWHERE if size == 1 else None,
         ),
         "completeness": level.completeness,
         "claim": level.claim,
@@ -1112,7 +1287,7 @@ def _level(level: Any, table: Sequence[Any], baseline: tuple[int, int],
             "resolved": (
                 f"{resolved} of {level.set_count} sets of size {size} resolved. "
                 + ("Complete." if not level.unknown_count else
-                   f"Stopped at the deadline: {level.unknown_count} sets are unresolved. "
+                   f"Stopped at the deadline: {_unresolved(level.unknown_count)}. "
                    "Treat as incomplete.")
             ),
         },
@@ -1146,7 +1321,8 @@ def squad_stress(request: SquadStressRequest) -> Response:
         excluded_by_slot = {slot.slot_id: _people(slot.excluded) for slot in chains.slots}
 
         def describe(core: Any) -> dict:
-            return _core(core, names, labels, below_by_slot, excluded_by_slot)
+            return _core(core, names, labels, below_by_slot, excluded_by_slot,
+                         excluding=bool(problem.excludes))
 
         base = certificate.baseline_integer
         levels = [] if base is None else [
@@ -1189,11 +1365,7 @@ def squad_stress(request: SquadStressRequest) -> Response:
             planning.ledger_row(
                 stage="AUDIT", row_id=f"stress-k{level['k']}",
                 quantity=f"Absence sets of size {level['k']} examined",
-                value_text=(f"{level['certified_count'] + level['unfieldable_count']} of "
-                            f"{level['set_count']} resolved; {_floor(level)}"
-                            f"{level['unfieldable_count']} leave no fieldable XI; "
-                            f"{_floor(level)}{level['positive_change_count']} above the "
-                            "baseline"),
+                value_text=_stress_cell(level),
                 sample=level["claim"], evidence=_composed(problem),
                 solver=(f"{level['completeness']} · quantisation {certificate.quantization}"),
             )
@@ -1205,7 +1377,8 @@ def squad_stress(request: SquadStressRequest) -> Response:
             question={"k": request.k, "confirm_k3": request.confirm_k3},
             declared=[planning.declared_row(
                 stage="AUDIT", key="declared-absence-size", label="Absence set size",
-                value_text=f"Every set of 1 to {request.k} of the removable players.",
+                value_text=("Every single absence of a removable player." if request.k == 1
+                            else f"Every set of 1 to {request.k} of the removable players."),
             )],
             ledger=ledger, warnings=result.warnings,
             tools={"absence_stress": result.provenance, "squad_depth": chains.provenance},
@@ -1220,7 +1393,9 @@ def squad_stress(request: SquadStressRequest) -> Response:
                 rows, outcome_of=lambda row: row["outcome"], outcomes=REMOVAL_OUTCOMES,
                 keys=planning.order_keys(problem),
             ),
-            listing_first_level="what the re-solve without him returned",
+            # Not "the re-solve": a single absence the baseline's XI does not field inherits
+            # that proof and is not solved again.
+            listing_first_level="the outcome without him",
             not_removable=[
                 {"player_id": row["player_id"], "name": row["name"],
                  "reason": "Excluded by you." if row["state"] == "EXCLUDED"
@@ -1228,10 +1403,17 @@ def squad_stress(request: SquadStressRequest) -> Response:
                 for row in squad.values() if row["player_id"] not in removable
             ],
             table_count=len(result.table),
-            table_statement=(
-                f"{len(result.table)} absence sets were valued. Sent here: every single "
-                "absence, the smallest sets that leave no fieldable XI, the sets above the "
-                "baseline and the sets tied at the highest value, each list with its count."
+            # The lists this reply holds, and no other: sets tied at a highest value that is
+            # the baseline are counted and not sent, and with single absences alone there
+            # is no set of two or more.
+            table_statement="No absence set was valued." if not result.table else (
+                f"{_many(len(result.table), 'absence set was', 'absence sets were')} valued. "
+                "Sent here: every single absence"
+                + (", the smallest sets that leave no fieldable XI, the sets of two or more "
+                   "above the baseline" if result.k > 1
+                   else ", the smallest sets that leave no fieldable XI")
+                + " and, where the highest value is above the baseline, the sets tied at it, "
+                "each list with its count."
             ),
             completeness_statement=result.completeness_statement,
             certificate=asdict(certificate),

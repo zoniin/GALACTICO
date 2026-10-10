@@ -96,6 +96,8 @@ gets discovered three weeks into building.
 | **E — technically inaccessible** | progressive passes (absent at every scope); any physical metric |
 | **F — technically observable, licensing blocks production use** | **everything in category B** |
 
+9 October 2026: FPL, named in category A, is reference only, not a source this project may ingest; see [LICENSING.md](../../LICENSING.md).
+
 ## The question that matters
 
 > If FotMob granted explicit written permission tomorrow, how much of LIVE could

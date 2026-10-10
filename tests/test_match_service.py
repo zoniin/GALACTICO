@@ -3,6 +3,9 @@
 A match label is decoded where it is served. The cached label column, the file digests
 and the provenance built from them stay exactly as they were: a readable label is not a
 reason to change a hash.
+
+A registry construct is served for a player only inside the context its registry entry
+declares. The oracle for that is the declaration itself, asked of the registry.
 """
 
 from __future__ import annotations
@@ -16,8 +19,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from galactico.api import decision_lab as api
+from galactico.domain.constructs import CONSTRUCTS
 from galactico.match_lab import MatchLabService
 from galactico.match_lab import service as service_module
+from galactico.match_lab.model import VERSION
 from galactico.optimization.historical import PUBLIC, frame_hash
 
 # Invented clubs carrying the three code points the cached Spain labels escape.
@@ -89,8 +94,13 @@ def cache(tmp_path):
                  home_team_id=20, away_team_id=10, label=ALREADY_DECODED, status="Played"),
         ]
     ).to_parquet(directory / "matches.parquet")
+    # Player 3 is the one goalkeeper: he completes a pass, so his registry constructs
+    # would be numbers if they were served.
     pd.DataFrame(
-        [dict(player_id=player, name=f"P{player}", position="MF") for player in (1, 2, 3, 4)]
+        [
+            dict(player_id=player, name=f"P{player}", position="GK" if player == 3 else "MF")
+            for player in (1, 2, 3, 4)
+        ]
     ).to_parquet(root / "players.parquet")
     pd.DataFrame(
         [dict(team_id=10, team_name=HOME), dict(team_id=20, team_name=AWAY)]
@@ -187,6 +197,52 @@ def test_synthetic_match_counts_clearance_sub_events_per_team(service):
     assert counts == {10: 1, 20: 3}
 
 
+def served_by(service, monkeypatch):
+    """A client of the real routes, answered by ``service``."""
+    monkeypatch.setattr(api, "match_service", lambda: service)
+    app = FastAPI()
+    app.include_router(api.router)
+    return TestClient(app)
+
+
+def metrics_by_id(row):
+    return {metric["id"]: metric for metric in row["metrics"]}
+
+
+def test_match_endpoints_serve_a_goalkeeper_the_reason_and_no_registry_construct_value(
+    service, monkeypatch
+):
+    with served_by(service, monkeypatch) as client:
+        detail = client.get("/api/matches/1")
+        section = client.get("/api/matches/1/players")
+    assert detail.status_code == section.status_code == 200
+    rows = detail.json()["player_match_profiles"]
+    assert section.json()["players"] == rows
+    recorded = {row["player_id"]: row["position"] for row in rows}
+    assert recorded == {1: "MF", 2: "MF", 3: "GK", 4: "MF"}
+    keeper = metrics_by_id(next(row for row in rows if row["player_id"] == 3))
+    for key, construct in CONSTRUCTS.items():
+        declared = construct.context_excluding("GK")
+        assert declared, key
+        assert keeper[key]["value"] is None, key
+        assert keeper[key]["status"] == "UNAVAILABLE", key
+        assert keeper[key]["reason"] == f"{declared}; this player is recorded as GK.", key
+    # What was recorded for him is served as it was: one completed pass, two clearance rows.
+    assert keeper["recorded_actions"]["value"] == 3
+    assert keeper["completed_passes"]["value"] == 1
+    assert keeper["clearances"]["value"] == 2
+    # Nobody else's row, and no team row, carries a reason. His pass stays in his team's total.
+    others = [row for row in rows if row["player_id"] != 3] + detail.json()["team_profiles"]
+    assert len(others) == 5
+    assert not [m["id"] for row in others for m in row["metrics"] if "reason" in m]
+    away = metrics_by_id(next(t for t in detail.json()["team_profiles"] if t["team_id"] == 20))
+    assert away["completed_passes"]["value"] == 1
+    assert away["width"]["value"] == 0 and away["width"]["status"] == "DERIVABLE"
+    # The version itself is pinned once, in tests/test_match_lab.py.
+    assert detail.json()["provenance"]["artifact_version"] == VERSION
+    assert section.json()["provenance"]["artifact_version"] == VERSION
+
+
 @pytest.fixture(scope="module")
 def corpus(tmp_path_factory):
     directory = PUBLIC / "competition=Spain"
@@ -244,3 +300,91 @@ def test_barcelona_madrid_reports_the_eleven_recorded_clearances(corpus):
         for player in artifact.player_match_profiles
     )
     assert by_player == 11
+
+
+def outside_declared_context(row, where):
+    """How many registry constructs the registry leaves this player row out of.
+
+    Asserts on the way that the row serves each of them as the declaration says. The
+    oracle is the declaration: what the registry answers for the recorded position.
+    """
+    metrics = metrics_by_id(row)
+    position = row["position"]
+    recorded = f"is recorded as {position}" if position else "has no recorded position"
+    outside = 0
+    for key, construct in CONSTRUCTS.items():
+        declared = construct.context_excluding(position)
+        metric = metrics[key]
+        if declared is None:
+            assert "reason" not in metric, (where, key)
+            assert metric["status"] == "DERIVABLE", (where, key)
+            continue
+        outside += 1
+        assert metric["value"] is None, (where, key)
+        assert metric["status"] == "UNAVAILABLE", (where, key)
+        assert metric["reason"] == f"{declared}; this player {recorded}.", (where, key)
+    return outside
+
+
+@pytest.mark.slow
+def test_no_listed_match_serves_a_registry_construct_outside_its_declared_context(
+    corpus, monkeypatch
+):
+    # Every match the page lists (the route's own default: Real Madrid's league matches),
+    # as the route the page reads serves it.
+    #
+    # What was recorded for a player is not a registry construct and is served for
+    # everybody, the players left out included. Oracle: a recount from the stored file.
+    stored = pd.read_parquet(
+        PUBLIC / "competition=Spain" / "actions.parquet",
+        columns=["game_id", "player_id", "period", "type", "success"],
+    )
+    stored = stored[stored.period != "P"]  # a shootout is not part of the match totals
+    recorded = stored.groupby(["game_id", "player_id"]).size()
+    completed = (
+        stored[(stored.type == "pass") & stored.success.eq(True)]
+        .groupby(["game_id", "player_id"])
+        .size()
+    )
+    withheld_rows, withheld_passes, published_rows = [], [], 0
+    with served_by(corpus, monkeypatch) as client:
+        listed = client.get("/api/matches").json()["matches"]
+        assert len(listed) == 38
+        for match in listed:
+            reply = client.get(f"/api/matches/{match['match_id']}")
+            assert reply.status_code == 200
+            served = reply.json()
+            left_out = {team["team_id"]: 0 for team in served["teams"]}
+            for row in served["player_match_profiles"]:
+                where = (match["match_id"], row["name"])
+                metrics = metrics_by_id(row)
+                counts = {key: metric for key, metric in metrics.items() if key not in CONSTRUCTS}
+                assert len(counts) == 6, where
+                for key, metric in counts.items():
+                    assert metric["status"] == "DIRECT" and "reason" not in metric, (where, key)
+                    assert float(metric["value"]).is_integer(), (where, key)
+                played = (match["match_id"], row["player_id"])
+                assert counts["recorded_actions"]["value"] == recorded.get(played, 0), where
+                assert counts["completed_passes"]["value"] == completed.get(played, 0), where
+                if outside_declared_context(row, where):
+                    withheld_rows.append(row["position"])
+                    withheld_passes.append(counts["completed_passes"]["value"])
+                    left_out[row["team_id"]] += 1
+                else:
+                    published_rows += 1
+            # Non-vacuity: two sides, and each fielded a player the registry leaves out.
+            assert len(left_out) == 2 and all(left_out.values()), match["match_id"]
+            # A team row is a total over the team's passes. It is not gated.
+            for team in served["team_profiles"]:
+                for key, metric in metrics_by_id(team).items():
+                    where = (match["match_id"], team["name"], key)
+                    assert "reason" not in metric and metric["status"] != "UNAVAILABLE", where
+                    if key in CONSTRUCTS:
+                        assert metric["value"] is not None, where
+    # In this corpus the rows left out are the goalkeepers' and only theirs: two a match,
+    # five registry constructs each. No goalkeeper row carries a value for any of them.
+    assert withheld_rows == ["GK"] * 76
+    # Non-vacuity: every one of those goalkeepers completed a pass in his match, so each
+    # of the entries left out would have been a number, and his passes are still counted.
+    assert len(withheld_passes) == 76 and all(withheld_passes)
+    assert published_rows > 0

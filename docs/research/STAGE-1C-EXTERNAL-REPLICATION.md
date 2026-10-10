@@ -6,10 +6,13 @@
 
 Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
 User Agreement. This analysis is formed from StatsBomb data and carries the
-StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data and no
-table derived from it is in this repository.
+StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data is in
+this repository, and no machine-readable table derived from it is in the tree. The
+StatsBomb-side figures printed here are published analysis.
 
 **Erratum, October 2026:** the ordering ρ computed for this report (not printed here) ranked tied values in sort order. See [M-07](M-07-rank-ties.md).
+
+**Disclosure, October 2026:** the Wyscout column of the minutes-floor table of this report is the Stage 1B curve, whose pool was every player with the minutes, goalkeepers included, for whom the construct is not defined. The StatsBomb column was pooled the same way and has not been recomputed. See [M-08](M-08-reliability-pool.md). No number here changes.
 
 Both change at once, so no discrepancy can be attributed uniquely to provider
 ontology. This is `EXTERNAL_REPLICATION_PROVIDER_SEASON_SHIFT`, and the question

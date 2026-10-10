@@ -13,14 +13,47 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from experiments.run_external_replication import fit_xt  # noqa: E402
 from galactico.features.estimators import harmonised_axes  # noqa: E402
 from galactico.profiles import build_profiles, write_bundle  # noqa: E402
-from galactico.profiles.build import declared_population  # noqa: E402
+from galactico.profiles.build import pooled_reliability  # noqa: E402
 from galactico.profiles.uncertainty import bootstrap_players  # noqa: E402
-from galactico.reliability import split_half_reliability  # noqa: E402
 
 ROOT = Path("data/public/parquet/pappalardo")
 OUT = Path("data/public/profiles")
 COMPETITION, SEASON, REGIME = "Spain", "2017/18", "wyscout_event"
 MINUTES_FLOOR, HALF_FLOOR = 900, 300
+
+
+def split_halves(actions: pd.DataFrame, lineups: pd.DataFrame, keep: pd.Index,
+                 xt) -> dict[int, pd.DataFrame]:
+    """Every construct on each half of the season, for the players in ``keep``.
+
+    Matches are split by the parity of their place in the sorted match ids. A player is
+    in a half when he has ``HALF_FLOOR`` minutes in it.
+    """
+    order = {g: i for i, g in enumerate(sorted(actions["game_id"].unique()))}
+    halves = {}
+    for h in (0, 1):
+        ah = actions[(actions["game_id"].map(order) % 2 == h) & actions.player_id.isin(keep)]
+        lh = lineups[lineups["game_id"].map(order) % 2 == h]
+        mh = lh[lh.player_id.isin(keep)].groupby("player_id")["minutes"].sum()
+        mh = mh[mh >= HALF_FLOOR]
+        halves[h] = harmonised_axes(ah[ah.player_id.isin(mh.index)], xt, mh)
+    return halves
+
+
+def pooled_reliabilities(halves: dict[int, pd.DataFrame],
+                         players: pd.DataFrame) -> dict[str, tuple[float, int]]:
+    """Each construct's split-half reliability and the number of players it rests on.
+
+    A construct's reliability is a statement about the players it is defined for, so the
+    pool is its declared population. The pooling is ``pooled_reliability`` and nothing
+    here filters or correlates: this function only hands it the two halves.
+    """
+    position_of = players.set_index("player_id")["position"].to_dict()
+    return {
+        axis: pooled_reliability(axis, halves[0][axis].dropna().to_dict(),
+                                 halves[1][axis].dropna().to_dict(), position_of)
+        for axis in halves[0].columns
+    }
 
 
 def main() -> int:
@@ -35,25 +68,8 @@ def main() -> int:
     keep = minutes[minutes >= MINUTES_FLOOR].index
     axes = harmonised_axes(actions[actions.player_id.isin(keep)], xt, minutes.loc[keep])
 
-    order = {g: i for i, g in enumerate(sorted(actions["game_id"].unique()))}
-    halves = {}
-    for h in (0, 1):
-        ah = actions[(actions["game_id"].map(order) % 2 == h) & actions.player_id.isin(keep)]
-        lh = lineups[lineups["game_id"].map(order) % 2 == h]
-        mh = lh[lh.player_id.isin(keep)].groupby("player_id")["minutes"].sum()
-        mh = mh[mh >= HALF_FLOOR]
-        halves[h] = harmonised_axes(ah[ah.player_id.isin(mh.index)], xt, mh)
-    # A construct's reliability is a statement about the players it is defined for.
-    # Goalkeepers sit far from every outfield player on the pass-origin shares, so pooling
-    # them in raised the between-player variance and with it the reliability printed on
-    # outfield rows.
-    position_of = players.set_index("player_id")["position"].to_dict()
-    reliabilities = {
-        axis: split_half_reliability(
-            declared_population(axis, halves[0][axis].dropna().to_dict(), position_of),
-            declared_population(axis, halves[1][axis].dropna().to_dict(), position_of))[0]
-        for axis in axes.columns
-    }
+    pooled = pooled_reliabilities(split_halves(actions, lineups, keep, xt), players)
+    reliabilities = {axis: pooled[axis][0] for axis in axes.columns}
 
     print('bootstrapping player uncertainty (match-level blocks)...', flush=True)
     uncertainty = bootstrap_players(actions=actions, lineups=lineups, xt=xt,
@@ -77,8 +93,9 @@ def main() -> int:
     path = write_bundle(bundle, OUT / f"{COMPETITION}_{SEASON.replace('/', '-')}.json")
     print(f"{len(bundle.profiles)} profiles -> {path} ({path.stat().st_size/1e6:.1f} MB)")
     print(f"version key {bundle.version_key}  xt {bundle.xt_version}")
-    for axis, r in reliabilities.items():
-        print(f"  {axis:<26}r = {r:.3f}")
+    for axis in axes.columns:
+        r, n = pooled[axis]
+        print(f"  {axis:<26}r = {r:.3f}  over {n} players of its declared population")
     return 0
 
 

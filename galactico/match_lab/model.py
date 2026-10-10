@@ -2,19 +2,29 @@
 
 All xT quantities here use completed passes only. A positive-gain sum is not
 conserved possession value and is never advertised as an overall match score.
+
+A registry construct is served on a player row only inside the context its registry
+entry declares (ADR-0025). Outside it the metric stays on the row with no value, the
+status of a number that is not published, and the reason. The registry decides who is
+outside; this module holds no position of its own. Team rows are team totals and are
+not gated.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from ..domain.constructs import CONSTRUCTS, recorded_position
 from ..features.spec import SPECS, Measure
 
-VERSION = "match-intelligence-v2"
+# v3: a registry construct outside its declared context is served with no value and a
+# reason. v2 computed every registry construct for every player, whatever his position.
+VERSION = "match-intelligence-v3"
 PERIODS = {"1H": 1, "2H": 2, "E1": 3, "E2": 4, "P": 5, "1": 1, "2": 2, "3": 3, "4": 4, "5": 5}
 OFFSETS = {1: 0, 2: 45, 3: 90, 4: 105, 5: 120}
 LENGTHS = {1: 45, 2: 45, 3: 15, 4: 15, 5: 0}
@@ -76,8 +86,10 @@ class MatchIntelligence:
         return asdict(self)
 
 
-def _metric(key, label, value, unit, definition, family="observation", status="DERIVABLE"):
-    return {
+def _metric(
+    key, label, value, unit, definition, family="observation", status="DERIVABLE", reason=None
+):
+    metric = {
         "id": key,
         "label": label,
         "value": finite(value),
@@ -86,10 +98,38 @@ def _metric(key, label, value, unit, definition, family="observation", status="D
         "family": family,
         "status": status,
     }
+    # Present only on a metric held back because the player is outside the construct's
+    # declared context. Every other entry, team entries included, has no such key.
+    if reason is not None:
+        metric["reason"] = reason
+    return metric
 
 
-def _metrics(rows: pd.DataFrame, xt) -> list[dict]:
-    """Reuse the exact season numerator and denominator filters without per-90."""
+def _outside_declared_context(position: object) -> dict[str, str]:
+    """Registry constructs this recorded position is outside the declared context of.
+
+    Each maps to the sentence served in place of its number. The registry answers
+    (``ConstructDefinition.context_excluding``), so what counts as a goalkeeper, and
+    that an unrecorded position is inside no declared context, is decided there.
+    """
+    label = recorded_position(position)
+    where = f"is recorded as {label}" if label else "has no recorded position"
+    reasons = {}
+    for key in SPECS:
+        declared = CONSTRUCTS[key].context_excluding(position)
+        if declared is not None:
+            reasons[key] = f"{declared}; this player {where}."
+    return reasons
+
+
+def _metrics(rows: pd.DataFrame, xt, outside: Mapping[str, str] | None = None) -> list[dict]:
+    """Reuse the exact season numerator and denominator filters without per-90.
+
+    ``outside`` maps a registry construct to the reason it is not served on this row.
+    That metric is kept with no value, and nothing is computed for it. A team row
+    passes none: it is a total over the team's recorded passes.
+    """
+    outside = outside or {}
     passed = SPECS["progression"].numerator.apply(rows)
     count = len(passed)
     result = [
@@ -118,6 +158,22 @@ def _metrics(rows: pd.DataFrame, xt) -> list[dict]:
         "half_space_share": "Half-space pass-origin share",
     }
     for key, spec in SPECS.items():
+        unit = "share" if spec.family == "style" else "xT/pass" if spec.denominator else "xT"
+        definition = spec.describe().replace(", per 90 minutes", ", match total")
+        if key in outside:
+            result.append(
+                _metric(
+                    key,
+                    labels[key],
+                    None,
+                    unit,
+                    definition,
+                    spec.family,
+                    status="UNAVAILABLE",
+                    reason=outside[key],
+                )
+            )
+            continue
         selected = spec.numerator.apply(rows)
         delta = (
             xt.values[xt.grid.cells(selected.end_x, selected.end_y)]
@@ -134,21 +190,7 @@ def _metrics(rows: pd.DataFrame, xt) -> list[dict]:
         value = (
             numerator if denominator is None else numerator / denominator if denominator else None
         )
-        definition = spec.describe().replace(", per 90 minutes", ", match total")
-        result.append(
-            _metric(
-                key,
-                labels[key],
-                value,
-                "share"
-                if spec.family == "style"
-                else "xT/pass"
-                if denominator is not None
-                else "xT",
-                definition,
-                spec.family,
-            )
-        )
+        result.append(_metric(key, labels[key], value, unit, definition, spec.family))
     shots = rows[(rows.type == "shot") | rows.subtype.isin(["free_kick_shot", "penalty"])]
     result.extend(
         [
@@ -382,11 +424,14 @@ def build_match(
             if nominal_minutes is not None
             else "No finite nominal exposure is available."
         )
+        position = positions.get(pid)
         item = {
             "player_id": pid,
             "team_id": tid,
             "name": names.get(pid, str(pid)),
-            "position": positions.get(pid),
+            # The label as recorded, or null: the roster, the row and the reason below
+            # mean the same thing by "recorded", and a missing label is not served as NaN.
+            "position": recorded_position(position),
             "started": bool(row["started"]),
             "minutes": minutes,
             "nominal_minutes": nominal_minutes,
@@ -394,7 +439,16 @@ def build_match(
             "minutes_reason": minutes_reason,
         }
         rosters.append(item)
-        profiles.append({**item, "metrics": _metrics(rows[rows.player_id == pid], xt)})
+        # A declared context that nothing checks is a comment: the registry is asked for
+        # every player row. The recorded counts on the row are not registry constructs.
+        profiles.append(
+            {
+                **item,
+                "metrics": _metrics(
+                    rows[rows.player_id == pid], xt, _outside_declared_context(position)
+                ),
+            }
+        )
     bins, networks, team_profiles = [], [], []
     plot_offsets = {}
     elapsed = 0

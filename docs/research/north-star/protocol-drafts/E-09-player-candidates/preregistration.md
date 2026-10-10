@@ -520,3 +520,13 @@ determinism of the full run under a fixed seed.
 *Committed before running. Results in `results.json`, interpretation in
 `analysis.md`, model card in `MODEL-CARD.md`. If any of them contradicts this
 document, this document wins.*
+
+![StatsBomb](../../../../assets/statsbomb/statsbomb-logo.png)
+
+Data source: StatsBomb. The sizes of the two La Liga shifts quoted in section 11
+are analysis formed from StatsBomb data, published in
+[Stage 1C](../../../STAGE-1C-EXTERNAL-REPLICATION.md). This document carries the
+StatsBomb logo as clause 1.4 of the StatsBomb Public Data User Agreement requires.
+The conclusions are not the opinions or analytical insights of StatsBomb. No
+StatsBomb data is in this repository, and no machine-readable table derived from it
+is in the tree. The StatsBomb-side figures printed here are published analysis.

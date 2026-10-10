@@ -28,9 +28,11 @@ loaders import their tool module when called, and every loader is a module attri
 can replace.
 
 The three loaders that read action frames (snapshot, reference, universe) share one build
-gate: a key is built once however many callers ask for it together, and at most
-``runtime.LONG_JOB_LIMIT`` builds run at a time. A router keys its result cache before any
-build, from ``corpus_token`` and ``canonical_request``.
+gate: a key is built once however many callers ask for it together, at most
+``runtime.LONG_JOB_LIMIT`` builds run at a time, and a built object is served only while the
+corpus files it was read from have the names, sizes and modification times they had. A
+router keys its result cache before any build, from ``corpus_token`` and
+``canonical_request``.
 """
 
 from __future__ import annotations
@@ -38,13 +40,16 @@ from __future__ import annotations
 import hashlib
 import inspect
 import json
+import math
 import re
 import threading
 import time
 from collections import Counter, OrderedDict
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal
+from fractions import Fraction
 from functools import lru_cache, wraps
 from typing import TYPE_CHECKING, Annotated, Any, Literal, NamedTuple, get_args
 
@@ -53,6 +58,7 @@ from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_valida
 from pydantic_core import PydanticCustomError
 
 from ..domain import evidence, verdicts
+from ..domain.precision import format_plain
 from ..domain.provenance import EvidenceClass
 from . import runtime, shell
 
@@ -404,27 +410,46 @@ class _Flight:
     value: Any = None
 
 
+class _BuildKey(NamedTuple):
+    """What one built object is the build of: a loader, its arguments, and the files read."""
+
+    loader: str
+    args: tuple
+    types: tuple[type, ...]  # 12.0 is not the built 12
+    leagues: tuple[str, ...]  # the leagues whose public files the build reads
+    token: str  # ``_files_token(leagues)`` when the build was asked for
+
+
 class _BuildGate:
     """One build per key, and at most ``runtime.LONG_JOB_LIMIT`` builds at a time.
 
     A second caller of a key that is being built waits for the first and is handed its
-    object. A caller that has waited ``runtime.LONG_JOB_WAIT_SECONDS`` for a place raises
+    object. That wait has no time limit: it ends when the build ahead of it does. A caller
+    that has waited ``runtime.LONG_JOB_WAIT_SECONDS`` for a place raises
     ``runtime.LongJobsBusy`` (a 429 inside ``runtime.lab_errors``). A key that is already
     built is returned under the guard alone, so it never waits behind another key's build.
     A build that fails is kept by nobody: a caller that waited for it builds in its turn.
+
+    A key names the corpus files it was read from (``_BuildKey.token``). A call that
+    arrives with another token for the same leagues is a call after a file changed: what
+    was built from those leagues under any other token is dropped then, and the object is
+    built again from the files as they are.
     """
 
     def __init__(self) -> None:
         self._guard = threading.Lock()
         self._places = threading.BoundedSemaphore(runtime.LONG_JOB_LIMIT)
-        self._flights: dict[tuple, _Flight] = {}
+        self._flights: dict[_BuildKey, _Flight] = {}
         self._held = threading.local()
 
-    def get(self, built: OrderedDict, maxsize: int, key: tuple,
+    def get(self, built: OrderedDict, maxsize: int, key: _BuildKey,
             build: Callable[[], Any]) -> Any:
         deadline = time.monotonic() + runtime.LONG_JOB_WAIT_SECONDS
         while True:
             with self._guard:
+                for other in [k for k in built
+                              if k.leagues == key.leagues and k.token != key.token]:
+                    del built[other]  # read from files that are no longer the files
                 if key in built:
                     built.move_to_end(key)
                     return built[key]
@@ -472,12 +497,42 @@ class _BuildGate:
 _BUILDS = _BuildGate()
 
 
-def _built_once(maxsize: int) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def _league_of(scenario_id: str) -> str:
+    """The league a scenario id names, read off the id alone. ``KeyError`` when it names none.
+
+    For a build key, which is taken before anything is read: whether the club exists is the
+    question ``resolve_scenario`` answers inside the build, with the match table.
+    """
+    if scenario_id == FLAGSHIP.scenario_id:
+        return FLAGSHIP.competition
+    match = _CLUB_SCENARIO.fullmatch(scenario_id) if isinstance(scenario_id, str) else None
+    if match is None:
+        raise KeyError(scenario_id)
+    return _COMPETITION_OF[match.group(1)]
+
+
+def _own_league(scenario_id: str, *_more: object) -> tuple[str, ...]:
+    return (_league_of(scenario_id),)
+
+
+def _every_league(scenario_id: str, *_more: object) -> tuple[str, ...]:
+    _league_of(scenario_id)  # an id that names no league is unknown here too
+    return tuple(LEAGUE_LABELS)
+
+
+def _built_once(maxsize: int, *, reads: Callable[..., tuple[str, ...]],
+                ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """What ``lru_cache`` was for a loader that reads action frames, behind ``_BUILDS``.
 
     The least recently used of ``maxsize`` objects is dropped. Keys are typed: 12.0 is not
     the built 12, so it reaches the loader and is still refused there. ``cache_clear`` and
     ``cache_info`` keep their ``lru_cache`` names.
+
+    ``reads(*args)`` names the leagues whose public files the build reads. Their names,
+    sizes and modification times are part of the key (``_files_token``), taken at every
+    call, so an object is served only while the files it was built from are the files on
+    disk. The squad and the league reference read their own league; a change in another
+    league's file leaves them built.
     """
 
     def decorate(build: Callable[..., Any]) -> Callable[..., Any]:
@@ -488,7 +543,10 @@ def _built_once(maxsize: int) -> Callable[[Callable[..., Any]], Callable[..., An
         def loader(*args: Any, **kwargs: Any) -> Any:
             bound = signature.bind(*args, **kwargs)
             bound.apply_defaults()  # f(a) and f(a, 0) are one key
-            key = (build.__name__, bound.args, tuple(type(value) for value in bound.args))
+            leagues = reads(*bound.args)
+            key = _BuildKey(build.__name__, bound.args,
+                            tuple(type(value) for value in bound.args),
+                            leagues, _files_token(leagues))
             return _BUILDS.get(built, maxsize, key, lambda: build(*bound.args))
 
         def cache_clear() -> None:
@@ -502,13 +560,14 @@ def _built_once(maxsize: int) -> Callable[[Callable[..., Any]], Callable[..., An
     return decorate
 
 
-@_built_once(maxsize=8)
+@_built_once(maxsize=8, reads=_own_league)
 def planning_snapshot(scenario_id: str, worlds: int = 0) -> TeamSnapshot:
     """The club's squad before the scenario's cutoff, with league-coherent worlds.
 
     Eligibility is the rule set's own choice: the hand-declared rules for Madrid, provider
     positions (unreviewed) for every other club. ``worlds`` is 0 or a ``runtime.WORLD_MENU``
-    count. An unknown id is a ``KeyError``: a handler resolves the scenario first.
+    count. An unknown id is a ``KeyError``: a handler resolves the scenario first. Built
+    again when a public file of the club's league has changed since it was built.
     """
     _check_worlds(worlds)
     scenario = resolve_scenario(scenario_id)
@@ -524,12 +583,13 @@ def planning_snapshot(scenario_id: str, worlds: int = 0) -> TeamSnapshot:
     )
 
 
-@_built_once(maxsize=8)
+@_built_once(maxsize=8, reads=_own_league)
 def reference(scenario_id: str, experimental_opt_in: bool = False) -> LeagueReference:
     """Starting-XI sums of the scenario's league before its cutoff. Descriptive.
 
     Built only when a minimum is declared as a league percentile. The side pass-origin
-    distributions exist only in the opted-in reference.
+    distributions exist only in the opted-in reference. Built again when a public file of
+    that league has changed.
     """
     scenario = resolve_scenario(scenario_id)
     from ..optimization import reference as _reference
@@ -543,10 +603,14 @@ def reference(scenario_id: str, experimental_opt_in: bool = False) -> LeagueRefe
     )
 
 
-@_built_once(maxsize=4)
+@_built_once(maxsize=4, reads=_every_league)
 def universe(scenario_id: str, include_leagues: tuple[str, ...] = (),
              worlds: int = 0) -> CandidateUniverse:
-    """The gated pool beside the scenario's squad. Pass ``canonical_leagues(...)``."""
+    """The gated pool beside the scenario's squad. Pass ``canonical_leagues(...)``.
+
+    It reads the match and lineup tables of every league, opted in or not, so it is built
+    again when a public file of any league has changed.
+    """
     snap = planning_snapshot(scenario_id, worlds)
     from ..optimization.transfers import universe as _universe
 
@@ -575,19 +639,15 @@ def canonical_leagues(scenario: PlanningScenario,
 # ------------------------------------------------------------------------ cache keys
 
 
-def corpus_token(scenario: PlanningScenario, leagues: Sequence[str] = ()) -> str:
-    """A cheap identity of the corpus files a request reads. For a cache key, nothing else.
+def _corpus_files(leagues: Iterable[str]) -> tuple[list[list], list[str]]:
+    """``(present, absent)`` public Parquet files of ``leagues``. No file is opened.
 
-    The names, sizes and modification times of the public Parquet files of the scenario's
-    league and of ``leagues``. No file is opened, so a request can be keyed before anything
-    is built, and a file that is rewritten moves the key. It is not a content hash: the
-    dataset hash a snapshot computes stays in provenance. ``FileNotFoundError`` when a file
-    is absent.
+    A present file is ``[name, size, modification time]``; an absent one is its path.
     """
     from ..storage import public as _public
 
     listed, missing = [], []
-    for league in sorted({scenario.competition, *leagues}):
+    for league in sorted(set(leagues)):
         for table in _public.TABLES:
             path = _public._path(_public.PUBLIC, league, table)  # the loader's own layout
             try:
@@ -597,21 +657,63 @@ def corpus_token(scenario: PlanningScenario, leagues: Sequence[str] = ()) -> str
                 continue
             listed.append([path.relative_to(_public.PUBLIC).as_posix(), found.st_size,
                            found.st_mtime_ns])
+    return sorted(listed), sorted(missing)
+
+
+def corpus_token(scenario: PlanningScenario, leagues: Sequence[str] = ()) -> str:
+    """A cheap identity of the corpus files a request reads. For a cache key, nothing else.
+
+    The names, sizes and modification times of the public Parquet files of the scenario's
+    league and of ``leagues``. No file is opened, so a request can be keyed before anything
+    is built, and a file that is rewritten moves the key. The same identity is in the key
+    of the squad, the league reference and the pool built from those files
+    (``_built_once``), so a reply that misses after a rewrite is computed from the
+    rewritten file and not from what was built before it. The club list of a league
+    (``league_clubs``) is not behind that key: it is read once per process. The token is
+    not a content hash: the dataset hash a snapshot computes stays in provenance, and the
+    same bytes written again are another token. ``FileNotFoundError`` when a file is
+    absent.
+    """
+    listed, missing = _corpus_files({scenario.competition, *leagues})
     if missing:
         raise FileNotFoundError(f"public frames not present: {missing}")
-    return _digest(sorted(listed))
+    return _digest(listed)
+
+
+def _files_token(leagues: Sequence[str]) -> str:
+    """``corpus_token`` for a build key: an absent file is part of the identity, not an error.
+
+    A loader is keyed before it reads, and a build that cannot read its files raises its
+    own ``FileNotFoundError``. Equal to ``corpus_token`` over the same leagues when every
+    file is present.
+    """
+    listed, missing = _corpus_files(leagues)
+    return _digest(listed if not missing else {"present": listed, "absent": missing})
 
 
 def canonical_request(scenario: PlanningScenario, request: BaseModel) -> dict:
-    """A request as resolved, for ``runtime.cache_key``: one accepted problem, one key.
+    """A request as resolved, for ``runtime.cache_key``.
 
-    The scenario id is the resolved one, so Madrid's club spelling and the flagship id are
-    one key. Exclusions and locks are sorted and de-duplicated, as ``declare`` reads them.
-    Presets, opted-in leagues and requirement declarations are put in one order and a repeat
-    is kept: a repeated name is refused when the problem is declared, and a key that folded
-    it away would answer that refusal from the stored reply of the accepted request. Every
-    other field is as sent.
-    A preset and the same exclusion by hand are different declarations and different keys.
+    What a key guarantees: one key never holds two resolved problems, and never an accepted
+    request and a refused one. What it does not: one problem can have more than one key.
+
+    Folded into one key: the scenario id is the resolved one, so Madrid's club spelling and
+    the flagship id are one key. Exclusions and locks are sorted and de-duplicated, as
+    ``declare`` reads them. Presets, opted-in leagues and requirement declarations are put
+    in one order.
+
+    Not folded. A repeat of a preset, a league or a declaration is kept: a repeated name is
+    refused when the problem is declared, and a key that folded it away would answer that
+    refusal from the stored reply of the accepted request. A preset sent together with what
+    it sets by hand (``exclude-3322`` and the exclusion of 3322; a percentile preset and
+    the same percentile declaration) is kept as sent: ``declare`` resolves the two requests
+    to one problem, with one input fingerprint, and they are two requests with two keys. The
+    second is computed again and, on a route that enumerates, takes a long-computation
+    place of its own. Every other field is as sent, a field the route goes on to ignore
+    included.
+
+    A preset alone and the same exclusion by hand alone are different declarations: two
+    problems, two fingerprints, two keys.
     """
     body = request.model_dump(mode="json")
     body["scenario_id"] = scenario.scenario_id
@@ -780,7 +882,41 @@ def declarable(snap: TeamSnapshot) -> tuple[str, ...]:
 
 
 def _number(value: float) -> str:
+    """The value of an order key in a tie band (``_key_label``). Never the record of an input."""
     return f"{value:.3f}"
+
+
+_APPROXIMATE = "≈ "
+"""The sign a planning page prints before a rounded figure whose exact value exists
+(``GP.value`` in ``web/planning.js``), written here for a figure the server rounds."""
+_DERIVED_PLACES = 4
+
+
+def _minimum_text(row: Mapping[str, Any]) -> str:
+    """The number of a minimum in force, as the record of that minimum prints it.
+
+    A minimum the reader entered is the number entered, written out
+    (``precision.format_plain``). Three decimals recorded 3.8141 and 3.8143 as one number,
+    and two such numbers can lie on either side of a certified boundary. Any other minimum
+    is read off the record (this club's median, a percentile of the league reference) and is
+    printed as the rounded figure it is: ``_APPROXIMATE``, then ``_DERIVED_PLACES``
+    decimals. The number itself is ``minimum`` in the requirement row.
+    """
+    if row["source"] == "EXPLICIT":
+        return format_plain(row["minimum"])
+    return f"{_APPROXIMATE}{row['minimum']:.{_DERIVED_PLACES}f}"
+
+
+def _by_policy(row: Mapping[str, Any]) -> bool:
+    """Whether a minimum in force is the shipped default, which nobody declared.
+
+    By its source, not by whether the request named the requirement. A page sends the
+    default back as a declaration from its second request on (``GP.draftOf``), and it is the
+    same number from the same policy either way: its requirement row has origin ``POLICY``
+    and the label ``Shipped default`` in both cases. A league percentile is the reader's
+    choice, by hand or through a preset, and an entered number is the reader's number.
+    """
+    return row["source"] == "CLUB_MEDIAN"
 
 
 def _chosen_presets(scenario: PlanningScenario, preset_ids: Sequence[str],
@@ -945,39 +1081,81 @@ _ATTAINED_PLACES = 4
 
 ATTAINED_CERTIFIED = (
     "One XI of the gated squad under these declarations sums to {reached} on {label}, and none "
-    "sums to more than {ceiling}: an exact maximisation with every minimum set aside, rounding "
-    "allowance included. Under these declarations and this role-slot template, no XI of the "
-    "gated squad reaches a minimum above {ceiling}."
+    "sums to more than {ceiling}. The first number is the sum of one XI the solver found, with "
+    "every minimum set aside; another XI can sum to more. The second is a ceiling no XI "
+    "exceeds: the solver's optimum plus its rounding allowance. The shortfall model rounds "
+    "each player's rate and the minimum to 1/100000 of the club median, so a minimum entered "
+    "between these two numbers, or under the first by less than that allowance, can be "
+    "answered with a shortfall or with none. Under these declarations and this role-slot "
+    "template, no XI of the gated squad reaches a minimum above {ceiling}."
 )
+"""What the two numbers of a certified row are, and what they do not settle.
+
+``1/100000`` is ``squad.kernel.QUANTIZATION``, the scale the shortfall kernel rounds on, and
+the default scale of the query that finds the two numbers. It is written out because this
+module imports no solver at import. Equal by test."""
 ATTAINED_UNFIELDABLE = (
     "No XI can be fielded under these declarations, so no sum of {label} exists."
 )
 ATTAINED_NOT_CERTIFIED = (
-    "The largest sum of {label} was not certified within the time limit. No value is implied."
+    "Neither a sum of {label} nor a ceiling for it was certified within the time limit. No "
+    "value is implied."
 )
 
 
-def attained(problem: DeclaredProblem, *, time_limit: float) -> list[dict]:
-    """For each requirement in force: the largest sum any XI of the declared squad reaches.
+def _outward(value: Fraction, *, up: bool) -> str:
+    """``value`` at ``_ATTAINED_PLACES`` decimals, rounded one way and never the other.
 
-    Claim: arithmetic on the recorded rates. One XI reaches ``reached``; no XI the
-    eligibility rules, locks and exclusions allow sums to more than ``ceiling``. It is what
-    a user needs before declaring a minimum above what the squad attains, and nothing else:
-    it is not a target and says nothing about how the squad plays.
+    Exact arithmetic on the fraction. ``floor(x * 10**4)`` on a float multiplies first, and
+    just under a fourth decimal that product is already the integer above.
+    """
+    units = value * 10 ** _ATTAINED_PLACES
+    whole = math.ceil(units) if up else math.floor(units)
+    return format(Decimal(whole).scaleb(-_ATTAINED_PLACES), "f")
+
+
+def attained(problem: DeclaredProblem, *, time_limit: float) -> list[dict]:
+    """For each requirement in force: the sum of one XI of the declared squad, and a ceiling.
+
+    Claim: arithmetic on the recorded rates. ``reached`` is the sum of the XI the query
+    returned, as the float nearest that XI's exact sum. ``ceiling`` is a number that no XI
+    the eligibility rules, locks and exclusions allow sums to more than. The largest sum any
+    XI reaches lies between the two and is not computed: ``reached`` need not be it. The two
+    numbers are what a user needs before declaring a minimum above what the squad attains,
+    and nothing else: neither is a target and neither says how the squad plays.
 
     The frozen hard-floor query does the maximisation, once per requirement, with every
-    minimum set to zero so that no floor binds (the rates are non-negative). Its optimum is
-    over half-even integer coefficients, so the raw sum of any XI can exceed the decoded
-    optimum by at most the query's own rounding allowance; ``ceiling`` adds it. An undecided
-    or infeasible solve returns no number.
+    minimum set to zero so that no floor binds (the rates are non-negative). It maximises
+    the sum of half-even integer coefficients, each rate in units of ``1 / quantization`` of
+    the requirement's normalizer, and not the sum of the rates. An XI with the larger
+    rounded sum can have the smaller sum, and of two XIs whose rounded sums are equal it
+    returns either. The sum of any XI exceeds the decoded optimum by at most the query's own
+    rounding allowance (half a unit for each slot the requirement applies to); ``ceiling``
+    adds it. An undecided or infeasible solve returns no number.
+
+    ``reached_text`` and ``ceiling_text`` are printed away from the claim, exactly:
+    ``reached_text`` is the returned XI's exact sum rounded down, ``ceiling_text`` is
+    ``ceiling`` rounded up, both at four decimals.
+
+    What the two numbers do not settle. The shortfall kernel compares a declared minimum
+    with neither. It rounds each rate and the minimum half-even to ``1 / QUANTIZATION`` of
+    the normalizer, which is the club's own median, and compares the rounded sums
+    (``squad.kernel``, ``_tables``). A minimum the kernel answers as reached can therefore
+    lie above every XI's sum, and one it answers with a shortfall can lie below ``reached``
+    by less than the allowance. ``ATTAINED_CERTIFIED`` says so.
+
+    ``time_limit`` is what is left of the request when this is called. It is one deadline
+    for every solve here, not a duration for each: a solve is handed what is left of it when
+    that solve starts, and never less than ``runtime.MIN_REMAINING_SECONDS``, because the
+    query refuses a limit that is not positive. The query starts its own clock at each call,
+    so the same number of seconds handed to every solve would be spent once per requirement.
     """
     from dataclasses import replace
-    from math import ceil, floor, inf, nextafter
 
     from ..optimization.xi.tradeoffs import maximize_requirement
 
+    deadline = time.monotonic() + time_limit
     free = tuple(replace(r, minimum=0.0) if r.active else r for r in problem.requirements)
-    scale = 10 ** _ATTAINED_PLACES
     rows: list[dict] = []
     for requirement in problem.requirements:
         if not requirement.active:
@@ -985,18 +1163,24 @@ def attained(problem: DeclaredProblem, *, time_limit: float) -> list[dict]:
         result = maximize_requirement(
             problem.candidates, free, problem.formation,
             target_requirement_id=requirement.requirement_id,
-            locked=problem.locks, excluded=problem.excludes, time_limit=time_limit,
+            locked=problem.locks, excluded=problem.excludes,
+            time_limit=max(runtime.MIN_REMAINING_SECONDS, deadline - time.monotonic()),
         )
         certificate = result.objective
         reached = ceiling = reached_text = ceiling_text = None
         if result.solution_status == "OPTIMAL" and certificate.achieved is not None:
             status = "CERTIFIED"
             reached = float(certificate.achieved)
-            ceiling = nextafter(
-                certificate.quantized_upper_bound + certificate.raw_rounding_error_bound, inf)
-            # Printed away from the claim: "reaches" rounds down, "no more than" rounds up.
-            reached_text = f"{floor(reached * scale) / scale:.{_ATTAINED_PLACES}f}"
-            ceiling_text = f"{ceil(ceiling * scale) / scale:.{_ATTAINED_PLACES}f}"
+            ceiling = math.nextafter(
+                certificate.quantized_upper_bound + certificate.raw_rounding_error_bound,
+                math.inf)
+            # The rates of the returned XI at the slots this requirement counts, added exactly.
+            exact = sum((Fraction(placed.contributions[requirement.requirement_id])
+                         for placed in result.assignments
+                         if requirement.requirement_id in placed.contributions), Fraction())
+            # Printed away from the claim: "sums to" rounds down, "no more than" rounds up.
+            reached_text = _outward(exact, up=False)
+            ceiling_text = _outward(Fraction(ceiling), up=True)
             statement = ATTAINED_CERTIFIED.format(
                 reached=reached_text, ceiling=ceiling_text, label=requirement.label)
         elif result.solution_status == "INFEASIBLE":
@@ -1061,7 +1245,15 @@ def ledger_row(*, stage: str, **row: Any) -> dict:
 
 
 def declared_rows(problem: DeclaredProblem) -> list[dict]:
-    """The declared part of the ledger: what the request stated, as sent, with no class."""
+    """The declared part of the ledger: what the reader declared. No row carries a class.
+
+    The planning point and the role-slot template come first. A request that names neither
+    is answered for the flagship and 4-3-3, and those are then the two rows. Then each
+    preset, exclusion and lock, the experimental opt-in, and each minimum the reader
+    declared: a number entered, printed as entered, or a league percentile chosen, with the
+    value read off the league reference and marked as rounded. A minimum in force that is
+    the shipped default is not here. Nobody declared it; it is a row of ``base_ledger``.
+    """
     scenario = problem.scenario
     names = {int(p["player_id"]): str(p["name"]) for p in problem.snapshot.candidates}
     rows = [
@@ -1096,8 +1288,8 @@ def declared_rows(problem: DeclaredProblem) -> list[dict]:
     rows += [
         declared_row(stage="REQUIREMENTS", key=f"declared-minimum-{row['requirement_id']}",
                      label=f"{row['label']} minimum",
-                     value_text=f"{_number(row['minimum'])}. {row['source_sentence']}")
-        for row in _in_force(problem)
+                     value_text=f"{_minimum_text(row)}. {row['source_sentence']}")
+        for row in _in_force(problem) if not _by_policy(row)
     ]
     return rows
 
@@ -1114,8 +1306,20 @@ def rate_class(metric: SnapshotMetric) -> EvidenceClass:
     return evidence.from_player_lab("Estimated")
 
 
+_NO_PROTOCOL = "none"
+"""The experiment id of a quantity no protocol names. The registry answers it as unregistered."""
+
+
 def base_ledger(problem: DeclaredProblem) -> list[dict]:
-    """The computed rows every planning response carries: eligibility, the gate, the rates."""
+    """The computed rows every planning response carries: eligibility, the gate, the rates,
+    and each minimum in force that nobody declared.
+
+    A shipped default is computed from the record (the median of this club's own starting-XI
+    sums) and set by policy, so it is listed here and not among the declared rows. Its row
+    carries what the requirement row says of it, ``origin`` ``POLICY`` and the served
+    ``origin_label``, prints that label where a row names its rule, and has the class of the
+    requirement it is the minimum of. Its number is a rounded figure and is marked as one.
+    """
     snap = problem.snapshot
     eligibility = snap.eligibility
     reasons = Counter(str(player["reason"]) for player in snap.omitted)
@@ -1159,6 +1363,22 @@ def base_ledger(problem: DeclaredProblem) -> list[dict]:
             evidence=shell.evidence_payload([(row["label"], rate_class(metric))]),
             verdict=shell.verdict_payload(_RATES_SUBJECT_EXPERIMENT, metric.metric_id),
         ))
+    for row in _in_force(problem):
+        if not _by_policy(row):
+            continue
+        rows.append({
+            **ledger_row(
+                stage="REQUIREMENTS", row_id=f"minimum-{row['requirement_id']}",
+                quantity=f"{row['label']} minimum",
+                value_text=_minimum_text(row), sample=row["source_sentence"],
+                evidence=shell.evidence_payload(
+                    [(row["label"], EvidenceClass[row["evidence_class"]])]),
+                verdict=shell.verdict_payload(_NO_PROTOCOL, f"minimum-{row['requirement_id']}"),
+                solver=row["origin_label"],
+            ),
+            "origin": row["origin"],
+            "origin_label": row["origin_label"],
+        })
     return rows
 
 

@@ -417,6 +417,70 @@ def test_a_squad_with_no_xi_is_reported_before_any_absence_and_inputs_are_valida
             absence_stress(*arguments[:3], **arguments[3])
 
 
+def test_a_claim_writes_a_small_shortfall_out_and_lists_three_names_as_a_list():
+    # A minimum six hundred-thousandths of the normaliser above what the squad reaches: the
+    # shortfall is 0.00006, and a sentence does not print it in exponent notation.
+    need = [TacticalRequirement("need_m", "M", "m", 10.0006, 10.0)]
+    players = squad([(1, ("s0",), 5.0), (2, ("s0",), 4.0), (3, ("s1",), 5.0), (4, ("s1",), 5.0)])
+    result = absence_stress(players, need, TWO, k=1)
+    assert result.certificate.quantization == 100_000
+    assert result.certificate.baseline_integer == (6, 6)
+    assert result.baseline_objective == (6e-05, 6e-05) == brute_floats(players, need, 100_000)
+    assert result.claim == (
+        "If P1 is unavailable, the least declared shortfall this model can reach rises from "
+        "(largest 0.00006, sum 0.00006) to (largest 0.10006, sum 0.10006). Over all 4 sets of 1 "
+        "player this is the largest rise among sets that still leave a fieldable XI; 0 sets "
+        "leave no fieldable XI. Every set was solved to proof or inherited from one that was.")
+    assert "e-0" not in result.claim
+    # Nothing is rounded on the way: at another scale the same sentence prints that scale's
+    # own digits.
+    fine = absence_stress(players, need, TWO, k=1, quantization=10**7)
+    assert "rises from (largest 0.00006, sum 0.00006) to (largest 0.10006, sum 0.10006)" \
+        in fine.claim
+
+    # Three absent players are a list with commas, two are joined by "and", one stands alone.
+    deep = squad([(1, ("s0",), 5.0), (2, ("s0",), 4.0), (3, ("s0",), 3.0), (7, ("s0",), 1.0),
+                  (4, ("s1",), 5.0), (5, ("s1",), 5.0), (6, ("s1",), 5.0), (8, ("s1",), 5.0)])
+    singles, pairs, triples = absence_stress(deep, NEED, TWO, k=3, allow_k3=True,
+                                             quantization=100).levels
+    assert (singles.worst_sets, pairs.worst_sets, triples.worst_sets) == (
+        ((1,),), ((1, 2),), ((1, 2, 3),))
+    assert singles.claim.startswith("If P1 is unavailable, ")
+    assert pairs.claim.startswith("If P1 and P2 are unavailable, ")
+    assert triples.claim.startswith("If P1, P2 and P3 are unavailable, ")
+    assert "P1 and P2 and P3" not in triples.claim
+    # Tied sets of three: each set is such a list, and the sets are kept apart.
+    tied = squad([(1, ("s0",), 5.0), (2, ("s0",), 5.0), (3, ("s0",), 5.0), (7, ("s0",), 1.0),
+                  (4, ("s1",), 5.0), (5, ("s1",), 5.0), (6, ("s1",), 5.0), (8, ("s1",), 1.0)])
+    last = absence_stress(tied, NEED, TWO, k=3, allow_k3=True, quantization=100).levels[-1]
+    assert last.worst_sets == ((1, 2, 3), (4, 5, 6))
+    assert "(P1, P2 and P3; P4, P5 and P6)" in last.claim
+
+
+def brute_floats(players, requirements, scale):
+    found = brute(players, requirements, TWO, scale)
+    return (found[0] / scale, found[1] / scale)
+
+
+def test_the_no_xi_warning_passes_on_a_counted_reason_and_names_no_pin():
+    # One player for two slots: each slot has somebody, so only a solve proves there is no
+    # XI. The kernel's sentence for that names "pins"; no absence set pins anybody.
+    proved = absence_stress(squad([(1, ("s0", "s1"), 5.0)]), NEED, TWO, k=1, quantization=100)
+    assert proved.certificate.baseline_status == "UNFIELDABLE" and proved.certificate.solves > 0
+    assert proved.warnings == (
+        "The squad has no fieldable XI in this model before any absence, so no absence set was "
+        "evaluated. The slot depth of the squad explains why. No XI satisfies the eligibility "
+        "rules, the measurements, the exclusions and the locks together.",)
+    # A slot with nobody: the kernel says which, by counting, and that is passed on.
+    players = squad([(1, ("s0",), 5.0), (2, ("s0",), 5.0), (3, ("s1",), 5.0)])
+    counted = absence_stress(players, NEED, TWO, k=1, excluded=(3,), quantization=100)
+    assert counted.warnings == (
+        "The squad has no fieldable XI in this model before any absence, so no absence set was "
+        "evaluated. The slot depth of the squad explains why. No eligible measured candidate "
+        "for Slot 1.",)
+    assert not any("pin" in w.lower() for w in (*proved.warnings, *counted.warnings))
+
+
 def test_a_narrowed_enumeration_does_not_claim_the_sets_it_never_formed():
     # P1 and P2 are the only players of s0, so their pair leaves no XI. A caller who narrows
     # the removable players (or locks one of the two) never forms that pair: "every minimal

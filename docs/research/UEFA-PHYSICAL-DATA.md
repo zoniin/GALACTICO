@@ -114,6 +114,8 @@ The $19 recommendation stands, but for narrower reasons. API-Football Pro suppli
 current-season minutes, lineups, passes, injuries and transfers. FPL supplies free
 Opta xG/xA for the Premier League. ClubElo supplies opponent strength.
 
+9 October 2026: FPL and ClubElo are reference only, not sources this project may ingest; see [LICENSING.md](../../LICENSING.md).
+
 **Nothing supplies physical metrics for Real Madrid, at any price under $100/month,
 that Galáctico may lawfully use.** The LIVE player model ships without a physical
 axis, and `KNOWN_LIMITATIONS.md` should say so rather than leaving a gap someone

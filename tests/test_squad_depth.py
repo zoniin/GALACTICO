@@ -511,6 +511,13 @@ def replace_row(row, **changes):
     return {**row, **changes}
 
 
+def not_evaluated(rows: int) -> str:
+    """The warning for placements a deadline left open, typed here with its two numbers."""
+    counted = "1 player-slot pair was" if rows == 1 else f"{rows} player-slot pairs were"
+    return (f"{counted} not evaluated before the time limit. Unknown is not evidence that a "
+            "player raises the shortfall.")
+
+
 def test_an_unevaluated_pin_is_unknown_and_the_set_stages_do_not_depend_on_the_clock(
         monkeypatch):
     snapshot = make_snapshot(hand_rows(front_value=0.4), HAND_MINIMA, MANUAL)
@@ -539,10 +546,22 @@ def test_an_unevaluated_pin_is_unknown_and_the_set_stages_do_not_depend_on_the_c
                 assert slot.counts["shortfall_neutral"] is None
                 assert "was not established" in slot.claim
         assert unknown >= late.certificate.pinned_unknown > 0
-        assert (f"{late.certificate.pinned_unknown} player-slot pairs were not evaluated before "
-                "the time limit. Unknown is not evidence that a player raises the shortfall."
-                ) in late.warnings
+        assert not_evaluated(late.certificate.pinned_unknown) in late.warnings
     assert outcomes == {"UNKNOWN", "CERTIFIED"}
+    # A later deadline leaves exactly one placement open, and the sentence is in the singular.
+    left_open = set()
+    for ticks in range(23, 90):
+        with monkeypatch.context() as patch:
+            clock = itertools.count()
+            patch.setattr(depth_module.time, "monotonic",
+                          lambda clock=clock, ticks=ticks: 0.0 if next(clock) < ticks else 1e9)
+            late = squad_depth(snapshot, FOUR, quantization=100, time_limit=5.0)
+        left_open.add(late.certificate.pinned_unknown)
+        if late.certificate.pinned_unknown:
+            assert not_evaluated(late.certificate.pinned_unknown) in late.warnings
+        else:
+            assert not any("not evaluated" in w for w in late.warnings)
+    assert {0, 1, 2} <= left_open
     # A solver that does not decide the squad's own value: nothing is compared with nothing.
     original = engine._solver
 
@@ -585,6 +604,132 @@ def test_the_broad_position_warning_is_the_sentence_the_page_must_show():
     assert [p.player_id for p in result.slots[1].below_gate] == [5]
 
 
+def gate_rows(keepers=(1, 2, 11), backs=(3, 4, 8), unmeasured_front=False):
+    """Keepers, backs and front players, one back and one front player below the gate."""
+    one = dict.fromkeys(METRICS, 1.0)
+    rows = [record(pid, "GK", 2000, ("g",), {}) for pid in keepers]
+    rows += [record(pid, "DF", 1200, ("ab",), one) for pid in backs]
+    rows += [record(5, "DF", 400, ("ab",)), record(7, "FW", 500, ("c",)),
+             record(9, "MF", 1100, ("c",), one), record(10, "FW", 1000, ("c",), one)]
+    if unmeasured_front:  # gated, and without the one rate the front slot needs
+        rows.append(record(12, "MF", 1100, ("c",), {**one, "progression": None}))
+    return rows
+
+
+def test_a_count_taken_before_the_exclusions_says_so_in_both_gate_warnings():
+    """The gate warnings print counts of the stage before the user's exclusions. A reader
+    who has excluded somebody sees fewer players on his own page, so each says its stage."""
+    snapshot = make_snapshot(gate_rows(), HAND_MINIMA, MANUAL)
+
+    def depth(*excluded):
+        return squad_depth(snapshot, FOUR, quantization=100, pinned_values=False,
+                           excluded=excluded)
+
+    lowered = ("With nobody excluded, the evidence gate lowers the fewest absences that leave "
+               "no fieldable XI from 3 to 2: that thinness is a property of the evidence, not "
+               "of the squad.")
+    front = ("The slot Front has a spare of 1 after the evidence gate with nobody excluded and "
+             "2 before it (eligible players beyond the number of slots). The gate removed N7.")
+    plain = depth()
+    assert dict(plain.kappa_by_stage) == {
+        "position_admissible": 3, "rule_eligible": 3, "gated": 2, "measured": 2, "available": 2}
+    assert plain.warnings == (
+        lowered,
+        "The slots Back A, Back B have a spare of 1 after the evidence gate with nobody "
+        "excluded and 2 before it (eligible players beyond the number of slots). The gate "
+        "removed N5.",
+        front)
+    # One front player excluded: the reader now has one player for the front slot, and the
+    # warning still counts two. It says whose count that is.
+    one_out = depth(9)
+    assert one_out.kappa_by_stage["available"] == 1 and one_out.kappa_by_stage["gated"] == 2
+    (group,) = one_out.tight_groups
+    assert (group.slot_ids, group.spare_by_stage["available"], group.spare_by_stage["gated"]) \
+        == (("c",), 0, 1)
+    assert one_out.warnings == (lowered, front)
+    # A second exclusion: three slots share three players, and the counts before it are said
+    # to be before it.
+    two_out = depth(9, 3)
+    (group,) = two_out.tight_groups
+    assert (group.slot_ids, group.spare_by_stage["available"]) == (("a", "b", "c"), 0)
+    assert two_out.warnings == (
+        lowered,
+        "The slots Back A, Back B, Front have a spare of 2 after the evidence gate with nobody "
+        "excluded and 4 before it (eligible players beyond the number of slots). The gate "
+        "removed N5, N7.")
+    for result in (plain, one_out, two_out):
+        gate = [w for w in result.warnings if "evidence gate" in w]
+        assert gate and all("with nobody excluded" in w.lower() for w in gate)
+
+
+def test_a_gate_count_that_includes_an_unmeasured_player_says_that_too():
+    """The gated stage is also before the measured one. Where a gated player lacks a rate the
+    slot needs, "with nobody excluded" alone would put the whole gap down to exclusions."""
+    snapshot = make_snapshot(
+        gate_rows(keepers=(1, 2, 11, 14), backs=(3, 4, 8, 13), unmeasured_front=True),
+        HAND_MINIMA, MANUAL)
+    result = squad_depth(snapshot, FOUR, quantization=100, pinned_values=False)
+    assert dict(result.kappa_by_stage) == {
+        "position_admissible": 4, "rule_eligible": 4, "gated": 3, "measured": 2, "available": 2}
+    (group,) = result.tight_groups
+    assert group.slot_ids == ("c",) and dict(group.spare_by_stage) == {
+        "position_admissible": 3, "rule_eligible": 3, "gated": 2, "measured": 1, "available": 1}
+    stage = ("with nobody excluded and counting the gated players who lack a recorded minute or "
+             "a measurement a slot needs")
+    assert result.warnings == (
+        f"W{stage[1:]}, the evidence gate lowers the fewest absences that leave no fieldable "
+        "XI from 4 to 3: that thinness is a property of the evidence, not of the squad.",
+        f"The slot Front has a spare of 2 after the evidence gate, {stage}, and 3 before it "
+        "(eligible players beyond the number of slots). The gate removed N7.")
+    assert depth_module.gated_stage_words(True) == stage
+    assert depth_module.gated_stage_words(False) == "with nobody excluded"
+
+
+def test_a_warning_names_no_pin_and_says_placement_as_the_page_does(monkeypatch):
+    one = dict.fromkeys(METRICS, 1.0)
+    # One back for two back slots: every slot has a player, so only a solve proves there is no
+    # XI. The kernel then names every declaration a call can make, "pins" among them; the
+    # squad's own value pins nobody, and the warning is read by a person.
+    rows = [record(1, "GK", 2000, ("g",), {}), record(3, "DF", 1200, ("ab",), one),
+            record(9, "MF", 1100, ("c",), one)]
+    proved = squad_depth(make_snapshot(rows, HAND_MINIMA, MANUAL), FOUR, quantization=100)
+    assert proved.certificate.squad_status == "UNFIELDABLE" and proved.certificate.solves > 0
+    assert proved.warnings[0] == (
+        "The squad has no fieldable XI in this model before any absence, so no placement was "
+        "evaluated. The slot groups with negative spare explain it; if none has, the declared "
+        "locks and exclusions cannot all be honoured. No XI satisfies the eligibility rules, "
+        "the measurements, the exclusions and the locks together.")
+    # A reason the kernel reached by counting names a slot or a player, and is passed on.
+    counted = squad_depth(make_snapshot(hand_rows(), HAND_MINIMA, MANUAL), FOUR,
+                          quantization=100, pinned_values=False)
+    assert counted.warnings[0] == (
+        "The squad has no fieldable XI in this model before any absence. The slot groups with "
+        "negative spare explain it; if none has, the declared locks and exclusions cannot all "
+        "be honoured. No eligible measured candidate for Front.")
+    # Not decided: the same word for what was not compared.
+    original = engine._solver
+
+    class Undecided:
+        def __init__(self, actual):
+            self.actual = actual
+
+        def solve(self, model):
+            self.actual.solve(model)
+            return cp_model.UNKNOWN
+
+        def __getattr__(self, name):
+            return getattr(self.actual, name)
+
+    monkeypatch.setattr(engine, "_solver", lambda deadline, seed: Undecided(original(deadline,
+                                                                                     seed)))
+    open_squad = squad_depth(make_snapshot(hand_rows(front_value=0.4), HAND_MINIMA, MANUAL),
+                             FOUR, quantization=100)
+    assert ("The squad's least declared shortfall was not decided within the time limit, so no "
+            "placement can be compared with it.") in open_squad.warnings
+    for result in (proved, counted, open_squad):
+        assert not any("pin" in w.lower() for w in result.warnings), result.warnings
+
+
 def test_the_unknown_warning_counts_every_unknown_row_when_equal_slots_share_a_solve(
         monkeypatch):
     # Back A and Back B admit the same three players, so one solve answers two rows. A
@@ -610,9 +755,7 @@ def test_the_unknown_warning_counts_every_unknown_row_when_equal_slots_share_a_s
             assert late.certificate.completeness == "EXACT"
             continue
         assert late.certificate.completeness == "DEADLINE"
-        assert [w for w in late.warnings if "player-slot pairs" in w] == [
-            f"{unknown} player-slot pairs were not evaluated before the time limit. "
-            "Unknown is not evidence that a player raises the shortfall."]
+        assert [w for w in late.warnings if "player-slot pair" in w] == [not_evaluated(unknown)]
         shared += unknown > late.certificate.pinned_unknown
     assert shared
 
@@ -693,15 +836,35 @@ def test_madrid_planning_snapshot_depth_names_what_the_gate_removed(corpus_root)
     assert group.available_ids == (3304, 3306, 3309, 4501)
     assert group.restored_by_gate_ids == (282441, 396475)
     assert group.spare_by_stage["rule_eligible"] == 3 and group.spare_by_stage["available"] == 1
-    assert any("fewest absences that leave no fieldable XI from 3 to 2" in w
-               for w in result.warnings)
+    lowered = ("With nobody excluded, the evidence gate lowers the fewest absences that leave "
+               "no fieldable XI from 3 to 2: that thinness is a property of the evidence, not "
+               "of the squad.")
+    assert lowered in result.warnings
     assert any(w.startswith("The slots Left centre back, Right centre back, Right back have a "
-                            "spare of 1 after the evidence gate and 3 before it")
+                            "spare of 1 after the evidence gate with nobody excluded and 3 "
+                            "before it")
                for w in result.warnings)
     assert not any("kappa" in w or "lcb" in w for w in result.warnings)
     assert result.certificate.squad_integer == (0, 0)
     assert result.certificate.completeness == "EXACT"
     assert all(p.status == "NEUTRAL" for s in result.slots for p in s.pinned)
+    # Cristiano Ronaldo excluded: two forwards are left for the centre-forward slot, the
+    # group is tight, and its warning counts three. The count says it is before the exclusion.
+    departed = squad_depth(snapshot, "4-3-3", excluded=(3322,), pinned_values=False)
+    forward = next(g for g in departed.tight_groups if g.slot_ids == ("st",))
+    assert (forward.spare_by_stage["available"], forward.spare_by_stage["gated"]) == (1, 2)
+    assert ("The slot Centre forward has a spare of 2 after the evidence gate with nobody "
+            "excluded and 3 before it (eligible players beyond the number of slots). The gate "
+            "removed Borja Mayoral.") in departed.warnings
+    assert lowered in departed.warnings
+    # G. Bale excluded as well: one absence now leaves no XI, and the gate sentence still
+    # says two. It is the count with nobody excluded, and says so.
+    both = squad_depth(snapshot, "4-3-3", excluded=(3322, 8278), pinned_values=False)
+    assert (both.kappa_by_stage["available"], both.kappa_by_stage["gated"]) == (1, 2)
+    assert lowered in both.warnings
+    for reply in (result, departed, both):
+        gate = [w for w in reply.warnings if "evidence gate" in w]
+        assert gate and all("with nobody excluded" in w.lower() for w in gate)
 
 
 @pytest.mark.slow

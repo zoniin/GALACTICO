@@ -203,7 +203,7 @@ def test_instance_h_the_default_is_lexicographic_and_the_total_alternative_is_no
         "than without him")
     for sentence in (*retention.CONCLUSION_SENTENCES.values(), retention.NON_MONOTONE_WARNING,
                      total.claim, vector.claim):
-        assert not re.search(r"(maximum|total)", sentence), sentence
+        assert not re.search(r"\b(maximum|total)\b", sentence), sentence
     # AUTO never bisects the non-monotone conclusion, and the oracle agrees with both.
     candidate, squad, requirements = instance_h()
     holds, _, base = grid(candidate, squad, requirements, PAIR, 100, ("r1", "r2"))

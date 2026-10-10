@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from galactico.domain.constructs import CONSTRUCTS, ExternalVerdict
+from galactico.domain.constructs import (
+    CONSTRUCTS,
+    GOALKEEPER_LABELS,
+    ExternalVerdict,
+    recorded_position,
+)
 from galactico.providers.statsbomb import Equivalence
 
 
@@ -97,5 +102,53 @@ def test_an_unrecorded_position_is_inside_no_declared_population() -> None:
     """Missing input withholds. A player with no position code cannot be shown
     to be an outfield player, so the gate does not assume he is one."""
     for key, construct in CONSTRUCTS.items():
-        for missing in (None, "", float("nan")):
+        for missing in (None, "", "   ", float("nan")):
             assert construct.context_excluding(missing) == "Defined for outfield players", key
+    for missing in (None, "", "   ", float("nan"), 0, b"GK"):
+        assert recorded_position(missing) is None, missing
+
+
+def test_a_goalkeeper_is_recognised_under_every_label_an_adapter_writes() -> None:
+    """The gate compared the position with the exact string "GK". The StatsBomb adapter of
+    this repository writes the provider's own word, so a goalkeeper built from it was an
+    outfield player to the registry: point estimates, a percentile, a place in the pool."""
+    assert sorted(GOALKEEPER_LABELS) == ["gk", "goalkeeper"]
+    for key, construct in CONSTRUCTS.items():
+        for label in ("GK", "gk", " GK", "GK ", "Gk", "Goalkeeper", "goalkeeper", "GOALKEEPER"):
+            assert construct.context_excluding(label) == "Defined for outfield players", (
+                key, label)
+
+
+def test_any_other_recorded_position_is_an_outfield_position() -> None:
+    """The outfield codes differ by adapter (MD, MF, the provider's own names), so they are
+    not listed: a recorded position that is not a goalkeeper's is an outfield position."""
+    for key, construct in CONSTRUCTS.items():
+        for label in ("MF", "MD", "Left Wing Back", "Sweeper", "??"):
+            assert construct.context_excluding(label) is None, (key, label)
+
+
+def test_the_recorded_label_is_kept_as_the_adapter_wrote_it() -> None:
+    """The reason a row is withheld prints the label. It is the adapter's word, not a code
+    the registry substituted for it; only the space around it is dropped."""
+    assert recorded_position("Goalkeeper") == "Goalkeeper"
+    assert recorded_position("gk") == "gk"
+    assert recorded_position(" GK") == "GK"
+    assert recorded_position("Left Wing Back") == "Left Wing Back"
+
+
+REGISTRY_ENTRY_HASHES = {
+    "progression": "7676a2a70979",
+    "progression_per_action": "77444b159eb3",
+    "chance_creation": "3ac95f51fb20",
+    "half_space_share": "243d0750e32a",
+    "width": "c6b7d2fd701c",
+}
+
+
+def test_no_registry_entry_has_changed() -> None:
+    """A bundle records a hash of each registry entry: contexts, estimators, floors and
+    notes. Which labels mean goalkeeper is a property of the module, not of an entry, so
+    recognising one more label moves no hash. Editing an entry does, and has to be meant."""
+    from galactico.profiles.build import construct_version
+
+    assert {key: construct_version(key) for key in CONSTRUCTS} == REGISTRY_ENTRY_HASHES

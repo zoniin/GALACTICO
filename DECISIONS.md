@@ -117,6 +117,10 @@ nothing else), `LOCAL_LICENSED` (runtime download into a gitignored cache, never
 served), `TRIAL` (time-boxed, never a dependency). Enforced by
 `assert_may_host` / `assert_may_commit` and by a CI licensing guard.
 
+**Since ADR-0027.** The type holds a fourth tier, `REFERENCE_ONLY`: sources that are
+reachable and not ours to use. `assert_may_ingest`, `assert_may_host` and
+`assert_may_commit` refuse an entry at that tier whatever its flags say.
+
 **Evidence.** The StatsBomb Public Data User Agreement bars providing data to
 third parties (1.2.1) and bars commercial exploitation of the data *or any
 derived analysis* (1.2.2). The Pappalardo/Wyscout corpus is CC BY 4.0 and
@@ -186,9 +190,11 @@ overlap — spatial, progression-source, creative, defensive. Predictions are
 logged so they can be tested against outcomes later. No pair effects are
 estimated.
 
-**Evidence.** Of 2,689 distinct starting XIs in the four-league corpus, 2,461
-appear exactly once and only ten recur five times or more, so lineup-level
-identification is impossible. At pair level, one club-season presents roughly 300
+**Evidence.** In the four-league local corpus most distinct starting XIs appear
+exactly once and very few recur five times or more, so lineup-level identification
+is impossible. The three counts that stood here until October 2026 were taken out:
+they are counts of StatsBomb lineups, and this file carries no credit for analysis
+formed from that data (ADR-0027). At pair level, one club-season presents roughly 300
 candidate parameters against ~118 goal events, and the published chemistry model
 beat a constant-mean baseline by 0.19% on defensive chemistry.
 
@@ -263,6 +269,15 @@ matches and the fixed estimator. Shared resampling does not cover every uncertai
 
 **Reversal.** A validated temporal/dependence-aware resampling design can replace
 the multinomial worlds while retaining their joint identity contract.
+
+**Since ADR-0025 and ADR-0027.** The freeze was overridden twice in October 2026 to
+correct defects. ADR-0025 names its corrections. ADR-0027 names the curve, the channel
+bar, the bundle check and the credit; the same repairs also made the explore route order
+a style listing by distance from its pitch-area reference before it cuts the list, and
+moved four sentences from the page to the server: the order of a listing, the note above
+a comparison's observed-location rows, the sentence beside an estimator signal and the
+percentile sentence. Player Lab is frozen except for
+those corrections.
 
 ---
 
@@ -469,7 +484,7 @@ coefficient or identifier is served or committed in machine-readable form. Hoste
 panels are gated on PUBLIC-tier verdicts only. `galactico/domain/verdicts.py`
 enforces it in the type: a LOCAL record cannot carry a figure, `may_gate` is false
 for it under every token, and no digit may ride inside its sentences. Every new
-response passes `runtime.finalize`, which requires the provider set at any depth
+200 reply passes `runtime.finalize`, which requires the provider set at any depth
 of the payload to be exactly the hosted one.
 
 The registry ships **empty**. No protocol has been frozen, so every subject
@@ -486,9 +501,12 @@ conclusions, which the agreement permits). Letting a replicated verdict unlock a
 hosted panel (the panel's numbers would then depend on local data). Publishing a
 fitted carry-over coefficient as "just two numbers".
 
-**Confidence.** High on the rule. One known gap is not closed by it: the two
-published notes formed from StatsBomb data carry no StatsBomb logo, which clause
-1.4 requires. See KNOWN_LIMITATIONS.
+**Confidence.** High on the rule. The gap named when this was written, that the two
+published notes formed from StatsBomb data carried no logo, was closed on 9 October
+2026 (LICENSING). The second audit then found the rule itself broken in the product:
+the "Why only five?" view served a figure of E-01 inside a sentence and printed the
+five labels with no credit, no logo and no link to a note. ADR-0027 records the
+repair.
 
 **Reversal.** A written permission from the provider, or a licensed feed whose
 terms allow hosted derived values.
@@ -754,18 +772,30 @@ The copy guard ran only in tests, on the replies those tests asked for.
 1. One build gate in `api/planning.py` behind the snapshot, reference and universe
    loaders. One build per key, with later callers handed the first caller's object;
    two builds at once in the process; 429 after the documented wait for a place. A
-   key that is already built waits for nobody.
+   key that is already built is returned under the gate's guard and waits behind no
+   other build.
 2. Every POST starts its budget at handler entry, asks the result cache before
    anything is built, and declares its problem inside the computed function. The
    key is the request as resolved (`canonical_request`: reordered or repeated
    exclusions and locks, reordered presets and declarations, and the club spelling
-   of a scenario are one problem) and a cheap identity of the corpus files it reads
-   (`corpus_token`: names, sizes and modification times; no file is opened). The
-   dataset hash stays in provenance.
+   of a scenario are one key) and a cheap identity of the corpus files it reads
+   (`corpus_token`: names, sizes and modification times; no file is opened). Since
+   the second audit the same identity is in the build gate's key: a squad, a league
+   reference or a pool built from files that have since changed is dropped and built
+   again. The squad and the reference answer to their own league, the pool to all
+   five. The dataset hash stays in provenance.
 3. The copy guard lives in `domain/labels.py`, beside the key walker, and
-   `runtime.finalize` runs it over the string values of every new response. Keys stay
-   with the key walker and its path-scoped exemptions, so one key answers to one rule.
-   The refusal names the path and the word, never the sentence.
+   `runtime.finalize` runs it over the string values of every new 200 reply outside
+   its provenance blocks. It reads no key, no string under provenance and no error
+   body. Keys stay with the key walker and its path-scoped exemptions, so one key
+   answers to one rule: thirteen whole keys and, since the second audit, any key one
+   of whose parts is one of eight words (rating, ratings, rank, ranks, ranking,
+   ranked, merit, overall). Since the second audit a reply read from the result
+   store passes `finalize` like a computed one. The refusal names the path and the
+   word, never the sentence.
+4. Added after the second audit (ADR-0027). At most sixteen planning requests are
+   past the result-cache lookup at once, and the seventeenth is answered 429 at once,
+   with `Retry-After`. A reply held in memory takes no place.
 
 **Evidence.** Replayed on the real corpus after the change: the ten-club burst
 returns six replies and four 429s in six seconds while the cached request answers in
@@ -779,27 +809,49 @@ a test. No real reply trips it: 147 replies of 14 routes for six clubs, and ever
 player and team name in the corpus. The gate, key and budget tests use events,
 counters and a patched clock; none sleeps for an outcome.
 
+The second audit then sent 45 identical cold requests at one key, and a stored
+reply waited with them. The same probe on the runtime as it was: all 45 answered
+after 12.9 seconds, and a stored reply, the page and a static file asked for two
+seconds in each waited 10.9 seconds for a worker thread. With the sixteen places:
+16 answered when the computation ended, 29 were refused within 0.25 seconds, and
+the stored reply, the page and the static file answered within 0.08 seconds.
+
 **Numerical boundary.** A budget does not interrupt a corpus read, so a request can
-last its budget plus one build. Each distinct problem on the two enumerating routes
-still holds one of the two long-computation places. The cache key contains file
-modification times, so a result store filled on one machine could not be read on
-another; nothing ships in one. A failure raised inside pandas or numpy as a plain
-`ValueError` is still answered 422 with the library's sentence.
+last its budget plus one build. Each distinct request on the two enumerating routes
+still holds one of the two long-computation places, and one problem can be two
+requests: a preset sent together with what it sets by hand is one problem, with one
+input fingerprint, under two keys, and `confirm_k3` sent with `k` below 3 is a
+second key for the same computation. A request identical to one in flight, or one
+that needs a build in flight, waits for it with no time limit of its own and holds
+one of the sixteen places meanwhile. Identical requests behind one that is refused
+for a long-computation place are refused in their own turn, five seconds apart:
+with both places held for 26 seconds, four were refused after 5, 10, 15 and 20
+seconds. The cache key contains file modification times, so a result store filled
+on one machine could not be read on another; nothing ships in one. A failure raised
+inside pandas or numpy as a plain `ValueError` is still answered 422 with the
+library's sentence, and no error body passes the copy guard.
 
 **Alternatives rejected.** A lock per club with no bound (four concurrent universe
 builds took the server from 380 MB to 1,257 MB). Keying the cache on the dataset
 hash (it needs the build the lookup exists to avoid). Folding a repeated preset or
 league into the key (a refusal would be answered from the stored reply of the
-accepted request). Scanning labels in tests only (M-06). Scanning keys at the
-boundary as well (a scoreline key exempted by the key walker would be refused by the
-other rule).
+accepted request). Scanning labels in tests only (M-06). Scanning keys with the copy
+guard at the boundary as well (a scoreline key exempted by the key walker would be
+refused by the other rule). After the second audit: a five-second limit on the wait
+for an identical request (it would refuse the second of two ordinary requests behind
+an eight-second pool build), and reading provenance with the copy guard (a banned
+word in lineage inherited from the frozen solver would be a 500 that cannot be
+reworded).
 
 **Confidence.** High for the mechanics. The label guard can refuse a response for a
 legitimate name that is a banned word; none exists in this corpus, and a new corpus
 would show it as a 500 on the first request that serves the name.
 
 **Reversal.** A hosted, multi-user deployment needs a job queue and precomputed
-results. The gate is a single-user device and says so by answering 429.
+results. The gate and the sixteen places are single-user devices. Past them a
+request is answered 429: at once for a place past the cache lookup, after five
+seconds for a build or a long-computation place. A request that waits for an
+identical one in flight is not refused for waiting.
 
 ---
 
@@ -809,33 +861,51 @@ results. The gate is a single-user device and says so by answering 429.
 context. The builder read only the list of excluded contexts, which the two
 pass-origin constructs do not repeat, so 26 goalkeepers shipped with both as point
 estimates and percentiles among goalkeepers: K. Navas at the 57.7th percentile for
-half-space share. On the Explore view, 20 of the 40 rows listed under wide-channel
-share were goalkeepers. The pooled reliability printed on outfield rows was taken
-over all 345 players, goalkeepers included.
+half-space share. The explore route counted 345 players under each style construct
+and returned 24 goalkeepers for half-space share; profile and compare served their
+estimates and percentiles. The pooled reliability served on outfield rows was taken
+over the 333 of the 345 players who have 300 minutes in each half of the match
+split, 23 goalkeepers among them.
 
 **Decision.** The registry answers the question and the builder asks it:
 `ConstructDefinition.context_excluding(position)` reads the declared valid context
-first. The builder holds no construct id and no position of its own. Outside the
+first. The builder's gate names no construct and no position. Outside the
 context a profile carries the construct as a withheld row (`out_of_context`) with the
 reason and with no value, percentile, interval or reference population. An
-unrecorded position withholds. The channel breakdown under a profile restates the
-pass-origin constructs, so it is not shipped where they are withheld. Pooled
-split-half reliability is taken over the players a construct is defined for. A
-bundle records the builder rules it was built under; the artifact key covers them
-and the API refuses a bundle built under others.
+unrecorded position withholds. The channel breakdown under a profile bins the same
+passes as the two pass-origin constructs, so it is not shipped where they are
+withheld. Pooled split-half reliability is taken over the players a construct is
+defined for. A bundle records the builder rules it was built under; the artifact key
+covers them and the API refuses a bundle built under others. This overrides
+ADR-0011's freeze of the Player Lab implementation, and rule R13 of ROOT-DECISIONS
+on its outputs, for the corrections named here. The rule is product-wide: it
+reached Match Lab's player rows with ADR-0027.
 
 **Evidence.** The rebuilt bundle against the previous one, value by value: 26
 profiles differ in what they publish and all are goalkeepers, each with five
 withheld rows and no channel breakdown. On the 319 outfield profiles only the
 reliability of four constructs moved (progression 0.892 to 0.879, progression per
 action 0.898 to 0.894, width 0.983 to 0.979, half-space share 0.9532 to 0.9525) and
-no render state changed. Explore lists 319 players under each style construct, not
-345. Construct version hashes are unchanged: no registry entry was edited. For one
-goalkeeper the wide share of the channel bar equalled the withheld width.
+no render state changed. The explore route counts 319 players under each style
+construct, not 345. Construct version hashes are unchanged: no registry entry was
+edited.
 
-**Numerical boundary.** Chance creation's displayed reliability comes from its
-minutes curve and did not move. Every pooled reliability stays far above the
-publication gate, so no number crossed it.
+**Numerical boundary.** The four pooled reliabilities served on outfield rows stay
+above the 0.70 number threshold, so none crossed it. Chance creation's served
+reliability comes from a minutes curve and did not move in this change. That curve
+was still the published one, taken over a pool with goalkeepers in it; ADR-0027
+replaced it.
+
+**Corrected after the second audit.** This record said three things that were not
+so. That 20 of the 40 rows the Explore view listed under wide-channel share were
+goalkeepers: the route returned the 300 highest values, the goalkeepers held the 26
+lowest, and the page drew none. The commit message of `7753b45` repeats that
+sentence and cannot be changed. That the reliability had been taken over all 345
+players: it was 333. That the channel breakdown restates the pass-origin
+constructs: it binned the same passes with other edges, and on 289 of the 319
+outfield profiles its half-space shares differed from the printed share by more
+than half a point (220 for the wide channels). ADR-0027 binned it with the
+constructs' own predicate, and it restates them since that rebuild.
 
 **Alternatives rejected.** Adding goalkeepers to the two constructs' excluded
 contexts: a registry edit that changes two published definition hashes to say what
@@ -848,7 +918,9 @@ A goalkeeper construct: none has been through the lifecycle.
 data; the bundle test covers every profile.
 
 **Reversal.** A construct whose declared context includes goalkeepers is published
-for them by its declaration, with no change to the builder.
+for them by its declaration and a rebuild, with no change to the builder. Since
+ADR-0027 the API refuses a bundle whose recorded registry hashes are not those of
+the registry in force, so the old bundle is not served in the meantime.
 
 ---
 
@@ -865,27 +937,45 @@ ranking stays available under its own name, only to reproduce the record, and wa
 when the data are tied. Published reports and result files are records and are not
 rewritten: [M-07](docs/research/M-07-rank-ties.md) is the erratum, with every figure
 recomputed under both policies by `experiments/run_rank_tie_erratum.py`. The two
-runners that produced the records name the sort-order policy explicitly, so a rerun
-reproduces what was published.
+runners that produced the records name the sort-order policy explicitly. A rerun of
+the Stage 1B runner reproduces all 35 ordering figures of its record; a rerun of
+the Stage 1C runner reproduces 11 of the 20 on the public corpus (see Found on the
+way). Since ADR-0027 neither runner writes over a record it does not reproduce
+unless `--overwrite-record` is given, and under average ranks the top-k survivor
+count is undefined where the k-th value is tied with the next, raw or adjusted: the
+leaderboard check then fails by name and says how many rows share the value.
 
-**Evidence.** 81 distinct figures recomputed; 29 move. The largest change is
-0.004369 (Stage 1B, chance creation, Germany). The lowest figure is 0.7761 against a
-floor of 0.50. Recomputed under the corrected default, the 35 Stage 1B statuses and
-the seven replication labels are unchanged, and the audit's pass or fail is the same
-in all 75 cells. E-02's frozen runner now executes the corrected default; its test
-T3 has no tied value among 306 players and is identical to the last bit.
+**Evidence.** On the public corpus 61 distinct figures were recomputed: the 35 of
+Stage 1B, 20 in the Wyscout columns of Stage 1C, 5 of the Stage 1 grid sensitivity
+and E-02's T3. 17 move: 8 in Stage 1B and 9 in Stage 1C. The largest change is
+0.004369 (Stage 1B, chance creation, Germany). The lowest of the 55 audit figures
+is 0.7761 (Stage 1B, England, progression). E-02's T3, the one frozen gate that
+reads an ordering figure, is 0.5948. Both are judged against a floor of 0.50, and
+T3 clears it by 0.0948, which is 21.7 times the largest correction. Rerun with
+average ranks, the 35 Stage 1B statuses and the seven replication labels are
+unchanged, and the audit's pass or fail is the same in all 55 cells. E-02's frozen
+runner now executes the corrected default; its test T3 has no tied value among 306
+players and is identical to the last bit. The other half of Stage 1C was recomputed
+in the same way. Its totals are in M-07, which carries the credit they need and prints
+none of the twenty figures themselves; none is printed here. The commit message of `d3d3ff5` calls 0.7761 the lowest
+figure; it is the lowest of those 55, and the message cannot be changed.
 
 **Numerical boundary.** Reproducing a sort-order figure bit for bit is a statement
 about one machine: an unstable sort does not promise the same ranks for ties
 elsewhere. The slow test asserts the corrected figures and compares the published
-ones with the committed files.
+ones with the committed files. On the machine the erratum was run on, a rerun of
+the Stage 1B runner differs from its record in 4 of 420 values, none an ordering
+figure and none by more than 1.1e-16. By the exact comparison that is still not the
+record, and the runner exits 1. No published cell on the public corpus has a tied
+twelfth place (0 of 55), so the count rule changed no published count or verdict.
 
 **Alternatives rejected.** Rewriting the published tables. Keeping the sort-order
 ranking as the default with a warning: the wrong number by default. Deleting it: the
 record could no longer be reproduced.
 
 **Found on the way.** The Wyscout columns of the Stage 1C table mix two xT turnover
-recipes and do not reproduce from the corpus as it is. The tracked result file
+recipes and do not reproduce from the corpus as it is: a rerun differs from the
+record in 72 of the 220 values of that half, in nine cells. The tracked result file
 carried the StatsBomb half of that table in machine-readable form; it is out of the
 tree (see LICENSING). E-01's two rank correlations have no script and are not
 covered.
@@ -894,3 +984,101 @@ covered.
 written out in the test, against pandas, and against scipy where it is installed.
 
 **Reversal.** None expected. A statistic of the data must not move when the rows do.
+
+---
+
+## ADR-0027 — The second audit: where the declared-context rule reaches, and what a credit, a bound and a tie must say
+
+**Problem.** A second read-only audit confirmed 67 findings in five lenses, each
+reproduced by a second reviewer. Rules written in ADR-0018, ADR-0024, ADR-0025 and
+ADR-0026 held where each was first applied and not in the next place. Match Lab
+served all five registry constructs as numbers for every goalkeeper. The
+reliability served on chance-creation rows was the published curve of a pool with
+goalkeepers in it. The channel bar was said to restate the two pass-origin
+constructs and did not. The "Why only five?" view and seven documents printed
+analysis formed from StatsBomb data with no credit: three the audit named
+(METRICS.md, KNOWN_LIMITATIONS.md, the E-11 draft) and four found while repairing
+(this file, VALIDATION.md, the E-09 draft and the frozen E-02 preregistration).
+Forty-five requests on one key held every worker thread. The top-k survivor count still moved with the order of
+tied rows. Reference only was a tier of LICENSING and not of the type.
+
+**Decision.**
+
+1. The declared-context rule is product-wide. On a Match Lab player row a registry
+   construct outside its declared context is served with no value, the status
+   `UNAVAILABLE` and the reason (`match-intelligence-v3`). Team rows, recorded
+   counts, the timeline and the passing network are not gated; the last two are
+   listed, not repaired.
+2. The reliability served on chance-creation rows is the curve of the declared
+   population, from `experiments/run_chance_creation_curve.py`
+   ([M-08](docs/research/M-08-reliability-pool.md)). The estimator's floor of 1,800
+   minutes and the note beside it sit in a hashed registry entry and were not
+   changed. Whether the floor should rise is an open owner decision.
+3. The channel bar is binned with the two constructs' own predicate. A bundle names
+   the five builder rules it was built under (`BUILD_RULES` in
+   `galactico/profiles/build.py`), and the API refuses one built under other rules
+   or under another registry. The explore route orders a style listing by distance
+   from its pitch-area reference before it cuts the list, and the page sorts
+   nothing; ADR-0011 lists the four sentences that moved from the page to the server.
+4. Analysis formed from StatsBomb data carries the logo and the credit wherever it
+   is printed, the served view included; each label there links to its research
+   note, and no served string may hold a figure formed from that data. The credit
+   block of the README, METRICS.md, E-01, Stage 1C, M-07 and the E-09 draft ends by
+   saying what is true of the tree; the blocks of the E-11 and E-12 drafts do not
+   yet. This file and VALIDATION are to print no such figure: ADR-0026 gives the erratum's public totals, and the lineup
+   counts of ADR-0008 were taken out. The frozen E-02 preregistration quotes two
+   figures of E-01 and cannot be edited; it is listed on its own, pinned by its
+   sha256. A digest of a provider's files is not data, and a preregistered protocol
+   may pin its inputs by one. The StatsBomb estimator's floor in the registry is
+   recorded in LICENSING as a known constant.
+5. At most sixteen planning requests are past the result-cache lookup at once
+   (ADR-0024). A request identical to one in flight still waits for it.
+6. Under average ranks a tied boundary of the top k leaves the survivor count
+   undefined and the check fails by name. Both record runners name the sort-order
+   policy and refuse to write over a record they do not reproduce (ADR-0026).
+7. Reference only is a tier of the type, `DataTier.REFERENCE_ONLY`.
+8. What was found and left is listed in KNOWN_LIMITATIONS under its own heading.
+
+This overrides ADR-0011's freeze and rule R13 of ROOT-DECISIONS for the corrections
+of this record to Player Lab and to Match Lab's player rows.
+
+**Evidence.** Each figure is a builder's, recomputed for this record. In the 38
+listed matches 76 goalkeeper rows hold 380 entries with the reason and no value.
+On the declared population r is 0.519, 0.601, 0.659, 0.699 and 0.723 at floors of
+450 to 2,250 minutes, against 0.544 to 0.756 as published with 134 to 82
+goalkeepers in the pool; the script reproduces the published table to its printed
+digits first. In the shipped bundle the reliability moved on all 319 outfield
+chance-creation rows, 53 of them went from "strong" to "limited", and no value,
+percentile or render state moved. The bar moved on 315 of the 319 outfield
+profiles and now equals the two constructs to 1.1e-16 on every one; before, 289
+half-space and 220 wide sums were off by more than half a point. In the count
+example of the tests 45 rows share the twelfth value: the sorted count came out
+between 8 and 11 by row order, and there is now no count in any order. The
+hostable sources are the three `PUBLIC` ones.
+
+**Numerical boundary.** At the estimator's floor the declared-population
+reliability is 0.69925 against a threshold of 0.70, and the lower bound Stage 1B
+graded on is 0.668 there and 0.686 at 2,250 minutes. The sixteen places bound
+worker threads, not time. The check that no served string holds a figure formed
+from StatsBomb data reads four replies; it does not read every route.
+
+**Alternatives rejected.** Scoping ADR-0025 to season profiles: the documents
+stated the rule without qualification. Leaving the published curve and saying so.
+Editing the floor in the registry: it moves the hash of a published entry, and the
+decision is the owner's. A numeric erratum to Stage 1B: its table is true of the
+pool it used. Rewording "restates" and keeping the bins. A credit block on this
+file. A cap on waiters per in-flight key: two keys under it can still take every
+thread. Typing reference-only sources as local with every permission off.
+
+**Confidence.** High where a test holds the behaviour: the corpus test over the 38
+matches, the test that the script reproduces both curves, the bundle test of the
+bar, the sixteen-places tests on the cache and on all nine planning routes, the
+row-order test of the audit. Lower for the process: where a first, interrupted
+attempt had left work in the tree, no test was seen failing before its fix, and the
+repairs have not been audited (VALIDATION).
+
+**Reversal.** The owner's ruling on the chance-creation floor: raising it edits a
+registry entry, and the API then refuses the built bundle until it is rebuilt. A
+construct that declares goalkeepers in its context is served for them on Match
+Lab's rows by that declaration. A hosted deployment replaces the sixteen places
+with a queue (ADR-0024).

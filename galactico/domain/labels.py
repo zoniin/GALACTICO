@@ -1,9 +1,10 @@
 """The copy guard: words a served label may not contain outside a named denial.
 
 It is a rule of the constitution, not page furniture, so it lives beside the key walker
-(``thesis``). Two callers: the response boundary (``api.runtime.finalize``), which reads the
-values of every new response, and the tests, which also read keys and rendered page text.
-``api.shell`` re-exports the names for the pages' tests.
+(``thesis``). Two callers: the response boundary (``api.runtime.finalize``), which reads
+every string value of a new reply outside its provenance blocks, computed or read from the
+result store, and never an error body; and the tests, which also read keys and rendered
+page text. ``api.shell`` re-exports the names for the pages' tests.
 """
 
 from __future__ import annotations

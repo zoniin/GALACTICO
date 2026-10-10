@@ -34,7 +34,7 @@ from ..providers.statsbomb import Equivalence
 from .metrics import Family
 
 __all__ = ["Estimator", "ConstructDefinition", "CONSTRUCTS", "ExternalVerdict",
-           "OUTFIELD_PLAYERS", "GOALKEEPERS"]
+           "OUTFIELD_PLAYERS", "GOALKEEPERS", "GOALKEEPER_LABELS", "recorded_position"]
 
 
 from enum import Enum
@@ -45,17 +45,31 @@ from enum import Enum
 OUTFIELD_PLAYERS = "outfield players"
 GOALKEEPERS = "goalkeepers"
 
-# "GK" is the one position code every adapter and solver here shares. The outfield
-# codes are not (Wyscout writes MD where the XI domain writes MF), so an outfield
-# player is anyone with a recorded position that is not this one.
-_GOALKEEPER = "GK"
+# The labels a goalkeeper is recorded under, compared after ``strip()`` and
+# ``casefold()``. The adapters do not share one: the Wyscout adapter and the XI domain
+# write GK, the StatsBomb adapter writes the provider's own word, Goalkeeper. The
+# outfield labels differ too (MD, MF, the provider's position names) and are not
+# listed: any other recorded position is an outfield position.
+GOALKEEPER_LABELS: frozenset[str] = frozenset({"gk", "goalkeeper"})
+
+
+def recorded_position(position: object) -> str | None:
+    """The position label as the adapter wrote it, without the space around it.
+
+    ``None`` when no position is recorded: a missing value, a value that is not text,
+    or text that is empty once stripped.
+    """
+    if not isinstance(position, str):
+        return None
+    return position.strip() or None
 
 
 def _population(position: object) -> str | None:
     """The declared population a recorded position belongs to; ``None`` if unrecorded."""
-    if not isinstance(position, str) or not position:
+    label = recorded_position(position)
+    if label is None:
         return None
-    return GOALKEEPERS if position == _GOALKEEPER else OUTFIELD_PLAYERS
+    return GOALKEEPERS if label.casefold() in GOALKEEPER_LABELS else OUTFIELD_PLAYERS
 
 
 class ExternalVerdict(Enum):
@@ -153,9 +167,9 @@ class ConstructDefinition:
         """The declared context that leaves this position out, or ``None``.
 
         A construct is published only inside the context this entry declares. The
-        profile builder asks here, so it holds no construct ids and no position
-        of its own. An unrecorded position is inside no declared population:
-        missing input withholds.
+        profile builder and Match Lab ask here, so the gate names no construct and
+        no position of its own. An unrecorded position is inside no declared
+        population: missing input withholds.
         """
         population = _population(position)
         valid = [c for c in self.valid_contexts if c in (OUTFIELD_PLAYERS, GOALKEEPERS)]

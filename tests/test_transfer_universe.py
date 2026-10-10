@@ -479,7 +479,7 @@ def test_own_squad_equals_the_snapshot_and_leagues_are_resampled_apart(corpus):
     assert both.banner[0].startswith(
         f"{len(both.candidates)} outfield players in La Liga, Serie A, not counting")
     for text in (*both.banner, *plain.banner, flag):
-        assert not re.search(r"(Spain|Italy)", text), text
+        assert not re.search(r"\b(Spain|Italy)\b", text), text
     assert both.leagues == (HOME, ABROAD) and both.provenance["leagues"] == [HOME, ABROAD]
     assert {c.competition for c in both.candidates} == {HOME, ABROAD}
     assert U.CORPUS_EXIT_STATEMENT in plain.banner

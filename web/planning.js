@@ -494,11 +494,12 @@
     return list(listings?.keys).filter(k => object(k) && text(k.order_key)).map(k => option(k.order_key, k.label ?? k.order_key, k === chosen)).join('');
   }
 
-  // The sentence under an order control. groupedBy names the first level.
+  // The sentence under an order control. groupedBy names the first level: the groups come
+  // first, in the sequence the server sends, and the chosen key orders a group and no more.
   function orderedBy(listings, orderKey, groupedBy) {
     const key = keyOf(listings, orderKey);
     if (!key) return 'Listed by name, as sent.';
-    return `Grouped by ${esc(groupedBy)}. Inside a group listed by: ${esc(key.label ?? key.order_key)}. One declared key, not an order of merit.${text(listings.tie_rule) ? ' ' + esc(listings.tie_rule) : ''}`;
+    return `Grouped by ${esc(groupedBy)}, in a fixed sequence. Inside a group listed by: ${esc(key.label ?? key.order_key)}. One declared key, not an order of merit.${text(listings.tie_rule) ? ' ' + esc(listings.tie_rule) : ''}`;
   }
 
   // rows placed as the listing for orderKey says. renderRow(row) returns one <li>

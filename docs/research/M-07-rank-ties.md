@@ -14,8 +14,9 @@ One paragraph below reports the StatsBomb half of Stage 1C, in aggregate.
 
 Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
 User Agreement. This analysis is formed from StatsBomb data and carries the
-StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data and no
-table derived from it is in this repository.
+StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data is in
+this repository, and no machine-readable table derived from it is in the tree. The
+StatsBomb-side figures printed here are published analysis.
 
 ## What was wrong
 
@@ -134,30 +135,49 @@ about them.
 
 **No verdict, gate or threshold comparison changes.**
 
-- Stage 1 and 1B statuses do not read ρ. Rerun under the corrected default, all
-  35 statuses equal the committed ones and the seven replication labels are the
-  same.
-- The audit's own floor is ρ ≥ 0.50. The lowest corrected figure on the public
-  corpus is 0.7761, and it is tie-free. `ConfoundVerdict.passed` is the same under
-  both rankings in all 75 cells, StatsBomb included.
-- E-02's T3 floor is 0.50 and the figure did not move. RESEARCH_ONLY stands.
+- Stage 1 and 1B statuses do not read ρ. Rerun with average ranks, all 35
+  statuses equal the committed ones and the seven replication labels are the
+  same. The erratum script makes that run itself: for its length it sets the tie
+  policy the Stage 1B runner names to average ranks, and it prints the policy the
+  35 audit calls of the run were made under.
+- The audit's own floor is ρ ≥ 0.50. The lowest of the 55 audit figures on the
+  public corpus is 0.7761 (Stage 1B, England, `progression`), and it is tie-free.
+  No StatsBomb-side audit figure is below it. `ConfoundVerdict.passed` is the same
+  under both rankings in all 75 cells, StatsBomb included.
+- That is not the lowest figure of this note. E-02's T3, the one frozen gate that
+  reads ρ, is 0.5948 against a floor of 0.50. It did not move, and its margin of
+  0.0948 is 21.7 times the largest correction. RESEARCH_ONLY stands.
 - No threshold on ρ is written for the Stage 1C external verdicts, and its report
   prints no ρ. None of its forty figures is below 0.50 under either ranking.
-- The top-12 count sorts the same arrays, so a tie at the twelfth place would
-  make it order-dependent too. No cell has one.
+- The top-12 count was taken from a sort of the same arrays, so a tie at the
+  twelfth place made it depend on the order of the rows too. No cell has one, and
+  each of the 75 counts is the recorded one under both rankings: 55 against the
+  committed files, 20 against the local record of the StatsBomb half.
 - Nothing shipped holds an ordering figure. The profile bundle, the construct
-  registry and the API contain none; the only callers are three experiment
-  scripts. Nothing was rebuilt.
+  registry and the API contain none; the only callers are four scripts under
+  `experiments/`: the two runners, E-02's frozen runner and the script behind
+  this note. Nothing was rebuilt.
 
 What changed:
 
 - `ties="average"` is the default of `_spearman` and `discriminant_validity`.
   `ties="legacy"` remains, to reproduce a figure published before this note, and
   warns whenever it meets tied data.
-- The three reports carry one line pointing here. No other line of them changed,
-  and no result file was regenerated.
-- The Stage 1B and 1C runners were not changed. Run today they compute the
-  corrected figures, and they still write over the result files they wrote then.
+- The three reports carry one line pointing here. No other line of them changed
+  in that commit. Stage 1B and Stage 1C each gained one more dated line later,
+  pointing to M-08, and the credit block of Stage 1C was reworded. No number of
+  any of them changed, and no result file was regenerated.
+- The Stage 1B and 1C runners were changed in the commit that added this note.
+  Each names the sort-order ranking, so run today it computes the ranks of the
+  record, and warns. The corrected figures come from the erratum script.
+- Since the correction of 9 October 2026 listed at the foot of this note, the top-12
+count under average ranks is undefined when the twelfth and thirteenth values are equal,
+raw or adjusted. The leaderboard check then fails by name and says how
+  many rows share the value. `ties="legacy"` counts from the sort as before.
+- Since the same correction, neither runner writes over a record it does not
+  reproduce. A rerun is compared with the record value by value. Where a value
+  differs the runner lists the differences, leaves the file as it is and exits 1,
+  unless `--overwrite-record` is given.
 
 ## Found on the way
 
@@ -172,16 +192,33 @@ differ from the published ones before any tie correction, by up to 0.000444. The
 largest tie correction is 0.004281 on either corpus. The tables above use the
 input that reproduces the publication. This is not corrected here.
 
+So a rerun of the Stage 1C runner does not reproduce its record. Under the ranks
+of the record it reproduces 11 of the 20 Wyscout ordering figures, and 72 of the
+220 values of the Wyscout half differ: in each of the other nine cells, the
+ordering figure, the reliability and its interval, the confound R², the
+closest-baseline correlation, the mean and the standard deviation. The largest
+difference is 0.00098. The runner lists them and leaves the record as it is.
+
+A rerun of the Stage 1B runner reproduces all 35 ordering figures of its record.
+On the machine this was run on, 4 of the record's 420 values differ, none of them
+an ordering figure and none by more than `1.1e-16`. That is still not the record,
+and the runner says so in the same way.
+
 The second finding is about the record itself. `experiments/external_replication.json`
 carried the StatsBomb half of Stage 1C beside the Wyscout half: four blocks of
 aggregate figures, machine-readable, tracked since the day the report was published.
-LICENSING.md keeps tables derived from StatsBomb data out of the repository, and the
-guard that enforces it reads paths and extensions, not what a JSON file holds. The
-blocks were removed from the tree with this note and remain in the history. The
-runner now writes that half under the gitignored cache, and a test fails if a tracked
-result file holds such a block again. The StatsBomb row of the table above compares
-with that local record: the script reports it where the record exists and says
-that it compared nothing where it does not.
+LICENSING.md keeps tables derived from StatsBomb data out of the repository. The
+guard that enforces it reads paths, extensions and the content of tracked text
+files, for provider keys, credentials and bulk record dumps. None of its patterns
+matches a block of aggregate figures. The blocks were removed from the tree with
+this note and remain in the history. The runner now writes that half under the
+gitignored cache. A test reads the key names of every JSON file under
+`experiments/` and fails on one that begins `SB_` or contains `statsbomb`. It
+reads names, not values, so the control is the writer: the same test holds the
+tracked record to its four `WY_` blocks and the runner to that prefix. The
+StatsBomb row of the table above compares with that local record: the script
+reports it where the record exists and says that it compared nothing where it
+does not.
 
 ## The checks to apply from now on
 
@@ -209,3 +246,35 @@ machine: ranks handed out by an unstable sort are not promised on another one.
 with this note and with the committed result files; the corpus job recomputes the
 corrected column. The StatsBomb paragraph is recomputed only where the local
 cache is, which is no CI job.
+
+## Corrections to this note
+
+**9 October 2026, after a second audit.** No figure of the erratum changed. Six
+statements did.
+
+- The note said that the two runners had not been changed and computed the
+  corrected figures. Both were changed in the commit that added the note, and
+  both name the sort-order ranking.
+- The note gave 0.7761 as the lowest corrected figure on the public corpus. It is
+  the lowest of the 55 audit figures there. E-02's T3 is lower, and the note now
+  says so where it gives the floor.
+- The note said that the licence guard reads paths and extensions and not what a
+  JSON file holds. It reads content too, and has no pattern for a block of
+  aggregate figures. The test that was said to fail on such a block reads key
+  names.
+- The statuses were said to be the same when rerun under the corrected default.
+  That held. But once the runners named the sort-order ranking, the check behind
+  the sentence ran under that ranking and no longer tested it. The script now
+  sets the policy for its own run, and the comparison was made again that way.
+- The credit block said that no table derived from StatsBomb data is in this
+  repository. The reports print such tables as analysis, and the four blocks
+  taken out of the tree remain in the history.
+- The note counted three experiment scripts as the only callers of the audit.
+  There are four: the script behind this note is one.
+
+Two changes of behaviour came with the corrections and are listed under "What
+changed": the top-12 count where the twelfth place is tied, and what a rerun does
+to a record. The script that prints the numbers of this note now also reruns both
+runners, to say what a rerun would change. Its running time depends on what else the
+machine is doing: about 56 seconds when idle, and between 2 minutes 40 seconds and 5
+minutes 16 seconds while other suites ran.

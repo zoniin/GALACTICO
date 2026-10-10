@@ -86,7 +86,7 @@ button.depth-name.selected{color:var(--gold)}
 <ul id="depth-list"></ul>
 </section></div>
 
-<section class="panel" aria-labelledby="thin-title"><div class="panel-head"><h2 id="thin-title">Thin cover · three causes, kept apart</h2><span class="badge">Counting, then one solve per placement</span></div>
+<section class="panel" aria-labelledby="thin-title"><div class="panel-head"><h2 id="thin-title">Thin cover · three causes, kept apart</h2><span class="badge">Counting, then placements decided by exact solves</span></div>
 <div id="thinness" class="thin-grid"></div>
 <p id="depth-statement" class="statement small"></p>
 <h3>Tight slot groups</h3><p class="figure-note">Spare is the number of players who can fill some slot of the group, minus its slots. The groups with the least spare are listed.</p>
@@ -115,8 +115,8 @@ button.depth-name.selected{color:var(--gold)}
 <label id="stress-confirm" class="gp-optin hidden"><input type="checkbox" id="stress-confirm-k3"><span id="stress-confirm-text"></span></label>
 <p id="stress-status" class="small subtle" role="status"></p>
 <div id="stress-body" class="hidden"><div id="stress-summary"></div>
-<h3>One player out, re-solved</h3>
-<p class="small subtle">Each row removes one player and re-solves exactly. Read across: fieldable or not, and the least declared shortfall without him.</p>
+<h3>One player out</h3>
+<p class="small subtle">Each row is the squad without one player. Read across: fieldable or not, and the least declared shortfall without him.</p>
 <p id="removal-warning" class="figure-note"></p>
 <div class="toolbar"><label class="control wide"><span class="label">List by</span><select id="removal-order" aria-label="List the single absences by"></select></label></div>
 <p id="removals-ordered-by" class="figure-note"></p>
@@ -143,47 +143,62 @@ button.depth-name.selected{color:var(--gold)}
 /* Squad Lab. The page holds state, attaches handlers and places what the server sent. Every
    number, name, order, statement, warning, reason and label that depends on a reply is the
    server's value or the server's string, printed as sent. The script places server values on
-   server scales and counts server lists. It adds nothing up and sorts nothing.
+   server scales and counts server lists. It adds nothing up, sorts nothing, and puts no
+   threshold on a served number: a list is printed when the server sent one.
 
    What is assembled here, exactly:
    - Descriptions of figures for assistive technology, fixed words around server values: the
      aria-label and title of a mark on the depth pitch (the player's name, the slot's label,
-     which of the server's lists he is in at that slot, his placement status there), the
-     aria-label of the pitch (three server counts) and the aria-label of a league reference
+     which of the server's lists he is in at that slot: "available", "eligible, below the
+     900-minute gate, in no solve" or "excluded by you"; then, by his placement status there,
+     "placing him there raises the least declared shortfall" or "placement not evaluated"),
+     the aria-label of the pitch (three server counts) and the aria-label of a league reference
      strip (the server's label, least, greatest, declared minimum and club median).
-   - Fixed labels in front of a server list, name or number, never a clause of their own:
-     "Below the gate:", "Declared roles:", "Used at", "Without him", "Absence stress", "at
-     least", "the other ten supply", "change from the baseline", the counts beside a slot,
-     the eyebrow.
+   - Fixed labels in front of a server list, name, number or sentence, never a clause of their
+     own. The cells of a row: "Slots", "Available", "Spare", "Below the gate, eligible there",
+     "Absent", "Blocking slots", "Remaining there", "Excluded by you, eligible there", "Without
+     them", "Change from the baseline", "Player", "Without him", "Recorded rate", "Row". The
+     lines under a slot: "Below the gate:", "Excluded by you:", "Raises the least declared
+     shortfall when used here:", "Available here and at no other slot:", "No measurement this
+     slot needs:", "Declared for other slots only:", "Admitted by position, no eligibility
+     rule:", and the three counts beside its name ("available", "below the gate", "excluded").
+     The lines of the player panel: "Why he is in no solve", "Eligible under the rule set at",
+     "Eligibility rule", "Declared roles:", "Slots:", "Recorded on the declared requirements",
+     "Used at" and the slot's label, "State", "Absence stress", and his facts line ("nominal
+     minutes", "matches", "starts", "age", "foot"). Around a server number, pair or name:
+     "largest" and "sum", "min", "of", "at", "at least", "the other ten supply", "change from
+     the baseline", "minimum", "shortfalls in units of", "this club's elevens at or below",
+     "Fieldable ·", "No fieldable XI ·", "Not removed in any set:", "Every set of", the marks
+     of a reference strip ("min", "club median", "p" and a percentile), "Matches before",
+     "Requirement set", the eyebrow, and "Exclude" or "Restore" before a name on one button.
    - Fixed words chosen by a server flag, an empty server list or a server token, none built
-     from a number: the caption under a thin-cover figure (by its kind), "No available
-     player.", "Nobody.", "No number on any requirement.", "Excluded by you from every
-     solve.", "Provider position only.", "Only there.", the goalkeeper line of the brief
-     (fixed words around the server's reason), and PINNED: the placement status of one player
-     at one slot, for which the reply carries a token and no sentence.
-   No sentence about football is assembled here from a number, and none of these is worded
-   here: what left a set of absences without an XI (the server's attribution_label and
-   statement), the spare of a tight group (spare_statement), a declared role (role_labels),
-   where a minimum came from (origin_label). The fixed copy of the page (headings, figure
-   notes, the "cannot say" lines) is written in the markup above and is the same on every
-   reply. */
+     from a number: "No available player.", "Nobody.", "No number on any requirement.",
+     "Excluded by you from every solve.", "Provider position only.", "Only there.", "No slot of
+     this template.", "none in this template", "· excluded", "The pool was not counted.", "No
+     fieldable XI to compare against." under the stress control, the two headings inside a set
+     size ("No fieldable XI ·" and the server's attribution label; "Fieldable · declared
+     shortfall above the baseline"), the goalkeeper line of the brief (fixed words around the
+     server's reason), and UNDECLARED: the names of the two states a requirement that is not
+     in force can be in.
+   No sentence about football is assembled here from a number or from a token, and none of
+   these is worded here: what using a player at a slot does (the statement the server sends for
+   that placement, with its certified pair), the caption under a thin-cover figure (caption),
+   what left a set of absences without an XI (attribution_label and statement), which sets
+   above the baseline and which sets tied at the highest value are listed, and the sentence
+   about each list (raised, worst_sets), the spare of a tight group (spare_statement), a declared role (role_labels), where a minimum
+   came from (origin_label). The fixed copy of the page (headings, figure notes, the "cannot
+   say" lines, and COPY: what a waiting or an empty panel says) is the same on every reply. */
 const {esc, num, api} = Shell;
 const $ = s => document.querySelector(s);
 const DASH = '—';
 const COPY = {
   loading: 'Building the planning snapshot and auditing the squad. The first audit fits the pass-value surface on every league match before the cutoff…',
-  stressIdle: 'Run after an audit. Every absence set is re-solved.',
+  stressIdle: 'Run after an audit. Every absence set is solved to proof or inherits its answer from one that was.',
   briefIdle: 'Choose a slot, then compute.',
   dirty: 'Apply the edited minima and re-audit before asking this.',
   noXi: 'No fieldable XI to compare against.',
-  solving: 'Re-solving…',
+  solving: 'Solving…',
   pick: 'Select a player, here or on the pitch. Every slot he is eligible for turns gold.',
-};
-const PINNED = {
-  NEUTRAL: 'the least declared shortfall is unchanged.',
-  RAISES_SHORTFALL: 'the least declared shortfall rises.',
-  UNFIELDABLE_IF_PINNED: 'another slot or a declared lock is left unfilled.',
-  UNKNOWN: 'not evaluated. Treat as incomplete.',
 };
 const UNDECLARED = {UNMEASURED: 'UNMEASURED', EXPERIMENTAL_NOT_OPTED_IN: 'EXPERIMENTAL · NOT OPTED IN'};
 const PITCH_MARKS = '<rect class="mark" x="3" y="3" width="94" height="120"/><path class="mark" d="M3 63H97 M29 3V22H71V3 M29 123V104H71V123 M40 3V10H60V3 M40 123V116H60V123"/><circle class="mark" cx="50" cy="63" r="11"/><circle cx="50" cy="63" r=".5" fill="var(--chalk)"/>';
@@ -263,22 +278,21 @@ function depthList(reply, selected) {
   }).join('');
 }
 
+// The caption under each figure is the server's: it says which squad the two numbers count (the
+// gate's are counted with nobody excluded) and, for the placements, what was counted.
 function thinness(reply) {
   return list(reply.thinness).map(t => {
-    let figure = '', caption = '', lines = '';
+    let figure = '', lines = '';
     if (t.kind === 'REQUIREMENT') {
       const counted = t.evaluated === true && Boolean(t.placements);
       figure = counted ? `${GP.value(t.placements.count, 0)}<span class="arrow">of</span>${GP.value(t.decided_count, 0)}` : GP.value(null);
-      caption = !counted ? 'placements that raise the least declared shortfall: not evaluated'
-        : t.unknown_count ? 'decided placements that raise the least declared shortfall' : 'placements that raise the least declared shortfall';
       lines = list(t.placements?.listed).map(p => `${esc(p.name)} at ${esc(p.slot_label)}`).join('; ');
       if (lines) lines = `<div class="depth-line">${lines}</div><div class="depth-line">${esc(t.placements.statement)}</div>`;
     } else {
       figure = `${GP.value(t.kappa_before, 0)}<span class="arrow">→</span>${GP.value(t.kappa_after, 0)}`;
-      caption = t.kind === 'GATE' ? 'absences until no XI: before the gate → after it' : 'absences until no XI: by position → under the rule set';
       if (t.kind === 'GATE' && list(t.players).length) lines = `<div class="depth-line">Below the gate: ${list(t.players).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min (${list(p.eligible_slots).map(s => esc(s.label)).join(', ')})`).join('; ')}</div>`;
     }
-    return `<div class="thin" data-thinness="${esc(t.kind)}"><span class="label">${esc(t.label)}</span><div class="thin-figure">${figure}</div><div class="thin-caption">${caption}</div><p>${esc(t.statement)}</p>${lines}</div>`;
+    return `<div class="thin" data-thinness="${esc(t.kind)}"><span class="label">${esc(t.label)}</span><div class="thin-figure">${figure}</div><div class="thin-caption" data-part="caption">${typeof t.caption === 'string' ? esc(t.caption) : ''}</div><p>${esc(t.statement)}</p>${lines}</div>`;
   }).join('');
 }
 
@@ -360,7 +374,8 @@ function playerDetail() {
     const pin = list(slot.pinned).find(p => p.player_id === id);
     if (!pin) return [];
     const only = list(slot.exclusive_ids).includes(id) ? ' Only there.' : '';
-    return [`<li data-slot="${esc(slot.slot_id)}" data-pinned="${esc(pin.status)}"><span class="label">Used at ${esc(slot.slot_label)}</span>${PINNED[pin.status] ?? PINNED.UNKNOWN}${pin.status === 'RAISES_SHORTFALL' ? ' With him there: ' + pair(pin.objective_vector) + '.' : ''}${only}</li>`];
+    // What using him there does is the server's sentence, with its certified pair when it has one.
+    return [`<li data-slot="${esc(slot.slot_id)}" data-pinned="${esc(pin.status)}"><span class="label">Used at ${esc(slot.slot_label)}</span><span data-part="placement">${typeof pin.statement === 'string' ? esc(pin.statement) : DASH}</span>${only}</li>`];
   }).join('');
   const removal = list(state.stress?.single_absences).find(r => r.player_id === id);
   return `<h3>${esc(member.name)}${member.state === 'EXCLUDED' ? ' ' + GP.declared() : ''}</h3>` +
@@ -417,14 +432,18 @@ function stressLevel(level) {
     `<p class="level-note" data-statement="unfieldable">${esc(level.statements?.unfieldable)} ${esc(level.minimal_unfieldable?.statement)}</p>` +
     kinds.map(block).join('') +
     `<h4>Fieldable · declared shortfall above the baseline</h4><p class="level-note" data-statement="shortfall">${esc(level.statements?.shortfall)}</p>` +
+    // The sets above the baseline: the server's sentence, then the rows it sent. Single absences
+    // are rows of the list above, and the server's sentence says so and sends none here.
     `<p class="level-note" data-statement="raised">${esc(level.raised?.statement)}</p>` +
-    (level.k === 1 && raised.length ? '<p class="level-note">Each is a row of the ledger above.</p>' : '') +
-    (level.k > 1 && raised.length ? `<ul class="gp-rows" data-ledger-kind="RAISED">${raised.map(r => GP.row([
+    (raised.length ? `<ul class="gp-rows" data-ledger-kind="RAISED">${raised.map(r => GP.row([
       {label: 'Absent', html: names(r.players)},
       {label: 'Without them', html: pair(r.objective_vector)},
       {label: 'Change from the baseline', html: signedPair(r.change_from_baseline)},
     ], {data: {set: list(r.player_ids).join('-')}})).join('')}</ul>` : '') +
-    `<p class="level-note" data-statement="ties">${esc(level.worst_sets?.statement)}${tied.length && level.positive_change_count ? ' ' + tied.map(t => names(t.players)).join(' · ') : ''}</p></div>`;
+    // The sets tied at the highest value: the server's sentence, then the list it sent to be
+    // printed with it. Whether there is a list to print is the server's decision, not the page's.
+    `<p class="level-note" data-statement="ties">${esc(level.worst_sets?.statement)}</p>` +
+    (tied.length ? `<p class="level-note" data-part="tied-sets">${tied.map(t => `<span data-set="${esc(list(t.player_ids).join('-'))}">${names(t.players)}</span>`).join(' · ')}</p>` : '') + '</div>';
 }
 
 function removalRow(row) {

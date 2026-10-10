@@ -2,16 +2,23 @@
 
 ## CURRENT COMMIT
 
-9 October: the Squad Lab / Transfer Lab build is committed on the local branch
-`north-star`, above `feb9f8b` on `main`. The branch is pushed as
-`origin/north-star`; `main` is where it was. The owner delegated the open decisions
-on 9 October, the branch was pushed that afternoon, and CI run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)
-passed both jobs on `b7bc919`. `git log --oneline feb9f8b..north-star` lists it.
+10 October: the Squad Lab / Transfer Lab build, the repairs of the first audit, the
+decisions the owner delegated on 9 October and the repairs of the second audit are
+committed on the branch `north-star`, above `feb9f8b`.
+`git log --oneline feb9f8b..north-star` lists the commits. The branch was pushed on
+9 October, and CI passed both jobs on `b7bc919` (run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165))
+and on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713)).
+The commits after `7899c76` had not been pushed when this was written. Whether `main`
+holds the branch is a fact about `main`, not about this file:
+`git branch --contains b7bc919` answers it.
 
-1,166 Python tests passed and 1 skipped (the tag sidecar is not built); 37
-browser tests and the two screenshot captures passed; Ruff and the licence guard clean; desktop and 390 px
-screenshots read. The CI workflow was changed (the browser job ingests five
-leagues and runs two more specs); the run above is its first on GitHub Actions.
+On 10 October, on the tree of the second-audit repairs: 1,476 Python tests passed and 1
+skipped (the tag sidecar is not built), with the local StatsBomb cache present (without
+it one more skips); 52 browser tests and the two screenshot captures passed; Ruff and
+the licence guard clean; the regenerated profile and "Why only five?" screenshots
+read. The CI workflow was changed on this branch (the browser job ingests five
+leagues, runs the Python suite with the corpus and runs three more specs); run
+37944962165 was its first on GitHub Actions.
 
 Commits, oldest first: `d7e9acc` e2e port from the environment · `f581c56` guards
 that could not fail · `9a7da06` measurement gates that failed open · `c79a3ef`
@@ -25,16 +32,34 @@ runtime and page shell · `e96b81c` ADR-0018 to 0023, M-06, protocol drafts ·
 `5991c23` the attained sum in Transfer Lab. Then the repairs the final audit asked
 for: `b91f466` six false statements in the documents · `e55d824` the Madrid rule
 set is declared by hand, not reviewed · `1853ad2` tool sentences · `d9ba681` builds
-inside the budget and behind a gate, one cache key per problem · `8b13d52` the copy
+inside the budget and behind a gate, cache keys on the request as resolved (never
+two problems under one key) · `8b13d52` the copy
 guard at the response boundary · `55b3b7b` server fields for the pages · `2736f08` the pages print them · `4faa22a` the audit record. Then the decisions the
 owner delegated on 9 October: `b7bc919` StatsBomb credit and logo, three sources
 reference only · `7753b45` a construct is published only inside its declared
 context · `d3d3ff5` average ranks, the erratum M-07 and the StatsBomb-side table
-out of the tree · then this documentation.
+out of the tree · `7899c76` the documents for those decisions · `f4d0410` the
+erratum compares the StatsBomb half with the local record · then the repairs of
+the second audit.
 
-One commit message is wrong and cannot be corrected without rewriting history:
-`ac1d43a` says the role brief matched a slot search on 88 slot and scenario
-combinations. The committed test covers 22.
+At least eight commit messages are wrong in part and cannot be corrected without
+rewriting history: the five below, and three whose own words the second audit
+contradicts. `d9ba681` says one problem, one cache key; a preset sent together with what
+it sets by hand is one problem under two keys (ADR-0024). `8b13d52` says the copy guard
+runs on every response; it reads the string values of a 200 reply outside provenance and
+no error body. `5991c23` says the attained number is the largest sum any XI of the
+declared squad reaches; it is the sum of one XI the solver found. `ac1d43a` says the role brief matched a slot search on 88 slot and
+scenario combinations; the committed test covers 22. `4faa22a` says four of the
+first audit's findings were high and that all were repaired from failing tests;
+five were high, and one was a sentence corrected in a commit of documents only.
+`b7bc919` says LICENSING stated the credit requirement for months; it was 39 days.
+`7753b45` says 20 of the 40 rows the Explore view listed under wide-channel share
+were goalkeepers, and that the channel bar restates the pass-origin shares; the
+page drew no goalkeeper, and the bar did not restate them until the second
+audit's rebuild. `d3d3ff5` calls 0.7761 the lowest figure and says a rerun of the
+runners reproduces what was published; 0.7761 is the lowest of the 55 audit
+figures on the public corpus, E-02's T3 is 0.5948, and a rerun of the Stage 1C
+runner does not reproduce its record.
 
 This build ran in a fresh clone on a second Windows machine with no `uv` and no
 `gh`: `py -3.12 -m venv .venv`, then `pip install -e ".[dev,api]"`. The commands
@@ -158,37 +183,59 @@ No credentials or proprietary data are needed or committed.
   defects were repaired.
 - 9 October, final audit. Three read-only reviewers that had written none of the
   branch: documentation claims against code and data, the HTTP boundary on the
-  real corpus, the constitution on the rendered pages. 36 findings, four high,
-  repaired from failing tests in seven commits. The findings and the three repair
-  reports are with the owner's working notes. The repairs were not re-audited.
-- 9 October, record. ADR-0018 to ADR-0024. Five protocol **drafts** (E-09 to
-  E-13) under `docs/research/north-star/protocol-drafts/`.
+  real corpus, the constitution on the rendered pages. 36 findings, five high.
+  The code findings were repaired from failing tests in six commits, and a README
+  sentence in a seventh, of documents only. What was not repaired is in
+  KNOWN_LIMITATIONS. The findings and the three repair reports are with the
+  owner's working notes.
+- 9 October, owner decisions. Four findings left for the owner were decided and
+  repaired: the StatsBomb credit and logo, three provider postures, constructs
+  inside their declared context (ADR-0025), average ranks with the erratum M-07
+  (ADR-0026).
+- 9 October, second audit. Five lenses over the branch up to `f4d0410`, the first
+  audit's repairs included; 67 findings, each reproduced by a second reviewer.
+  Six builders repaired the code from the rulings of ADR-0027. The declared-context
+  rule reached Match Lab's player rows; the chance-creation curve was recomputed
+  on the declared population (M-08); the served view and the documents that print
+  analysis formed from StatsBomb data carry the credit, with one frozen exception
+  recorded in LICENSING; sixteen planning requests may be past the cache lookup at
+  once. What was found and left is in KNOWN_LIMITATIONS. These repairs have not
+  been audited.
+- 9 October, E-11. The draft went through three rounds of review, revision and
+  independent audit. The third audit returned NOT_READY with three blockers. It is
+  not registered ([status](research/north-star/README.md)).
+- 9 October, record. ADR-0018 to ADR-0027, M-06 to M-08. Five protocol **drafts**
+  (E-09 to E-13) under `docs/research/north-star/protocol-drafts/`.
 
 ## CURRENT STATE MAP
 
-- VERIFIED COMPLETE: frozen Player Lab; historical Match Lab implementation;
+- VERIFIED COMPLETE: Player Lab, frozen since ADR-0011 except the corrections of
+  ADR-0025 and ADR-0027 (October 2026); historical Match Lab implementation;
   conditional XI engine/UI; exactness/temporal/browser checks; licensing guard;
   the exact squad and transfer tools and their two pages, as arithmetic.
 - PARTIALLY COMPLETE: decision usefulness; the opponent foundation.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09 to E-13. The design council that wrote
-  them was cut short before adversarial review, reconciliation and audit. The
-  verdict registry is empty.
+  them was cut short before adversarial review, reconciliation and audit. E-11 has
+  since had three rounds and its third audit returned NOT_READY; the other four
+  are unreviewed. The verdict registry is empty.
 - SPECIFIED, NOT BUILT: the tag sidecar (body part, duel outcome, cards, own
   goals), which E-09 and E-10 need; Opponent Lab; a Director's desk.
 - NOT SPECIFIED: certified XI frontier, declared-risk modes, minimal conflict
   sets. The XI-level design was lost when the council stopped; the squad kernel
   is where to build them.
 - UNVERIFIED: external human acceptance, historical fitness, learned utility,
-  whether a rate repeats after a club change, the changed CI workflow.
-- BROKEN: no unresolved release defect known.
+  whether a rate repeats after a club change, and the repairs of the second audit,
+  which have not been audited.
+- BROKEN: nothing known beyond what KNOWN_LIMITATIONS lists as found and not
+  repaired.
 - OWNER DECISIONS OPEN: see OPEN BLOCKERS.
 - NOT STARTED: LIVE/Bridge/VISION products.
 
 ## IN PROGRESS
 
-No unfinished implementation on `north-star`. **1,166 local Python tests, 37 browser
-tests and two screenshot captures** passed on 9 October, plus Ruff/licensing. Pushed, and CI
-passed. Do not reopen E-07 or E-08.
+No unfinished implementation on `north-star`. **1,476 local Python tests, 52 browser
+tests and two screenshot captures** passed on 10 October, plus Ruff/licensing. The E-11
+protocol draft is in review and is not registered. Do not reopen E-07 or E-08.
 
 The 20 September release: **374 local Python tests and 13 Playwright tests**
 passed, plus Ruff/licensing. All recovery/council/adversarial results
@@ -234,22 +281,39 @@ External human sign-off is not claimed.
 Creation, rest defense and keeper quality are unmeasured in XI Lab: an explicit
 limit on the decision claim, not missing implementation disguised as a result.
 
-Owner decisions the 9 October reconnaissance left open. None was changed; each is
-described in KNOWN_LIMITATIONS under "Found by the October reconnaissance":
+Owner decisions and open work. Items 2 to 5 were left open by the 9 October
+reconnaissance, decided that day and corrected again after the second audit
+(ADR-0027). Items 1, 6, 7 and 8 are open:
 
-1. Pushed on 9 October; the first CI run of the changed workflow passed. Merging
-   into `main` follows once the remaining repairs on the branch are verified.
-2. Decided on 9 October, when the owner delegated these: the README, E-01 and
-   Stage 1C name StatsBomb as their data source and carry its logo (clause 1.4);
-   a test keeps it so.
-3. Decided the same day: FPL, ClubElo and football-data.co.uk are reference only
-   in `providers/base.py`. The terms read that day do not support more.
+1. The branch was pushed on 9 October and CI passed on it twice. Merging into `main`
+   is a fast-forward of a tip whose CI run is green: commit order is how this
+   repository shows that a protocol preceded its results, so the branch is never
+   squashed or rebased. This file cannot say whether the merge has happened;
+   `git branch --contains b7bc919` does. While the default branch lacks that commit,
+   the note links of the "Why only five?" view lead to copies of the two reports
+   with no logo and no credit.
+2. Decided: a document that prints analysis formed from StatsBomb data names the
+   source and carries its logo (clause 1.4), and so does the served "Why only
+   five?" view. A test lists every document that mentions the provider.
+3. Decided: FPL, ClubElo and football-data.co.uk are reference only, which is now
+   a tier of the type in `providers/base.py`. The terms read that day do not
+   support more.
 4. Decided: a construct is published only inside the context it declares
-   (ADR-0025). Goalkeepers carry all five as withheld rows with the reason.
+   (ADR-0025). Goalkeepers carry all five as withheld rows with the reason, in
+   Player Lab and on Match Lab's player rows.
 5. Decided: average ranks are the default; the published figures are corrected by
    erratum, not rewritten (M-07, ADR-0026). No verdict or gate changed.
-6. Which of the five drafted protocols to review, freeze and run, and in what
-   order. E-11 gates E-12. E-09 and E-10 need the tag sidecar first.
+6. Which of the remaining drafts to review, freeze and run, and in what order.
+   E-11 gates E-12. E-09 and E-10 need the tag sidecar first.
+7. E-11 is not ready. Its third audit returned NOT_READY with three blockers,
+   which are not yet applied; a fourth round applies them and audits again
+   ([status](research/north-star/README.md)).
+8. The chance-creation floor. The Wyscout estimator shows chance creation as a
+   number from 1,800 minutes. On the declared population the reliability there is
+   0.699, under the 0.70 number threshold, and 0.723 at 2,250 minutes; 53 point
+   estimates are served with the signal "limited". The floor sits in a hashed
+   registry entry and was not changed. Whether it should rise is the owner's
+   decision (M-08).
 
 ## EXACT NEXT COMMANDS
 
@@ -293,7 +357,7 @@ need a protocol before confirmatory evaluation; do not tune to the 12-match wind
 
 For the planning work, in the order to read them:
 `docs/research/north-star/ROOT-DECISIONS.md` (the rules the build ran under; its
-sections on tools that were not built are plans), `DECISIONS.md` ADR-0018 to 0024,
+sections on tools that were not built are plans), `DECISIONS.md` ADR-0018 to 0027,
 `galactico/optimization/squad/kernel.py` (every new exact tool goes through it),
 `galactico/api/runtime.py` and `shell.py` (every new route and page goes through
 them), `galactico/api/planning.py`, then the two routers and pages.

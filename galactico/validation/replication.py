@@ -58,7 +58,7 @@ class LeagueResult:
     reliability_high: float
     confound_r2: float
     ordering_rho: float
-    top12_kept: int
+    top12_kept: int | None      # None: the twelfth place is tied
     closest_baseline: str
     baseline_r: float
     status: Status

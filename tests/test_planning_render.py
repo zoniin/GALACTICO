@@ -204,7 +204,7 @@ def envelope(*, opt_in: bool = False, ruleset: str = "madrid-broad-slot-rules-v1
             declared("IDENTITY", "declared-exclusion-3322", "Excluded from every solve",
                      "Cristiano Ronaldo"),
             declared("REQUIREMENTS", "declared-minimum-progression",
-                     "Positive completed-pass xT per 90 minimum", "8.123. The shipped default.")],
+                     "Positive completed-pass xT per 90 minimum", "8.123. Entered by you.")],
         "ledger": [
             {**shell.ledger_row(
                 row_id="audit-shortfall",
@@ -729,10 +729,12 @@ def test_rows_are_placed_in_the_listing_order_and_in_no_other(tmp_path: Path) ->
         assert shell.scan_labels(shell.visible_text(markup)) == []
     assert re.findall(r'<option value="([^"]*)"( selected)?>', got["options"]) == [
         ("name", ""), ("requirement_value:progression", " selected")]
+    # The line under an order control says both levels: the groups come first, in a sequence
+    # the reader does not choose, and the key he chose orders a group and nothing else.
     assert got["sentence"] == (
-        "Grouped by the outcome of the re-solve. Inside a group listed by: Positive "
-        "completed-pass xT per 90, recorded, greatest first. One declared key, not an order "
-        "of merit. Players equal on the key are listed by player id.")
+        "Grouped by the outcome of the re-solve, in a fixed sequence. Inside a group listed by: "
+        "Positive completed-pass xT per 90, recorded, greatest first. One declared key, not an "
+        "order of merit. Players equal on the key are listed by player id.")
     assert got["selected"].startswith(
         '<li class="gp-row gp-selected" data-player="12" data-outcome="UNCHANGED">')
     assert 'class="gp-row gp-reference"' in got["reference"]
@@ -915,6 +917,40 @@ def test_an_exact_zero_is_a_zero_and_carries_no_sign(tmp_path: Path) -> None:
     assert got["missing"] == "—"
 
 
+def test_a_served_number_is_printed_in_one_notation_whatever_the_readers_locale(
+        tmp_path: Path) -> None:
+    # The server's sentences write numbers in English notation ("1,468 completed passes",
+    # "largest 0.06183"). A kit that formatted in the reader's locale printed "2.996 min" and
+    # "≈ 0,491" beside them, and a pair became "≈ 0,062, ≈ 0,062".
+    out = run_js(tmp_path, """
+      const native = Number.prototype.toLocaleString;
+      const asked = [];
+      // A reader whose browser is set to German: a call that names no locale gets his.
+      Number.prototype.toLocaleString = function (locales, options) {
+        asked.push(String(locales));
+        return native.call(this, locales === undefined ? 'de-DE' : locales, options);
+      };
+      const inner = markup => markup.replace(/<[^>]*>/g, '');
+      console.log(JSON.stringify({
+        german: native.call(2996.5, 'de-DE', {maximumFractionDigits: 3}),
+        num: [S.num(2996, 0), S.num(0.4914, 3), S.num(1468), S.num(-0.0935, 4)],
+        pct: [S.pct(0.056, 1), S.pct(0.772, 1)],
+        value: [GP.value(2996, 0), GP.value(0.06183, 5), GP.value(0.4914, 3, {approx: true}),
+          GP.value(0.0935, 4, {signed: true}),
+          GP.value(3.0062074447922993, 3, {exact: true})].map(inner),
+        signed: [GP.signed(-0.06634), GP.signed(1234.5, 1)],
+        asked: [...new Set(asked)],
+      }));
+    """)
+    got = json.loads(out)
+    assert got["german"] == "2.996,5"  # non-vacuity: this node writes German numbers as German
+    assert got["num"] == ["2,996", "0.491", "1,468", "-0.0935"]
+    assert got["pct"] == ["5.6%", "77.2%"]
+    assert got["value"] == ["2,996", "0.06183", "≈ 0.491", "+0.0935", "3.0062074447922993"]
+    assert got["signed"] == ["−0.066", "+1,234.5"]
+    assert got["asked"] == ["en-US"]  # no number is formatted in the reader's own locale
+
+
 def test_the_pages_say_what_the_browser_assembles_and_map_no_token_to_words() -> None:
     squad = (ROOT / "web" / "squad.html").read_text(encoding="utf-8")
     transfer = (ROOT / "web" / "transfer.html").read_text(encoding="utf-8")
@@ -949,6 +985,40 @@ def test_the_pages_say_what_the_browser_assembles_and_map_no_token_to_words() ->
         assert field in transfer, field
     # The signed change stands beside its certificate, in the opened candidate and nowhere else.
     assert transfer.count("forced_inclusion_change") == 1
+
+    # Squad Lab says "exactly" what it assembles, so the list is checked against the script:
+    # every label of a row cell, of a line of the player panel and of a line under a slot is
+    # quoted in the header. A label added to the page and not to the list fails here.
+    body = squad.split("<script>")[-1].split("*/", 1)[1]
+    listed = " ".join(headers["squad"].split())
+    cells = set(re.findall(r"\{label: '([^']+)'", body))
+    lines = set(re.findall(r'<span class="label">([^<$]+?)\s*(?:\$\{[^<]*)?</span>', body))
+    under_a_slot = set(re.findall(r'data-stage="[\w-]+">([^<$]+?:) ', body))
+    assert len(cells) >= 14 and len(lines) >= 7 and len(under_a_slot) == 7
+    for label in sorted(cells | lines | under_a_slot):
+        assert f'"{label}"' in listed, label
+    # What the page no longer words: a placement, a caption, and whether tied sets are listed.
+    for gone in ("PINNED", "With him there", "positive_change_count", "absences until no XI",
+                 "re-solves exactly", "Every absence set is re-solved",
+                 "Each is a row of the ledger above", "one solve per placement"):
+        assert gone not in squad, gone
+    for field in ("pin.statement", "t.caption", "worst_sets"):
+        assert field in body, field
+    # Neither page compares a served number with another to decide what is printed: a list is
+    # printed when the server sent one, and a state is read off the server's token.
+    assert not re.search(r"\b(unknown_count|certified_count|unfieldable_count|set_count)\b", body)
+    assert not re.search(r"level\.k\s*(===|>|<)", body)
+    for gone in ("listed_count === 0", "No resampling", "w === 0"):
+        assert gone not in transfer, gone
+    assert "d.search_state === 'EMPTY_POOL'" in transfer
+    # The worlds proved to have no XI are drawn and counted as their own kind.
+    for field in ("wc.no_xi", "data-world", "no XI without him, or none with him"):
+        assert field in transfer, field
+    # The lede says both levels of the order: the outcome groups first, then the chosen key.
+    lede = re.search(r'<p class="lede">(.*?)</p>', transfer, flags=re.S).group(1)
+    assert ("The list is grouped first by the outcome of the re-solve, in a fixed sequence; "
+            "inside a group it is in the order of a key you choose.") in lede
+    assert "the list is in the order of a key you choose" not in lede
 
 
 def test_the_catalogue_the_server_serves_renders_through_the_kit(tmp_path: Path) -> None:

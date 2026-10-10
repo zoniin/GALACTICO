@@ -8,8 +8,9 @@ player-match rows.
 
 Data source: **StatsBomb** open data, read locally under the StatsBomb Public Data
 User Agreement. This analysis is formed from StatsBomb data and carries the
-StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data and no
-table derived from it is in this repository.
+StatsBomb logo as clause 1.4 of that agreement requires. No StatsBomb data is in
+this repository, and no machine-readable table derived from it is in the tree. The
+StatsBomb-side figures printed here are published analysis.
 
 ---
 

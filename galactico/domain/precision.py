@@ -33,8 +33,10 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from decimal import Decimal
 
-__all__ = ["Quantisation", "quantise", "format_measurement", "format_interval", "format_exact"]
+__all__ = ["Quantisation", "quantise", "format_measurement", "format_interval", "format_exact",
+           "format_plain"]
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,24 @@ def format_exact(value: float) -> str:
     if value == int(value) and abs(value) < 1e15:
         return str(int(value))
     return f"{value:.3g}"
+
+
+def format_plain(value: float) -> str:
+    """The shortest decimal that reads back as the same float, never in exponent notation.
+
+    For a number a person entered and for one a solver certified. Rounding such a number
+    prints a different number: a minimum entered as 3.8143 was recorded as 3.814, which
+    is on the other side of a certified boundary. And ``6e-05`` inside a sentence is a
+    notation the sentence does not use. ``format_plain(3.8143) == "3.8143"`` and
+    ``format_plain(6e-05) == "0.00006"``. No precision is claimed or removed: this is
+    the number, written out.
+    """
+    if not math.isfinite(value):
+        return str(value)
+    if value == 0:
+        return "0"
+    text = format(Decimal(repr(float(value))), "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 def format_measurement(value: float, uncertainty: float | None,

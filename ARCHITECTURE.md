@@ -6,10 +6,24 @@ The tree below is the long-term module map, not a completeness claim. `bridge`,
 VISION, learned role fit, embeddings and opponent utility remain research/stubs.
 
 ```
+providers/   adapters; provider quirks terminate here
+ingestion/   raw -> provider-neutral schema -> Parquet
+storage/     DuckDB over Parquet, three tiers kept apart
+features/    quality / style / spatial / physical / team
+reliability/ the gate; runs before axes are designed
+models/      xt, embeddings, role_fit, similarity, complementarity, opponent
+bridge/      LIVE aggregates -> LAB axes, with measured error
+optimization/xi, squad, transfers, sensitivity
+vision/      calibration, detection, tracking, projection, shape
+validation/  pre-registered experiments and baselines
+api/         FastAPI over prepared state
+```
 
 ## Implemented historical decision path
 
-`api/player_lab.py` serves the frozen Player Lab and registers `api/decision_lab.py`.
+`api/player_lab.py` serves Player Lab and registers `api/decision_lab.py`. Player
+Lab is frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027
+(October 2026).
 This path renders three code-native pages under `web/` (the planning path below
 adds two); JavaScript presents server decisions and never computes eligibility,
 coverage or an objective.
@@ -18,7 +32,7 @@ coverage or an objective.
 |---|---|
 | `profiles/` | Versioned season estimates, gates and shared-match uncertainty |
 | `match_lab/service.py` | Public Pappalardo-only loading, retained provider tags, retrospective xT and file hashes |
-| `match_lab/model.py` | Provider-neutral `MatchIntelligence`: timelines, shot locations, positive pass-xT flow, inferred networks and contribution vectors |
+| `match_lab/model.py` | Provider-neutral `MatchIntelligence`: timelines, shot locations, positive pass-xT flow, inferred networks and contribution vectors. On a player row a registry construct is served only inside its declared context; the timeline, the network and team rows are not gated |
 | `optimization/historical.py` | Strict prior-date snapshot, independent pre-cutoff xT fit, versioned eligibility, heuristic minima and coherent team-match worlds |
 | `optimization/xi/domain.py` | Typed candidates, role-slot templates, requirements, assessments and `XIResult` |
 | `optimization/xi/solver.py` | Exact quantized CP-SAT; lexicographic deficits, certification, tie-aware membership, removal and candidate-injection re-solves |
@@ -39,18 +53,6 @@ Opponent conditioning is designed to change requirements, not player ratings.
 Only its descriptive team inputs exist. Candidate injection is a transfer
 foundation, not a validated recruitment ranking. No universal utility, overall
 match rating, learned role adjustment or robust-risk product mode is implemented.
-providers/   adapters; provider quirks terminate here
-ingestion/   raw -> provider-neutral schema -> Parquet
-storage/     DuckDB over Parquet, three tiers kept apart
-features/    quality / style / spatial / physical / team
-reliability/ the gate; runs before axes are designed
-models/      xt, embeddings, role_fit, similarity, complementarity, opponent
-bridge/      LIVE aggregates -> LAB axes, with measured error
-optimization/xi, squad, transfers, sensitivity
-vision/      calibration, detection, tracking, projection, shape
-validation/  pre-registered experiments and baselines
-api/         FastAPI over prepared state
-```
 
 ## Implemented planning path
 
@@ -68,23 +70,27 @@ changed: their bytes are hashed into published experiment results.
 | `optimization/transfers/universe.py`, `injection.py`, `retention.py` | Gated candidate universe; exact forced-inclusion re-solves; the break-even carry-over fraction |
 | `domain/evidence.py` | The one mapping from shipped vocabularies to `EvidenceClass`, and composition by the weakest |
 | `domain/verdicts.py` | One typed record per preregistered claim; a LOCAL-tier record can label, never gate. Ships empty |
-| `domain/thesis.py` | Walks any payload for rating-like keys by exact key |
-| `domain/labels.py` | The copy guard: words a served string may not contain outside a named denial. Run on every new response |
-| `api/runtime.py` | How every new request runs: error mapping, budgets that start with the request, result cache with single-flight, two long computations at a time, the boundary check `finalize` (providers, keys, served words), NaN-free responses |
+| `domain/thesis.py` | Walks any payload for rating-like keys by exact key and, at the planning boundary, by key part |
+| `domain/labels.py` | The copy guard: words a served string may not contain outside a named denial. Run on the string values of every new 200 reply outside its provenance blocks |
+| `api/runtime.py` | How every new request runs: error mapping, budgets that start with the request, result cache with single-flight, sixteen requests past the cache lookup and two long computations at a time, the boundary check `finalize` (providers, keys, served words), NaN-free responses |
 | `api/shell.py` | What every new page shows: navigation, the not-measured list, evidence and verdict payloads |
-| `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem, the build gate (one build per key, two at once, 429 after the wait), cache keys on the request as resolved, and the two lab routers |
+| `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem, the build gate (one build per key, the key holding the identity of the corpus files read; two at once; 429 after the wait), cache keys on the request as resolved, and the two lab routers |
 
-Every new response passes `runtime.finalize`: the provider set at any depth of the
-payload must be exactly the hosted one, and no key may read like a rating. It also
-passes the copy guard there (`domain/labels.py`): in every served string a word such as
-"best", "weakness" or "forecast" may appear only inside a named denial. Product code imports nothing
-from `galactico.validation` or `experiments`; `tests/test_research_firewall.py`
-parses the imports.
+Every new 200 reply passes `runtime.finalize`, computed or read from the result
+store. The provider set at any depth of the payload must be exactly the hosted
+one. No key is one of thirteen banned keys, and no key holds as a part one of
+rating, ratings, rank, ranks, ranking, ranked, merit or overall; a rating under
+another name passes. The copy guard runs there too (`domain/labels.py`): in every
+string value outside a provenance block a word such as "best", "weakness" or
+"forecast" may appear only inside a named denial. It reads no key and no string
+under provenance, and an error body passes none of these checks. Product code
+imports nothing from `galactico.validation` or `experiments`;
+`tests/test_research_firewall.py` parses the imports.
 
 `GET /api/evidence/verdicts` returns the registry. `/squad` and `/transfer` and
-their endpoints are listed in the routers. The frontend computes nothing about
-football; `web/labs-shared.js` and `web/planning.js` are render functions over
-server payloads.
+their endpoints are listed in the routers. The two planning pages compute nothing
+about football; `web/labs-shared.js` and `web/planning.js` are render functions
+over server payloads.
 
 ## The provenance core
 
@@ -117,10 +123,14 @@ computed changes the version hash and invalidates stored results.
 
 ## Data tiers
 
-`PUBLIC` may be hosted and is what the demo runs on. `LOCAL_LICENSED` is
-downloaded at runtime into a gitignored cache and never served. `TRIAL` is
-time-boxed and never a dependency. `assert_may_host` and `assert_may_commit`
-enforce it in code; `scripts/check_licensing.py` enforces it in CI.
+`PUBLIC` may be hosted and is what the demo runs on. `REFERENCE_ONLY` is reachable
+and not ours to use: never ingested, never hosted, no adapter, and an entry at
+that tier cannot be written with a permission on. `LOCAL_LICENSED` is downloaded
+at runtime into a gitignored cache and never served. `TRIAL` is time-boxed and
+never a dependency. The readers of the public frames call `assert_may_host`.
+`assert_may_ingest` and `assert_may_commit` are the guards for a fetch and for a write
+to the tree; nothing outside the tests calls either yet. `scripts/check_licensing.py` guards
+the repository in CI.
 
 ## Storage
 
