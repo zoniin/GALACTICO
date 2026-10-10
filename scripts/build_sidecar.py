@@ -47,8 +47,9 @@ CHECK_HEADER = (f"{'competition':<24} {'check':<7} {'events':>9} {'matches':>8} 
 def peak_rss_bytes() -> int | None:
     """The high-water mark of this process's resident memory, or None where it is not known.
 
-    The peak working set on Windows; ``ru_maxrss`` elsewhere (kilobytes on Linux, bytes on
-    macOS). It never goes down, so it bounds everything the process has done so far.
+    The peak working set on Windows; ``VmHWM`` of ``/proc/self/status`` on Linux;
+    ``ru_maxrss`` elsewhere (bytes on macOS). It never goes down, so it bounds everything
+    the process has done so far.
     """
     if sys.platform == "win32":
         import ctypes
@@ -80,6 +81,17 @@ def peak_rss_bytes() -> int | None:
                 kernel32.GetCurrentProcess(), ctypes.byref(counters), counters.cb):
             return None
         return int(counters.PeakWorkingSetSize)
+    if sys.platform.startswith("linux"):
+        # On Linux ``ru_maxrss`` is carried across fork and exec: a child starts at its
+        # parent's mark, so it bounds the parent too. VmHWM is the mark of this program
+        # image alone.
+        try:
+            with open("/proc/self/status", encoding="ascii") as status:
+                for line in status:
+                    if line.startswith("VmHWM:"):
+                        return int(line.split()[1]) * 1024
+        except (OSError, ValueError, IndexError):
+            pass
     try:
         import resource
     except ImportError:
