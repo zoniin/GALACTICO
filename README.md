@@ -46,7 +46,7 @@ group before no XI can be fielded under the eligibility rules, and two once the
 leaves the declared shortfall where it was, because nothing here measures
 finishing. A page that printed a shortlist would be answering a question this
 data cannot. These print the question back, with what it is conditional on.
-[Decisions](DECISIONS.md) ADR-0018 to ADR-0027 ·
+[Decisions](DECISIONS.md) ADR-0018 to ADR-0028 ·
 [what they cannot say](KNOWN_LIMITATIONS.md)
 
 ![Squad Lab](docs/screenshots/17-squad-lab.png)

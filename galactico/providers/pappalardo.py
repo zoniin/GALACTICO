@@ -1,7 +1,9 @@
 """Pappalardo/Wyscout adapter.
 
-Every Wyscout quirk terminates in this file. Downstream code sees only the neutral
-action schema in :mod:`galactico.schemas.actions`.
+Every Wyscout quirk the neutral frames need terminates in this file. Downstream code
+sees only the neutral action schema in :mod:`galactico.schemas.actions`. Two other
+modules read raw tags by design and say so: the tag sidecar
+(``galactico/ingestion/sidecar.py``) and Match Lab's enrichment.
 
 Two provider facts that must not leak, and are therefore handled here explicitly
 rather than harmonised away:

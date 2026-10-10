@@ -7,7 +7,7 @@ VISION, learned role fit, embeddings and opponent utility remain research/stubs.
 
 ```
 providers/   adapters; provider quirks terminate here
-ingestion/   raw -> provider-neutral schema -> Parquet
+ingestion/   raw -> provider-neutral schema -> Parquet; the Wyscout tag sidecar beside it
 storage/     DuckDB over Parquet, three tiers kept apart
 features/    quality / style / spatial / physical / team
 reliability/ the gate; runs before axes are designed
@@ -63,6 +63,7 @@ changed: their bytes are hashed into published experiment results.
 | Module | Responsibility |
 |---|---|
 | `storage/public.py` | The one guarded reader of the public frames: hosting guard first, provider column checked, explicit files only |
+| `ingestion/sidecar.py` | The Wyscout tags and match-sheet fields the neutral frames drop, as three tables per competition joined on `event_id`; facts with the provider's meaning, no construct (ADR-0028) |
 | `optimization/snapshots.py` | Pre-decision snapshot for any club and decision match or cutoff date under a named eligibility rule set; byte parity with `historical.build_snapshot` for Madrid; `TEAM_MATCHES` or `LEAGUE_MATCHES` worlds |
 | `optimization/reference.py` | League distributions of starting-XI requirement sums before a cutoff (descriptive) |
 | `optimization/squad/kernel.py` | The exact lexicographic shortfall as a linear epigraph; the same integers as `solve_xi`; conservative floor/ceil for hard statements |

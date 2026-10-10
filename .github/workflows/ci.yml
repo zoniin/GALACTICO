@@ -57,6 +57,10 @@ jobs:
       - run: uv run python scripts/fetch_pappalardo.py
       - run: uv run python scripts/prepare_lab.py
       - run: uv run python scripts/prepare_planning.py
+      # The Wyscout tags and match-sheet fields the neutral frames drop, for Spain.
+      # After the frames, so the build can check its event ids against them; before
+      # the suite, so the tests that read the sidecar run here instead of skipping.
+      - run: uv run python scripts/build_sidecar.py --only Spain
       # The corpus-dependent tests skip in `check`, which has no data. This is
       # the only job that has the corpus and the built bundle, so the thesis
       # guards on the shipped artifact run here or nowhere.

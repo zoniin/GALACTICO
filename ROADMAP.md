@@ -153,9 +153,9 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
 - Bridge estimation and paired-corpus validation; candidate sources require a
   fresh coverage/licensing check before use.
 - Opponent Lab, a Director's desk that chains the labs, learned embeddings and
-  VISION. A tag sidecar for the Wyscout detail the neutral schema drops (body
-  part, duel outcome, cards, own goals) is specified and not built; the shot and
-  opponent experiments need it.
+  VISION. The tag sidecar for the Wyscout detail the neutral schema drops (body
+  part, duel outcome, cards, own goals) is built (ADR-0028); the shot and opponent
+  experiments that need it are still drafts.
 
 The next research gates are identification and out-of-sample decision validation,
 not adding more tactical labels: freeze and run E-11 before E-12, and E-09 and

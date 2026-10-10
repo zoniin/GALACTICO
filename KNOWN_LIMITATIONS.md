@@ -243,6 +243,20 @@ technology, which put fixed words around served values. Transfer Lab's two
   in the browser. The 429 state is tested in both, with a fulfilled reply. A real deadline was never reached on the shipped
   scenarios; those states are tested by rewriting replies.
 
+## The tag sidecar holds facts, and nothing has read it yet
+
+- No column of the sidecar is a construct. A tag is the provider's judgement,
+  recorded as the provider recorded it.
+- No experiment and no page reads it yet. The two drafts that will (E-09, E-10)
+  name functions that were not built.
+- Its match table leaves out extra-time and shootout scores: for a cup match that
+  went past ninety minutes the two scores are the ninety-minute score.
+- `verify` shows the tables are the ones the manifest records. It does not show
+  that the module as it stands built them; the manifest's `builder_source_hash`
+  does.
+- CI builds Spain only, so the corpus tests of the other six competitions skip
+  there.
+
 ## Drafted, not registered, not run
 
 Five protocols are written under

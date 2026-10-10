@@ -1,4 +1,4 @@
-.PHONY: install test lint licence check profiles prepare serve e2e release-check
+.PHONY: install test lint licence check profiles sidecar prepare serve e2e release-check
 
 install:
 	uv venv && uv pip install -e ".[dev,api,viz]"
@@ -17,10 +17,14 @@ licence:
 profiles:
 	uv run python scripts/build_profiles.py
 
+sidecar:
+	uv run python scripts/build_sidecar.py --only Spain
+
 prepare:
 	uv run python scripts/fetch_pappalardo.py
 	uv run python scripts/prepare_lab.py
 	uv run python scripts/prepare_planning.py
+	uv run python scripts/build_sidecar.py --only Spain
 
 serve: profiles
 	uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090 --reload

@@ -6,17 +6,19 @@ below distinguish correctness, measurement validity and decision usefulness.
 
 ## Current release evidence
 
-The Squad Lab and Transfer Lab build, with the repairs of two audits, passed **1,476
-local Python tests** on 10 October (one more skips: the tag sidecar it needs is not
-built) and **52 browser tests** plus the two screenshot captures. That run had the
-five-league public corpus, the built Player Lab bundle and the local StatsBomb cache
-present; without that cache one more test skips. Ruff and the licensing guard passed.
-It lives on the `north-star` branch. GitHub Actions passed both jobs on `b7bc919`
-(run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165))
-and on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713)):
-the data-free checks, and the browser job that now ingests all five leagues and runs
-the suite with the corpus. The commits after `7899c76` had not been pushed when this
-was written, so no run of them is cited here; the Actions page holds it.
+The Squad Lab and Transfer Lab build, with the repairs of two audits and the tag
+sidecar, passed **1,635 local Python tests** on 10 October, none skipped. That run had
+the five-league public corpus, the built Player Lab bundle, the tag sidecar of all
+seven competitions and the local StatsBomb cache present; a test that needs one of
+them skips where it is absent. The **52 browser tests** and the two screenshot
+captures passed on the commit before the sidecar, which touches no page and no
+route. Ruff and the licensing guard passed. GitHub Actions passed both jobs on
+`b7bc919` (run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)),
+on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713))
+and on `02bdf78` (run [38025238217](https://github.com/zoniin/GALACTICO/actions/runs/38025238217)):
+the data-free checks, and the browser job that ingests all five leagues and runs the
+suite with the corpus. `main` was fast-forwarded to `02bdf78` after that third run.
+The sidecar commit follows it; the Actions page holds its run.
 
 What the new tests establish, and what they do not:
 

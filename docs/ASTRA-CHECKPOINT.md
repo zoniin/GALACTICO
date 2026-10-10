@@ -5,16 +5,16 @@
 10 October: the Squad Lab / Transfer Lab build, the repairs of the first audit, the
 decisions the owner delegated on 9 October and the repairs of the second audit are
 committed on the branch `north-star`, above `feb9f8b`.
-`git log --oneline feb9f8b..north-star` lists the commits. The branch was pushed on
-9 October, and CI passed both jobs on `b7bc919` (run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165))
-and on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713)).
-The commits after `7899c76` had not been pushed when this was written. Whether `main`
-holds the branch is a fact about `main`, not about this file:
-`git branch --contains b7bc919` answers it.
+`git log --oneline feb9f8b..north-star` lists the commits. CI passed both jobs on `b7bc919` (run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)),
+on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713))
+and on `02bdf78` (run [38025238217](https://github.com/zoniin/GALACTICO/actions/runs/38025238217)),
+and `main` was fast-forwarded to `02bdf78` on 10 October. The tag sidecar was
+committed after that; `git branch --contains <commit>` says what `main` holds.
 
-On 10 October, on the tree of the second-audit repairs: 1,476 Python tests passed and 1
-skipped (the tag sidecar is not built), with the local StatsBomb cache present (without
-it one more skips); 52 browser tests and the two screenshot captures passed; Ruff and
+On 10 October: 1,635 Python tests passed and none skipped, with the tag sidecar of
+all seven competitions and the local StatsBomb cache present (a test that needs one
+of them skips where it is absent); 52 browser tests and the two screenshot captures
+passed on the commit before the sidecar, which touches no page and no route; Ruff and
 the licence guard clean; the regenerated profile and "Why only five?" screenshots
 read. The CI workflow was changed on this branch (the browser job ingests five
 leagues, runs the Python suite with the corpus and runs three more specs); run
@@ -39,8 +39,9 @@ owner delegated on 9 October: `b7bc919` StatsBomb credit and logo, three sources
 reference only · `7753b45` a construct is published only inside its declared
 context · `d3d3ff5` average ranks, the erratum M-07 and the StatsBomb-side table
 out of the tree · `7899c76` the documents for those decisions · `f4d0410` the
-erratum compares the StatsBomb half with the local record · then the repairs of
-the second audit.
+erratum compares the StatsBomb half with the local record · `a8b4604` the repairs of
+the second audit · `02bdf78` the E-11 draft after three review rounds · then the tag
+sidecar.
 
 At least eight commit messages are wrong in part and cannot be corrected without
 rewriting history: the five below, and three whose own words the second audit
@@ -218,8 +219,9 @@ No credentials or proprietary data are needed or committed.
   them was cut short before adversarial review, reconciliation and audit. E-11 has
   since had three rounds and its third audit returned NOT_READY; the other four
   are unreviewed. The verdict registry is empty.
-- SPECIFIED, NOT BUILT: the tag sidecar (body part, duel outcome, cards, own
-  goals), which E-09 and E-10 need; Opponent Lab; a Director's desk.
+- BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own
+  goals; ADR-0028), which E-09 and E-10 need.
+- SPECIFIED, NOT BUILT: Opponent Lab; a Director's desk.
 - NOT SPECIFIED: certified XI frontier, declared-risk modes, minimal conflict
   sets. The XI-level design was lost when the council stopped; the squad kernel
   is where to build them.
@@ -233,8 +235,9 @@ No credentials or proprietary data are needed or committed.
 
 ## IN PROGRESS
 
-No unfinished implementation on `north-star`. **1,476 local Python tests, 52 browser
-tests and two screenshot captures** passed on 10 October, plus Ruff/licensing. The E-11
+No unfinished implementation on `north-star`. **1,635 local Python tests** passed on
+10 October with the tag sidecar built, and **52 browser tests and two screenshot
+captures** on the commit before it, plus Ruff/licensing. The E-11
 protocol draft is in review and is not registered. Do not reopen E-07 or E-08.
 
 The 20 September release: **374 local Python tests and 13 Playwright tests**
@@ -285,8 +288,8 @@ Owner decisions and open work. Items 2 to 5 were left open by the 9 October
 reconnaissance, decided that day and corrected again after the second audit
 (ADR-0027). Items 1, 6, 7 and 8 are open:
 
-1. The branch was pushed on 9 October and CI passed on it twice. Merging into `main`
-   is a fast-forward of a tip whose CI run is green: commit order is how this
+1. `main` was fast-forwarded to `02bdf78` on 10 October, after CI passed on that
+   commit. Each later merge is again a fast-forward of a tip whose CI run is green: commit order is how this
    repository shows that a protocol preceded its results, so the branch is never
    squashed or rebased. This file cannot say whether the merge has happened;
    `git branch --contains b7bc919` does. While the default branch lacks that commit,
@@ -304,7 +307,8 @@ reconnaissance, decided that day and corrected again after the second audit
 5. Decided: average ranks are the default; the published figures are corrected by
    erratum, not rewritten (M-07, ADR-0026). No verdict or gate changed.
 6. Which of the remaining drafts to review, freeze and run, and in what order.
-   E-11 gates E-12. E-09 and E-10 need the tag sidecar first.
+   E-11 gates E-12. E-09 and E-10 read the tag sidecar, which is built; both drafts
+   name functions it does not have.
 7. E-11 is not ready. Its third audit returned NOT_READY with three blockers,
    which are not yet applied; a fourth round applies them and audits again
    ([status](research/north-star/README.md)).
@@ -399,7 +403,7 @@ From the 9 October build, held by the owner outside the repository because they
 are long, partly raw and include counts derived from the local-only corpus: eight
 subsystem maps, six method reports, two structure-only corpus audits, an
 independent critique, and full specifications for the squad and transfer tools
-(built), the data and API layers (built except the tag sidecar), and the matchday
+(built), the data and API layers (built), and the matchday
 pages (the shell is built; Opponent Lab and the XI additions are not). The
 decisions those documents led to are in `docs/research/north-star/` and
 `DECISIONS.md`; the specifications themselves are not needed to work on what

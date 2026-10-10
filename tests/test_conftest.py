@@ -111,4 +111,4 @@ def test_spain_frames_are_the_build_snapshot_kwargs(spain_frames, league_availab
 
 @pytest.mark.slow
 def test_sidecar_fixture_skips_until_the_sidecar_is_built(spain_sidecar_root):
-    assert (spain_sidecar_root / "competition=Spain" / "events.parquet").is_file()
+    assert (spain_sidecar_root / "Spain" / "MANIFEST.json").is_file()

@@ -76,7 +76,8 @@ def _league_available(public: Path) -> Callable[[str], None]:
 
 
 def _sidecar_root(sidecar: Path) -> Path:
-    _need(sidecar / "competition=Spain" / "events.parquet", "tag sidecar not built")
+    # The manifest is written last, so it is what says a build finished.
+    _need(sidecar / "Spain" / "MANIFEST.json", "tag sidecar not built")
     return sidecar
 
 

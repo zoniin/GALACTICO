@@ -1082,3 +1082,53 @@ registry entry, and the API then refuses the built bundle until it is rebuilt. A
 construct that declares goalkeepers in its context is served for them on Match
 Lab's rows by that declaration. A hosted deployment replaces the sixteen places
 with a queue (ADR-0024).
+
+---
+
+## ADR-0028 — Provider detail the neutral frames drop lives in a sidecar, as facts
+
+**Problem.** The neutral action schema keeps what every provider can supply. The
+public Wyscout data says more: fifty-seven tags in use (body part, duel outcome,
+cards, goal zone, own goals and others) and match-sheet fields (bench,
+substitutions, card minutes, coaches, half-time scores). Two drafted experiments
+need them. New columns in the neutral frames would change files whose hash the
+profile bundle records.
+
+**Decision.** `galactico/ingestion/sidecar.py` writes three tables for a
+competition beside the neutral frames and never inside them: `events` (one row for
+each event that has a position, the event ids of `actions.parquet`), `matches` and
+`squads`, with a manifest written last. Every tag id on an event survives in
+`tags`. A named column says what one tag, or one family of tags, says, with the
+provider's meaning. No column is a construct, and `success`, `goal` and
+`clearance` of the neutral frames are not reinterpreted. Raw events are decoded one
+at a time. `attach` is the one join: one to one, or it raises. The sidecar is
+PUBLIC tier, gitignored like every data file, and built by
+`scripts/build_sidecar.py`.
+
+**Evidence.** Built on 10 October 2026 for the seven competitions of the release.
+In each the event ids equal those of the neutral frame, the tables verify against
+their manifest, and no event carries two tags of one counted family or a tag
+outside the provider's dictionary. Spain holds 628,659 events, 380 matches and
+13,673 squad rows. A league builds in about ten seconds. An independent reviewer,
+with code of its own, recomputed every tag-derived column from the stored tags for
+three competitions, rebuilt the squad rows from the raw sheets for two, and
+counted the manifest's anomalies from the raw files for all seven; the slow tests
+hold the tables to the structure counts of an audit that had counted the raw
+files earlier.
+
+**Numerical boundary.** The match table leaves out extra-time and shootout scores,
+so for a cup match that went past ninety minutes its two scores are the
+ninety-minute score and the winner field says what followed. `verify` shows that
+the tables are the ones the manifest records, not that the module as it stands
+built them: `builder_source_hash` is in the manifest for a caller that needs to
+know. CI builds Spain only.
+
+**Alternatives rejected.** New columns in the neutral frames. A second, wider
+adapter. Reading the raw files in each experiment.
+
+**Confidence.** High for what the tables hold. No experiment has read the sidecar
+yet, and the two drafts that will were written against other function names
+(north-star README).
+
+**Reversal.** A change of schema is a new version directory; `load` refuses a
+manifest of another schema version.
