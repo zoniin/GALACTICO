@@ -18,7 +18,11 @@ on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs
 and on `02bdf78` (run [38025238217](https://github.com/zoniin/GALACTICO/actions/runs/38025238217)):
 the data-free checks, and the browser job that ingests all five leagues and runs the
 suite with the corpus. `main` was fast-forwarded to `02bdf78` after that third run.
-The sidecar commit follows it; the Actions page holds its run.
+CI failed on the sidecar commit `da1ce6b` in one test, a memory reading that is
+carried across fork on Linux, and passed both jobs on its repair `9c6b237` (run
+[38035974049](https://github.com/zoniin/GALACTICO/actions/runs/38035974049));
+`main` was fast-forwarded to `9c6b237` and passed again there (run
+[38036431664](https://github.com/zoniin/GALACTICO/actions/runs/38036431664)).
 
 What the new tests establish, and what they do not:
 

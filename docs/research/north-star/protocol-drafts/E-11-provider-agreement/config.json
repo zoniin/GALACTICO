@@ -5,9 +5,9 @@
   "tier": "LOCAL_LICENSED",
   "providers": ["pappalardo", "statsbomb"],
   "difference_direction": "statsbomb_minus_wyscout",
-  "key_naming": "sb_ = StatsBomb side, wy_ = Wyscout/Pappalardo side; no key contains a provider's full name (tests/test_licensing.py reads keys)",
+  "key_naming": "sb_ = StatsBomb side, wy_ = Wyscout/Pappalardo side; no key of this file, of acceptance.json, of results.json or of results.local.json contains statsbomb, pappalardo or wyscout in any letter case, and a value per provider sits under the key sb or wy (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first)",
 
-  "pipeline_spec_sha256": "e9ad11c9107d6fbcc1bd3f9d70cab956ab59f482062cfb1f6d84e37f4ecbd688",
+  "pipeline_spec_sha256": "ab30f9e98387a84ad21dd839794169d1581e8f6e134ff6045001dbed7baeedcb",
   "sb_folder_digests": {
     "World_Cup_2018": "14f7a21e756b02147b55abad3c75fba04f783b70bfbab54b73c155c47bd121c8",
     "La_Liga_2017_18": "ad976fd9b334de95ec799d0a2a418cfd8bd16fb22a8a3f4f780d2d94752a4d28",
@@ -17,15 +17,15 @@
 
   "sb_root": "data/licensed/statsbomb",
   "sb_forbidden_roots": ["data/licensed/parquet"],
-  "pappalardo_parquet_root": "data/public/parquet/pappalardo",
-  "pappalardo_raw_root": "data/public/pappalardo",
+  "wy_parquet_root": "data/public/parquet/pappalardo",
+  "wy_raw_root": "data/public/pappalardo",
   "local_output_root": "data/licensed/research/E-11-provider-agreement",
   "committed_experiment_dir": "experiments/preregistered/E-11-provider-agreement",
   "source_logo_path": "docs/assets/statsbomb/statsbomb-logo.png",
 
   "subsets": [
-    {"key": "world_cup", "sb_folder": "World_Cup_2018", "pappalardo_competition": "World_Cup", "expected_matches": 64, "minimum_crosswalked_matches": 58},
-    {"key": "la_liga", "sb_folder": "La_Liga_2017_18", "pappalardo_competition": "Spain", "expected_matches": 36, "minimum_crosswalked_matches": 32}
+    {"key": "world_cup", "sb_folder": "World_Cup_2018", "wy_competition": "World_Cup", "expected_matches": 64, "minimum_crosswalked_matches": 58},
+    {"key": "la_liga", "sb_folder": "La_Liga_2017_18", "wy_competition": "Spain", "expected_matches": 36, "minimum_crosswalked_matches": 32}
   ],
   "pools": ["pooled", "world_cup", "la_liga"],
   "primary_pool": "pooled",
@@ -262,6 +262,10 @@
   "permuted_link_stratum": "bootstrap_cluster_aggregated_player x wy_role",
   "permuted_link_level": "aggregated_player",
   "permuted_link_pool": "pooled",
+  "permuted_link_reader": "open_play",
+  "permuted_link_valuation": "regime",
+  "permuted_link_cohort": "the units of the quantity's cell at registry_headline_cell with the two aggregates of its point estimate; no gate, minimum denominator, aggregate, exposure or rank stratum is computed again, and no bootstrap weight enters",
+  "permuted_link_acceptance": {"scenarios": ["planted_comparable", "planted_power_090"], "holds_minimum_share": 0.99},
   "positive_controls": [
     {"quantity": "open_play_passes_completed", "level": "team_match", "pool": "pooled", "reader": "open_play"},
     {"quantity": "completed_passes_per_90", "level": "aggregated_player", "pool": "pooled", "reader": "open_play"}
@@ -337,7 +341,7 @@
       "COMPARABLE_IN_RANK_ONLY": {"status": "ESTABLISHED", "limits": true, "statement": "On the double-coded matches the two providers' estimators of this quantity order players of the same role alike. Their levels were not shown to agree; raw values from the two providers are not pooled."},
       "NOT_ESTABLISHED": {"status": "NOT_ESTABLISHED", "limits": false, "statement": "The two providers' estimators were compared on the double-coded matches. Agreement was not established: the frozen criterion was not met and not excluded, or it was met on all the matches together and contradicted on the league matches alone."},
       "NOT_COMPARABLE": {"status": "NOT_ESTABLISHED", "limits": false, "statement": "On the double-coded matches the data exclude the frozen criterion: the two providers' estimators of this quantity do not order players of the same role alike."},
-      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "statement": "A data or sample gate was not met, one provider does not record this quantity, or a control of the pipeline failed. No agreement is claimed for this quantity."}
+      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "statement": "A data or sample gate was not met, one provider does not record this quantity, or a check the pipeline runs on itself failed. No agreement is claimed for this quantity."}
     },
     "link": {
       "LINK_USABLE": {"status": "ESTABLISHED", "limits": true, "statement": "On the players of the double-coded team sheets, this name-and-nationality link met the frozen bounds on false links and on recall. No birth date confirms any link."},

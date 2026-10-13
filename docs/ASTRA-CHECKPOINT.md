@@ -8,8 +8,19 @@ committed on the branch `north-star`, above `feb9f8b`.
 `git log --oneline feb9f8b..north-star` lists the commits. CI passed both jobs on `b7bc919` (run [37944962165](https://github.com/zoniin/GALACTICO/actions/runs/37944962165)),
 on `7899c76` (run [37953254713](https://github.com/zoniin/GALACTICO/actions/runs/37953254713))
 and on `02bdf78` (run [38025238217](https://github.com/zoniin/GALACTICO/actions/runs/38025238217)),
-and `main` was fast-forwarded to `02bdf78` on 10 October. The tag sidecar was
-committed after that; `git branch --contains <commit>` says what `main` holds.
+and `main` was fast-forwarded to `02bdf78` on 10 October. The tag sidecar followed:
+CI failed on `da1ce6b` and passed both jobs on its repair `9c6b237` (run
+[38035974049](https://github.com/zoniin/GALACTICO/actions/runs/38035974049)), and
+`main` holds `9c6b237` (run
+[38036431664](https://github.com/zoniin/GALACTICO/actions/runs/38036431664), green).
+`git branch --contains <commit>` says what `main` holds.
+
+13 October: work continued in a Linux cloud container on the branch
+`claude/vigilant-rubin-eicbvx`, which started at `9c6b237`. The container has no
+corpus, so 95 Python tests skip there (1,540 passed at entry). Commits, oldest
+first: the absent-raw-file state of the sidecar check, pinned by a test; the E-11
+fourth revision, which applies the third audit's three blockers, with
+`tests/test_protocol_drafts.py`.
 
 On 10 October: 1,635 Python tests passed and none skipped, with the tag sidecar of
 all seven competitions and the local StatsBomb cache present (a test that needs one
@@ -205,6 +216,12 @@ No credentials or proprietary data are needed or committed.
 - 9 October, E-11. The draft went through three rounds of review, revision and
   independent audit. The third audit returned NOT_READY with three blockers. It is
   not registered ([status](research/north-star/README.md)).
+- 13 October, E-11. A fourth revision applies the three blockers: the INCONCLUSIVE
+  sentence passes the copy guard, the permuted-link control is one computation on
+  fixed aggregates with a synthetic simulation, and no key names a provider.
+  `tests/test_protocol_drafts.py` ties the pinned pipeline hash, the served
+  sentences and the key rule to the files. The third audit's consistency items are
+  not in this repository and were not applied.
 - 9 October, record. ADR-0018 to ADR-0027, M-06 to M-08. Five protocol **drafts**
   (E-09 to E-13) under `docs/research/north-star/protocol-drafts/`.
 
@@ -217,8 +234,9 @@ No credentials or proprietary data are needed or committed.
 - PARTIALLY COMPLETE: decision usefulness; the opponent foundation.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09 to E-13. The design council that wrote
   them was cut short before adversarial review, reconciliation and audit. E-11 has
-  since had three rounds and its third audit returned NOT_READY; the other four
-  are unreviewed. The verdict registry is empty.
+  since had three rounds, its third audit returned NOT_READY, and a fourth
+  revision applies that audit's blockers; the other four are unreviewed. The
+  verdict registry is empty.
 - BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own
   goals; ADR-0028), which E-09 and E-10 need.
 - SPECIFIED, NOT BUILT: Opponent Lab; a Director's desk.
@@ -309,9 +327,9 @@ reconnaissance, decided that day and corrected again after the second audit
 6. Which of the remaining drafts to review, freeze and run, and in what order.
    E-11 gates E-12. E-09 and E-10 read the tag sidecar, which is built; both drafts
    name functions it does not have.
-7. E-11 is not ready. Its third audit returned NOT_READY with three blockers,
-   which are not yet applied; a fourth round applies them and audits again
-   ([status](research/north-star/README.md)).
+7. E-11 is not registered. Its third audit returned NOT_READY with three blockers;
+   the fourth revision of 13 October applies them, and registration waits for a
+   READY audit of that revision ([status](research/north-star/README.md)).
 8. The chance-creation floor. The Wyscout estimator shows chance creation as a
    number from 1,800 minutes. On the declared population the reliability there is
    0.699, under the 0.70 number threshold, and 0.723 at 2,250 minutes; 53 point

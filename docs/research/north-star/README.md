@@ -14,7 +14,7 @@ Two things live here, and neither is a result.
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | three rounds on 9 October 2026; the third audit returned NOT_READY |
+| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | three rounds on 9 October 2026, the third audit NOT_READY; a fourth revision on 13 October 2026 applies its three blockers and is not yet audited |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -33,10 +33,11 @@ and no outcome named in any of them has been computed. The designers' own simula
 - Nothing is registered. `galactico/domain/verdicts.py` ships an empty registry,
   so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
-## E-11 after three rounds: a draft, not ready, not registered
+## E-11 after four revisions: a draft, not registered
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
-independent audit. Each audit was made by a reviewer who had written none of the
+independent audit, and on 13 October a fourth revision applied the third audit's
+blockers. Each audit was made by a reviewer who had written none of the
 draft and walked the branches of its verdict rules on synthetic numbers.
 
 | Round | What was reviewed | Revision | Independent audit |
@@ -44,23 +45,41 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 1 | the draft, by three adversarial reviewers: a statistician, a reader of the football data, a reader for the constitution | 44 changes applied, 12 proposals rejected with reasons | NOT_READY, 9 blockers |
 | 2 | the first audit's findings | 29 changes applied, 8 rejected | NOT_READY, 5 blockers |
 | 3 | the second audit's findings, and seven rulings by the root on what the first two rounds left open | 29 changes applied, 7 rejected | NOT_READY, 3 blockers |
+| 4 | the third audit's three blockers (13 October) | 3 applied, none rejected; the third audit's consistency items are not in this repository, were not available to this round, and none was applied | not yet audited |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
 specification equals the one the config pins. Within the four verdict rules (cell,
 link, admission, registry) every case it walked returns exactly one verdict.
 
-Its verdict is NOT_READY, with three blockers. None of the three is applied yet.
+Its verdict was NOT_READY, with three blockers. The fourth revision applies each:
 
-1. The sentence frozen for an INCONCLUSIVE registry token holds the word
-   "control", which the copy guard bans, so the verdicts endpoint would refuse
-   that record after a run.
-2. The permuted-link control bears on verdicts and its computation is not
-   defined: four readings the text allows gave different results on synthetic
-   corpora.
-3. The config says no key holds a provider's full name; three of its keys and
-   four keys of the local result file do, so the frozen test list could not be
-   met by the frozen files.
+1. The sentence frozen for an INCONCLUSIVE registry token held the word
+   "control", which the copy guard bans, so the verdicts endpoint would have
+   refused that record after a run. It now reads "a check the pipeline runs on
+   itself failed". Every sentence of every token of every subject is served
+   through the real response boundary by `tests/test_protocol_drafts.py`.
+2. The permuted-link control bore on verdicts and its computation was not
+   defined: four readings the text allowed gave different results on synthetic
+   corpora. It is now one computation, on fixed aggregates: the units of each
+   quantity's headline cell keep the two aggregates of its point estimate, the
+   Wyscout aggregates are reassigned inside cluster × role by a cyclic shift of a
+   shuffled order whose generator, stratum order and draws are fixed, and nothing
+   is gated, aggregated or weighted again; a headline cell that is INCONCLUSIVE has
+   no control (protocol, "Models and baselines"; PIPELINE sections 3 and 5). A
+   simulation on the acceptance generator, synthetic only, is in the protocol: the
+   control held in all 4,500 corpora at true agreement 0.60 to 0.95 and in none of
+   900 with a scrambled link. `permuted_link_acceptance` makes the first a
+   requirement of the acceptance run.
+3. The config said no key held a provider's full name; three of its keys and
+   four keys of the local result file did. They are renamed (`wy_parquet_root`,
+   `wy_raw_root`, `wy_competition`; `mean_sb`, `mean_wy`, `sd_sb`, `sd_wy`), the
+   rule names the three words it means and covers all four result files at every
+   depth, and a value per provider sits under `sb` or `wy`.
+
+The fourth revision also says that the fetch script was committed with the draft,
+before registration, and recomputes `pipeline_spec_sha256`. A test now ties the
+pinned hash to the file, so an edit that forgets it fails.
 
 The script that fetches the two double-coded folders exists under `scripts/`. Its
 check mode opens no connection and passes on the three local folders the config
@@ -72,13 +91,9 @@ name and nationality for structure counts, and a count of such links on the doub
 players is in the working notes, so the draft declares the recall criterion of its link
 verdict not blind (its prior-exposure table).
 
-A fourth round consists of applying the three blockers and the remaining
-consistency items of the third audit, recomputing the pipeline hash, and a fresh
-independent audit. Registration follows a READY verdict only, in one commit that
-holds nothing else. Two notes for whoever runs that round. The draft's PIPELINE
-says the fetch script is committed with the registration; it is committed now,
-before registration, as part of the draft, and the next revision must say so. The
-draft's own banner says its third revision has not been audited; it has.
+What is left before registration: a fresh independent audit of the fourth revision,
+and the third audit's remaining consistency items, which are not in this repository.
+Registration follows a READY verdict only, in one commit that holds nothing else.
 
 ## Three things to settle before another draft is registered
 

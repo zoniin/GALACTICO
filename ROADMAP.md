@@ -126,9 +126,10 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   candidates, E-10 conceded-territory persistence, E-11 provider agreement on the
   100 double-coded matches, E-12 rates across a club change, E-13 declared-risk
   selection. E-11 went through three rounds of review, revision and independent
-  audit on 9 October 2026; the third audit returned NOT_READY and its three
-  blockers are not yet applied. The other four need adversarial review and an
-  audit before registration. The verdict registry is empty.
+  audit on 9 October 2026; the third audit returned NOT_READY with three
+  blockers, and a fourth revision on 13 October applies them. That revision has
+  not been audited. The other four need adversarial review and an audit before
+  registration. The verdict registry is empty.
 
 ## Not started or not validated
 
