@@ -7,7 +7,7 @@
   "difference_direction": "statsbomb_minus_wyscout",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider, a convention that a few earlier keys do not follow; no key of this file, of acceptance.json, of results.json or of results.local.json contains statsbomb, pappalardo or wyscout in any letter case (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first, the runner test of PIPELINE section 10 for all three)",
 
-  "pipeline_spec_sha256": "461ebaffbad151e7b7548dfa508a9106fbbf78c0a9ce1808e140436e9099f741",
+  "pipeline_spec_sha256": "9f9dac11bdc1c87ec2c907fde40b354e6e2ad6c599fe8efbc2be973273a4c4f7",
   "sb_folder_digests": {
     "World_Cup_2018": "14f7a21e756b02147b55abad3c75fba04f783b70bfbab54b73c155c47bd121c8",
     "La_Liga_2017_18": "ad976fd9b334de95ec799d0a2a418cfd8bd16fb22a8a3f4f780d2d94752a4d28",
@@ -45,6 +45,7 @@
   "wy_goalkeeper_position": "GK",
   "sb_goalkeeper_position": "Goalkeeper",
   "wy_location_sentinels": [[0.0, 0.0], [1.0, 1.0]],
+  "sb_location_scale": [120, 80],
 
   "sheet_drop_zero_regulation_minute_rows": true,
   "sheet_name_overlap_strictly_above": 0.0,
@@ -371,7 +372,7 @@
   "acceptance_corpora": 200,
   "acceptance_bootstrap_replicates": 500,
   "acceptance_seed": 20261010,
-  "acceptance_population_corpora": 600,
+  "acceptance_population_corpora": 2400,
   "acceptance_population_tolerance": 0.015,
   "acceptance_admitted_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"],
   "acceptance_generator": {

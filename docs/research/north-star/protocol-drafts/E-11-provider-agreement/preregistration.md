@@ -1,6 +1,6 @@
 # E-11 — provider agreement on the 100 double-coded matches
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass) and revised an eighth time, all on 13 October. The eighth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass), revised an eighth time, audited an eighth time by nine auditors each holding one part of the draft with three skeptics on every blocker (found not ready: three blockers, a missing public file, the name tokenizer and the population check's margin) and revised a ninth time, all on 13 October. The ninth revision's fixes are under verification (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 <img src="../../../../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
@@ -128,8 +128,9 @@ Rules, all frozen:
 3. **Outfield only at the two player levels** (Wyscout role code is not
    `wy_goalkeeper_position`). Team level keeps every row, including rows with no
    attributed player.
-4. **Whole-match exclusions.** A listed match whose event or lineup file is absent on
-   either side, or that fails the match crosswalk, is dropped and counted by reason. The
+4. **Whole-match exclusions.** A listed match whose StatsBomb event or lineup file is
+   absent, or that fails the match crosswalk, is dropped and counted by reason. A missing
+   Pappalardo file stops the runner before it starts (`PIPELINE.md` section 7, check 7). The
    Wyscout files are per competition, so there a linked match with no event row or no
    lineup row is dropped after the crosswalk (`WY_ROWS_ABSENT`) and is not counted as
    linked. No match is dropped for a reason that uses event content.
@@ -157,6 +158,13 @@ Rules, all frozen:
 No event content enters any crosswalk. Linking on event agreement and then measuring event
 agreement would be circular.
 
+**Tokens.** Every token, token set, token count and token Jaccard in this section (the
+match crosswalk; the player crosswalk, its distinguishing token and the team-mate share
+reported beside it; the tiers of the wide link) is taken on `name_tokens`
+(`galactico/identity/resolver.py`: `normalise_name`, then particles and one-letter tokens
+dropped) of the name it is taken from. A Jaccard with an empty side, a missing name form
+included, is 0. Countries are compared on `normalise_name` only.
+
 **Match crosswalk.** Within a subset, a StatsBomb match and a Wyscout match are linked iff
 their calendar dates differ by at most `match_date_tolerance_days`, each side's two team
 names pair off with `name_tokens` Jaccard overlap above
@@ -164,8 +172,8 @@ names pair off with `name_tokens` Jaccard overlap above
 recorded, not rejected), the candidate is unique in both directions, and for durations in
 `match_require_goal_agreement_durations` the goals of each side agree. Team identity inside
 a linked match follows from the same pairing. It runs on real data only inside `execute`.
-Gates, per subset: fewer than `minimum_crosswalked_matches` listed matches with all files
-present gives `INCONCLUSIVE (DATA_MISSING)` for every cell and every link verdict; fewer
+Gates, per subset: fewer than `minimum_crosswalked_matches` listed matches whose StatsBomb
+event and lineup files are both present gives `INCONCLUSIVE (DATA_MISSING)` for every cell and every link verdict; fewer
 than that number linked gives `INCONCLUSIVE (MATCH_CROSSWALK)`, likewise.
 
 **Order of the gates.** `DATA_MISSING`, `UNKNOWN_VOCABULARY` (rule 5) and
@@ -373,7 +381,8 @@ rule report, with `null` for anything undefined:
   listed in `analysis.md` as a suspected code defect. It is not a cell flag, enters no
   committed JSON and does not alter a verdict;
 - Bland–Altman bias, standard deviation of differences, limits `bias ± bland_altman_z·sd`,
-  relative bias `bias / ((mean_sb + mean_wy)/2)`, scale ratio `sd_sb / sd_wy`, slope of
+  relative bias `bias / ((mean_sb + mean_wy)/2)`, undefined when that mean is not strictly
+  positive, scale ratio `sd_sb / sd_wy`, slope of
   difference on pair mean;
 - for count inputs at `player_match`: share of exactly equal pairs.
 
@@ -416,7 +425,9 @@ difference with its interval is reported; it is not tested.
 `exposure_sensitivity_minutes` and agreement by Wyscout role, in `sensitivity_pools` only
 (above its gate the `la_liga` pool is one club's players, so neither is computed there);
 unit counts along `exposure_curve_minutes`; the `common` valuation; the sensitivity
-bootstrap schemes; the `as_shipped` cell of each shipped construct beside its headline
+bootstrap schemes; the side-by-side row that prints the `as_shipped` cell of each shipped
+construct (which keeps its own graded token in `cells` and admits and registers nothing)
+beside its headline
 cell; every table of purpose (c); and the **difference decomposition**: for each
 aggregated quantity whose denominator is minutes, over player-matches with at least
 `difference_decomposition_minimum_minutes` on both providers of players with at least
@@ -477,7 +488,8 @@ exposure gate). `L`, `U` and `P` are the interval bounds and the point estimate;
 
 An undefined CCC or relative bias fails row 2 and falls through to row 3. NaN is never a
 pass. A cell whose order-statistic point estimate lies outside its own interval carries
-the flag `POINT_OUTSIDE_INTERVAL`. The flag changes no token.
+the flag `POINT_OUTSIDE_INTERVAL` (only a cell that passes row 1; an `INCONCLUSIVE` cell
+has no flag). The flag changes no token.
 
 **Wide link, per tier set,** on the `link_verdict_pool` block. Evaluate in order.
 
@@ -575,7 +587,8 @@ pooled aggregated level, range over the three structures and both implementation
 **A true agreement near 0.85 most often returns `NOT_ESTABLISHED`.** That is stated now so
 that it is not later read as a finding or repaired. `acceptance_scenarios` holds these as
 requirements the frozen code must meet before the run, with margins for the noise of 200
-corpora. With one admission cell per aggregated quantity other than the declared variant
+corpora, and the population check with a margin for the noise of
+`acceptance_population_corpora` corpora across faithful implementations. With one admission cell per aggregated quantity other than the declared variant
 (twelve), up to about 0.7 false admissions are expected if every quantity sat exactly at
 the threshold. Error is not controlled across cells, no cell borrows from another, and
 nobody may count admissions.
@@ -621,9 +634,10 @@ cross-provider study on within-provider × league × role rank-normal values onl
 agreement is recorded as a finding and licenses no raw cross-provider value, contrast or
 level-shift estimand. An admission means the `la_liga` cell did not contradict the pooled
 one; `_LEAGUE_UNCONFIRMED` means it did not confirm it either, and a study must print that
-suffix, and both tokens, beside every result for the quantity. A later study must read
-StatsBomb through the reader, the surface rule and the wide-link function graded here,
-unchanged and hash-pinned. A quantity admitted under `open_play` is not admitted under the
+suffix, and both tokens, beside every result for the quantity. A later study that reads
+StatsBomb events, values them with xT or links players by name and nationality must do
+each through the reader, the surface rule or the wide-link function graded here,
+unchanged and hash-pinned; the wide link only for a tier set that is `LINK_USABLE`. A quantity admitted under `open_play` is not admitted under the
 unfiltered adapter.
 
 **Wide link.** `LINK_USABLE` for a tier set permits a later LOCAL study to use that tier
@@ -727,8 +741,10 @@ A verdict here promotes nothing. It decides only what a later cross-provider stu
 - That the pairing is error-free. It is name-based inside a closed pool with structural
   corroboration and no birth date.
 - The false-link rate of a link on another population. Every player here is on a Wyscout
-  team sheet. For tier set `[A]` the absent-partner criterion adds nothing: no two Wyscout
-  records share a full-name token set, so the namesake count is zero, and with his partner
+  team sheet. For tier set `[A]` the absent-partner criterion adds nothing: the census found
+  no two Wyscout records sharing a full-name token set with the middle name included; the
+  first-plus-last count used here, on `name_tokens`, is computed at run time and is
+  expected to be zero, not known to be; and with his partner
   hidden a paired player still receives a tier A link only if his link was to another
   record all along. The stress count is therefore the number of paired players whose tier
   A link is a wrong record: it is not known in advance, and the false-link criterion
@@ -760,7 +776,8 @@ frozen decision rule must classify planted corpora as `acceptance_scenarios` req
 permuted-link control must hold as `permuted_link_acceptance` requires, and
 the resulting `acceptance.json` (synthetic only) is committed beside the protocol. The
 runner refuses to execute without that stamp, with a config whose `pipeline_spec_sha256` or
-`sb_folder_digests` is null or does not match, or without the commit that first added this
+`sb_folder_digests` is null or does not match, with a Pappalardo file it reads absent
+(`PIPELINE.md` section 7, check 7), or without the commit that first added this
 protocol, its config and its pipeline specification, unchanged since. One execution: a
 failed execution appends to `failed_runs.json` (exception type and message, stage, source
 hashes; no statistic), no value from it may be printed, logged or read, the repair may

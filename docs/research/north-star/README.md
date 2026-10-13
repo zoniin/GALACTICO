@@ -14,7 +14,7 @@ Two things live here, and neither is a result.
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | seven audits; the seventh (13 October 2026) NOT_READY with two blockers, which an eighth revision applies; not yet audited again |
+| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | eight audits; the eighth, partitioned across nine auditors (13 October 2026), NOT_READY with three blockers, which a ninth revision applies; its fixes are under verification |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -33,14 +33,16 @@ and no outcome named in any of them has been computed. The designers' own simula
 - Nothing is registered. `galactico/domain/verdicts.py` ships an empty registry,
   so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
-## E-11 after four revisions: a draft, not registered
+## E-11 after nine revisions: a draft, not registered
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
 independent audit. On 13 October a fourth revision applied the third audit's
 blockers, a fourth independent audit found one blocker that revision introduced, a
 fifth revision applied it, a fifth audit found one more that no earlier audit had
 raised, a sixth revision applied it, a sixth audit found two more, a seventh revision
-applied them, a seventh audit found two more, and an eighth revision applies those. Each audit was made by a reviewer who had written none of the
+applied them, a seventh audit found two more, an eighth revision applied those, an
+eighth audit split across nine auditors found three more, and a ninth revision applies
+them. Each audit was made by a reviewer who had written none of the
 draft and walked the branches of its verdict rules on synthetic numbers.
 
 | Round | What was reviewed | Revision | Independent audit |
@@ -52,7 +54,8 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 5 | the fourth audit's findings (13 October) | the blocker and consistency items 2 to 5 applied; item 1 by a rerun of the simulation | NOT_READY, 1 blocker and 8 consistency items |
 | 6 | the fifth audit's findings (13 October) | the blocker and all 8 consistency items applied | NOT_READY, 2 blockers and 12 consistency items |
 | 7 | the sixth audit's findings (13 October) | both blockers and all 12 consistency items applied | NOT_READY, 2 blockers and 11 consistency items |
-| 8 | the seventh audit's findings (13 October) | both blockers and consistency items 1 to 10 applied; item 11, a simulated figure a third implementation did not reproduce exactly, is descriptive and unchanged | not yet audited |
+| 8 | the seventh audit's findings (13 October) | both blockers and consistency items 1 to 10 applied; item 11, a simulated figure a third implementation did not reproduce exactly, is descriptive and unchanged | NOT_READY: 3 blockers, each confirmed by three of three skeptics; 29 of 35 consistency candidates confirmed |
+| 9 | the eighth audit's findings (13 October) | all 3 blockers and the 29 confirmed consistency items applied, with two optional notes for E-12 | fixes under verification |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -97,7 +100,7 @@ pinned hash to the file, so an edit that forgets it fails.
 The script that fetches the two double-coded folders exists under `scripts/`. Its
 check mode opens no connection and passes on the three local folders the config
 pins: every listed match file is present and each folder's digest equals the pinned
-one. In the three rounds nothing was computed across the two providers, and no outcome
+one. In all the rounds nothing was computed across the two providers, and no outcome
 of the protocol has been computed at all: no agreement value, no event pairing, no team-
 sheet pairing and no false-link rate. Before the rounds the two rosters were linked by
 name and nationality for structure counts, and a count of such links on the double-coded
@@ -165,9 +168,34 @@ failure mapped to its gate, the result strings, a slot for the disagreeing playe
 the divergence intervals on the shared match weights, and a failure while writing
 that leaves no local results behind.
 
-What is left before registration: a fresh independent audit of the eighth revision,
+The eighth audit changed method, because one auditor at a time found one or two
+blockers per round. Nine auditors each held one part of the draft (data and gates; the
+sheet crosswalk and the wide link; measurements; statistics; decision rules; the
+acceptance run; runner, results and registration; fitness for purpose against E-12 and
+the registry; a mechanical cross-file sweep), a triage merged their 44 findings, and
+every blocker candidate went to three skeptics, one asking whether the text already
+decides it, one whether the case can arise, one whether the fix is right. All three
+candidates were confirmed three to zero. A Pappalardo file missing at run time could
+end the one execution as `DATA_MISSING`, as `MATCH_CROSSWALK` or as a retryable failure,
+depending on the reading; it is now a refusal before the run, and `DATA_MISSING` tests
+licensed-side files only. The player crosswalk and the wide link never named their
+tokenizer, and `name_tokens` drops particles and one-letter tokens where a plain split
+keeps them, so a tier A link could hold on one reading and fail on the other; every
+name comparison is now on `name_tokens`. And the acceptance run's population check sat
+about one standard deviation inside its tolerance for one entry, so roughly one
+faithful implementation in seventy would fail the frozen stamp by chance; the population
+check now uses four times the corpora, which puts every entry about four standard
+deviations inside. Twenty-nine of thirty-five consistency candidates were confirmed and
+applied; among them, an E-11 label served on a hosted page would have carried no logo,
+no credit and no link, which ADR-0027 requires, and the results commit now must add
+them. The fitness auditor found E-11's outputs serve E-12 once the hashes and calls E-12
+pins are named, which section 14 now does; the mismatches it found on E-12's side belong
+to the unreviewed E-12 draft.
+
+What is left before registration: a fresh independent audit of the ninth revision,
 and the third audit's remaining consistency items, which are not in this repository.
-Registration follows a READY verdict only, in one commit that holds nothing else.
+Registration follows a READY verdict only, in one commit that holds the registration and
+the edits PIPELINE section 13 lists, and nothing else.
 
 ## Three things to settle before another draft is registered
 

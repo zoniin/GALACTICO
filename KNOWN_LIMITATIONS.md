@@ -268,8 +268,8 @@ selection against selection optimism (E-13). Four were each written by one
 designer and never adversarially reviewed or audited. E-11 went through three
 rounds of review, revision and independent audit on 9 October 2026; the third audit
 returned NOT_READY with three blockers. A fourth revision of 13 October applied
-them, and four more audits that day found one, one, two and two blockers; an eighth
-revision applies the last two, and it has not been audited. None has been
+them, and five more audits that day found one, one, two, two and three blockers; a
+ninth revision applies the last three, and it has not been audited. None has been
 frozen, none has a built pipeline, and no outcome has been computed. The verdict
 registry is empty, so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
