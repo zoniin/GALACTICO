@@ -22,7 +22,8 @@ first: the absent-raw-file state of the sidecar check, pinned by a test; the E-1
 fourth revision, which applies the third audit's three blockers, with
 `tests/test_protocol_drafts.py`; the fifth revision, which applies the blocker and
 consistency items of the fourth audit; the rerun of its simulation; the sixth
-revision, which applies the fifth audit's; the seventh, which applies the sixth's.
+revision, which applies the fifth audit's; the seventh, which applies the sixth's;
+the eighth, which applies the seventh's.
 
 On 10 October: 1,635 Python tests passed and none skipped, with the tag sidecar of
 all seven competitions and the local StatsBomb cache present (a test that needs one
@@ -231,7 +232,11 @@ No credentials or proprietary data are needed or committed.
   UNVERIFIABLE for a link. The sixth revision said they do. A sixth audit found two
   more: nothing built the one-row-per-player StatsBomb frame the wide link reads, and
   fractional pitch cuts were exact rationals against float coordinates. The seventh
-  revision applies both and the audit's twelve consistency items, and is not audited.
+  revision applied both and the audit's twelve consistency items. A seventh audit
+  re-implemented the acceptance run and met every requirement, and found two
+  blockers: the seventh revision named the row of a player's names two ways, and the
+  local results file could not pass the whole licence check. The eighth revision
+  applies both and ten of eleven consistency items, and is not audited.
 - 9 October, record. ADR-0018 to ADR-0027, M-06 to M-08. Five protocol **drafts**
   (E-09 to E-13) under `docs/research/north-star/protocol-drafts/`.
 
@@ -244,8 +249,8 @@ No credentials or proprietary data are needed or committed.
 - PARTIALLY COMPLETE: decision usefulness; the opponent foundation.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09 to E-13. The design council that wrote
   them was cut short before adversarial review, reconciliation and audit. E-11 has
-  since had six audits, the sixth returned NOT_READY with two blockers, and a
-  seventh revision applies them; the other four are unreviewed. The
+  since had seven audits, the seventh returned NOT_READY with two blockers, and an
+  eighth revision applies them; the other four are unreviewed. The
   verdict registry is empty.
 - BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own
   goals; ADR-0028), which E-09 and E-10 need.
@@ -338,8 +343,8 @@ reconnaissance, decided that day and corrected again after the second audit
    E-11 gates E-12. E-09 and E-10 read the tag sidecar, which is built; both drafts
    name functions it does not have.
 7. E-11 is not registered. Its third audit returned NOT_READY with three blockers;
-   four revisions and three audits on 13 October followed, the audits finding one,
-   one and two blockers; the seventh revision applies the last two, and
+   five revisions and four audits on 13 October followed, the audits finding one,
+   one, two and two blockers; the eighth revision applies the last two, and
    registration waits for a READY audit ([status](research/north-star/README.md)).
 8. The chance-creation floor. The Wyscout estimator shows chance creation as a
    number from 1,800 minutes. On the declared population the reliability there is

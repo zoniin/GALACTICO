@@ -1,6 +1,6 @@
 # E-11 — provider agreement on the 100 double-coded matches
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts) and revised a seventh time, all on 13 October. The seventh revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass) and revised an eighth time, all on 13 October. The eighth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 <img src="../../../../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
@@ -225,7 +225,9 @@ match, goalkeeper or not, paired or not (the *evaluated players*), is linked aga
 the order of the tier set; a tier is tried only when the previous one returned no
 candidate; several candidates at one tier are `AMBIGUOUS` and do not fall through. A
 StatsBomb player's legal name, nickname and country are those of his sheet row in the
-last linked match (`PIPELINE.md` section 3); players whose rows disagree are counted.
+linked match of largest `match_key`: `world_cup` matches come before `la_liga` matches
+whatever the calendar says, so a player of both subsets takes his La Liga row
+(`PIPELINE.md` section 3). Players whose rows disagree are counted.
 
 | Tier | Rule |
 |---|---|

@@ -51,7 +51,7 @@ the four 2015/16 leagues, or Stage 1C's runner would silently pick up two more f
 | `lf_sha256`, `lf_sha256_text` | `galactico/validation/digests.py` |
 | `banned_key_paths` | `galactico/domain/thesis.py` |
 | channel literals of `half_space_bands`, `wide_below`, `wide_above` | copied into config; a test pins them to `features/spec.py::ActionFilter.apply` |
-| `check` | `scripts/check_licensing.py`, called by tests on every new file and on both result files |
+| `check` | `scripts/check_licensing.py`, called by tests on every new file and on `results.json` and `acceptance.json`. Not on `results.local.json`: `check` refuses every path under `data/licensed/` and every file above its size ceiling, and that file is both by design; it is held to the guard's credential and fingerprint patterns only (section 7) |
 
 Engineering: `from __future__ import annotations`; frozen dataclasses; full type hints;
 `__all__`; numpy and pandas only (no scipy); ruff clean; paths anchored at
@@ -392,6 +392,7 @@ def pair_events(sb: pd.DataFrame, wy: pd.DataFrame, family: Mapping[str, object]
                 config: Mapping[str, object]) -> pd.DataFrame
 def divergence_tables(sb_events: pd.DataFrame, sb: pd.DataFrame, wy: pd.DataFrame,
                       offsets: Mapping[tuple[int, int], float], xt_common: ExpectedThreat,
+                      match_weight: np.ndarray,
                       config: Mapping[str, object]) -> dict[str, object]
 ```
 
@@ -427,7 +428,7 @@ def divergence_tables(sb_events: pd.DataFrame, sb: pd.DataFrame, wy: pd.DataFram
 | `duel_or_interception` | `ground_duel` or `interception` | same | same |
 | `defensive_action` | `duel_or_interception` or `foul` | same | same |
 | `clearance` (purpose c only) | `touch` with subtype in `wy_clearance_subtypes` | `kind` in `sb_clearance_kinds` | same |
-| `turnover` | failed `pass`, or `dangerous_loss` | failed open-play pass, or `kind` in `sb_turnover_kinds` | failed Pass, or the same kinds |
+| `turnover` | `type == "pass"` and `success` is False, or `dangerous_loss` | failed open-play pass, or `kind` in `sb_turnover_kinds` | failed Pass, or the same kinds |
 
 Wyscout frames are read from `competition=World_Cup/actions.parquet` and
 `competition=Spain/actions.parquet` with a column list, filtered to linked matches, and
@@ -437,8 +438,9 @@ checked for `provider == {"pappalardo"}`. Never `pd.read_parquet` on the directo
 turnover_start, grid=PitchGrid(*xt_grid), max_iterations=xt_max_iterations,
 tolerance=xt_tolerance)` with moves =
 `completed` rows, shots = `open_play_shot` rows (`shot_goal` = `goal`), turnovers =
-`turnover` rows; a surface that did not converge or is not finite raises `ValueError` (the
-runner maps it to the `XT_SURFACE` gate). `wyscout_reference_surface` raises unless the
+`turnover` rows; a surface that did not converge or is not finite raises `ValueError`, and
+so does a reference corpus without its expected matches (below); the runner maps every
+such `ValueError` to the `XT_SURFACE` gate. `wyscout_reference_surface` raises unless the
 Spain frame holds `xt_wy_reference_expected_matches` distinct matches, then uses that
 frame minus the linked La Liga matches. `statsbomb_reference_surface` streams
 `iter_events(root, xt_sb_reference_folder, ...)` file by file, keeps only the coordinate
@@ -515,7 +517,8 @@ absolute value, then the negative. `pair_events` returns `match_key`, `period`, 
 `wy_row`, `time_gap`, `start_distance_m`: candidates share match, period and team, satisfy
 the family's tolerances, and are taken greedily in ascending (`|time_gap|`,
 `start_distance_m`, `sb event_order`, `wy event_order`), each row at most once. Distances
-use `pitch_length_m` × `pitch_width_m`. `divergence_tables` returns the `divergence` block
+use `pitch_length_m` × `pitch_width_m`. The match-cluster interval of each count ratio
+reweights matches by the shared `match_weights` array, `match_weight`. `divergence_tables` returns the `divergence` block
 of section 8; the runner strips nothing from it, so it must already be aggregate.
 
 ## 5. `galactico/validation/provider_agreement.py`
@@ -617,7 +620,7 @@ def registry_verdicts(cells: Sequence[CellResult], controls: Mapping[str, object
 | `bland_altman` | `d = statsbomb − wyscout`; `bias = mean(d)`; `sd` with `ddof = 1`; limits `bias ± z·sd`; `relative_bias = bias / ((mean_sb + mean_wy)/2)`, NaN when that mean is not strictly positive; `scale_ratio = sd_sb / sd_wy`; `slope` = least-squares slope of `d` on `(sb + wy)/2` |
 | `match_weights` | `(B, M)` int16, `B = bootstrap_replicates`. `rng = default_rng(SeedSequence([seed, seed_streams.match_weights]))`; for each subset in config order, `rng.multinomial(m, [1/m]*m, size=B)` written into that subset's columns, `m` = its crosswalked matches |
 | `player_weights` | `(B, P)` int16 from `default_rng(SeedSequence([seed, seed_streams.player_weights])).multinomial(P, [1/P]*P, size=B)`; `P` = all paired outfield players, canonical order |
-| `team_weights` | `(B, T)` int16 from `default_rng(SeedSequence([seed, seed_streams.team_weights]))`; teams in ascending Wyscout id; for each subset block in config order, `rng.multinomial(t, [1/t]*t, size=B)` written into that block's columns |
+| `team_weights` | `(B, T)` int16 from `default_rng(SeedSequence([seed, seed_streams.team_weights]))`; teams in ascending Wyscout id, every Wyscout team of a linked match of the subset, whether or not it is any gated player's cluster; for each subset block in config order, `rng.multinomial(t, [1/t]*t, size=B)` written into that block's columns |
 | `aggregated_values` | pool restricts the match axis. A player is aggregated over his present cells only, the same player-matches on both providers, minutes included, as the protocol's level table says. `num = values[numerator] @ w`, `den = values[denominator] @ w`, minutes likewise, `w` all ones unless `match_weight` is given (the sensitivity scheme only). `defined` requires minutes at or above `exposure` and, when the quantity has one, `den >= minimum_denominator`; the caller requires `defined` on **both** providers. `value = scale · num / den` |
 | `cell_agreement` | point estimate with unit weights (`weights=None`). Replicate `b` by `scheme`: `team_cluster_fixed_cohort` (aggregated primary): units and values as in the point estimate, unit weight `team_weight[b, cluster_of_player]`; `pigeonhole_match_by_player`: at `player_match`, present cells weighted `match_weight[b, m] · player_weight[b, p]`; at the aggregated level (sensitivity), `aggregated_values` with `match_weight[b]`, gates recomputed, weight `player_weight[b, p]`; `match_cluster`: team-matches (or present cells, sensitivity) weighted `match_weight[b, m]`. Ranks, strata totals and moments are recomputed with the weights; the set of retained strata is fixed by the point estimate. A retained stratum with zero total weight in a replicate contributes no unit; the replicate is valid if the statistic is defined on the rest (`minimum_rank_strata`, like the retained set, is a rule of the point estimate and is not applied again inside a replicate). A replicate is invalid when the order statistic is NaN in it. Intervals = `np.quantile(method=interval_quantile_method)` of valid replicates at `interval_quantiles` for the order statistic, concordance and relative bias; `replicate_mean_minus_point` for the order statistic. `concordance_cross_check_gap` is `abs(concordance − icc_absolute_single) > ccc_icc_cross_check_tolerance` at the point estimate, `None` when either is NaN; it is written to `results.local.json` only. Level statistics use all units; the order statistic uses the retained strata. Strata per `rank_strata`; minimum per `minimum_units_per_rank_stratum[level][pool]`, which is null exactly where `rank_strata` defines no strata |
 | `classify` | protocol decision table, rows 1 to 5 in order. Row 1 returns the first reason of `inconclusive_reason_precedence` that holds, gates from `failed_gates`. The runner passes a cell only the failed gates that apply to it: a gate that stopped the run to every cell, `IDENTITY_COVERAGE` to the two player levels, `XT_SURFACE` to inputs of kind `xt_sum` and to aggregated quantities whose numerator is one. `ONE_SIDED`: exactly one side has no non-zero unit while the other has at least `minimum_units_nonzero_on_both_providers` non-zero units. `DEGENERATE`: otherwise, a side that is constant over all units of the cell (a side that is constant and non-zero included), or `nonzero_both` below that minimum. Comparisons: `>=` for lower bounds and the point in rows 2 and 3, `<` for both in row 4, inclusive for the bias margin. Any NaN bound in row 2 fails row 2 only. Flag `POINT_OUTSIDE_INTERVAL` when the order-statistic point is outside its interval (`point < L` or `point > U`); the flag is set after the token is chosen and changes no token |
@@ -644,7 +647,8 @@ def synthetic_corpus(root: Path, *, seed: int, matches: Sequence[int] = (6, 4),
 ```
 
 `planted_corpus` (`acceptance_generator`; a scenario key overrides the generator key of the
-same name). Stated so an oracle can be written without reading the code:
+same name, except `count_family`: in a scenario it is a boolean that switches step 7 on,
+and step 7 reads the generator's `count_family` object). Stated so an oracle can be written without reading the code:
 
 1. **Teams.** Tournament block: `tournament_groups × tournament_teams_per_group` teams.
    Club block (unless the scenario sets `club_block` false): one common team and
@@ -659,11 +663,13 @@ same name). Stated so an oracle can be written without reading the code:
    default keys this is `subsets[*].expected_matches`.
 3. **Minutes, per team-match, equal on both providers.** For each first-ten slot, with
    probability `rotation_probability`, a uniformly drawn unselected reserve of the same
-   role starts instead (the regular starts if none is left). Starters get 90.
+   role starts instead (the regular starts if none is left). Starters get
+   `regulation_minutes_cap`.
    `substitutions_per_team_match` distinct starters, drawn uniformly, are each replaced at
    an integer minute uniform on `substitution_minute_range` inclusive by a uniformly drawn
    unselected squad player of the same role, or of any role if none is left; the replaced
-   player gets that minute and the entrant 90 minus it. This gives players exactly on the
+   player gets that minute and the entrant `regulation_minutes_cap` minus it. This gives
+   players exactly on the
    gate, players below it and unused players.
 4. **Truth.** Per-90 rate of a player in a team-match = `role_means_per_90[role]` +
    ability `N(0, sd_ability)` per player + `N(0, sd_team)` per team + `N(0, sd_team_match)`
@@ -696,7 +702,13 @@ scenario's `target` unless the scenario sets `population_check` false.
 `coder_sd`; the count family has one), `acceptance_corpora` corpora (seeds
 `SeedSequence([acceptance_seed, seed_streams.acceptance, scenario_index, structure_index,
 corpus_index])`), each graded through the **same** `cell_agreement` and `classify` as the
-real run with `acceptance_bootstrap_replicates` replicates. Per scenario and structure it
+real run with `acceptance_bootstrap_replicates` replicates. Each corpus draws its own
+three weight arrays by the rules of `match_weights`, `player_weights` and `team_weights`
+with `B = acceptance_bootstrap_replicates` and, in place of the run's generator,
+`default_rng(SeedSequence([acceptance_seed, seed_streams.<axis>, scenario_index,
+structure_index, corpus_index]))`. The population corpora of `population_value` use
+`SeedSequence([acceptance_seed, seed_streams.acceptance_population, scenario_index,
+structure_index, k])` for `k` from 0 below `acceptance_population_corpora`. Per scenario and structure it
 records the token shares, the share of corpora whose point estimate lies inside its
 interval, the mean of `replicate_mean_minus_point`, the mean unit count, the population
 value, and `passed`. A share requirement is a number, or a map by structure where the
@@ -785,7 +797,9 @@ file is written: size at most `maximum_results_bytes` for `results.json` and
 `local_output_root`; no key in
 `results_identifier_key_denylist` and `banned_key_paths(obj) == []`;
 `scripts.check_licensing` fingerprint patterns absent; and for `results.json` the rules of
-section 8.
+section 8. `results.local.json` is written last. An exception while the files are being
+written removes every file this execution wrote, then appends to `failed_runs.json`, so
+check 6 never meets the local results of a failed run.
 
 Order inside `run` (stage names for `failed_runs.json`): `hashes`; `sheets` (StatsBomb
 matches and sheets; Wyscout matches, sheets, people; the data gate); `vocabulary` (the
@@ -836,7 +850,7 @@ one provider has `sb` or `wy` as one of its `_`-separated parts (section 0, key 
 |---|---|
 | `provenance` | `experiment`, `protocol_commit`, `protocol_hash`, `config_hash`, `pipeline_hash`, `config` (verbatim), `source_hashes`, `packages` (python, numpy, pandas, pyarrow), `versions` (reader, crosswalk, inputs, agreement), `data` (section 9: `sb` maps each folder name to its digest, `wy` maps each raw file name, each `<competition>/<frame>` and `teams` to its hash; bare names, never paths), `xt` (per surface, `sb_reference` and `wy_reference`: `hash`, `matches`, `moves`, `shots`, `turnovers`, `dropped_nan`, `iterations`), `seeds`, `crosswalk_digests` (`matches`, `players`), `acceptance_hash`, `tier`, `providers` |
 | `gates` | `data`, `vocabulary`, `match_crosswalk`, `identity_coverage`, `xt_surface`: each `{passed, reason}`; `passed` is true, false, or null when the gate was not evaluated; `reason` is the gate's code when it failed (`DATA_MISSING`, `UNKNOWN_VOCABULARY`, `MATCH_CROSSWALK`, `IDENTITY_COVERAGE`, `XT_SURFACE`, in the order of the gates), else null |
-| `coverage` | per subset: `expected_matches`, `listed_with_files`, `crosswalked_matches`, `rejected` by reason, `swapped_orientation`, `goal_checks`, `team_matches`, player-matches per provider, paired coverage share per provider; overall: sheet players per provider, zero-minute rows dropped, pair counts by status, player-matches dropped, `paired_outfield`, `swap_impossible_share`, `cautioned`, location exclusions by reason, players per pool along `exposure_curve_minutes` |
+| `coverage` | per subset: `expected_matches`, `listed_with_files`, `crosswalked_matches`, `rejected` by reason, `swapped_orientation`, `goal_checks`, `team_matches`, player-matches per provider, paired coverage share per provider; overall: sheet players per provider, zero-minute rows dropped, pair counts by status, player-matches dropped, `paired_outfield`, `swap_impossible_share`, `cautioned`, `sb_people_disagreeing`, location exclusions by reason, players per pool along `exposure_curve_minutes` |
 | `cells` | list; one object per graded cell: `quantity`, `level`, `pool`, `reader`, `valuation`, `exposure_minutes`, `units`, `strata_retained`, `strata_dropped`, `mean_sb`, `mean_wy`, `sd_sb`, `sd_wy`, `order`, `order_interval`, `replicate_mean_minus_point`, `spearman_unstratified`, `concordance`, `concordance_interval`, `icc_absolute_single`, `bias`, `sd_difference`, `limits`, `relative_bias`, `relative_bias_interval`, `scale_ratio`, `slope`, `exact_share`, `concordance_cross_check_gap`, `valid_replicates`, `verdict`, `reason`, `flags`. A cell that is `INCONCLUSIVE` holds `units`, `verdict` and `reason` only |
 | `sensitivities` | list; `label` in `exposure_<minutes>`, `common_valuation`, `sensitivity_scheme`, `role_<code>`, `as_shipped_headline`; then `quantity`, `level`, `pool`, `reader`, `units`, `order`, `order_interval`, `concordance`, `relative_bias`. Pools per `sensitivity_pools`. No verdict. A row with fewer than `minimum_units_nonzero_on_both_providers` units holds `units` only |
 | `difference_decomposition` | per quantity and pool: rows, players, `between_player_share`, interval |
@@ -854,7 +868,7 @@ The runner fails rather than exceed either ceiling.
 `int` and no `float` anywhere (`bool` is allowed and is tested before `int`), and every
 string outside `experiment`, `version` and `provenance` is a token, reason code, flag,
 key name or string value frozen in `config.json` (a quantity key, a level, a pool, a
-reader, the tier); the runner asserts both.
+reader, the tier) or a key named in this section; the runner asserts both.
 
 | Key | Content |
 |---|---|
@@ -950,8 +964,9 @@ The reviewer signs each line before the root runs `execute`.
 15. The permuted control reassigns the Wyscout aggregates of the headline cell's own units
     inside cluster × role, computes nothing else again, and cannot return a fixed point in
     a stratum of two or more.
-16. `results.json` holds no number and only frozen strings; both files pass
-    `check_licensing.check`, the denylist and `banned_key_paths`.
+16. `results.json` holds no number and only frozen strings; `results.json` and
+    `acceptance.json` pass `check_licensing.check`; every file the runner writes passes
+    the denylist, `banned_key_paths` and the guard's fingerprint patterns.
 17. Hashes use `lf_sha256` for protocol, config, pipeline and code; Parquet uses content
     hashes.
 18. `protocol_commit` is an argument checked against git; no literal commit in source.
@@ -1006,7 +1021,7 @@ and the root repeats it as a check):
 | tests and specs that assert the empty registry | every one; search for `VERDICTS == {}`, `all_payloads`, `"verdicts"`, `NOT_TESTED_STATEMENT` and "registry is empty". At least: `tests/test_verdict_registry.py` (`test_the_shipped_registry_is_empty_and_answers_not_registered`, and `test_payload_is_json_ready_and_carries_no_hash_or_pointer`, which asserts the exact list `all_payloads()` returns), `tests/test_lab_runtime.py` (`test_verdicts_endpoint_serves_the_registry`, which asserts an empty `verdicts` list), `tests/test_planning_api.py`, `tests/test_planning_render.py`, `tests/test_squad_api.py`, `tests/test_transfer_api.py`, `e2e/squad.spec.js`, `e2e/transfer.spec.js` |
 | prose that says the registry is empty | ADR-0018, `docs/research/north-star/README.md`, ROOT-DECISIONS 2.6, `KNOWN_LIMITATIONS.md`, `ROADMAP.md`, the module docstring of `galactico/api/transfer_lab.py` |
 | `tests/test_preregistration_order.py` | add `"PIPELINE.md"` to `PROTOCOL`, and in the same edit add `"PIPELINE.md": "frozen"` to the `E-91-in-order` entry of the first `SCRATCH_HISTORY` commit; without the second, `test_protocol_then_results_is_accepted_and_a_rerun_does_not_reset_it` fails |
-| `tests/test_licensing.py` | add the registered `preregistration.md` to `FORMED_FROM_STATSBOMB` now and `analysis.md` in the results commit; remove the draft `preregistration.md` from `FORMED_FROM_STATSBOMB` and the draft `PIPELINE.md` from `NO_FIGURE_FORMED_FROM_STATSBOMB`, since both become one-line pointers, and add the registered `PIPELINE.md` to `NO_FIGURE_FORMED_FROM_STATSBOMB` |
+| `tests/test_licensing.py` | add the registered `preregistration.md` to `FORMED_FROM_STATSBOMB` now, and `analysis.md` in the commit that first adds it (the record of a failed run, or the results commit); remove the draft `preregistration.md` from `FORMED_FROM_STATSBOMB` and the draft `PIPELINE.md` from `NO_FIGURE_FORMED_FROM_STATSBOMB`, since both become one-line pointers, and add the registered `PIPELINE.md` to `NO_FIGURE_FORMED_FROM_STATSBOMB` |
 | `scripts/fetch_statsbomb_double_coded.py` | already committed with this draft (section 2); unchanged |
 | `LICENSING.md` | the sentence of section 2 on folder digests, as the root ruled |
 | `tests/test_protocol_drafts.py` | it ties this draft now: `lf_sha256` of `PIPELINE.md` equals `pipeline_spec_sha256`, every registry sentence passes the response boundary under every token, and no key of the config names a provider. In the registration commit it reads the registered directory instead: until the pipeline exists nothing else ties the files to each other (M-06) |

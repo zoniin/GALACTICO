@@ -14,7 +14,7 @@ Two things live here, and neither is a result.
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | six audits; the sixth (13 October 2026) NOT_READY with two blockers, which a seventh revision applies; not yet audited again |
+| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | seven audits; the seventh (13 October 2026) NOT_READY with two blockers, which an eighth revision applies; not yet audited again |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -39,8 +39,8 @@ On 9 October 2026 the E-11 draft went through three rounds of review, revision a
 independent audit. On 13 October a fourth revision applied the third audit's
 blockers, a fourth independent audit found one blocker that revision introduced, a
 fifth revision applied it, a fifth audit found one more that no earlier audit had
-raised, a sixth revision applied it, a sixth audit found two more, and a seventh
-revision applies them. Each audit was made by a reviewer who had written none of the
+raised, a sixth revision applied it, a sixth audit found two more, a seventh revision
+applied them, a seventh audit found two more, and an eighth revision applies those. Each audit was made by a reviewer who had written none of the
 draft and walked the branches of its verdict rules on synthetic numbers.
 
 | Round | What was reviewed | Revision | Independent audit |
@@ -51,7 +51,8 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 4 | the third audit's three blockers (13 October) | 3 applied, none rejected; the third audit's consistency items are not in this repository, were not available to this round, and none was applied | NOT_READY, 1 blocker and 5 consistency items |
 | 5 | the fourth audit's findings (13 October) | the blocker and consistency items 2 to 5 applied; item 1 by a rerun of the simulation | NOT_READY, 1 blocker and 8 consistency items |
 | 6 | the fifth audit's findings (13 October) | the blocker and all 8 consistency items applied | NOT_READY, 2 blockers and 12 consistency items |
-| 7 | the sixth audit's findings (13 October) | both blockers and all 12 consistency items applied | not yet audited |
+| 7 | the sixth audit's findings (13 October) | both blockers and all 12 consistency items applied | NOT_READY, 2 blockers and 11 consistency items |
+| 8 | the seventh audit's findings (13 October) | both blockers and consistency items 1 to 10 applied; item 11, a simulated figure a third implementation did not reproduce exactly, is descriptive and unchanged | not yet audited |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -131,7 +132,8 @@ schemes and the gates. It confirmed the sixth revision and found two blockers. T
 wide link needs one row per licensed-side player and nothing built it from the per-match
 sheet rows, so a player whose nickname is null in one folder and present in the other
 linked at tier N on one reading and not on the other; he now takes the values of his
-row in the last linked match, and such players are counted. And the pitch cuts were
+row in the linked match of largest match key (the World Cup subset is keyed first, so a
+player of both subsets takes his La Liga row), and such players are counted. And the pitch cuts were
 "exact fractions": a licensed-side x of 80/120 equals 2/3 in float64 and lies below it as
 a rational, so a pass ending there was a final-third entry on one reading and not on
 the other; every fractional cut is now the float64 quotient. Its twelve consistency
@@ -143,7 +145,27 @@ substitutes, the teams frame's provenance key, the Wyscout starter minutes of th
 shipped adapter, the xT recipe on harmonised rows, and four generator and quantile
 numbers moved from prose to config.
 
-What is left before registration: a fresh independent audit of the seventh revision,
+The seventh audit read the parts no audit had: the xT surfaces, the three bootstrap
+schemes, the aggregated gates, the runner's refusal checks against git and
+`tests/test_preregistration_order.py`, the result shapes, and the acceptance run, which
+it implemented again from section 6 alone. On 200 synthetic corpora per entry every
+acceptance requirement was met, every population value fell within 0.007 of its
+target, and the permuted-link control held in 1,200 of 1,200 agreeing corpora. It
+found two blockers. The seventh revision named the row of a player's names two ways:
+"the last linked match" in the protocol and "largest `match_key`" in the pipeline,
+which disagree for a Barcelona player who also played the later World Cup; the protocol
+now names the pipeline's ordering. And the local results file was to pass the whole
+licence check, which refuses every path under `data/licensed/` and every file above
+its ceiling; only the committed files are held to the whole check now, and the local
+file to its fingerprint patterns. Of its eleven consistency items, ten are applied:
+the acceptance run's weight arrays and population seeds, the generator's minutes from
+the cap, the scenario `count_family` switch, the Wyscout turnover as a pass whose
+success is False, the team weights over every team of a linked match, every surface
+failure mapped to its gate, the result strings, a slot for the disagreeing players,
+the divergence intervals on the shared match weights, and a failure while writing
+that leaves no local results behind.
+
+What is left before registration: a fresh independent audit of the eighth revision,
 and the third audit's remaining consistency items, which are not in this repository.
 Registration follows a READY verdict only, in one commit that holds nothing else.
 
