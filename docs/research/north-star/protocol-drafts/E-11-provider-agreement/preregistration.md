@@ -1,6 +1,6 @@
 # E-11 — provider agreement on the 100 double-coded matches
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets) and revised a sixth time, all on 13 October. The sixth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts) and revised a seventh time, all on 13 October. The seventh revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 <img src="../../../../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
@@ -129,8 +129,10 @@ Rules, all frozen:
    `wy_goalkeeper_position`). Team level keeps every row, including rows with no
    attributed player.
 4. **Whole-match exclusions.** A listed match whose event or lineup file is absent on
-   either side, or that fails the match crosswalk, is dropped and counted by reason. No
-   match is dropped for a reason that uses event content.
+   either side, or that fails the match crosswalk, is dropped and counted by reason. The
+   Wyscout files are per competition, so there a linked match with no event row or no
+   lineup row is dropped after the crosswalk (`WY_ROWS_ABSENT`) and is not counted as
+   linked. No match is dropped for a reason that uses event content.
 5. **Closed vocabulary.** Three StatsBomb folders are read: the two of the table above and
    the reference folder `xt_sb_reference_folder`. If any of the three holds an event kind,
    a pass type among Pass events, a shot type among Shot events or a duel type among Duel
@@ -213,13 +215,17 @@ and agreement of the two sheets on who was cautioned. Gate: in each subset, pair
 must cover at least `minimum_paired_player_match_coverage` of outfield player-matches with
 regulation minutes on each side (StatsBomb side by its own goalkeeper flag, Wyscout side by
 role code), else both player levels and every link verdict are
-`INCONCLUSIVE (IDENTITY_COVERAGE)`. A player-match removed under step 3 is not covered.
+`INCONCLUSIVE (IDENTITY_COVERAGE)`. A player-match is covered when its player's link is
+paired and the partner holds a row, as filtered above, on the other sheet of the same
+team-match; one removed under step 3 is not covered.
 
 **Wide link under test.** Every StatsBomb sheet player with regulation minutes in a linked
 match, goalkeeper or not, paired or not (the *evaluated players*), is linked against
 **all** Pappalardo player records with no match, team or club context. Tiers are tried in
 the order of the tier set; a tier is tried only when the previous one returned no
-candidate; several candidates at one tier are `AMBIGUOUS` and do not fall through.
+candidate; several candidates at one tier are `AMBIGUOUS` and do not fall through. A
+StatsBomb player's legal name, nickname and country are those of his sheet row in the
+last linked match (`PIPELINE.md` section 3); players whose rows disagree are counted.
 
 | Tier | Rule |
 |---|---|
@@ -283,7 +289,8 @@ out, for `wy_reference`) gives `INCONCLUSIVE (XT_SURFACE)` for every xT quantity
 
 **Quantities.** Keys and formulas are `player_match_inputs`,
 `aggregated_player_quantities` and `team_match_quantities`. A ratio's `minimum_denominator`
-applies to its own `denominator`, on each provider.
+applies to its own `denominator`, on each provider. A cut the config gives as a fraction
+is the float64 quotient, compared with float64 coordinates.
 
 | Input (per player-match; summed for teams) | Definition, identical on both sides after the family mapping |
 |---|---|
@@ -424,7 +431,7 @@ count ratio with a match-cluster interval, and StatsBomb Pass and Shot events by
 tolerance after the clock offset and (where set) its distance tolerance in metres, by
 ascending time gap, then distance, then event order. Report paired share of each side,
 player agreement among pairs (paired players only), completion and goal agreement, key-pass
-flag overlap, median and 90th percentile start and end displacement, and the xT delta
+flag overlap, start and end displacement at `descriptive_quantiles`, and the xT delta
 difference on paired completed passes under the common surface. `count_only_families` are
 counted, not paired.
 
@@ -437,7 +444,8 @@ the player crosswalk: every Wyscout player with a row for the team his team is l
 in every linked match in which he holds a StatsBomb sheet row, zero-minute rows
 included. An unpaired player whom StatsBomb credits with a minute and Wyscout with none
 still has his Wyscout row on his sheet, so a link to that record is `UNVERIFIABLE`, never
-`FALSE`. Rates, with Wilson intervals at `wilson_z`:
+`FALSE`. Wyscout gives an unused substitute no row, so a record it lists only on the
+bench of his sheets is on none of them. Rates, with Wilson intervals at `wilson_z`:
 
 - **recall** = `CORRECT` / (evaluated players − `UNVERIFIABLE`); an unpaired player with no
   link or a false link counts as a miss;

@@ -7,7 +7,7 @@
   "difference_direction": "statsbomb_minus_wyscout",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider, a convention that a few earlier keys do not follow; no key of this file, of acceptance.json, of results.json or of results.local.json contains statsbomb, pappalardo or wyscout in any letter case (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first, the runner test of PIPELINE section 10 for all three)",
 
-  "pipeline_spec_sha256": "6c2b46be54830564f7b68de1932d9e72b2f6e79b087010b7c279da36201e2293",
+  "pipeline_spec_sha256": "b2bef8d4bd68435e4b7d4b42ba5497daa47fd18899db76317701933accdc5f5c",
   "sb_folder_digests": {
     "World_Cup_2018": "14f7a21e756b02147b55abad3c75fba04f783b70bfbab54b73c155c47bd121c8",
     "La_Liga_2017_18": "ad976fd9b334de95ec799d0a2a418cfd8bd16fb22a8a3f4f780d2d94752a4d28",
@@ -153,7 +153,7 @@
   "pitch_width_m": 68.0,
   "goal_width_m": 7.32,
 
-  "xt_recipe": "experiments.run_external_replication.fit_xt rule (the shipped Player Lab recipe, ROOT 2.5 O2)",
+  "xt_recipe": "experiments.run_external_replication.fit_xt rule (the shipped Player Lab recipe, ROOT 2.5 O2), on harmonised rows: a coordinate that is NaN, a Wyscout sentinel included, drops the row from the fit input that reads it",
   "xt_grid": [16, 12],
   "xt_max_iterations": 200,
   "xt_tolerance": 1e-07,
@@ -365,6 +365,7 @@
     {"key": "clearance", "time_tolerance_seconds": 5.0, "distance_tolerance_m": 20.0},
     {"key": "foul", "time_tolerance_seconds": 5.0, "distance_tolerance_m": 20.0}
   ],
+  "descriptive_quantiles": [0.1, 0.5, 0.9],
   "count_only_families": ["interception", "ground_duel", "sb_one_sided", "sb_one_sided_shots", "wy_one_sided", "wy_unattributed_rows", "wy_sentinel_rows", "sb_rows_without_location"],
 
   "acceptance_corpora": 200,
@@ -382,8 +383,11 @@
     "substitution_minute_range": [46, 85],
     "tournament_groups": 8,
     "tournament_teams_per_group": 4,
+    "tournament_advance_per_group": 2,
+    "tournament_third_place_match": true,
     "club_block_opponents": 19,
     "club_block_opponents_met_once": 2,
+    "club_block_meetings_per_opponent": 2,
     "role_means_per_90": [10.0, 12.0, 14.0],
     "sd_ability": 1.0,
     "sd_team": 0.5,
