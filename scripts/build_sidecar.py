@@ -16,7 +16,11 @@ on the next line: what is odd in the raw files is named at build time.
 
 ``--check`` runs ``sidecar.verify`` (the tables are the ones the manifest records) and
 compares the raw digests of the manifest with the raw files on disk now. Either failing
-is exit 1, and so is a competition that has a raw events file and no sidecar. It also
+is exit 1, and so is a competition that has a raw events file and no sidecar. A raw file
+that is no longer on disk is reported as absent and is not a failure: the tables still
+verify, and nothing on disk contradicts the manifest. A changed file beside an absent one
+is reported as changed. Without ``--only``, a competition is checked only when its raw
+events file is on disk. It also
 prints whether ``galactico/ingestion/sidecar.py`` is still the file that built the
 sidecar. An edited builder is reported and is not a failure: the tables it would write may
 be the same, and only a rebuild can tell.

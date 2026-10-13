@@ -1285,6 +1285,36 @@ def test_build_script_builds_checks_and_reports(tmp_path, capsys):
     capsys.readouterr()
 
 
+def test_the_check_reports_a_raw_file_that_is_absent_and_passes(tmp_path, capsys):
+    # The fourth state of the raw-file column. The tables still verify against the manifest
+    # and nothing on disk contradicts it, so the check passes and says what it could not
+    # compare. A changed file beside an absent one is reported as changed, and fails.
+    script = load_script("build_sidecar", SCRIPT)
+    raw = write_raw(tmp_path / "raw", "Italy", [raw_event(id=5)], [plain_match(3, 50, 60)])
+    roots = dict(raw_root=raw, out_root=tmp_path / "v1", public_root=tmp_path / "public")
+    assert script.main(["--only", "Italy"], **roots) == 0
+    capsys.readouterr()
+
+    def italy() -> list[str]:
+        return next(line.split() for line in capsys.readouterr().out.splitlines()
+                    if line.startswith("Italy"))
+
+    (raw / "matches_Italy.json").unlink()
+    assert script.main(["--check", "--only", "Italy"], **roots) == 0
+    line = italy()
+    assert line[1] == "ok" and line[5] == "absent"
+
+    (raw / "events_Italy.json").write_text(json.dumps([raw_event(id=6)]), encoding="utf-8")
+    assert script.main(["--check", "--only", "Italy"], **roots) == 1
+    line = italy()
+    assert line[1] == "FAILED" and line[5] == "changed"
+
+    (raw / "events_Italy.json").unlink()
+    assert script.main(["--check", "--only", "Italy"], **roots) == 0
+    line = italy()
+    assert line[1] == "ok" and line[5] == "absent"
+
+
 def test_build_script_reports_a_failed_build_and_goes_on(tmp_path, capsys):
     script = load_script("build_sidecar", SCRIPT)
     raw = write_raw(tmp_path / "raw", "Spain", [*small_events(), raw_event(id=11)],
