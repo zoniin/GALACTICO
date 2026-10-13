@@ -566,14 +566,20 @@ the threshold. Error is not controlled across cells, no cell borrows from anothe
 nobody may count admissions.
 
 **The permuted-link control, simulated the same way before the run** (the generator above
-at the pooled aggregated level; one implementation, the fourth reviser's; 300 corpora per
-entry; the twenty seeds of `permuted_link_seeds`). At true within-role agreement 0.60,
-0.80, 0.85, 0.90 and 0.95, under each of the three coder-error structures, the control
-held in every corpus; the largest permuted value in any of the 4,500 corpora was 0.512.
-With each unit's Wyscout aggregate taken, before grading, from a gated team-mate of the
-same role wherever the unit has one, it held in none of 900. So it stops a run in which
-the identity link carries nothing beyond team and role, and is not expected to stop one
-in which it does. `permuted_link_acceptance` holds the first result as a requirement the
+at the pooled aggregated level; one implementation, the reviser's, rerun after the fourth
+audit found two coder-error structures sharing seeds; 300 corpora per entry, independent
+across entries; the twenty seeds of `permuted_link_seeds`). At true within-role agreement
+0.60, 0.80, 0.85, 0.90 and 0.95, under each of the three coder-error structures, the
+control held in every corpus; the largest permuted value in any of the 4,500 corpora was
+0.518. Two wrong links were planted, each drawn inside team × role before grading. With
+each unit taking a different gated team-mate's Wyscout aggregate by a cyclic shift, the
+control held in none of 900, and that follows by construction: its own reassignment
+restores the true pairing in every stratum of two units. With a uniform random
+permutation inside team × role, which leaves some units with their own partner by chance,
+it held in 172 of 900 (55 to 59 of 300 per structure). So the control is what its row
+says, a stress test: the point estimate must exceed twenty derangements inside team and
+role. It is not a test that the link is right, and a link that is wrong for many units
+can pass it. `permuted_link_acceptance` holds the first result as a requirement the
 frozen code must meet.
 
 ## Consequence of each verdict, fixed now

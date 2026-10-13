@@ -70,8 +70,9 @@ Its verdict was NOT_READY, with three blockers. The fourth revision applies each
    is gated, aggregated or weighted again; a headline cell that is INCONCLUSIVE has
    no control (protocol, "Models and baselines"; PIPELINE sections 3 and 5). A
    simulation on the acceptance generator, synthetic only, is in the protocol: the
-   control held in all 4,500 corpora at true agreement 0.60 to 0.95 and in none of
-   900 with a scrambled link. `permuted_link_acceptance` makes the first a
+   control held in all 4,500 corpora at true agreement 0.60 to 0.95, and in 172 of
+   900 with a link drawn uniformly inside team × role. It is a stress test, not a
+   test that the link is right. `permuted_link_acceptance` makes the first result a
    requirement of the acceptance run.
 3. The config said no key held a provider's full name; three of its keys and
    four keys of the local result file did. They are renamed (`wy_parquet_root`,
@@ -99,7 +100,7 @@ players is in the working notes, so the draft declares the recall criterion of i
 verdict not blind (its prior-exposure table).
 
 The fourth audit's consistency items, applied in the fifth revision: the simulation
-overstated what the control shows (below); `scope` holds the competition years, and
+overstated what the control shows (item 2 above; rerun); `scope` holds the competition years, and
 the digit rule is now said to be V7's, which does not read it; a planted cell names
 its reader and valuation; the cluster has one definition in the config and PIPELINE;
 and a helper, `control_holds`, decides the control, so its tests reach a NaN value.
