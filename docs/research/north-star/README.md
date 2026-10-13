@@ -14,7 +14,7 @@ Two things live here, and neither is a result.
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | four rounds; the fourth audit (13 October 2026) NOT_READY with one blocker, which a fifth revision applies; not yet audited again |
+| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | five audits; the fifth (13 October 2026) NOT_READY with one blocker, which a sixth revision applies; not yet audited again |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -37,8 +37,9 @@ and no outcome named in any of them has been computed. The designers' own simula
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
 independent audit. On 13 October a fourth revision applied the third audit's
-blockers, a fourth independent audit found one blocker that revision introduced, and
-a fifth revision applies it. Each audit was made by a reviewer who had written none of the
+blockers, a fourth independent audit found one blocker that revision introduced, a
+fifth revision applied it, a fifth audit found one more that no earlier audit had
+raised, and a sixth revision applies that. Each audit was made by a reviewer who had written none of the
 draft and walked the branches of its verdict rules on synthetic numbers.
 
 | Round | What was reviewed | Revision | Independent audit |
@@ -47,7 +48,8 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 2 | the first audit's findings | 29 changes applied, 8 rejected | NOT_READY, 5 blockers |
 | 3 | the second audit's findings, and seven rulings by the root on what the first two rounds left open | 29 changes applied, 7 rejected | NOT_READY, 3 blockers |
 | 4 | the third audit's three blockers (13 October) | 3 applied, none rejected; the third audit's consistency items are not in this repository, were not available to this round, and none was applied | NOT_READY, 1 blocker and 5 consistency items |
-| 5 | the fourth audit's findings (13 October) | the blocker and consistency items 2 to 5 applied; item 1 by a rerun of the simulation | not yet audited |
+| 5 | the fourth audit's findings (13 October) | the blocker and consistency items 2 to 5 applied; item 1 by a rerun of the simulation | NOT_READY, 1 blocker and 8 consistency items |
+| 6 | the fifth audit's findings (13 October) | the blocker and all 8 consistency items applied | not yet audited |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -105,7 +107,23 @@ the digit rule is now said to be V7's, which does not read it; a planted cell na
 its reader and valuation; the cluster has one definition in the config and PIPELINE;
 and a helper, `control_holds`, decides the control, so its tests reach a NaN value.
 
-What is left before registration: a fresh independent audit of the fifth revision,
+The fifth audit confirmed every blocker and consistency item above applied, walked the
+four verdict rules by brute force (each returns exactly one outcome), checked the
+simulation script against PIPELINE section 6 and every figure the protocol prints
+from it, and found one blocker no earlier audit had raised. Purpose (b) did not say
+whether a player's sheets are the Wyscout rows as read or after the zero-minute filter
+of the player crosswalk. For an unpaired player whom the licensed provider credits with
+a minute and Wyscout with none, a link to his own record was `FALSE` on one reading and
+`UNVERIFIABLE` on the other, and the false-link criterion passes with one false link
+in six hundred and fails with two. His sheets are now the rows as read, zero-minute
+rows included, and a frozen test pins that case. Its eight consistency items are
+applied too: an example key that exists, the convention said to be one; the strings
+`results.json` may hold; the absent-partner rerun is one evaluation per paired player;
+the simulation sentence; the registration commit's edits of the licence test;
+`teams.parquet` hashed; the end-to-end test's config and its planted dismissal; the
+control's point and recomputation are one call.
+
+What is left before registration: a fresh independent audit of the sixth revision,
 and the third audit's remaining consistency items, which are not in this repository.
 Registration follows a READY verdict only, in one commit that holds nothing else.
 

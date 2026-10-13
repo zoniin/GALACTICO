@@ -1,6 +1,6 @@
 # E-11 — provider agreement on the 100 double-coded matches
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced) and revised a fifth time the same day. The fifth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets) and revised a sixth time, all on 13 October. The sixth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 <img src="../../../../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
@@ -432,7 +432,12 @@ counted, not paired.
 `CORRECT` (he is paired and the link is his partner), `FALSE` (he is paired and the link is
 someone else, or he is not paired and the returned record is on none of his linked
 team-match sheets), or `UNVERIFIABLE` (he is not paired and the returned record is on one of
-his sheets). Rates, with Wilson intervals at `wilson_z`:
+his sheets). His sheets are the Wyscout sheets as read, before the zero-minute filter of
+the player crosswalk: every Wyscout player with a row for the team his team is linked to,
+in every linked match in which he holds a StatsBomb sheet row, zero-minute rows
+included. An unpaired player whom StatsBomb credits with a minute and Wyscout with none
+still has his Wyscout row on his sheet, so a link to that record is `UNVERIFIABLE`, never
+`FALSE`. Rates, with Wilson intervals at `wilson_z`:
 
 - **recall** = `CORRECT` / (evaluated players − `UNVERIFIABLE`); an unpaired player with no
   link or a false link counts as a miss;
@@ -573,8 +578,8 @@ across entries; the twenty seeds of `permuted_link_seeds`). At true within-role 
 control held in every corpus; the largest permuted value in any of the 4,500 corpora was
 0.518. Two wrong links were planted, each drawn inside team × role before grading. With
 each unit taking a different gated team-mate's Wyscout aggregate by a cyclic shift, the
-control held in none of 900, and that follows by construction: its own reassignment
-restores the true pairing in every stratum of two units. With a uniform random
+control held in none of 900; in every stratum of two units the control's own
+reassignment restores the true pairing, which raises the permuted values. With a uniform random
 permutation inside team × role, which leaves some units with their own partner by chance,
 it held in 172 of 900 (55 to 59 of 300 per structure). So the control is what its row
 says, a stress test: the point estimate must exceed twenty derangements inside team and
