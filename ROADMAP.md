@@ -129,8 +129,9 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   audit on 9 October 2026; the third audit returned NOT_READY with three
   blockers. On 13 October six more revisions and five more audits followed; the
   audits found one, one, two, two and three blockers, the last by nine auditors each
-  holding one part of the draft, and the ninth revision applies those three. It has
-  not been audited. The other four need adversarial review and an audit before
+  holding one part of the draft. The ninth revision applied those three, a
+  verification found them resolved, and the tenth applies its follow-ups. It has not
+  been audited. The other four need adversarial review and an audit before
   registration. The verdict registry is empty.
 
 ## Not started or not validated

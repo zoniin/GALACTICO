@@ -1,6 +1,6 @@
 # E-11 — provider agreement on the 100 double-coded matches
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass), revised an eighth time, audited an eighth time by nine auditors each holding one part of the draft with three skeptics on every blocker (found not ready: three blockers, a missing public file, the name tokenizer and the population check's margin) and revised a ninth time, all on 13 October. The ninth revision's fixes are under verification (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass), revised an eighth time, audited an eighth time by nine auditors each holding one part of the draft with three skeptics on every blocker (found not ready: three blockers, a missing public file, the name tokenizer and the population check's margin) revised a ninth time, had those fixes verified by six further reviewers (every blocker resolved, none introduced, fourteen consistency items) and was revised a tenth time, all on 13 October. The tenth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 <img src="../../../../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
@@ -279,7 +279,8 @@ frame. Lists are the `sb_*` and `wy_*` keys of `config.json`.
 
 Clearances and blocks are in neither union: Wyscout records a block on the attacker's
 event and names no blocker; clearances enter purpose (c) only. Carries, pressures and
-receipts enter nothing.
+receipts enter no compared family or union; they are counted only among the StatsBomb
+one-sided events of purpose (c) (`sb_one_sided_kinds`).
 
 **xT surfaces.** One fit rule on both sides (`xt_recipe`, `xt_grid`; moves = completed
 open-play passes, shots = open-play shots, turnovers = `xt_turnover_rule`).
@@ -741,14 +742,17 @@ A verdict here promotes nothing. It decides only what a later cross-provider stu
 - That the pairing is error-free. It is name-based inside a closed pool with structural
   corroboration and no birth date.
 - The false-link rate of a link on another population. Every player here is on a Wyscout
-  team sheet. For tier set `[A]` the absent-partner criterion adds nothing: the census found
-  no two Wyscout records sharing a full-name token set with the middle name included; the
-  first-plus-last count used here, on `name_tokens`, is computed at run time and is
-  expected to be zero, not known to be; and with his partner
-  hidden a paired player still receives a tier A link only if his link was to another
-  record all along. The stress count is therefore the number of paired players whose tier
-  A link is a wrong record: it is not known in advance, and the false-link criterion
-  already counts every one of them. Both estimates are live for the wider tier sets only.
+  team sheet. For tier set `[A]` the absent-partner criterion is expected to add little.
+  The census found no two Wyscout records sharing a full-name token set with the middle
+  name included; the first-plus-last count used here, on `name_tokens`, is computed at
+  run time and is expected to be zero, not known to be. If it is zero, a paired player
+  whose partner is hidden still receives a tier A link only if his link was to another
+  record all along, so the stress count is the number of paired players whose tier A link
+  is a wrong record, and the false-link criterion already counts every one of them. If it
+  is not, a paired player left `AMBIGUOUS` in the full run by a same-nationality namesake
+  of his partner links to the namesake once the partner is hidden: that counts in the
+  stress rate and not in the false-link rate. Both estimates are fully live for the wider
+  tier sets only.
   The chance that a StatsBomb player who left the five leagues has a namesake of his
   nationality who arrived is not estimable from either roster.
 - Any xT surface pair other than the La Liga pair.
@@ -764,7 +768,8 @@ A verdict here promotes nothing. It decides only what a later cross-provider stu
 
 Local artifact `results.local.json` (aggregate only): protocol, config, pipeline and source
 hashes on LF-normalised bytes; raw data digests, which must equal `sb_folder_digests`;
-content hashes of the frames used; surface hashes; package versions; seeds; digests and
+content hashes of the Parquet files read (the whole file, `PIPELINE.md` section 9); surface
+hashes; package versions; seeds; digests and
 counts of the match and player crosswalks, rebuilt deterministically at run time; every
 statistic above. Committed files are listed in the previous section. Every committed
 artifact stays under `maximum_results_bytes`; every local artifact under
