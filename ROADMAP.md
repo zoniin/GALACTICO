@@ -130,8 +130,9 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   blockers. On 13 October six more revisions and five more audits followed; the
   audits found one, one, two, two and three blockers, the last by nine auditors each
   holding one part of the draft. The ninth revision applied those three, a
-  verification found them resolved, and the tenth applies its follow-ups. It has not
-  been audited. The other four need adversarial review and an audit before
+  verification found them resolved, and the tenth applied its follow-ups. A ninth
+  audit, partitioned the same way, found eight of nine scopes ready and one blocker,
+  which the eleventh revision applies. It has not been audited. The other four need adversarial review and an audit before
   registration. The verdict registry is empty.
 
 ## Not started or not validated

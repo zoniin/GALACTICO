@@ -1,6 +1,6 @@
 # E-11 — provider agreement on the 100 double-coded matches
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass), revised an eighth time, audited an eighth time by nine auditors each holding one part of the draft with three skeptics on every blocker (found not ready: three blockers, a missing public file, the name tokenizer and the population check's margin) revised a ninth time, had those fixes verified by six further reviewers (every blocker resolved, none introduced, fourteen consistency items) and was revised a tenth time, all on 13 October. The tenth revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build, attacked once by three reviewers (statistics, football data, constitution), revised, audited branch by branch (found not ready), revised again, audited a second time (found not ready, but close) and revised a third time under root rulings of 9 October 2026, audited a third time (found not ready: three blockers) revised a fourth time on 13 October 2026 to apply those three, audited a fourth time (found not ready: one blocker, which the fourth revision had introduced), revised a fifth time, audited a fifth time (found not ready: one blocker, on which Wyscout rows are a player's sheets), revised a sixth time, audited a sixth time (found not ready: two blockers, the StatsBomb person frame of the wide link and float against exact cuts), revised a seventh time, audited a seventh time (found not ready: two blockers, an ordering of linked matches the seventh revision named two ways and a licence check the local results file cannot pass), revised an eighth time, audited an eighth time by nine auditors each holding one part of the draft with three skeptics on every blocker (found not ready: three blockers, a missing public file, the name tokenizer and the population check's margin) revised a ninth time, had those fixes verified by six further reviewers (every blocker resolved, none introduced, fourteen consistency items), was revised a tenth time, audited a ninth time in the same partitioned way (eight of nine scopes found ready; one blocker, a Wyscout clearance carrying the interception flag) and revised an eleventh time, on 13 and 14 October. The eleventh revision has not been audited (see the README two folders up). No outcome named here has been computed. It becomes a protocol only when the root commits a reviewed version under `experiments/preregistered/` in a single commit that precedes any run. References such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 <img src="../../../../assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 
@@ -122,8 +122,10 @@ Rules, all frozen:
 2. **Minutes.** Each provider's own regulation minutes; a player-match is never credited
    more than `regulation_minutes_cap`. Wyscout: the shipped `lineups.minutes` rule, clipped.
    StatsBomb: position spells with both ends clipped, spells in later periods dropped.
-   StatsBomb minutes exclude recorded off-pitch gaps (Player Off, Player On); Wyscout
-   minutes do not. A per-90 quantity divides by the same provider's minutes; minutes are
+   StatsBomb minutes exclude recorded off-pitch gaps (Player Off, Player On) and end at a
+   dismissal or at a substitute's own replacement; Wyscout minutes do none of these: a
+   dismissed starter keeps the cap, and a used substitute is credited from his entry to
+   the cap even when he is later replaced. A per-90 quantity divides by the same provider's minutes; minutes are
    themselves a compared quantity.
 3. **Outfield only at the two player levels** (Wyscout role code is not
    `wy_goalkeeper_position`). Team level keeps every row, including rows with no
@@ -218,7 +220,9 @@ paired link fails step 3 removes that one player-match, and nothing else of the 
 (`sheet_structure_conflict_scope`), from both player levels, and it is counted; the link
 stands. Evidence class `ESTIMATED` (`NAME_AND_CONTEXT`): there is no birth date on
 the StatsBomb side, and the word *verified* is not used for any link in `analysis.md`.
-Reported beside it: the share of paired links for which no team-mate shares any name token,
+Reported beside it: the share of paired links for which, in every sheet counted in
+`sheets_together`, neither player shares a name token with any other row of the other
+provider's filtered sheet (`swap_impossible`),
 and agreement of the two sheets on who was cautioned. Gate: in each subset, paired links
 must cover at least `minimum_paired_player_match_coverage` of outfield player-matches with
 regulation minutes on each side (StatsBomb side by its own goalkeeper flag, Wyscout side by
@@ -277,8 +281,11 @@ frame. Lists are the `sb_*` and `wy_*` keys of `config.json`.
 | duel or interception | ground duel or interception; each row once | same |
 | defensive action | ground duel, interception or foul; each row once | same |
 
-Clearances and blocks are in neither union: Wyscout records a block on the attacker's
-event and names no blocker; clearances enter purpose (c) only. Carries, pressures and
+The clearance family and blocks are in neither union: Wyscout records a block on the
+attacker's event and names no blocker, and the clearance family enters purpose (c) only.
+A row is in a union when it is in one of that union's families: a Wyscout clearance that
+carries the interception flag is an interception, counted once in each union, and also
+stays in the clearance family of purpose (c). Carries, pressures and
 receipts enter no compared family or union; they are counted only among the StatsBomb
 one-sided events of purpose (c) (`sb_one_sided_kinds`).
 
@@ -353,7 +360,8 @@ and then held fixed. Controls:
 ## Frozen selection and tuning procedure
 
 None. No parameter is tuned and no quantity, level, pool, exposure, variant or threshold is
-chosen after outcomes. Two data-dependent steps exist and are frozen: the two xT fits, and,
+chosen after outcomes. Two data-dependent steps exist and are frozen: the three xT fits (`wy_reference`, and
+`sb_reference` once per reader variant), and,
 for purpose (c) only, one clock offset per match-period, taken as the grid value in
 `pair_offset_grid_seconds` that maximises the number of StatsBomb open-play passes with a
 same-team Wyscout open-play pass within `pair_offset_match_window_seconds`; ties go to the
@@ -538,8 +546,8 @@ An undefined bound fails the `LINK_USABLE` row. None is never a pass.
   A only, and `cap` E-12's own ceiling of 0.5. At the two maxima and E-12's planning
   counts (`N0` 1,228; 864 tier A links, of which none to 164 become team-sheet pairs, so
   `NA` 864 to 700 and `NV` 0 to 164; 193 within-league movers) `e_worst` is 0.083 to 0.075
-  for the within-league arm; E-12's own simulation has its loss verdict largely gone at
-  0.15. The false-link bound passes with one false link in 600 linked players and fails
+  for the within-league arm; in E-12's own simulation an `e_worst` of 0.15 removes most
+  of the loss verdict at a true ratio of 0.6 and about a quarter of it at 0.5. The false-link bound passes with one false link in 600 linked players and fails
   with two. The absent-partner bound passes with eight absent-partner links in 849 paired
   players and with nine in 850; nine in 849 fail.
 - *Unit gates* sit at roughly 70 to 90% of the structural counts above, so for counts,
@@ -560,7 +568,10 @@ An undefined bound fails the `LINK_USABLE` row. None is never a pass.
   built, not calibrated.
 - *Sheet structure* (config: `sheet_minutes_tolerance`,
   `sheet_structure_pass_share_minimum`). The two minute rules differ by construction (rule
-  2), so equal minutes cannot be required; the size of the tolerance has no further basis.
+  2), so equal minutes cannot be required; step 3 waives the dismissal but not the
+  replaced substitute, so a substitute replaced more than `sheet_minutes_tolerance`
+  minutes before the cap fails step 3 in that sheet. The size of the tolerance has no
+  further basis.
   The pass share was added at the first review so that one failing sheet in five keeps a
   link; a player on four or fewer sheets still loses his link on one failure. Both values
   were chosen before any sheet was paired and are not calibrated.
@@ -621,7 +632,7 @@ frozen code must meet.
 |---|---|---|---|
 | any | any | any | a quantity in `admission_rule.declared_variants_never_admitted`: `EXCLUDED (DECLARED_VARIANT)`. It is graded for the record and admits nothing |
 | any | any | positive control fails | `EXCLUDED (POSITIVE_CONTROL)` |
-| `NOT_ESTABLISHED`, `NOT_COMPARABLE`, `INCONCLUSIVE` | any | — | `EXCLUDED (VERDICT)`: a later study computes nothing for it across providers, not as a secondary, not as a description |
+| `NOT_ESTABLISHED`, `NOT_COMPARABLE`, `INCONCLUSIVE` | any | — | `EXCLUDED (VERDICT)` |
 | admitted token | `NOT_COMPARABLE` | — | `EXCLUDED (LA_LIGA_SUBSET_CONTRADICTS)` |
 | admitted token | `INCONCLUSIVE` | — | `EXCLUDED (LA_LIGA_SUBSET_UNTESTED)` |
 | admitted token | any other | permuted-link control fails | `EXCLUDED (PERMUTED_LINK_CONTROL)` |
@@ -629,6 +640,10 @@ frozen code must meet.
 | `COMPARABLE_IN_RANK_ONLY` | `COMPARABLE`, `COMPARABLE_IN_RANK_ONLY` | hold | `ADMITTED_ORDER_ONLY` |
 | `COMPARABLE` | `NOT_ESTABLISHED` | hold | `ADMITTED_LEVEL_AND_ORDER_LEAGUE_UNCONFIRMED` |
 | `COMPARABLE_IN_RANK_ONLY` | `NOT_ESTABLISHED` | hold | `ADMITTED_ORDER_ONLY_LEAGUE_UNCONFIRMED` |
+
+A quantity `EXCLUDED` for any reason enters no later cross-provider study: nothing is
+computed for it across providers, not as a secondary, not as a stratifier, not as a
+description.
 
 Every admission of either kind permits the same thing: the quantity may enter a later
 cross-provider study on within-provider × league × role rank-normal values only. Level
@@ -665,7 +680,8 @@ Every combination of the two controls, `H` and `S` falls in exactly one row. The
 token is `H`, `NOT_ESTABLISHED` or `INCONCLUSIVE`; it is an agreeing token only when `H`
 is one, no control failed and `S` is not `NOT_COMPARABLE`. A gate that leaves a
 positive-control cell `INCONCLUSIVE` fails that control, so row a then applies with
-`POSITIVE_CONTROL`; the gate's own code stays in `gates` and on every cell. Row a also
+`POSITIVE_CONTROL`; the gate's own code stays in `gates` and on every cell it applies to
+under "Order of the gates". Row a also
 replaces a `NOT_ESTABLISHED` or `NOT_COMPARABLE` headline: when a control of the pipeline
 has failed, its negative results are no better founded than its positive ones. Under
 every row the headline cell keeps its own token, reason and flags in `cells`, and
@@ -744,12 +760,14 @@ A verdict here promotes nothing. It decides only what a later cross-provider stu
 - The false-link rate of a link on another population. Every player here is on a Wyscout
   team sheet. For tier set `[A]` the absent-partner criterion is expected to add little.
   The census found no two Wyscout records sharing a full-name token set with the middle
-  name included; the first-plus-last count used here, on `name_tokens`, is computed at
-  run time and is expected to be zero, not known to be. If it is zero, a paired player
+  name included. No frozen function counts Wyscout records that share a first-plus-last
+  `name_tokens` set and a country the StatsBomb player's agrees with (the namesake
+  collision rate compares each record's birth area only, so it can be zero while such
+  records exist); none is expected and none is known. If there is none, a paired player
   whose partner is hidden still receives a tier A link only if his link was to another
   record all along, so the stress count is the number of paired players whose tier A link
-  is a wrong record, and the false-link criterion already counts every one of them. If it
-  is not, a paired player left `AMBIGUOUS` in the full run by a same-nationality namesake
+  is a wrong record, and the false-link criterion already counts every one of them. If
+  there is one, a paired player left `AMBIGUOUS` in the full run by a same-nationality namesake
   of his partner links to the namesake once the partner is hidden: that counts in the
   stress rate and not in the false-link rate. Both estimates are fully live for the wider
   tier sets only.
@@ -784,8 +802,8 @@ runner refuses to execute without that stamp, with a config whose `pipeline_spec
 `sb_folder_digests` is null or does not match, with a Pappalardo file it reads absent
 (`PIPELINE.md` section 7, check 7), or without the commit that first added this
 protocol, its config and its pipeline specification, unchanged since. One execution: a
-failed execution appends to `failed_runs.json` (exception type and message, stage, source
-hashes; no statistic), no value from it may be printed, logged or read, the repair may
+failed execution appends to `failed_runs.json` (exception type, stage, code location,
+source hashes; never the exception message, no statistic), no value from it may be printed, logged or read, the repair may
 touch only the failing stage, the acceptance stamp is regenerated, and `analysis.md` lists
 every failed run.
 

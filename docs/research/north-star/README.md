@@ -14,7 +14,7 @@ Two things live here, and neither is a result.
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | eight audits; the eighth, partitioned across nine auditors (13 October 2026), NOT_READY with three blockers, which a ninth revision applies; a verification found them resolved and a tenth revision applies its follow-ups; not yet audited again |
+| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | nine audits; the ninth, partitioned across nine auditors (14 October 2026), found eight of nine scopes ready and one blocker, which an eleventh revision applies; not yet audited again |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -33,7 +33,7 @@ and no outcome named in any of them has been computed. The designers' own simula
 - Nothing is registered. `galactico/domain/verdicts.py` ships an empty registry,
   so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
-## E-11 after nine revisions: a draft, not registered
+## E-11 after eleven revisions: a draft, not registered
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
 independent audit. On 13 October a fourth revision applied the third audit's
@@ -41,8 +41,10 @@ blockers, a fourth independent audit found one blocker that revision introduced,
 fifth revision applied it, a fifth audit found one more that no earlier audit had
 raised, a sixth revision applied it, a sixth audit found two more, a seventh revision
 applied them, a seventh audit found two more, an eighth revision applied those, an
-eighth audit split across nine auditors found three more, and a ninth revision applies
-them. Each audit was made by a reviewer who had written none of the
+eighth audit split across nine auditors found three more, a ninth revision applied
+them, six reviewers verified those fixes and found fourteen consistency items, a tenth
+revision applied them, a ninth audit in the same partitioned way found one more blocker
+and eight of its nine scopes ready, and an eleventh revision applies it. Each audit was made by a reviewer who had written none of the
 draft and walked the branches of its verdict rules on synthetic numbers.
 
 | Round | What was reviewed | Revision | Independent audit |
@@ -56,7 +58,8 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 7 | the sixth audit's findings (13 October) | both blockers and all 12 consistency items applied | NOT_READY, 2 blockers and 11 consistency items |
 | 8 | the seventh audit's findings (13 October) | both blockers and consistency items 1 to 10 applied; item 11, a simulated figure a third implementation did not reproduce exactly, is descriptive and unchanged | NOT_READY: 3 blockers, each confirmed by three of three skeptics; 29 of 35 consistency candidates confirmed |
 | 9 | the eighth audit's findings (13 October) | all 3 blockers and the 29 confirmed consistency items applied, with two optional notes for E-12 | verified by five reviewers by finding and one over the whole diff: 3 blockers and 27 items resolved, 2 items partly; no new blocker; 14 new consistency items, most in sentences the revision added |
-| 10 | the verification's follow-ups (13 October) | the 2 partial items completed and the 14 consistency items applied | not yet audited |
+| 10 | the verification's follow-ups (13 October) | the 2 partial items completed and the 14 consistency items applied | NOT_READY, partitioned like the eighth: 8 of 9 scopes READY; 1 blocker, confirmed by three of three skeptics; 26 of 29 consistency candidates confirmed |
+| 11 | the ninth audit's findings (14 October) | the blocker and the 26 confirmed consistency items applied | not yet audited |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -193,7 +196,21 @@ them. The fitness auditor found E-11's outputs serve E-12 once the hashes and ca
 pins are named, which section 14 now does; the mismatches it found on E-12's side belong
 to the unreviewed E-12 draft.
 
-What is left before registration: a fresh independent audit of the tenth revision,
+The ninth audit ran the eighth's method on the tenth revision. Eight of its nine scopes
+returned READY. The measurements scope found the one blocker: Wyscout puts the
+interception tag on the intercepting player's next event, which can be a clearance, and
+the protocol both counted every row carrying the flag in the defensive unions and said
+clearances are in neither union, so defensive quantities differed by reading. A flagged
+clearance is now an interception in the unions and stays a clearance for the descriptive
+tables, which is also what E-09 and E-10 define. Of its twenty-six consistency items the
+notable ones: the sheet readers now receive every config value they read; how the two
+minute rules differ is stated in full; a failed run never records an exception message,
+which could carry a count or an identifier into the committed analysis; every exclusion,
+not one, forbids descriptive use; the acceptance cap on admissions at the boundary under
+the team-match structure gets the margin the protocol promises; and section 14 tells
+E-12 where to read the link bounds and what it must check on its own folders.
+
+What is left before registration: a fresh independent audit of the eleventh revision,
 and the third audit's remaining consistency items, which are not in this repository.
 Registration follows a READY verdict only, in one commit that holds the registration and
 the edits PIPELINE section 13 lists, and nothing else.

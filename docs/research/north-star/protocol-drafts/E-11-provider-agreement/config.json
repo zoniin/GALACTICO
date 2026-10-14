@@ -7,7 +7,7 @@
   "difference_direction": "statsbomb_minus_wyscout",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider, a convention that a few earlier keys do not follow; no key of this file, of acceptance.json, of results.json or of results.local.json contains statsbomb, pappalardo or wyscout in any letter case (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first, the runner test of PIPELINE section 10 for all three)",
 
-  "pipeline_spec_sha256": "66c773a1842d7217515f2b3ced6a677ecbe2c875c605094647957dcabedf40df",
+  "pipeline_spec_sha256": "c59ef583b24603495a9428ca1a0fb18e05a00810b828d02098fbddfeb664edcf",
   "sb_folder_digests": {
     "World_Cup_2018": "14f7a21e756b02147b55abad3c75fba04f783b70bfbab54b73c155c47bd121c8",
     "La_Liga_2017_18": "ad976fd9b334de95ec799d0a2a418cfd8bd16fb22a8a3f4f780d2d94752a4d28",
@@ -401,7 +401,7 @@
     {"key": "planted_comparable", "pool": "pooled", "target": 0.95, "coder_sd": {"independent": 0.68, "systematic": 0.333, "team_match": 0.698}, "required_tokens": ["COMPARABLE"], "minimum_share": 0.95, "point_inside_interval_minimum_share": 0.95},
     {"key": "planted_power_090", "pool": "pooled", "target": 0.90, "coder_sd": {"independent": 0.991, "systematic": 0.484, "team_match": 1.016}, "required_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"], "minimum_share": {"independent": 0.80, "systematic": 0.80, "team_match": 0.60}},
     {"key": "planted_power_085", "pool": "pooled", "target": 0.85, "coder_sd": {"independent": 1.25, "systematic": 0.611, "team_match": 1.284}, "report_only": true},
-    {"key": "planted_boundary", "pool": "pooled", "target": 0.80, "coder_sd": {"independent": 1.491, "systematic": 0.728, "team_match": 1.532}, "limited_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"], "maximum_share": 0.10, "second_limited_tokens": ["NOT_COMPARABLE"], "second_maximum_share": 0.15},
+    {"key": "planted_boundary", "pool": "pooled", "target": 0.80, "coder_sd": {"independent": 1.491, "systematic": 0.728, "team_match": 1.532}, "limited_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"], "maximum_share": {"independent": 0.10, "systematic": 0.10, "team_match": 0.12}, "second_limited_tokens": ["NOT_COMPARABLE"], "second_maximum_share": 0.15},
     {"key": "planted_below_boundary", "pool": "pooled", "target": 0.78, "coder_sd": {"independent": 1.584, "systematic": 0.773, "team_match": 1.628}, "limited_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"], "maximum_share": 0.08},
     {"key": "planted_moderate", "pool": "pooled", "target": 0.60, "coder_sd": {"independent": 2.452, "systematic": 1.197, "team_match": 2.531}, "required_tokens": ["NOT_COMPARABLE"], "minimum_share": {"independent": 0.90, "systematic": 0.90, "team_match": 0.65}, "forbidden_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"]},
     {"key": "planted_null", "pool": "pooled", "target": 0.0, "independent_truths": true, "coder_sd": {"independent": 0.0}, "required_tokens": ["NOT_COMPARABLE"], "minimum_share": 0.95, "forbidden_tokens": ["COMPARABLE", "COMPARABLE_IN_RANK_ONLY"]},
