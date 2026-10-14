@@ -319,6 +319,9 @@ a measured fact or this file, this file and the code win, and the deviation is r
 - The verdict registry ships EMPTY: nothing is registered until a protocol is frozen by commit.
   The five protocol drafts are committed as DRAFT documents, not as registered protocols, so
   `verdict_for` answers `NOT_REGISTERED` ("RECORD ONLY · NOT TESTED") for every subject.
+  14 October 2026: E-11 is registered and its sixteen records are `PENDING`
+  ("E-11 · RECORD ONLY · NOT RUN"); every other subject still answers `NOT_REGISTERED`,
+  now with the sentence "No registered protocol tests this claim." ([ADR-0029](../../../DECISIONS.md)).
 
 ## 3. Scenario decisions
 

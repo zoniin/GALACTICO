@@ -5,6 +5,7 @@ One directory per experiment:
     E-XX-slug/
         preregistration.md   committed BEFORE the analysis runs
         config.json          machine-readable thresholds
+        PIPELINE.md          the pipeline specification, where one is frozen with the protocol
         results.json         raw output
         analysis.md          interpretation, written after
 
@@ -22,3 +23,4 @@ the contradiction is the finding.
 | E-04 conditional spatial tendency | preregistered, not run |
 | E-07 lineup transport | executed; INCONCLUSIVE at the preregistered development sample gate |
 | E-08 partial opening histories | executed; NOT_ESTABLISHED, development selection chose context only |
+| E-11 provider agreement | preregistered, not run |

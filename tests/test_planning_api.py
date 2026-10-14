@@ -215,11 +215,13 @@ def test_catalogue_is_corpus_free_passes_the_copy_guard_and_claims_no_test(
         "off_ball", "shots", "chance_creation_requirement", "carry_over", "league_strength",
         "results",
     ]
-    # The copy is the branch that is true while nothing is registered. When a protocol is
-    # frozen this fails, and the shots and carry-over sentences must be rewritten with it.
-    assert verdicts.VERDICTS == {}
+    # E-11 is registered and not run: its records are served, and nothing is called tested.
+    # When another protocol is registered or E-11 runs this fails, and the shots and
+    # carry-over sentences must be checked against it.
+    assert {r.experiment_id for r in verdicts.VERDICTS.values()} == {"E-11"}
+    assert all(r.token == verdicts.PENDING for r in verdicts.VERDICTS.values())
     assert (catalogue["verdicts"], catalogue["research_statement"]) \
-        == ([], planning.NOT_TESTED_STATEMENT)
+        == (verdicts.all_payloads(), planning.REGISTERED_NOT_TESTED_STATEMENT)
     # Every hole of the scope banner is a field of a scenario.
     assert "{" not in catalogue["scope"].format(**catalogue["scenarios"][0])
     # Every phrase that sets something names a preset that exists; a refusal names none.
@@ -801,8 +803,8 @@ def test_default_problem_is_progression_only_and_says_what_it_is_conditional_on(
     shown = [row["verdict"] for row in body["ledger"] if row["verdict"]]
     assert shown and all(v["basis"] == "NOT_REGISTERED" and v["may_gate"] is False
                          and v["badge"] == "RECORD ONLY · NOT TESTED" for v in shown)
-    assert body["provenance"]["verdicts"] == []
-    assert body["research_statement"] == planning.NOT_TESTED_STATEMENT
+    assert body["provenance"]["verdicts"] == verdicts.all_payloads()
+    assert body["research_statement"] == planning.REGISTERED_NOT_TESTED_STATEMENT
 
 
 def _keys(node, found: set[str]) -> set[str]:

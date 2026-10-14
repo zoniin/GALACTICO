@@ -121,7 +121,8 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
 - Opponent foundation: descriptive match/team aggregates exist; no validated
   opponent-to-requirement mapping or conditioned solver is implemented.
-- Five protocols are **drafted, not frozen and not run**
+- Five protocols are written; **E-11 is registered and not run**, the other four are
+  **drafts**
   ([drafts](docs/research/north-star/README.md)): E-09 shot and defensive-location
   candidates, E-10 conceded-territory persistence, E-11 provider agreement on the
   100 double-coded matches, E-12 rates across a club change, E-13 declared-risk
@@ -133,9 +134,10 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   verification found them resolved, and the tenth applied its follow-ups. A ninth
   audit, partitioned the same way, found eight of nine scopes ready and one blocker,
   which the eleventh revision applied. A tenth audit returned READY on it: all nine
-  scopes, no blocker. A twelfth revision applies its consistency items, which change no
-  token. E-11 is not registered; registering it is the owner's decision. The other four need adversarial review and an audit before
-  registration. The verdict registry is empty.
+  scopes, no blocker. A twelfth and a thirteenth revision applied consistency items that
+  change no token. E-11 was registered on 14 October 2026 (ADR-0029); its pipeline is
+  not built and it has not run. The verdict registry holds its sixteen records, token
+  PENDING. The other four need adversarial review and an audit before registration.
 
 ## Not started or not validated
 
@@ -165,6 +167,6 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   experiments that need it are still drafts.
 
 The next research gates are identification and out-of-sample decision validation,
-not adding more tactical labels: freeze and run E-11 before E-12, and E-09 and
+not adding more tactical labels: build and run E-11 before E-12, and E-09 and
 E-10 before any shot or opponent quantity reaches a page. Exact continuation state
 lives in [ASTRA-CHECKPOINT](docs/ASTRA-CHECKPOINT.md).

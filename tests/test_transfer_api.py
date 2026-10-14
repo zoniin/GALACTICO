@@ -125,8 +125,10 @@ def _clean(payload: dict, thesis_guard) -> None:
     assert payload["carry_over_statement"] == transfer_lab.CARRY_OVER_STATEMENT
     assert "has not been established" in payload["carry_over_statement"]
     assert payload["provenance"]["providers"] == ["pappalardo"]
-    # Nothing has been tested: a row carries no verdict, or the NOT_REGISTERED one.
-    assert payload["provenance"]["verdicts"] == []
+    # Nothing has been tested: E-11 is registered and not run, and a row carries no verdict,
+    # or the NOT_REGISTERED one.
+    assert payload["provenance"]["verdicts"] == planning.verdict_reading()[0]
+    assert {v["basis"] for v in payload["provenance"]["verdicts"]} == {"REGISTERED_NOT_RUN"}
     assert {row["verdict"]["basis"] for row in payload["ledger"] if row["verdict"]} \
         <= {"NOT_REGISTERED"}
 
@@ -156,7 +158,7 @@ def test_page_and_catalogue_are_corpus_free_and_pass_the_copy_guard(client, thes
     assert [s["slot_id"] for s in keeper] == ["gk"]
     assert "not measured here" in keeper[0]["reason"]
     assert (catalogue["verdicts"], catalogue["research_statement"]) \
-        == ([], planning.NOT_TESTED_STATEMENT)
+        == (planning.verdict_reading()[0], planning.REGISTERED_NOT_TESTED_STATEMENT)
     assert [lead["id"] for lead in catalogue["deficiency_leads"]] \
         == ["exclusion", "explicit-minimum", "league-percentile"]
     leads = {lead["id"]: lead["sentence"] for lead in catalogue["deficiency_leads"]}

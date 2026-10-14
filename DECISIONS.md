@@ -487,8 +487,9 @@ for it under every token, and no digit may ride inside its sentences. Every new
 200 reply passes `runtime.finalize`, which requires the provider set at any depth
 of the payload to be exactly the hosted one.
 
-The registry ships **empty**. No protocol has been frozen, so every subject
-answers "RECORD ONLY · NOT TESTED". Five protocols are drafted under
+The registry shipped **empty** until 14 October 2026, when E-11 was registered and
+its sixteen records added, token `PENDING` (ADR-0029). Every other subject answers
+"RECORD ONLY · NOT TESTED". Four protocols remain drafts under
 `docs/research/north-star/protocol-drafts/`; a draft is not a registration.
 
 **Evidence.** Clauses 1.2.1, 1.2.2 and 1.4 of the StatsBomb Public Data User
@@ -1132,3 +1133,57 @@ yet, and the two drafts that will were written against other function names
 
 **Reversal.** A change of schema is a new version directory; `load` refuses a
 manifest of another schema version.
+
+
+---
+
+## ADR-0029 — E-11 is registered; what a page says while it is not run
+
+**Problem.** The E-11 provider-agreement protocol was found READY by a tenth
+independent audit, partitioned across nine auditors, and two later revisions were each
+verified to add no blocker. Registering it puts sixteen records in the verdict registry,
+which the planning pages print. Three sentences the pages served were true only while
+the registry was empty: the research block said no protocol was registered, an
+unregistered subject said "No protocol covers this quantity." (false for E-11's
+`progression`, whose E-12 row printed it), and the shots entry said no protocol covered
+shots.
+
+**Decision.** The three files are registered under
+`experiments/preregistered/E-11-provider-agreement/` as found ready. `config.json` and
+`PIPELINE.md` are byte for byte the draft; `preregistration.md` differs in two lines
+only, the draft banner, replaced by a pointer to the documents it cites, and the logo
+path, which resolves from the new folder. The draft files become one-line pointers.
+`galactico/domain/verdicts.py` holds sixteen LOCAL records, token `PENDING`, built from
+the config's own sentences and hashes: thirteen quantity cells and three link tier sets.
+Each reads "E-11 · RECORD ONLY · NOT RUN"; none gates, none carries a figure.
+
+The page wording follows the evidence, not the commit. An unregistered subject now
+reads "No registered protocol tests this claim." While no E-11 badge reads TESTED, the
+research block lists the records and says "The registered protocols are listed with
+their state. No quantity shown here has been tested: each is a record, or an exact
+computation on what you declared." Once one does, that sentence names what E-11 tested
+(agreement between two providers on the same matches), which is not validity or
+decision use. The shots entry says that E-11, registered and not run, compares only
+whether two providers agree on shot counts.
+
+**Evidence.** The tenth audit's report (all nine scopes READY, no blocker), the
+verifications of the twelfth and thirteenth revisions, the three folder digests
+recomputed by `scripts/fetch_statsbomb_double_coded.py --check` on the day of
+registration, and `tests/test_verdict_registry.py`, which ties every record to the
+committed files and the config's sentences.
+
+**Alternatives rejected.** Keeping the registry empty until the run (the records would
+then be written after the outcome is known, and the page would keep a false sentence
+about E-11's subjects). Serving E-11 records on the local server only (ADR-0018 already
+permits a LOCAL label on a hosted page; the records carry no digit and claim nothing).
+
+**Open.** E-11 grades ordering within the Wyscout role code; the E-12 draft forms its
+origin cells within the licensed provider's position label. Whether an E-11 admission
+covers that design is a root ruling to make before E-12 is frozen (PIPELINE section 14).
+
+**Confidence.** High that the registered text is the text found ready. The pipeline is
+not built; a defect found while building it is reported in the analysis, never repaired
+by editing a registered file.
+
+**Reversal.** None for the files. A protocol found unsound before its run is superseded
+by a new experiment id, and this one is recorded as not run.

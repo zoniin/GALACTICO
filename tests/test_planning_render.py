@@ -422,7 +422,7 @@ def test_each_state_renders_and_an_unknown_status_is_never_certified(tmp_path: P
     assert "No admissible player passes these filters." in empties["rows"]
     assert 'id="candidates" class="unavailable"' in empties["rows"]
     assert empties["ledger"].count('class="unavailable"') == 3
-    # While the registry is empty the research block is the server's own sentence.
+    # With no record sent the research block is the server's own sentence.
     assert empties["not_tested"] == (
         f'<div class="unavailable" id="research-status">{NOT_TESTED}</div>')
     assert "No research record was sent." in empties["research"]
@@ -771,7 +771,7 @@ def test_the_ledger_keeps_declared_apart_and_says_nothing_was_tested(tmp_path: P
     assert "Exact computation · no empirical claim" in computed[0][1]
     # A null value keeps its row and is a dash, never a zero.
     assert computed[1][1].count("—") == 2 and not re.search(r">\s*0\s*<", computed[1][1])
-    # The registry is empty: the research block is the server's sentence, and the one
+    # With no record sent the research block is the server's sentence, and the one
     # verdict a row carries is RECORD ONLY. Nothing is drawn as established or gating.
     assert f'<div class="unavailable" id="research-status">{NOT_TESTED}</div>' in full
     assert full.count(">RECORD ONLY · NOT TESTED</span>") == 1
@@ -783,7 +783,7 @@ def test_the_ledger_keeps_declared_apart_and_says_nothing_was_tested(tmp_path: P
     assert research.count(">RECORD ONLY · NOT TESTED</span>") == 2
     assert research.count('data-may-gate="false"') == 2
     assert research.count(
-        '<td data-label="Statement"><div>No protocol covers this quantity.</div></td>') == 2
+        '<td data-label="Statement"><div>No registered protocol tests this claim.</div></td>') == 2
     assert research.endswith(f'<p class="figure-note">{NOT_TESTED}</p>')
     # DECLARED is a bracket mark with no rung. An origin is the same kind of mark around
     # the server's own label; with no label there is no mark.
@@ -1055,8 +1055,16 @@ def test_the_catalogue_the_server_serves_renders_through_the_kit(tmp_path: Path)
         assert f'<option value="{source["source"]}"' in got["editor"]
     assert got["missing"].count("<li data-item=") == len(served["not_measured"])
     assert html.unescape(got["missing"]).count(served["not_measured_closing"]) == 1
-    # No protocol is registered: the block is the server's sentence and no badge at all.
-    assert served["verdicts"] == [] and "verdict" not in got["research"]
+    # E-11 is registered and not run: one row per record, each with its own badge, and
+    # the server's sentence once. Nothing is drawn as established or gating.
+    assert served["verdicts"] == planning.verdict_reading()[0] and served["verdicts"]
+    assert served["research_statement"] == planning.REGISTERED_NOT_TESTED_STATEMENT
+    assert got["research"].count("<tr data-experiment=") == len(served["verdicts"])
+    assert got["research"].count(">E-11 · RECORD ONLY · NOT RUN</span>") == len(
+        served["verdicts"])
+    assert got["research"].count('data-may-gate="false"') == len(served["verdicts"])
+    for form in ('data-verdict="ESTABLISHED"', 'data-may-gate="true"', 'data-basis="EXECUTED"'):
+        assert form not in got["research"]
     assert html.unescape(got["research"]).count(served["research_statement"]) == 1
     # A preset that needs the opt-in is refused without it; every other one yields
     # declarations with exactly the fields of their source.

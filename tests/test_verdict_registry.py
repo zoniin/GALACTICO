@@ -1,11 +1,11 @@
 """The verdict registry: constructor rules, derivations, and its tie to committed files.
 
-Data-free. The registry ships empty, so every check that walks it is written as a
-function of (registry, repository root) and run twice: on the shipped registry
-and tree, where it must find nothing wrong, and on a synthetic experiment tree
-built here, where it must pass when the record and files agree AND fail when one
-of them is edited. A walker that only ever saw an empty registry would prove
-nothing.
+Data-free. The registry ships E-11's records, registered and not run, so every
+check that walks it is written as a function of (registry, repository root) and
+run twice: on the shipped registry and tree, where it must find nothing wrong,
+and on a synthetic experiment tree built here, where it must pass when the record
+and files agree AND fail when one of them is edited. A walker that only ever saw
+records without results would prove nothing about results.
 """
 
 from __future__ import annotations
@@ -133,10 +133,39 @@ def test_v7_allows_only_the_records_own_experiment_id():
 
 # ---- derivations ------------------------------------------------------------
 
-def test_the_shipped_registry_is_empty_and_answers_not_registered():
-    assert V.VERDICTS == {}
-    assert V.all_payloads() == []
-    for experiment_id, subject in (("E-09", "shot_volume"), ("E-10", "x"), ("", ""), ("E-99", "/")):
+def test_the_shipped_registry_holds_e11_pending_and_answers_not_registered_otherwise():
+    config = json.loads((ROOT / V._E11_DIRECTORY / "config.json").read_text(encoding="utf-8"))
+    assert {r.experiment_id for r in V.VERDICTS.values()} == {"E-11"}
+    assert sorted(r.subject_id for r in V.VERDICTS.values()) == sorted(
+        [*V._E11_CELL_SUBJECTS, *V._E11_LINK_SUBJECTS])
+    assert len(V.VERDICTS) == 16
+    for rec in V.VERDICTS.values():
+        assert rec.token == PENDING and rec.tier is Tier.LOCAL
+        assert rec.protocol_commit is None and rec.results_hash is None and rec.figures == ()
+        v = V.derive(rec)
+        assert (v.status, v.basis, v.protocol_verdict) == (
+            VerdictStatus.RECORD_ONLY, VerdictBasis.REGISTERED_NOT_RUN, None)
+        assert v.statement == "E-11 is registered and not run. Nothing has been compared " \
+                              "across the two providers."
+        assert V.badge_text(v) == "E-11 · RECORD ONLY · NOT RUN"
+        assert (v.may_gate, v.hostable, v.product_state) == (False, False, ProductState.NOT_RUN)
+    assert [(p["experiment_id"], p["subject_id"]) for p in V.all_payloads()] == sorted(
+        ("E-11", s) for s in [*V._E11_CELL_SUBJECTS, *V._E11_LINK_SUBJECTS])
+    # Every sentence is the frozen config's, verbatim.
+    cell, link = V.record("E-11", "progression"), V.record("E-11", "wide_link_tier_a")
+    for rec, kind in ((cell, "cell"), (link, "link")):
+        assert (rec.scope, rec.claim_token) == (config[f"registry_{kind}"]["scope"],
+                                                config[f"registry_{kind}"]["claim_token"])
+        assert {t: (o.status.value, o.limits, o.statement) for t, o in rec.outcomes.items()} \
+            == {t: (o["status"], o["limits"], o["statement"])
+                for t, o in config["registry_outcomes"][kind].items()}
+        assert (rec.non_claim, rec.not_run_statement) == (
+            config["registry_common"]["non_claim"], config["registry_common"]["not_run_statement"])
+    assert list(V._E11_CELL_SUBJECTS) == config["registry_cell_subjects"]
+    assert list(V._E11_LINK_SUBJECTS) == list(config["registry_link_subjects"])
+    # Every other subject answers NOT_REGISTERED, E-11's unlisted ones included.
+    for experiment_id, subject in (("E-09", "shot_volume"), ("E-10", "x"), ("", ""),
+                                   ("E-99", "/"), ("E-11", "xt_sum")):
         v = V.verdict_for(experiment_id, subject)
         assert (v.status, v.basis) == (VerdictStatus.RECORD_ONLY, VerdictBasis.NOT_REGISTERED)
         assert V.badge_text(v) == "RECORD ONLY · NOT TESTED"
@@ -150,7 +179,7 @@ def test_display_derivations(monkeypatch):
     assert dataclasses.asdict(unregistered) == dict(
         experiment_id="E-10", subject_id="entries_left_share",
         status=VerdictStatus.RECORD_ONLY, basis=VerdictBasis.NOT_REGISTERED, claim_token="",
-        protocol_verdict=None, statement="No protocol covers this quantity.", non_claim="",
+        protocol_verdict=None, statement="No registered protocol tests this claim.", non_claim="",
         report=None, tier=None, hostable=False, may_gate=False,
         product_state=ProductState.NOT_RUN, figures=(),
     )
@@ -191,8 +220,7 @@ def test_display_derivations(monkeypatch):
 def test_payload_is_json_ready_and_carries_no_hash_or_pointer(monkeypatch):
     rec = executed("HOLDS_WITH_LIMITS", figures=(FIGURE,))
     other = make(experiment_id="E-09", subject_id="shot_volume")
-    monkeypatch.setitem(V.VERDICTS, rec.claim_id, rec)
-    monkeypatch.setitem(V.VERDICTS, other.claim_id, other)
+    monkeypatch.setattr(V, "VERDICTS", {rec.claim_id: rec, other.claim_id: other})
     payloads = V.all_payloads()
     assert [(p["experiment_id"], p["subject_id"]) for p in payloads] == [
         ("E-09", "shot_volume"), ("E-10", "entries_left_share")]

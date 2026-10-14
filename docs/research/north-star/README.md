@@ -5,16 +5,16 @@ Two things live here, and neither is a result.
 
 | File | What it is | Status |
 |---|---|---|
-| [ROOT-DECISIONS.md](ROOT-DECISIONS.md) | The binding decisions the build ran under: the constitution restated as rules R1-R13, the tool definitions, the frozen files, and the rulings on what the reconnaissance and the designers disputed (sections 2.5 and 2.6) | Followed for everything shipped, with one rule overridden by decision. R13 pins the shipped Player, Match and XI Lab outputs; ADR-0025 and ADR-0027 override it for the corrections they name, in Player Lab and on Match Lab's player rows. Sections on tools that were not built (frontier, risk modes, minimal conflict, Opponent Lab, the desk) are plans, not descriptions. So is section 2.2: its heading names `experiments/preregistered/E-09 .. E-13`, and no such protocol is registered; the five are drafts under `protocol-drafts/` |
-| [protocol-drafts/](protocol-drafts/) | Five experiment protocols with their configs and pipeline specifications | **Drafts. Not frozen, not registered, not run** |
+| [ROOT-DECISIONS.md](ROOT-DECISIONS.md) | The binding decisions the build ran under: the constitution restated as rules R1-R13, the tool definitions, the frozen files, and the rulings on what the reconnaissance and the designers disputed (sections 2.5 and 2.6) | Followed for everything shipped, with one rule overridden by decision. R13 pins the shipped Player, Match and XI Lab outputs; ADR-0025 and ADR-0027 override it for the corrections they name, in Player Lab and on Match Lab's player rows. Sections on tools that were not built (frontier, risk modes, minimal conflict, Opponent Lab, the desk) are plans, not descriptions. So is section 2.2: its heading names `experiments/preregistered/E-09 .. E-13`; of the five only E-11 is registered (14 October 2026), and the other four are drafts under `protocol-drafts/` |
+| [protocol-drafts/](protocol-drafts/) | Four experiment protocols with their configs and pipeline specifications, and a pointer where E-11's draft was | **Drafts. Not frozen, not registered, not run** |
 
-## The five drafts
+## The five protocols
 
-| Draft | Question | Tier | Depends on | Reviewed |
+| Protocol | Question | Tier | Depends on | Reviewed |
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | ten audits; the tenth, partitioned across nine auditors (14 October 2026), READY on the eleventh revision; a twelfth revision applies its consistency items |
+| [E-11](../../../experiments/preregistered/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | ten audits; the tenth, partitioned across nine auditors, READY on the eleventh revision; two later revisions verified; **registered 14 October 2026, not run** |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -28,12 +28,14 @@ state is the next section. So:
   that lives only in prose, a branch of a verdict rule left undefined, a sample
   gate miscounted.
 - No pipeline is built for any of the five (E-11 has its fetch script and nothing else),
-and no outcome named in any of them has been computed. The designers' own simulations of their decision rules ran on
-  synthetic data only.
-- Nothing is registered. `galactico/domain/verdicts.py` ships an empty registry,
-  so every badge on a planning page reads RECORD ONLY · NOT TESTED.
+  and no outcome named in any of them has been computed. The designers' own simulations
+  of their decision rules ran on synthetic data only.
+- E-11 alone is registered (14 October 2026, [ADR-0029](../../../DECISIONS.md)).
+  `galactico/domain/verdicts.py` holds its sixteen records, token `PENDING`, each
+  reading E-11 · RECORD ONLY · NOT RUN; every other badge on a planning page reads
+  RECORD ONLY · NOT TESTED.
 
-## E-11 after thirteen revisions: READY, not registered
+## E-11 after thirteen revisions: READY, registered, not run
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
 independent audit. On 13 October a fourth revision applied the third audit's
@@ -237,11 +239,13 @@ The verification of the thirteenth revision found no blocker and every item reso
 one finding, a protocol sentence that said E-11 reads a position label it never forms, is
 corrected; PIPELINE.md did not change, so its pinned hash stands.
 
-What is left before registration: the owner's decision to register, and, before E-12 is
-frozen, the root ruling on the role named above. The third audit's own consistency items are
-not in this repository and were never applied.
-Registration follows a READY verdict only, in one commit that holds the registration and
-the edits PIPELINE section 13 lists, and nothing else.
+The owner decided to register, and E-11 was registered on 14 October 2026 in one commit
+that holds the three files and the edits PIPELINE section 13 lists, and nothing else
+([ADR-0029](../../../DECISIONS.md)). The draft folder holds one-line pointers. What is left
+is the order section 13 gives: the pipeline, built and tested on synthetic data; the
+acceptance stamp in a commit of its own; then the run. Before E-12 is frozen, the root
+ruling on the role named above. The third audit's own consistency items are not in this
+repository and were never applied.
 
 ## Three things to settle before another draft is registered
 

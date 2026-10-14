@@ -187,8 +187,8 @@ FORMED_FROM_STATSBOMB = (
     "docs/research/M-07-rank-ties.md",
     # The sizes of two La Liga shifts of Stage 1C, quoted for a boundary it declares.
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/preregistration.md",
-    "docs/research/north-star/protocol-drafts/E-11-provider-agreement/preregistration.md",
     "docs/research/north-star/protocol-drafts/E-12-transport-movers/preregistration.md",
+    "experiments/preregistered/E-11-provider-agreement/preregistration.md",
 )
 
 # Mentions StatsBomb and prints no such figure. Beside each: what its mentions are.
@@ -234,12 +234,12 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/preregistration.md":
         "that the corpus was seen before and that 40 of its files were inspected, with no "
         "result of the inspection; the replication rule",
-    "docs/research/north-star/protocol-drafts/E-11-provider-agreement/PIPELINE.md":
-        "readers, the mapping, hashes, and the credit block quoted in a fence for the "
-        "report to draw; the roster share in its dissent is counted on the public side",
     "docs/research/north-star/protocol-drafts/E-12-transport-movers/PIPELINE.md":
         "functions, digests and the attribution requirement; league membership and "
         "synthetic sizes",
+    "experiments/preregistered/E-11-provider-agreement/PIPELINE.md":
+        "readers, the mapping, hashes, and the credit block quoted in a fence for the "
+        "report to draw; the roster share in its dissent is counted on the public side",
 }
 
 # Quotes figures of a credited report and cannot be given the block: nothing under

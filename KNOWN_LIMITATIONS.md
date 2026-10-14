@@ -257,7 +257,7 @@ technology, which put fixed words around served values. Transfer Lab's two
 - CI builds Spain only, so the corpus tests of the other six competitions skip
   there.
 
-## Drafted, not registered, not run
+## Registered or drafted, not run
 
 Five protocols are written under
 [`docs/research/north-star/protocol-drafts/`](docs/research/north-star/README.md):
@@ -272,10 +272,11 @@ them, and five more audits that day found one, one, two, two and three blockers;
 ninth revision applied the last three, a verification found them resolved, a tenth
 revision applied its follow-ups, and a ninth audit found eight of nine scopes ready and
 one blocker, which an eleventh revision applied. A tenth audit returned READY on the
-eleventh revision, and a twelfth applies its consistency items, which change no token.
-E-11 is not registered. None has been
-frozen, none has a built pipeline, and no outcome has been computed. The verdict
-registry is empty, so every badge on a planning page reads RECORD ONLY · NOT TESTED.
+eleventh revision; a twelfth and a thirteenth applied consistency items that change no
+token, each verified to add no blocker. E-11 was registered on 14 October 2026
+([ADR-0029](DECISIONS.md)): its sixteen records read E-11 · RECORD ONLY · NOT RUN, and
+every other badge on a planning page reads RECORD ONLY · NOT TESTED. The other four are
+drafts. None has a built pipeline, and no outcome has been computed.
 
 ## Found by the October reconnaissance and not repaired
 

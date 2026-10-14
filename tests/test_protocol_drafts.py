@@ -1,15 +1,18 @@
-"""The E-11 draft holds together with itself and with the shipped guards, before registration.
+"""The registered E-11 protocol holds together with itself and with the shipped guards.
 
 Data-free. The third audit of the E-11 draft found three defects by reading: a frozen
 registry sentence the response boundary would refuse, three config keys that named a
 provider while the config said none did, and a pipeline hash that only a person recomputed.
-Each check below is a function of the draft's files and runs twice: on the draft, where it
-must find nothing, and on a copy with the defect planted, where it must find it (M-06).
+Each check below is a function of the protocol's files and runs twice: on the registered
+files, where it must find nothing, and on a copy with the defect planted, where it must
+find it (M-06).
 
-Claim: on these three points the draft's files agree with each other and with
+Claim: on these three points the registered files agree with each other and with
 ``domain.verdicts``, ``api.runtime.finalize`` and the key rule of ``tests/test_licensing.py``.
-Non-claim: nothing here says the protocol is sound or ready, and nothing reads data. In the
-registration commit ``DRAFT`` becomes the registered directory (PIPELINE.md section 13).
+Non-claim: nothing here says the protocol is sound, and nothing reads data. ``DRAFT`` named
+the draft folder until the registration commit, which pointed it at the registered
+directory (PIPELINE.md section 13); until the pipeline exists nothing else ties the files
+to each other.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ from galactico.domain.verdicts import PENDING, Outcome, Tier, VerdictRecord, Ver
 from galactico.validation.digests import lf_sha256, lf_sha256_text
 
 ROOT = Path(__file__).resolve().parents[1]
-DRAFT = ROOT / "docs/research/north-star/protocol-drafts/E-11-provider-agreement"
+DRAFT = ROOT / "experiments/preregistered/E-11-provider-agreement"
 PROVIDER_NAME = re.compile("statsbomb|pappalardo|wyscout", re.IGNORECASE)
 HASH = "0" * 64
 COMMIT = "c" * 40

@@ -18,8 +18,9 @@ sentence, and the page leads the user to declare a deficiency first.
 
 Other leagues are an opt-in, and every such row carries the not-strength-adjusted flag.
 
-Nothing has been tested: the verdict registry is empty, so a recorded rate carries the
-NOT_REGISTERED badge and no sentence here says otherwise.
+Nothing has been tested: E-12, which would test whether a rate repeats after a move, is not
+registered, so a recorded rate carries the NOT_REGISTERED badge and no sentence here says
+otherwise. E-11 is registered and not run.
 
 Every handler follows the runtime skeleton: start the route's budget, resolve the scenario
 (404), then inside ``runtime.lab_errors`` key the cache on the request as resolved and on the

@@ -167,7 +167,7 @@ def test_verdict_payload_is_the_registry_payload(monkeypatch):
     payload = shell.verdict_payload("E-10", "conceded_f3_entries_per_90")
     assert payload == verdicts.as_payload(
         verdicts.verdict_for("E-10", "conceded_f3_entries_per_90"))
-    # The registry ships empty: every subject is a record nobody tested.
+    # E-10 is not registered: every such subject is a record nobody tested.
     assert payload["badge"] == "RECORD ONLY · NOT TESTED"
     assert payload["basis"] == "NOT_REGISTERED" and payload["may_gate"] is False
     assert payload["figures"] == []

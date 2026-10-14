@@ -10,10 +10,11 @@ Non-claim: a record is not the evidence. The evidence is the experiment's
 record to those files by hash. A verdict labels a quantity. It is not a property
 of a player.
 
-The registry ships EMPTY. A record is added only when a protocol is frozen by
-commit, and none is yet: the E-09 to E-13 documents are drafts. So ``verdict_for``
-answers NOT_REGISTERED for every subject, ``product_admissible`` is false for
-every construct, and that is the true state of the evidence, not a placeholder.
+A record is added only in the commit that freezes its protocol. E-11 is registered
+and not run: its sixteen subjects answer REGISTERED_NOT_RUN (PENDING), every other
+subject answers NOT_REGISTERED, the E-09, E-10, E-12 and E-13 documents are drafts,
+and ``product_admissible`` is false for every construct. That is the true state of
+the evidence, not a placeholder.
 
 Two rules carry the licensing posture. ``may_gate`` is the only value that may
 unlock a number-bearing panel, and it is false for every LOCAL-tier record: a
@@ -85,7 +86,7 @@ class ProductState(StrEnum):
 
 PENDING = "PENDING"
 REGISTRY_MOVES = ("NONE", "REJECTED", "RESEARCH_ONLY")
-NOT_REGISTERED_STATEMENT = "No protocol covers this quantity."
+NOT_REGISTERED_STATEMENT = "No registered protocol tests this claim."
 PRODUCT_GATE_EXPERIMENT = "E-09"
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -269,7 +270,152 @@ class Verdict:
 
 
 VERDICTS: dict[str, VerdictRecord] = {}
-"""claim_id -> record. Empty until a protocol is frozen by commit."""
+"""claim_id -> record. A record is added in the commit that registers its protocol."""
+
+
+# ---- E-11 provider agreement: registered, not run ------------------------------
+# Every sentence is the frozen config's ``registry_*`` entry, verbatim, and the two
+# hashes are ``lf_sha256`` of the registered preregistration.md and config.json.
+# tests/test_verdict_registry.py ties both to the committed files.
+
+_E11_DIRECTORY = "experiments/preregistered/E-11-provider-agreement"
+_E11_PROTOCOL_HASH = "c6dc27b3e3807a48adae151682bb9d966c2fbdd2a5299d1c48cc2b0d94d2d0be"
+_E11_CONFIG_HASH = "f1dd69cc75b239bf88addda297c60e6c43fbf6579cf2a2d455cfdd6c193e6224"
+_E11_NON_CLAIM = (
+    "Agreement between two coders of the same matches is not validity, reliability or "
+    "decision utility. It says nothing about a player, a team, or which provider is "
+    "right."
+)
+_E11_NOT_RUN = (
+    "E-11 is registered and not run. Nothing has been compared across the two "
+    "providers."
+)
+_E11_CELL_SCOPE = (
+    "Team-sheet-paired outfield players at or above the frozen regulation minutes on "
+    "each provider; World Cup 2018 and Barcelona's La Liga 2017/18 matches pooled; "
+    "aggregated_player level, open_play reader, regime valuation; ranks within "
+    "Wyscout role."
+)
+_E11_LINK_SCOPE = (
+    "Every StatsBomb team-sheet player of the double-coded matches, linked by name "
+    "and nationality against the whole Pappalardo player file and checked against the "
+    "team-sheet pairing."
+)
+_E11_CELL_SUBJECTS = (
+    "progression",
+    "progression_per_action",
+    "chance_creation",
+    "chance_creation_assist_inclusive",
+    "half_space_share",
+    "width",
+    "shot_volume",
+    "non_penalty_shot_volume",
+    "shot_goal_angle_per_90",
+    "opp_half_defensive_actions",
+    "defensive_actions_per_90",
+    "completed_passes_per_90",
+    "pass_completion",
+)
+_E11_LINK_SUBJECTS = (
+    "wide_link_tier_a",
+    "wide_link_tiers_a_n",
+    "wide_link_tiers_a_n_b",
+)
+_E11_CELL_VOCABULARY = (
+    "COMPARABLE",
+    "COMPARABLE_IN_RANK_ONLY",
+    "NOT_ESTABLISHED",
+    "NOT_COMPARABLE",
+    "INCONCLUSIVE",
+)
+_E11_LINK_VOCABULARY = (
+    "LINK_USABLE",
+    "LINK_NOT_ESTABLISHED",
+    "INCONCLUSIVE",
+)
+_E11_CELL_OUTCOMES = {
+    "COMPARABLE": Outcome(
+        VerdictStatus.ESTABLISHED, False,
+        (
+            "On the double-coded matches the two providers' estimators of this "
+            "quantity order players of the same role alike and agree in level on "
+            "average. The difference for any one player is not bounded."
+        )),
+    "COMPARABLE_IN_RANK_ONLY": Outcome(
+        VerdictStatus.ESTABLISHED, True,
+        (
+            "On the double-coded matches the two providers' estimators of this "
+            "quantity order players of the same role alike. Their levels were not "
+            "shown to agree; raw values from the two providers are not pooled."
+        )),
+    "NOT_ESTABLISHED": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "The two providers' estimators were compared on the double-coded matches. "
+            "Agreement was not established: the frozen criterion was not met and not "
+            "excluded, or it was met on all the matches together and contradicted on "
+            "the league matches alone."
+        )),
+    "NOT_COMPARABLE": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "On the double-coded matches the data exclude the frozen criterion: the "
+            "two providers' estimators of this quantity do not order players of the "
+            "same role alike."
+        )),
+    "INCONCLUSIVE": Outcome(
+        VerdictStatus.INCONCLUSIVE, False,
+        (
+            "A data or sample gate was not met, one provider does not record this "
+            "quantity, or a check the pipeline runs on itself failed. No agreement is "
+            "claimed for this quantity."
+        )),
+}
+_E11_LINK_OUTCOMES = {
+    "LINK_USABLE": Outcome(
+        VerdictStatus.ESTABLISHED, True,
+        (
+            "On the players of the double-coded team sheets, this "
+            "name-and-nationality link met the frozen bounds on false links and on "
+            "recall. No birth date confirms any link."
+        )),
+    "LINK_NOT_ESTABLISHED": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "On the players of the double-coded team sheets, this "
+            "name-and-nationality link did not meet the frozen bounds. No later study "
+            "may use it."
+        )),
+    "INCONCLUSIVE": Outcome(
+        VerdictStatus.INCONCLUSIVE, False,
+        (
+            "A data, vocabulary or crosswalk gate failed, or too few players were "
+            "evaluated. The link was not graded."
+        )),
+}
+
+
+def _e11(subject_id: str, link: bool) -> VerdictRecord:
+    return VerdictRecord(
+        experiment_id="E-11",
+        subject_id=subject_id,
+        scope=_E11_LINK_SCOPE if link else _E11_CELL_SCOPE,
+        tier=Tier.LOCAL,
+        directory=_E11_DIRECTORY,
+        claim_token="LINK USABLE" if link else "ORDER AGREES",
+        non_claim=_E11_NON_CLAIM,
+        not_run_statement=_E11_NOT_RUN,
+        vocabulary=_E11_LINK_VOCABULARY if link else _E11_CELL_VOCABULARY,
+        outcomes=_E11_LINK_OUTCOMES if link else _E11_CELL_OUTCOMES,
+        protocol_hash=_E11_PROTOCOL_HASH,
+        config_hash=_E11_CONFIG_HASH,
+    )
+
+
+for _record in [*(_e11(s, False) for s in _E11_CELL_SUBJECTS),
+                *(_e11(s, True) for s in _E11_LINK_SUBJECTS)]:
+    VERDICTS[_record.claim_id] = _record
+del _record
 
 
 def record(experiment_id: str, subject_id: str) -> VerdictRecord:
@@ -393,7 +539,7 @@ def figures_for(experiment_id: str, subject_id: str) -> dict[str, Figure]:
 def product_admissible(construct_id: str) -> bool:
     """Whether a PUBLIC, EXECUTED, ESTABLISHED record of E-09 exists for this construct.
 
-    False for every construct while the registry is empty. True is necessary for
+    False for every construct while E-09 is not registered. True is necessary for
     a candidate construct to be shown beside players; it is not a promotion, which
     is a separate change set.
     """

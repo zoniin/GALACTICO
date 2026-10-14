@@ -187,8 +187,13 @@ test('Squad Lab draws what the server returned, with the gate beside every count
     .toEqual([inForce[0].evidence_class, distribution.evidence_class]);
   const verdicts = page.locator('.verdict');
   expect(await verdicts.count()).toBeGreaterThan(0);
-  expect(await verdicts.evaluateAll(els => els.map(e => e.dataset.basis + '|' + e.textContent))).toEqual(Array(await verdicts.count()).fill('NOT_REGISTERED|RECORD ONLY · NOT TESTED'));
-  await expect(page.locator('#research-status')).toHaveText(depth.research_statement);
+  // E-11 is registered and not run: its records are RECORD ONLY like every unregistered one.
+  const allowed = ['NOT_REGISTERED|RECORD ONLY · NOT TESTED', 'REGISTERED_NOT_RUN|E-11 · RECORD ONLY · NOT RUN'];
+  for (const seen of await verdicts.evaluateAll(els => els.map(e => e.dataset.basis + '|' + e.textContent))) expect(allowed).toContain(seen);
+  const records = depth.provenance.verdicts;
+  await expect(page.locator('#research-status tbody tr')).toHaveCount(records.length);
+  await expect(page.locator('#research-status [data-label="Record"]')).toHaveText(records.map(v => v.badge));
+  await expect(page.locator('#research-status + .figure-note')).toHaveText(depth.research_statement);
   await expect(page.locator('#not-measured li')).toHaveCount(depth.not_measured.length);
 
   // Squad list by name as sent; nobody is selected, so nothing is gold.

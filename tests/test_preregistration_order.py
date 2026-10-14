@@ -33,7 +33,7 @@ PREREGISTERED = "experiments/preregistered"
 RESULTS = "results.json"
 # What is frozen before a run. The protocols put every threshold in config.json
 # ("All thresholds live in config.json"), so where one exists it is protocol too.
-PROTOCOL = ("preregistration.md", "config.json")
+PROTOCOL = ("preregistration.md", "config.json", "PIPELINE.md")
 
 # `git rev-parse --local-env-vars`: what git exports about ONE repository. Inside
 # the pre-commit hook these name the repository being committed to, and a git
@@ -192,7 +192,8 @@ def test_the_readme_names_the_files_that_exist() -> None:
 # built once, with real git, in one scratch repository. Each dict is one commit.
 
 SCRATCH_HISTORY = (
-    {"E-91-in-order": {"preregistration.md": "frozen", "config.json": "{}"},
+    {"E-91-in-order": {"preregistration.md": "frozen", "config.json": "{}",
+                       "PIPELINE.md": "frozen"},
      "E-93-results-first": {RESULTS: "{}"},
      "E-94-no-protocol": {RESULTS: "{}"},
      "E-95-late-config": {"preregistration.md": "frozen"},

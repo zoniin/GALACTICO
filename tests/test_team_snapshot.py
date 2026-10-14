@@ -345,7 +345,7 @@ def test_a_further_metric_needs_a_surviving_verdict(league, monkeypatch):
         minutes_floor=None, in_minima=True, legacy_evidence="MEASURED",
         requirement_source="synthetic", components=_shot_components)
     baseline = build(league)
-    # The verdict registry is empty: nothing is admissible today.
+    # No E-09 record is registered: nothing is admissible today.
     with pytest.raises(ValueError, match="no surviving verdict"):
         build(league, extra_metrics=(extra,))
     monkeypatch.setattr(S, "_admissible", lambda metric_id: True)

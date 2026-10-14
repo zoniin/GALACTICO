@@ -19,8 +19,9 @@ A preset is a server-owned declaration named after what it sets. Applying one is
 declaration, never a finding: the 3322 preset records a departure that is a public record
 outside this corpus.
 
-No verdict has been registered, so nothing here says a quantity was tested. The copy below is
-the branch that is true while ``verdicts.VERDICTS`` is empty, and a test ties it to that.
+E-11 is registered and not run, so nothing here says a quantity was tested. The copy below is
+the branch that is true while no registered record's badge reads TESTED, and a test ties it
+to that.
 
 No nav and no badge text (``api/shell.py``); no result cache, budget or deadline machinery
 (``api/runtime.py``); no router. The module reads no data and imports no solver at import:
@@ -90,6 +91,7 @@ __all__ = [
     "NOT_MEASURED_EXTRA",
     "NOT_MEASURED_CLOSING",
     "NOT_TESTED_STATEMENT",
+    "REGISTERED_NOT_TESTED_STATEMENT",
     "SCOPE_TEMPLATE",
     "TIE_RULE",
     "ORDER_STATEMENT",
@@ -1407,20 +1409,38 @@ NOT_TESTED_STATEMENT = (
     "No experiment protocol is registered. No quantity shown here has been tested: each is "
     "a record, or an exact computation on what you declared."
 )
+REGISTERED_NOT_TESTED_STATEMENT = (
+    "The registered protocols are listed with their state. No quantity shown here has been "
+    "tested: each is a record, or an exact computation on what you declared."
+)
+_TESTED_STATUSES = frozenset({"ESTABLISHED", "NOT_ESTABLISHED"})
 
 
 def verdict_reading() -> tuple[list[dict], str | None]:
-    """``(registered verdict payloads, sentence)``. The list is empty until a protocol is
-    frozen; the sentence is printed while it is empty and is ``None`` afterwards."""
+    """``(registered verdict payloads, sentence)``.
+
+    With nothing registered the sentence says so. While no registered record's badge reads
+    TESTED (an executed record whose status is ESTABLISHED or NOT_ESTABLISHED; a record
+    that is PENDING or INCONCLUSIVE tested nothing), it says that nothing shown has been
+    tested. Once one does it is ``None``: the commit that records that result writes the
+    sentence that replaces it, which says what was tested and that it is not validity or
+    decision use.
+    """
     registered = verdicts.all_payloads()
-    return registered, (None if registered else NOT_TESTED_STATEMENT)
+    if not registered:
+        return registered, NOT_TESTED_STATEMENT
+    tested = any(p["basis"] == "EXECUTED" and p["status"] in _TESTED_STATUSES
+                 for p in registered)
+    return registered, (None if tested else REGISTERED_NOT_TESTED_STATEMENT)
 
 
 NOT_MEASURED_EXTRA: tuple[shell.NotMeasured, ...] = (
     shell.NotMeasured("off_ball", "Off-ball movement and pressing", "UNAVAILABLE",
                       "Not recorded by this provider's events."),
     shell.NotMeasured("shots", "Shot volume and location", "UNMEASURED",
-                      "No shot construct is shown. No protocol covers one."),
+                      "No shot construct is shown. No registered protocol tests one; E-11, "
+                      "registered and not run, compares only whether two providers agree on "
+                      "shot counts."),
     shell.NotMeasured("chance_creation_requirement", "Chance creation as a requirement",
                       "UNMEASURED",
                       "Needs 1,800 minutes per player on this provider; it enters no solve."),

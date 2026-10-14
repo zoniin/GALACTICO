@@ -132,7 +132,10 @@ test('the default problem has no shortfall: the page says so and leads to a decl
   await expect(page.locator('#eligibility-banner')).toHaveText(new RegExp(pool.eligibility.banner.slice(0, 40)));
   await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#composed-evidence')).toHaveAttribute('data-evidence', pool.evidence.class);
-  await expect(page.locator('#research-status')).toHaveText(pool.research_statement);
+  // E-11 is registered and not run: one row per record, then the server's sentence.
+  await expect(page.locator('#research-status tbody tr')).toHaveCount(pool.provenance.verdicts.length);
+  await expect(page.locator('#research-status [data-label="Record"]')).toHaveText(pool.provenance.verdicts.map(v => v.badge));
+  await expect(page.locator('#research-status + .figure-note')).toHaveText(pool.research_statement);
 
   // No list that could be read as a ranking: no search, no candidate, three ways forward.
   await expect(page.locator('#search')).toBeDisabled();

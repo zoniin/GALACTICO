@@ -302,7 +302,7 @@ def test_ledger_keeps_declared_apart_and_never_drops_a_missing_value(tmp_path: P
     assert first[1].count("<td data-label=") == second[1].count("<td data-label=") == 5
     assert "Exact computation · no empirical claim" in first[1]
     assert 'data-evidence="OPTIMIZED"' in first[1] and "exact solve · Optimized" in first[1]
-    assert "RECORD ONLY · NOT TESTED" in second[1] and "No protocol covers" in second[1]
+    assert "RECORD ONLY · NOT TESTED" in second[1] and "No registered protocol tests" in second[1]
     # A null value keeps its row and is a dash, never a zero.
     assert second[1].count("—") == 3 and not re.search(r">\s*0\s*<", second[1])
     assert "Composition takes the weakest class of its inputs." in full
