@@ -63,7 +63,7 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 10 | the verification's follow-ups (13 October) | the 2 partial items completed and the 14 consistency items applied | NOT_READY, partitioned like the eighth: 8 of 9 scopes READY; 1 blocker, confirmed by three of three skeptics; 26 of 29 consistency candidates confirmed |
 | 11 | the ninth audit's findings (14 October) | the blocker and the 26 confirmed consistency items applied | **READY**: all 9 scopes READY, no blocker candidate; 15 of 18 consistency candidates confirmed |
 | 12 | the tenth audit's consistency items (14 October) | all 15 applied, with one optional wording; none changes a token | verified by three reviewers by item group and one over the whole diff: no blocker; 17 consistency items on the output of stopped and partly failed runs |
-| 13 | the verification's items (14 October) | applied; one turned into a root ruling (below) | edits under verification |
+| 13 | the verification's items (14 October) | applied; one turned into a root ruling (below) | verified by two reviewers by item group and one over the whole diff: no blocker, every item resolved; one wording of the protocol corrected, which leaves the pipeline hash unchanged |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -233,8 +233,12 @@ within the Wyscout role code, and the E-12 draft forms its origin cells within a
 position label from the licensed provider; whether an admission covers that design must
 be ruled before E-12 is frozen, and section 14 now says so.
 
-What is left before registration: a verification that the thirteenth revision's edits add
-no blocker, and the owner's decision to register. The third audit's own consistency items are
+The verification of the thirteenth revision found no blocker and every item resolved. Its
+one finding, a protocol sentence that said E-11 reads a position label it never forms, is
+corrected; PIPELINE.md did not change, so its pinned hash stands.
+
+What is left before registration: the owner's decision to register, and, before E-12 is
+frozen, the root ruling on the role named above. The third audit's own consistency items are
 not in this repository and were never applied.
 Registration follows a READY verdict only, in one commit that holds the registration and
 the edits PIPELINE section 13 lists, and nothing else.

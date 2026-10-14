@@ -358,8 +358,9 @@ reconnaissance, decided that day and corrected again after the second audit
 7. E-11 is not registered. Its third audit returned NOT_READY with three blockers;
    six revisions and five audits on 13 October followed, the audits finding one, one,
    two, two, three and one blockers; the tenth audit returned READY on the eleventh
-   revision, the twelfth and thirteenth apply its consistency items and a verification's
-   (no blocker), and registration is the owner's decision. Before E-12 is frozen the root
+   revision, the twelfth and thirteenth apply its consistency items and a verification's,
+   and the thirteenth was verified in turn (no blocker). E-11 is READY; registration is
+   the owner's decision. Before E-12 is frozen the root
    also rules whether an E-11 admission, graded within the Wyscout role code, covers
    E-12's origin cells, formed within the licensed provider's position label ([status](research/north-star/README.md)).
 8. The chance-creation floor. The Wyscout estimator shows chance creation as a
