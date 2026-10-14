@@ -417,7 +417,8 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   const ledgerIds = await page.locator('#evidence-ledger tr[data-ledger]').evaluateAll(trs => trs.map(t => t.dataset.ledger));
   expect(new Set(ledgerIds).size).toBe(ledgerIds.length);
   for (const id of ['audit-depth', 'audit-shortfall', 'reference-progression', 'stress-k2', 'brief-st', 'pool-st']) expect(ledgerIds).toContain(id);
-  expect(await page.locator('.verdict').evaluateAll(els => els.every(e => e.dataset.basis === 'NOT_REGISTERED'))).toBe(true);
+  // Nothing is tested: a badge is unregistered, or E-11's, registered and not run.
+  expect(await page.locator('.verdict').evaluateAll(els => els.every(e => e.dataset.verdict === 'RECORD_ONLY' && (e.dataset.basis === 'NOT_REGISTERED' || (e.dataset.basis === 'REGISTERED_NOT_RUN' && e.dataset.experiment === 'E-11'))))).toBe(true);
 
   await page.locator('#removal-order').selectOption('name');
   await page.locator(`#depth-list li[data-slot="lb"] button[data-player="${NACHO}"]`).click();
