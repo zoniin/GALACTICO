@@ -6,6 +6,7 @@ Two things live here, and neither is a result.
 | File | What it is | Status |
 |---|---|---|
 | [ROOT-DECISIONS.md](ROOT-DECISIONS.md) | The binding decisions the build ran under: the constitution restated as rules R1-R13, the tool definitions, the frozen files, and the rulings on what the reconnaissance and the designers disputed (sections 2.5 and 2.6) | Followed for everything shipped, with one rule overridden by decision. R13 pins the shipped Player, Match and XI Lab outputs; ADR-0025 and ADR-0027 override it for the corrections they name, in Player Lab and on Match Lab's player rows. Sections on tools that were not built (frontier, risk modes, minimal conflict, Opponent Lab, the desk) are plans, not descriptions. So is section 2.2: its heading names `experiments/preregistered/E-09 .. E-13`; of the five only E-11 is registered (14 October 2026), and the other four are drafts under `protocol-drafts/` |
+| [OR-XI-SPEC.md](OR-XI-SPEC.md) | The build contract of the four exact XI tools of ROOT 2.1 (ceilings, minimal conflict, frontier, declared-risk modes), their router and the XI Lab page parts | Draft of 14 October 2026, attacked once by three lenses and revised; its gates ruled in ROOT-DECISIONS 2.7; not audited, nothing built |
 | [protocol-drafts/](protocol-drafts/) | Four experiment protocols with their configs and pipeline specifications, and a pointer where E-11's draft was | **Drafts. Not frozen, not registered, not run** |
 
 ## The five protocols

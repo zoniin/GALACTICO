@@ -279,7 +279,7 @@ solver does. M^w(x) = max_r d_r^w(x) and T^w(x) = sum_r d_r^w(x) are BALANCE's t
 The design council was cut short: OR-SQUAD-SPEC.md, ARCH-SPEC.md, PRODUCT-MATCHDAY.md and the
 E-09..E-13 drafts are complete but were never attacked, revised or reconciled; PRODUCT-PLANNING is
 in two parts (`_pp_part1.md`, `_pp_part2.md`; its desk section is unfinished); no OR-XI spec
-exists. Builders therefore treat a spec as a strong draft: where it contradicts the shipped code,
+existed until 14 October 2026 (section 2.7). Builders therefore treat a spec as a strong draft: where it contradicts the shipped code,
 a measured fact or this file, this file and the code win, and the deviation is reported.
 
 - D1 ACCEPTED. The default break-even conclusion is the lexicographic one
@@ -322,6 +322,45 @@ a measured fact or this file, this file and the code win, and the deviation is r
   14 October 2026: E-11 is registered and its sixteen records are `PENDING`
   ("E-11 · RECORD ONLY · NOT RUN"); every other subject still answers `NOT_REGISTERED`,
   now with the sentence "No registered protocol tests this claim." ([ADR-0029](../../../DECISIONS.md)).
+
+### 2.7 Root rulings on the OR-XI specification (14 October 2026; binding on its builders)
+
+The council left no OR-XI spec. One now exists, [OR-XI-SPEC.md](OR-XI-SPEC.md), drafted and
+attacked once by three lenses on 14 October 2026. Its DISSENT, gates and open questions are
+ruled here.
+
+- X1 ACCEPTED (DISSENT 1). Section 2.4's "two policies" is amended to the three the shipped
+  code has, each named: `SHORTFALL_POLICY` (`solver._q`), `HARD_POLICY` (the conservative
+  floor/ceil of `tradeoffs.FLOOR_POLICY`) and `OBJECTIVE_POLICY` (exact half-even). A new tool
+  names which applies to each quantity and never mixes two inside one quantity.
+- X2 ACCEPTED (DISSENT 2; spec item 13). A minimal conflicting set is computed in the
+  arithmetic of the solve it explains, the principle of D2. `explain_solve` (half-even `_q`,
+  explaining XI Lab's Satisfy solve) and `explain_floors` (conservative, explaining a hard-floor
+  query) are both built, under those names, and each reply names its arithmetic. Every hard
+  floor a reader declares to a new tool stays conservative, as 2.4 says.
+- X3 ACCEPTED (DISSENT 3). O8's BIG is `2 · |U| · T_bound + 1`, which preserves the
+  lexicographic order for a sum of `k` encodings and for a regret; a declared problem whose
+  encoding would overflow is refused with its own sentence. BIG is never serialised.
+- X4 RULED (DISSENT 4; spec item 14). The five additive edits to `web/xi.html` are granted:
+  they add page parts 2.3 asks for and change no shipped element. Condition: every shipped XI
+  test and browser spec passes unchanged, and the new panels send nothing until their own
+  button is pressed. The fallback page of spec 8.4 is not built.
+- X5 GRANTED (spec item 15). `xi.risk.tail` joins `runtime.LONG_ROUTES` and the pinned set in
+  `tests/test_lab_runtime.py`. The 40-world option ships only after its solves are timed on
+  the corpus; until then the menu offers 12 worlds.
+- X6 ACCEPTED (DISSENT 5, OPEN QUESTION 1). The new XI parts default to progression alone; the
+  two side requirements enter only with the explicit opt-in, and a conflict that explains the
+  main solve asks for it. `MODEL_DIFFERS` says so whenever the two models differ.
+- X7 ACCEPTED (DISSENT 6). CEILING reproduces the shipped maximiser's arithmetic and does not
+  call it; a parity test ties the two.
+- X8 Deferred to E-13 (OPEN QUESTIONS 2 and 3): the split-sample tool is specified after E-13
+  is frozen; the tail menu is the E-13 draft's until then.
+- X9 No edit to `squad/kernel.py` (OPEN QUESTION 6): the new modules use its private members,
+  as `squad/brief.py` does, and a test pins the members they use.
+- X10 Not in this release (OPEN QUESTION 7): the API accepts `explains: "floors"`; no page part
+  in the shipped tradeoff panel.
+- X11 Declined, not needed: the optional id prefix for `Shell.ledger`; the page parts rewrite
+  their ids (spec 8.1).
 
 ## 3. Scenario decisions
 
