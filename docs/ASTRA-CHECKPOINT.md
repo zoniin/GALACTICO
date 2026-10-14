@@ -25,7 +25,8 @@ consistency items of the fourth audit; the rerun of its simulation; the sixth
 revision, which applies the fifth audit's; the seventh, which applies the sixth's;
 the eighth, which applies the seventh's; the ninth, which applies the eighth audit's,
 made by nine scoped auditors with three skeptics per blocker; the tenth, from the
-verification of those fixes; the eleventh, from a ninth audit made the same way.
+verification of those fixes; the eleventh, from a ninth audit made the same way; the
+twelfth, from the consistency items of a tenth audit, which returned READY.
 
 On 10 October: 1,635 Python tests passed and none skipped, with the tag sidecar of
 all seven competitions and the local StatsBomb cache present (a test that needs one
@@ -245,7 +246,9 @@ No credentials or proprietary data are needed or committed.
   them all; six reviewers verified the fixes (no new blocker), and a tenth revision
   applied their follow-ups. A ninth audit, partitioned the same way, returned eight of
   nine scopes READY and one blocker (a Wyscout clearance carrying the interception
-  flag); the eleventh revision applies it and 26 consistency items. It is not audited.
+  flag); the eleventh revision applied it and 26 consistency items. A tenth audit
+  returned READY on the eleventh revision: all nine scopes, no blocker. The twelfth
+  revision applies its fifteen consistency items, which change no token.
 - 9 October, record. ADR-0018 to ADR-0027, M-06 to M-08. Five protocol **drafts**
   (E-09 to E-13) under `docs/research/north-star/protocol-drafts/`.
 
@@ -258,8 +261,9 @@ No credentials or proprietary data are needed or committed.
 - PARTIALLY COMPLETE: decision usefulness; the opponent foundation.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09 to E-13. The design council that wrote
   them was cut short before adversarial review, reconciliation and audit. E-11 has
-  since had nine audits; the ninth found eight of nine scopes ready and one blocker,
-  which an eleventh revision applies; the other four are unreviewed. The
+  since had ten audits; the tenth returned READY on the eleventh revision, and a
+  twelfth applies its consistency items. It is not registered. The other four are
+  unreviewed. The
   verdict registry is empty.
 - BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own
   goals; ADR-0028), which E-09 and E-10 need.
@@ -353,8 +357,9 @@ reconnaissance, decided that day and corrected again after the second audit
    name functions it does not have.
 7. E-11 is not registered. Its third audit returned NOT_READY with three blockers;
    six revisions and five audits on 13 October followed, the audits finding one, one,
-   two, two, three and one blockers; the eleventh revision applies the last, and
-   registration waits for a READY audit ([status](research/north-star/README.md)).
+   two, two, three and one blockers; the tenth audit returned READY on the eleventh
+   revision, the twelfth applies its consistency items, and registration is the owner's
+   decision ([status](research/north-star/README.md)).
 8. The chance-creation floor. The Wyscout estimator shows chance creation as a
    number from 1,800 minutes. On the declared population the reliability there is
    0.699, under the 0.70 number threshold, and 0.723 at 2,250 minutes; 53 point

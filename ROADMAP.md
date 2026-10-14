@@ -132,7 +132,9 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   holding one part of the draft. The ninth revision applied those three, a
   verification found them resolved, and the tenth applied its follow-ups. A ninth
   audit, partitioned the same way, found eight of nine scopes ready and one blocker,
-  which the eleventh revision applies. It has not been audited. The other four need adversarial review and an audit before
+  which the eleventh revision applied. A tenth audit returned READY on it: all nine
+  scopes, no blocker. A twelfth revision applies its consistency items, which change no
+  token. E-11 is not registered; registering it is the owner's decision. The other four need adversarial review and an audit before
   registration. The verdict registry is empty.
 
 ## Not started or not validated

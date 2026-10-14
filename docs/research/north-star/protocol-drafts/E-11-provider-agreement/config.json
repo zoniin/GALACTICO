@@ -7,7 +7,7 @@
   "difference_direction": "statsbomb_minus_wyscout",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider, a convention that a few earlier keys do not follow; no key of this file, of acceptance.json, of results.json or of results.local.json contains statsbomb, pappalardo or wyscout in any letter case (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first, the runner test of PIPELINE section 10 for all three)",
 
-  "pipeline_spec_sha256": "c59ef583b24603495a9428ca1a0fb18e05a00810b828d02098fbddfeb664edcf",
+  "pipeline_spec_sha256": "c92447bd228d88cf49efae50d64405a6d72ca25905b8cd37cf3a147329e3be7d",
   "sb_folder_digests": {
     "World_Cup_2018": "14f7a21e756b02147b55abad3c75fba04f783b70bfbab54b73c155c47bd121c8",
     "La_Liga_2017_18": "ad976fd9b334de95ec799d0a2a418cfd8bd16fb22a8a3f4f780d2d94752a4d28",

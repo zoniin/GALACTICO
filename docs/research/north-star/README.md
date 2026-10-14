@@ -14,7 +14,7 @@ Two things live here, and neither is a result.
 |---|---|---|---|---|
 | [E-09](protocol-drafts/E-09-player-candidates/preregistration.md) | Do shot-volume, location-weighted shot and defensive-location candidates survive the measurement lifecycle? Includes a location-only shot conversion model, named as a model | PUBLIC | the tag sidecar (built; the draft names functions it does not have) | no |
 | [E-10](protocol-drafts/E-10-conceded-shape/preregistration.md) | Is where a team concedes a property of the defending team, beyond the attacker's own tendencies? | PUBLIC, replicated on LOCAL | the tag sidecar (built; the draft names functions it does not have) | no |
-| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | nine audits; the ninth, partitioned across nine auditors (14 October 2026), found eight of nine scopes ready and one blocker, which an eleventh revision applies; not yet audited again |
+| [E-11](protocol-drafts/E-11-provider-agreement/preregistration.md) | Do the two providers' estimators agree on the 100 matches both coded (World Cup 2018; Barcelona's 36 La Liga 2017/18 matches)? | LOCAL | nothing; must run before E-12 | ten audits; the tenth, partitioned across nine auditors (14 October 2026), READY on the eleventh revision; a twelfth revision applies its consistency items |
 | [E-12](protocol-drafts/E-12-transport-movers/preregistration.md) | Do player rates survive a club change? Movers against stayers across the two corpora, plus the small within-season arm | LOCAL and PUBLIC arms | E-11's comparability grades | no |
 | [E-13](protocol-drafts/E-13-declared-risk-selection/preregistration.md) | Do declared-risk selection rules reduce selection optimism, and what does held-out evaluation say about the Madrid snapshots? | PUBLIC | a risk solver that does not exist yet | no |
 
@@ -33,7 +33,7 @@ and no outcome named in any of them has been computed. The designers' own simula
 - Nothing is registered. `galactico/domain/verdicts.py` ships an empty registry,
   so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
-## E-11 after eleven revisions: a draft, not registered
+## E-11 after twelve revisions: READY, not registered
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
 independent audit. On 13 October a fourth revision applied the third audit's
@@ -44,7 +44,9 @@ applied them, a seventh audit found two more, an eighth revision applied those, 
 eighth audit split across nine auditors found three more, a ninth revision applied
 them, six reviewers verified those fixes and found fourteen consistency items, a tenth
 revision applied them, a ninth audit in the same partitioned way found one more blocker
-and eight of its nine scopes ready, and an eleventh revision applies it. Each audit was made by a reviewer who had written none of the
+and eight of its nine scopes ready, an eleventh revision applied it, and a tenth audit in
+the same way returned READY: all nine scopes, no blocker. A twelfth revision applies its
+fifteen consistency items, which change no token. Each audit was made by a reviewer who had written none of the
 draft and walked the branches of its verdict rules on synthetic numbers.
 
 | Round | What was reviewed | Revision | Independent audit |
@@ -59,7 +61,8 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 8 | the seventh audit's findings (13 October) | both blockers and consistency items 1 to 10 applied; item 11, a simulated figure a third implementation did not reproduce exactly, is descriptive and unchanged | NOT_READY: 3 blockers, each confirmed by three of three skeptics; 29 of 35 consistency candidates confirmed |
 | 9 | the eighth audit's findings (13 October) | all 3 blockers and the 29 confirmed consistency items applied, with two optional notes for E-12 | verified by five reviewers by finding and one over the whole diff: 3 blockers and 27 items resolved, 2 items partly; no new blocker; 14 new consistency items, most in sentences the revision added |
 | 10 | the verification's follow-ups (13 October) | the 2 partial items completed and the 14 consistency items applied | NOT_READY, partitioned like the eighth: 8 of 9 scopes READY; 1 blocker, confirmed by three of three skeptics; 26 of 29 consistency candidates confirmed |
-| 11 | the ninth audit's findings (14 October) | the blocker and the 26 confirmed consistency items applied | not yet audited |
+| 11 | the ninth audit's findings (14 October) | the blocker and the 26 confirmed consistency items applied | **READY**: all 9 scopes READY, no blocker candidate; 15 of 18 consistency candidates confirmed |
+| 12 | the tenth audit's consistency items (14 October) | all 15 applied, with one optional wording; none changes a token | edits under verification |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -210,8 +213,18 @@ not one, forbids descriptive use; the acceptance cap on admissions at the bounda
 the team-match structure gets the margin the protocol promises; and section 14 tells
 E-12 where to read the link bounds and what it must check on its own folders.
 
-What is left before registration: a fresh independent audit of the eleventh revision,
-and the third audit's remaining consistency items, which are not in this repository.
+The tenth audit ran the same method on the eleventh revision, each auditor first checking
+that revision's edits in its scope for regressions. All nine scopes returned READY and no
+blocker candidate was raised. Its fifteen consistency items change no token: among them a
+stray word the eleventh revision left in a frozen sentence, what a stopped run writes in
+each block, what `CLAIMED_TWICE` rows carry, the count ratio's direction and interval,
+the machine as well as the BLAS in the provenance E-12 must match, and the Wyscout role
+E-12 must name beside its own position labels. The twelfth revision applies them, so
+that the text registered is the text found ready, corrected only where no token moves.
+
+What is left before registration: a verification that the twelfth revision's edits add no
+blocker, and the owner's decision to register. The third audit's own consistency items are
+not in this repository and were never applied.
 Registration follows a READY verdict only, in one commit that holds the registration and
 the edits PIPELINE section 13 lists, and nothing else.
 

@@ -271,7 +271,9 @@ returned NOT_READY with three blockers. A fourth revision of 13 October applied
 them, and five more audits that day found one, one, two, two and three blockers; a
 ninth revision applied the last three, a verification found them resolved, a tenth
 revision applied its follow-ups, and a ninth audit found eight of nine scopes ready and
-one blocker, which an eleventh revision applies; it has not been audited. None has been
+one blocker, which an eleventh revision applied. A tenth audit returned READY on the
+eleventh revision, and a twelfth applies its consistency items, which change no token.
+E-11 is not registered. None has been
 frozen, none has a built pipeline, and no outcome has been computed. The verdict
 registry is empty, so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
