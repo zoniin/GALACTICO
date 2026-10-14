@@ -358,8 +358,10 @@ reconnaissance, decided that day and corrected again after the second audit
 7. E-11 is not registered. Its third audit returned NOT_READY with three blockers;
    six revisions and five audits on 13 October followed, the audits finding one, one,
    two, two, three and one blockers; the tenth audit returned READY on the eleventh
-   revision, the twelfth applies its consistency items, and registration is the owner's
-   decision ([status](research/north-star/README.md)).
+   revision, the twelfth and thirteenth apply its consistency items and a verification's
+   (no blocker), and registration is the owner's decision. Before E-12 is frozen the root
+   also rules whether an E-11 admission, graded within the Wyscout role code, covers
+   E-12's origin cells, formed within the licensed provider's position label ([status](research/north-star/README.md)).
 8. The chance-creation floor. The Wyscout estimator shows chance creation as a
    number from 1,800 minutes. On the declared population the reliability there is
    0.699, under the 0.70 number threshold, and 0.723 at 2,250 minutes; 53 point

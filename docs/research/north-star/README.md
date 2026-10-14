@@ -33,7 +33,7 @@ and no outcome named in any of them has been computed. The designers' own simula
 - Nothing is registered. `galactico/domain/verdicts.py` ships an empty registry,
   so every badge on a planning page reads RECORD ONLY · NOT TESTED.
 
-## E-11 after twelve revisions: READY, not registered
+## E-11 after thirteen revisions: READY, not registered
 
 On 9 October 2026 the E-11 draft went through three rounds of review, revision and
 independent audit. On 13 October a fourth revision applied the third audit's
@@ -62,7 +62,8 @@ draft and walked the branches of its verdict rules on synthetic numbers.
 | 9 | the eighth audit's findings (13 October) | all 3 blockers and the 29 confirmed consistency items applied, with two optional notes for E-12 | verified by five reviewers by finding and one over the whole diff: 3 blockers and 27 items resolved, 2 items partly; no new blocker; 14 new consistency items, most in sentences the revision added |
 | 10 | the verification's follow-ups (13 October) | the 2 partial items completed and the 14 consistency items applied | NOT_READY, partitioned like the eighth: 8 of 9 scopes READY; 1 blocker, confirmed by three of three skeptics; 26 of 29 consistency candidates confirmed |
 | 11 | the ninth audit's findings (14 October) | the blocker and the 26 confirmed consistency items applied | **READY**: all 9 scopes READY, no blocker candidate; 15 of 18 consistency candidates confirmed |
-| 12 | the tenth audit's consistency items (14 October) | all 15 applied, with one optional wording; none changes a token | edits under verification |
+| 12 | the tenth audit's consistency items (14 October) | all 15 applied, with one optional wording; none changes a token | verified by three reviewers by item group and one over the whole diff: no blocker; 17 consistency items on the output of stopped and partly failed runs |
+| 13 | the verification's items (14 October) | applied; one turned into a root ruling (below) | edits under verification |
 
 What the third audit confirmed applied: all five blockers of the second audit, its
 consistency items 4 to 16 and the seven rulings. The hash of the pipeline
@@ -222,8 +223,18 @@ the machine as well as the BLAS in the provenance E-12 must match, and the Wysco
 E-12 must name beside its own position labels. The twelfth revision applies them, so
 that the text registered is the text found ready, corrected only where no token moves.
 
-What is left before registration: a verification that the twelfth revision's edits add no
-blocker, and the owner's decision to register. The third audit's own consistency items are
+The verification of the twelfth revision found no blocker, so the tenth audit's READY
+holds for the text as revised. Its items, applied in the thirteenth revision, fix what a
+stopped or partly failed run writes, which descriptive rows have which keys, and when the
+planning sentence that nothing was tested may change: when an E-11 badge reads TESTED,
+not merely when results are committed, since a run stopped by a gate leaves every token
+`INCONCLUSIVE`. One item is a question for the root, not wording: E-11 grades ordering
+within the Wyscout role code, and the E-12 draft forms its origin cells within a
+position label from the licensed provider; whether an admission covers that design must
+be ruled before E-12 is frozen, and section 14 now says so.
+
+What is left before registration: a verification that the thirteenth revision's edits add
+no blocker, and the owner's decision to register. The third audit's own consistency items are
 not in this repository and were never applied.
 Registration follows a READY verdict only, in one commit that holds the registration and
 the edits PIPELINE section 13 lists, and nothing else.
