@@ -263,9 +263,11 @@ No credentials or proprietary data are needed or committed.
   conditional XI engine/UI; exactness/temporal/browser checks; licensing guard;
   the exact squad and transfer tools and their two pages, as arithmetic.
 - PARTIALLY COMPLETE: decision usefulness; the opponent foundation.
-- REGISTERED, NOT RUN: E-11 (14 October 2026, ADR-0029), after ten audits; the tenth
-  returned READY on the eleventh revision and two later revisions were verified. Its
-  pipeline is not built. The verdict registry holds its sixteen `PENDING` records.
+- REGISTERED, BUILT, NOT RUN: E-11 (14 October 2026, ADR-0029), after ten audits; the
+  tenth returned READY on the eleventh revision and two later revisions were verified.
+  Its pipeline is built on synthetic data and reviewed against its checklist, and the
+  acceptance stamp is committed (`f6f9184`). The verdict registry holds its sixteen
+  `PENDING` records. The run needs the public corpus beside the licensed folders.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-10, E-12, E-13. The design council that
   wrote them was cut short before adversarial review, reconciliation and audit; the
   four are unreviewed.
@@ -287,8 +289,10 @@ No credentials or proprietary data are needed or committed.
 
 No unfinished implementation on `north-star`. **1,635 local Python tests** passed on
 10 October with the tag sidecar built, and **52 browser tests and two screenshot
-captures** on the commit before it, plus Ruff/licensing. E-11 is registered and its
-pipeline is next (PIPELINE section 13). Do not reopen E-07 or E-08.
+captures** on the commit before it, plus Ruff/licensing. E-11 is registered, built and
+stamped; its one real run (`experiments/run_provider_agreement.py execute
+--protocol-commit <sha>`, then `--verify`) needs the public corpus. Do not reopen E-07 or
+E-08.
 
 The 20 September release: **374 local Python tests and 13 Playwright tests**
 passed, plus Ruff/licensing. All recovery/council/adversarial results
@@ -359,7 +363,9 @@ reconnaissance, decided that day and corrected again after the second audit
 6. Which of the remaining drafts to review, freeze and run, and in what order.
    E-11 gates E-12. E-09 and E-10 read the tag sidecar, which is built; both drafts
    name functions it does not have.
-7. E-11 is not registered. Its third audit returned NOT_READY with three blockers;
+7. Settled since: E-11 was registered (ADR-0029), built and stamped, and the root ruled
+   the role question (ROOT-DECISIONS 2.8). What follows is the record. Its third audit
+   returned NOT_READY with three blockers;
    six revisions and five audits on 13 October followed, the audits finding one, one,
    two, two, three and one blockers; the tenth audit returned READY on the eleventh
    revision, the twelfth and thirteenth apply its consistency items and a verification's,
@@ -424,8 +430,9 @@ them), `galactico/api/planning.py`, then the two routers and pages.
 protocol. Nothing there may be cited as a result or wired to a page.
 `galactico/domain/verdicts.py`: holds E-11's sixteen `PENDING` records. Registering a
 protocol adds a record with its hashes; a LOCAL-tier record can label and can never gate.
-`experiments/preregistered/E-11-provider-agreement/PIPELINE.md`: what to build next, in
-the order of its section 13.
+`experiments/preregistered/E-11-provider-agreement/PIPELINE.md` section 13: the run is
+the one step left, after `preflight` on the real folders; `analysis.md` follows it with
+the attribution block of section 12.
 
 `experiments/preregistered/E-08-partial-history/analysis.md` and results.json:
 completed and independently reviewed; do not rerun to resume or tune after the null.

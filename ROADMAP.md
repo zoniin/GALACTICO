@@ -135,9 +135,12 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   audit, partitioned the same way, found eight of nine scopes ready and one blocker,
   which the eleventh revision applied. A tenth audit returned READY on it: all nine
   scopes, no blocker. A twelfth and a thirteenth revision applied consistency items that
-  change no token. E-11 was registered on 14 October 2026 (ADR-0029); its pipeline is
-  not built and it has not run. The verdict registry holds its sixteen records, token
-  PENDING. The other four need adversarial review and an audit before registration.
+  change no token. E-11 was registered on 14 October 2026 (ADR-0029). Its pipeline is
+  built and tested on synthetic data, reviewed against its pre-outcome checklist, and its
+  synthetic acceptance stamp is committed (16 October); it has not run, because the
+  public corpus is not reachable from the build environment. The verdict registry holds
+  its sixteen records, token PENDING. E-10 has had one review round and an audit; E-09
+  one reviewer so far; E-12 and E-13 none.
 
 ## Not started or not validated
 

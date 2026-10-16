@@ -28,9 +28,10 @@ state is the next section. So:
 - E-09, E-10, E-12 and E-13 have not been reviewed. Expect defects: a threshold
   that lives only in prose, a branch of a verdict rule left undefined, a sample
   gate miscounted.
-- No pipeline is built for any of the five (E-11 has its fetch script and nothing else),
-  and no outcome named in any of them has been computed. The designers' own simulations
-  of their decision rules ran on synthetic data only.
+- E-11's pipeline is built and tested on synthetic data and its acceptance stamp is
+  committed; no other draft has a pipeline. No outcome named in any of the five has been
+  computed. The designers' own simulations of their decision rules ran on synthetic data
+  only.
 - E-11 alone is registered (14 October 2026, [ADR-0029](../../../DECISIONS.md)).
   `galactico/domain/verdicts.py` holds its sixteen records, token `PENDING`, each
   reading E-11 · RECORD ONLY · NOT RUN; every other badge on a planning page reads
@@ -244,7 +245,11 @@ The owner decided to register, and E-11 was registered on 14 October 2026 in one
 that holds the three files and the edits PIPELINE section 13 lists, and nothing else
 ([ADR-0029](../../../DECISIONS.md)). The draft folder holds one-line pointers. What is left
 is the order section 13 gives: the pipeline, built and tested on synthetic data; the
-acceptance stamp in a commit of its own; then the run. The root ruled on the role named
+acceptance stamp in a commit of its own; then the run. The first two are done: the six
+modules and their tests (`c9ec004`, `5935816`), a review of the pre-outcome checklist of
+section 11 by four reviewers whose 29 findings were applied and verified (`3733721`), and
+the stamp (`f6f9184`), whose seventeen scenarios all passed. The run waits on the public
+corpus, which the build environment cannot reach. The root ruled on the role named
 above on 16 October 2026 (ROOT-DECISIONS 2.8): an admission covers an E-12 origin cell
 only for a linked unit whose two position labels agree. The third audit's own consistency items are not in this
 repository and were never applied.

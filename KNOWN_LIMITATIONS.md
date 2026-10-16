@@ -279,8 +279,9 @@ one blocker, which an eleventh revision applied. A tenth audit returned READY on
 eleventh revision; a twelfth and a thirteenth applied consistency items that change no
 token, each verified to add no blocker. E-11 was registered on 14 October 2026
 ([ADR-0029](DECISIONS.md)): its sixteen records read E-11 · RECORD ONLY · NOT RUN, and
-every other badge on a planning page reads RECORD ONLY · NOT TESTED. The other four are
-drafts. None has a built pipeline, and no outcome has been computed.
+every other badge on a planning page reads RECORD ONLY · NOT TESTED. Its pipeline is
+built on synthetic data and its acceptance stamp committed; it has not run. The other four
+are drafts with no pipeline. No outcome of any of the five has been computed.
 
 ## Found by the October reconnaissance and not repaired
 

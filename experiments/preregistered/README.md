@@ -6,6 +6,7 @@ One directory per experiment:
         preregistration.md   committed BEFORE the analysis runs
         config.json          machine-readable thresholds
         PIPELINE.md          the pipeline specification, where one is frozen with the protocol
+        acceptance.json      the synthetic acceptance stamp, committed before the run where a protocol requires one
         results.json         raw output
         analysis.md          interpretation, written after
 
@@ -23,4 +24,4 @@ the contradiction is the finding.
 | E-04 conditional spatial tendency | preregistered, not run |
 | E-07 lineup transport | executed; INCONCLUSIVE at the preregistered development sample gate |
 | E-08 partial opening histories | executed; NOT_ESTABLISHED, development selection chose context only |
-| E-11 provider agreement | preregistered, not run |
+| E-11 provider agreement | preregistered; pipeline built and acceptance stamped on synthetic data; not run |
