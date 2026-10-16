@@ -1,0 +1,1063 @@
+{
+  "config_hash": "f1dd69cc75b239bf88addda297c60e6c43fbf6579cf2a2d455cfdd6c193e6224",
+  "experiment": "E-11",
+  "passed": true,
+  "pipeline_hash": "8b923564a851aab038b6fb6038bbf8a3266e86980bb50f1df01c390d3553bd6c",
+  "scenarios": {
+    "la_liga_false_veto_090": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 88.21,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.8999674283908621,
+        "replicate_mean_minus_point_mean": -0.01578004910988128,
+        "requirements": {
+          "forbidden_tokens": true,
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 71,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 129
+        },
+        "tokens": {
+          "COMPARABLE": 0.355,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.645
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 87.78,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9020660843335571,
+        "replicate_mean_minus_point_mean": -0.014216876378733964,
+        "requirements": {
+          "forbidden_tokens": true,
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 85,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 115
+        },
+        "tokens": {
+          "COMPARABLE": 0.425,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.575
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 88.725,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.8982079143344016,
+        "replicate_mean_minus_point_mean": -0.010482188244882363,
+        "requirements": {
+          "forbidden_tokens": true,
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 79,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 121
+        },
+        "tokens": {
+          "COMPARABLE": 0.395,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.605
+        }
+      }
+    },
+    "la_liga_veto_060": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 87.72,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.5999715243554473,
+        "replicate_mean_minus_point_mean": -0.016590776036508586,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 187,
+          "NOT_ESTABLISHED": 13
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.935,
+          "NOT_ESTABLISHED": 0.065
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 88.515,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.6025281216004895,
+        "replicate_mean_minus_point_mean": -0.013905991892904082,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 172,
+          "NOT_ESTABLISHED": 28
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.86,
+          "NOT_ESTABLISHED": 0.14
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 88.56,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.5984196245558449,
+        "replicate_mean_minus_point_mean": -0.003038384158977249,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 94,
+          "NOT_ESTABLISHED": 106
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.47,
+          "NOT_ESTABLISHED": 0.53
+        }
+      }
+    },
+    "la_liga_veto_070": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 88.465,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.6979951766182072,
+        "replicate_mean_minus_point_mean": -0.017129116095591753,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 129,
+          "NOT_ESTABLISHED": 71
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.645,
+          "NOT_ESTABLISHED": 0.355
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 87.81,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.703311392520181,
+        "replicate_mean_minus_point_mean": -0.014296341942865878,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 100,
+          "NOT_ESTABLISHED": 100
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.5,
+          "NOT_ESTABLISHED": 0.5
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 87.96,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.6983966575093924,
+        "replicate_mean_minus_point_mean": -0.0058990414818548146,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 2,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 41,
+          "NOT_ESTABLISHED": 157
+        },
+        "tokens": {
+          "COMPARABLE": 0.01,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.205,
+          "NOT_ESTABLISHED": 0.785
+        }
+      }
+    },
+    "la_liga_veto_075": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 88.42,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7497097923803716,
+        "replicate_mean_minus_point_mean": -0.01768673601957417,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 47,
+          "NOT_ESTABLISHED": 153
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.235,
+          "NOT_ESTABLISHED": 0.765
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 88.46,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7537440620274469,
+        "replicate_mean_minus_point_mean": -0.01546815567697239,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 49,
+          "NOT_ESTABLISHED": 151
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.245,
+          "NOT_ESTABLISHED": 0.755
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 88.005,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7474082012665056,
+        "replicate_mean_minus_point_mean": -0.007587991307453607,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 3,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 22,
+          "NOT_ESTABLISHED": 175
+        },
+        "tokens": {
+          "COMPARABLE": 0.015,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.11,
+          "NOT_ESTABLISHED": 0.875
+        }
+      }
+    },
+    "planted_below_boundary": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.865,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7803838831025657,
+        "replicate_mean_minus_point_mean": -0.00929050152790899,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 1,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 34,
+          "NOT_ESTABLISHED": 165
+        },
+        "tokens": {
+          "COMPARABLE": 0.005,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.17,
+          "NOT_ESTABLISHED": 0.825
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 199.14,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7814562845484526,
+        "replicate_mean_minus_point_mean": -0.00836879512021751,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 34,
+          "NOT_ESTABLISHED": 166
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.17,
+          "NOT_ESTABLISHED": 0.83
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 200.47,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7784383526228159,
+        "replicate_mean_minus_point_mean": -0.004075807060048149,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 5,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 13,
+          "NOT_ESTABLISHED": 182
+        },
+        "tokens": {
+          "COMPARABLE": 0.025,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.065,
+          "NOT_ESTABLISHED": 0.91
+        }
+      }
+    },
+    "planted_boundary": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 200.125,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.8002832052879802,
+        "replicate_mean_minus_point_mean": -0.009243493014518739,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true,
+          "second_limited_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 3,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 17,
+          "NOT_ESTABLISHED": 180
+        },
+        "tokens": {
+          "COMPARABLE": 0.015,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.085,
+          "NOT_ESTABLISHED": 0.9
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 200.0,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.8001912025293773,
+        "replicate_mean_minus_point_mean": -0.008216757118196033,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true,
+          "second_limited_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 1,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 13,
+          "NOT_ESTABLISHED": 186
+        },
+        "tokens": {
+          "COMPARABLE": 0.005,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.065,
+          "NOT_ESTABLISHED": 0.93
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 199.845,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.7999104769207394,
+        "replicate_mean_minus_point_mean": -0.004534559606397609,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true,
+          "second_limited_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 8,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 3,
+          "NOT_ESTABLISHED": 189
+        },
+        "tokens": {
+          "COMPARABLE": 0.04,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.015,
+          "NOT_ESTABLISHED": 0.945
+        }
+      }
+    },
+    "planted_comparable": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.625,
+        "passed": true,
+        "permuted_link_holds_share": 1.0,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9500208446000377,
+        "replicate_mean_minus_point_mean": -0.006148740269138107,
+        "requirements": {
+          "permuted_link": true,
+          "point_inside_interval": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 200,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 1.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 200.335,
+        "passed": true,
+        "permuted_link_holds_share": 1.0,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9501069251569012,
+        "replicate_mean_minus_point_mean": -0.00594702809805759,
+        "requirements": {
+          "permuted_link": true,
+          "point_inside_interval": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 200,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 1.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 199.525,
+        "passed": true,
+        "permuted_link_holds_share": 1.0,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9496266778876216,
+        "replicate_mean_minus_point_mean": -0.004603743865436722,
+        "requirements": {
+          "permuted_link": true,
+          "point_inside_interval": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 200,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 1.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      }
+    },
+    "planted_count_boundary": {
+      "count_family": {
+        "corpora": 200,
+        "mean_units": 200.695,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.8001443187554931,
+        "replicate_mean_minus_point_mean": -0.005215216058753517,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 3,
+          "COMPARABLE_IN_RANK_ONLY": 3,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 10,
+          "NOT_ESTABLISHED": 184
+        },
+        "tokens": {
+          "COMPARABLE": 0.015,
+          "COMPARABLE_IN_RANK_ONLY": 0.015,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.05,
+          "NOT_ESTABLISHED": 0.92
+        }
+      }
+    },
+    "planted_count_power_090": {
+      "count_family": {
+        "corpora": 200,
+        "mean_units": 199.415,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.900688679928778,
+        "replicate_mean_minus_point_mean": -0.004258587622602498,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 165,
+          "COMPARABLE_IN_RANK_ONLY": 8,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 27
+        },
+        "tokens": {
+          "COMPARABLE": 0.825,
+          "COMPARABLE_IN_RANK_ONLY": 0.04,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.135
+        }
+      }
+    },
+    "planted_gate": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 48.19,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": null,
+        "population_value": 0.9482563429674936,
+        "replicate_mean_minus_point_mean": null,
+        "requirements": {
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 200,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 1.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      }
+    },
+    "planted_level_boundary": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 200.125,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9499419816581234,
+        "replicate_mean_minus_point_mean": -0.006253985500993709,
+        "requirements": {
+          "limited_tokens": true,
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 7,
+          "COMPARABLE_IN_RANK_ONLY": 193,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.035,
+          "COMPARABLE_IN_RANK_ONLY": 0.965,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      }
+    },
+    "planted_moderate": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.74,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.598526897154713,
+        "replicate_mean_minus_point_mean": -0.00880030716908526,
+        "requirements": {
+          "forbidden_tokens": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 200,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 1.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 200.34,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.6003016296295192,
+        "replicate_mean_minus_point_mean": -0.00752146503126145,
+        "requirements": {
+          "forbidden_tokens": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 200,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 1.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 199.535,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.5976874475827445,
+        "replicate_mean_minus_point_mean": -0.0005693265804033498,
+        "requirements": {
+          "forbidden_tokens": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 154,
+          "NOT_ESTABLISHED": 46
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.77,
+          "NOT_ESTABLISHED": 0.23
+        }
+      }
+    },
+    "planted_null": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.405,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": -0.00048213283802598907,
+        "replicate_mean_minus_point_mean": -0.00030543596299460426,
+        "requirements": {
+          "forbidden_tokens": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 200,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 1.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      }
+    },
+    "planted_order_only": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.91,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9499561979351663,
+        "replicate_mean_minus_point_mean": -0.006171106004879425,
+        "requirements": {
+          "forbidden_tokens": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 200,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 1.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      }
+    },
+    "planted_position_mix": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.575,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.5983132734143639,
+        "replicate_mean_minus_point_mean": -0.00905106455912667,
+        "requirements": {
+          "forbidden_tokens": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 0,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 200,
+          "NOT_ESTABLISHED": 0
+        },
+        "tokens": {
+          "COMPARABLE": 0.0,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 1.0,
+          "NOT_ESTABLISHED": 0.0
+        }
+      }
+    },
+    "planted_power_085": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.93,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.848640859060684,
+        "replicate_mean_minus_point_mean": -0.008657156118604414,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 43,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 157
+        },
+        "tokens": {
+          "COMPARABLE": 0.215,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.785
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 199.935,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.850022328423954,
+        "replicate_mean_minus_point_mean": -0.00796828300250034,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 52,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 148
+        },
+        "tokens": {
+          "COMPARABLE": 0.26,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.74
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 200.18,
+        "passed": true,
+        "permuted_link_holds_share": null,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.8502352916270666,
+        "replicate_mean_minus_point_mean": -0.004683054805106327,
+        "requirements": {
+          "population": true
+        },
+        "token_counts": {
+          "COMPARABLE": 35,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 165
+        },
+        "tokens": {
+          "COMPARABLE": 0.175,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.825
+        }
+      }
+    },
+    "planted_power_090": {
+      "independent": {
+        "corpora": 200,
+        "mean_units": 199.54,
+        "passed": true,
+        "permuted_link_holds_share": 1.0,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9000132020051015,
+        "replicate_mean_minus_point_mean": -0.00777723862648556,
+        "requirements": {
+          "permuted_link": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 175,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 25
+        },
+        "tokens": {
+          "COMPARABLE": 0.875,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.125
+        }
+      },
+      "systematic": {
+        "corpora": 200,
+        "mean_units": 200.56,
+        "passed": true,
+        "permuted_link_holds_share": 1.0,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9003506488538813,
+        "replicate_mean_minus_point_mean": -0.007100703975636067,
+        "requirements": {
+          "permuted_link": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 191,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 9
+        },
+        "tokens": {
+          "COMPARABLE": 0.955,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.045
+        }
+      },
+      "team_match": {
+        "corpora": 200,
+        "mean_units": 199.97,
+        "passed": true,
+        "permuted_link_holds_share": 1.0,
+        "point_inside_interval_share": 1.0,
+        "population_value": 0.9004783519427674,
+        "replicate_mean_minus_point_mean": -0.0050501650638709395,
+        "requirements": {
+          "permuted_link": true,
+          "population": true,
+          "required_tokens": true
+        },
+        "token_counts": {
+          "COMPARABLE": 154,
+          "COMPARABLE_IN_RANK_ONLY": 0,
+          "INCONCLUSIVE": 0,
+          "NOT_COMPARABLE": 0,
+          "NOT_ESTABLISHED": 46
+        },
+        "tokens": {
+          "COMPARABLE": 0.77,
+          "COMPARABLE_IN_RANK_ONLY": 0.0,
+          "INCONCLUSIVE": 0.0,
+          "NOT_COMPARABLE": 0.0,
+          "NOT_ESTABLISHED": 0.23
+        }
+      }
+    }
+  },
+  "source_hashes": {
+    "experiments/run_provider_agreement.py": "993bab879a0ebed4672620ddaaa319193b6106933c1a47fe63eb110aaec7c9e3",
+    "galactico/domain/thesis.py": "39a385378bfcd3e7134c2e5b86fb597dd2ca9df79074726db1adac2f73bdcbd4",
+    "galactico/identity/resolver.py": "7692eb0f8f251cc8c576d63a30259436c637471c7762979a2608f639fa7054c6",
+    "galactico/models/xt/__init__.py": "1a6ce82a047f65d035a33b13f62fcefbc0b9c9ac9f84485d96baebd7f92bd8b8",
+    "galactico/models/xt/grid.py": "cf501078555c479363e6f43c1131bbcaa7ac50891b4e580f9c3b5115ade9457d",
+    "galactico/providers/base.py": "7d10451ba5d664c9be317ec32f45316054783445d986ab20e2ea4cb0ef3648d9",
+    "galactico/validation/digests.py": "21d973ea0930786ceec823b403a12b1724e67e075abad8412198a63b078cd8c7",
+    "galactico/validation/provider_agreement.py": "ddf27e5fd5e12efaedc269c044ff6c73e601ba5ccb45867733a88792c437a531",
+    "galactico/validation/provider_agreement_synthetic.py": "f60c5c3602555ba3b3929fddb7ec430f15a36de9926a4061a30d3e95c0bf1721",
+    "galactico/validation/provider_crosswalk.py": "58c53e9c7cb623cfa708474876b56b86dc9d38a1616ba486a3b36e45fd365598",
+    "galactico/validation/provider_inputs.py": "94844119c6b5e9e8fb18d7d7d9fbd7d43eb9d99b382232d71f8aa58b7e104356",
+    "galactico/validation/sb_reader.py": "ce0bc5cba334e412da63bb39b83cd70987d5b682de280d67714185b2e00b9f29"
+  },
+  "version": "provider-agreement-v2"
+}
