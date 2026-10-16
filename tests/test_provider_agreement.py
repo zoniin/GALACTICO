@@ -8,9 +8,12 @@ oracle written from its definition: weighted average ranks counted pair by pair 
 here from the frozen seed and streams. Each rule is tested with its interesting outcome
 and its opposite.
 
+The planted corpora of ``provider_agreement_synthetic`` (PIPELINE section 6) are checked
+for their structure against counts written from the generator's definition, and their
+population values against the scenarios' targets.
+
 Non-claim: nothing here reads the real corpus. Every player, team and match key is
-invented and every value is drawn from a seed or written by hand. ``planted_corpus``
-belongs to the synthetic module, which is not part of this file.
+invented and every value is drawn from a seed or written by hand.
 """
 
 from __future__ import annotations
@@ -30,11 +33,15 @@ import pytest
 
 from galactico.validation import provider_agreement
 from galactico.validation.provider_agreement import (
+    Agreement,
+    BlandAltman,
+    CellResult,
     InputPanel,
     aggregated_values,
     bland_altman,
     build_panel,
     cell_agreement,
+    cell_with_replicates,
     cluster_of_player,
     concordance,
     difference_decomposition,
@@ -42,8 +49,10 @@ from galactico.validation.provider_agreement import (
     match_weights,
     player_weights,
     stratified_rank_correlation,
+    subset_difference,
     team_weights,
 )
+from galactico.validation.provider_agreement_synthetic import planted_corpus, population_value
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "galactico" / "validation" / "provider_agreement.py"
@@ -1082,6 +1091,164 @@ def test_difference_decomposition_recovers_planted_variance_shares(between, with
     assert block["between_player_share"] == pytest.approx(planted_share, abs=0.07)
     low, high = block["interval"]
     assert low - 0.03 <= planted_share <= high + 0.03
+
+
+# --- the replicates of a cell and the subset difference -------------------------------------
+
+def test_cell_with_replicates_is_the_cell_and_the_order_statistic_of_each_replicate() -> None:
+    sb, wy = panels(*planted(31))
+    weights = {"match": match_weights(sb.subset_of_match, SMALL), "matches": sb.matches,
+               "player": player_weights(len(sb.players), SMALL), "players": sb.players}
+    arguments = dict(level="player_match", pool=POOLED, reader="open_play", valuation="regime",
+                     scheme="pigeonhole_match_by_player", weights=weights, exposure=None,
+                     graded=True)
+    quantity = INPUTS["open_play_passes_completed"]
+    cell, orders = cell_with_replicates(sb, wy, quantity, SMALL, **arguments)
+    assert repr(cell) == repr(cell_agreement(sb, wy, quantity, SMALL, **arguments))
+    valid = orders[np.isfinite(orders)]
+    assert orders.shape == (B,) and cell.valid_replicates == len(valid) > 0
+    assert cell.order_interval == pytest.approx(quantile_pair(valid), abs=1e-12)
+    gated, nothing = cell_with_replicates(None, None, quantity, SMALL,
+                                          **{**arguments, "weights": {}},
+                                          failed_gates=["IDENTITY_COVERAGE"])
+    assert gated.point is None and gated.reason == "IDENTITY_COVERAGE" and nothing is None
+
+
+def hand_cell(order: float, verdict: str | None) -> CellResult:
+    differences = BlandAltman(0.0, 1.0, -2.0, 2.0, 0.0, 1.0, 0.0)
+    point = Agreement(units=40, strata_retained=("DF",), strata_dropped=(), mean_sb=1.0,
+                      mean_wy=1.0, sd_sb=1.0, sd_wy=1.0, order=order,
+                      spearman_unstratified=order, concordance=0.9, icc_absolute_single=0.9,
+                      bland_altman=differences, exact_share=None)
+    return CellResult(quantity="q", level="team_match", pool=WC, reader="open_play",
+                      valuation="regime", exposure_minutes=None, point=point,
+                      order_interval=(order - 0.1, order + 0.1), concordance_interval=None,
+                      relative_bias_interval=None, replicate_mean_minus_point=0.0,
+                      concordance_cross_check_gap=None, valid_replicates=4, verdict=verdict,
+                      reason=None if verdict != "INCONCLUSIVE" else "UNITS", flags=())
+
+
+def test_subset_difference_takes_the_replicates_valid_in_both_cells() -> None:
+    first, second = hand_cell(0.9, "COMPARABLE"), hand_cell(0.75, "NOT_ESTABLISHED")
+    first_orders = np.array([0.91, np.nan, 0.85, 0.80, 0.95])
+    second_orders = np.array([0.70, 0.60, np.nan, 0.78, 0.65])
+    found = subset_difference(first, second, first_orders, second_orders, CONFIG)
+    shared = [0.91 - 0.70, 0.80 - 0.78, 0.95 - 0.65]
+    assert found["difference"] == pytest.approx(0.9 - 0.75)
+    assert found["interval"] == pytest.approx(list(quantile_pair(shared)))
+    assert found["replicates"] == 3
+    # Null when either cell is INCONCLUSIVE or ungraded; no interval without a shared
+    # valid replicate; two worlds of different sizes are refused.
+    assert subset_difference(first, hand_cell(0.75, "INCONCLUSIVE"), first_orders,
+                             second_orders, CONFIG) is None
+    assert subset_difference(hand_cell(0.9, None), second, first_orders, second_orders,
+                             CONFIG) is None
+    disjoint = subset_difference(first, second, np.array([0.9, np.nan]),
+                                 np.array([np.nan, 0.7]), CONFIG)
+    assert disjoint["interval"] is None and disjoint["replicates"] == 0
+    with pytest.raises(ValueError, match="one world"):
+        subset_difference(first, second, first_orders, second_orders[:3], CONFIG)
+
+
+# --- planted corpora (PIPELINE section 6) ---------------------------------------------------
+
+SCENARIOS = {entry["key"]: entry for entry in CONFIG["acceptance_scenarios"]}
+GENERATOR = CONFIG["acceptance_generator"]
+
+
+def schedule_counts(groups: int, club: bool) -> dict[str, int]:
+    """Matches of each block, from step 2: a round robin per group, a single-elimination
+    bracket of the advancing teams and the third-place match, and the club meetings."""
+    per_group = GENERATOR["tournament_teams_per_group"]
+    advancing = groups * GENERATOR["tournament_advance_per_group"]
+    tournament = (groups * math.comb(per_group, 2) + advancing - 1
+                  + int(GENERATOR["tournament_third_place_match"] and advancing >= 4))
+    meetings = GENERATOR["club_block_meetings_per_opponent"]
+    club_matches = (GENERATOR["club_block_opponents"] * meetings
+                    - GENERATOR["club_block_opponents_met_once"] * (meetings - 1))
+    return {WC: tournament, **({LL: club_matches} if club else {})}
+
+
+def test_planted_corpus_structure() -> None:
+    cap = CONFIG["regulation_minutes_cap"]
+    low, high = GENERATOR["substitution_minute_range"]
+    squad = sum(GENERATOR["squad_outfield_by_role"])
+    first_ten = sum(GENERATOR["first_ten_by_role"])
+    statsbomb, wyscout, info = planted_corpus([7, 7, 7], SCENARIOS["planted_comparable"],
+                                              "independent", CONFIG)
+    # Step 2: the default keys give the subsets' expected matches.
+    assert Counter(statsbomb.subset_of_match.tolist()) == schedule_counts(
+        GENERATOR["tournament_groups"], True) == {
+        entry["key"]: entry["expected_matches"] for entry in CONFIG["subsets"]}
+    teams = GENERATOR["tournament_groups"] * GENERATOR["tournament_teams_per_group"] + 1 \
+        + GENERATOR["club_block_opponents"]
+    assert len(info["teams"]) == teams and len(statsbomb.players) == teams * squad
+    club = 1 + GENERATOR["club_block_opponents"]
+    assert Counter(info["subset_of_team"].tolist()) == {WC: teams - club, LL: club}
+    # Step 3: minutes equal on both providers, the first ten's worth per team-match, each
+    # value the cap, a substitution minute, or the cap minus one.
+    minutes = statsbomb.values["minutes_regulation"]
+    assert np.array_equal(minutes, wyscout.values["minutes_regulation"])
+    assert np.array_equal(statsbomb.present, wyscout.present)
+    allowed = {cap, *range(low, high + 1), *range(cap - high, cap - low + 1)}
+    assert set(np.unique(minutes[statsbomb.present]).astype(int)) <= allowed
+    per_team_match = Counter()
+    players_per_team_match = Counter()
+    for player, match in zip(*np.nonzero(statsbomb.present), strict=True):
+        key = (int(match), int(statsbomb.team_of_player_match[player, match]))
+        per_team_match[key] += minutes[player, match]
+        players_per_team_match[key] += 1
+    assert len(per_team_match) == 2 * len(statsbomb.matches)
+    assert set(per_team_match.values()) == {first_ten * cap}
+    assert set(players_per_team_match.values()) == {
+        first_ten + GENERATOR["substitutions_per_team_match"]}
+    # Players exactly on the gate, below it and unused all exist.
+    totals = minutes.sum(axis=1)
+    gate = CONFIG["exposure_minimum_minutes"][POOLED]
+    assert (totals == gate).any() and ((totals > 0) & (totals < gate)).any()
+    assert (totals == 0).any()
+    # Roles by squad slot, and the panels' invariants.
+    roles = Counter(statsbomb.role_of_player.tolist())
+    assert roles == {role: teams * count for role, count in
+                     zip(GENERATOR["roles"], GENERATOR["squad_outfield_by_role"], strict=True)}
+    assert info["quantity"] == {"key": "planted_rate", "numerator": "planted_numerator",
+                                "denominator": "minutes_regulation", "scale": 90.0}
+    # One seed, one corpus; another seed, another.
+    again, _, _ = planted_corpus([7, 7, 7], SCENARIOS["planted_comparable"], "independent",
+                                 CONFIG)
+    other, _, _ = planted_corpus([7, 7, 8], SCENARIOS["planted_comparable"], "independent",
+                                 CONFIG)
+    assert np.array_equal(again.values["planted_numerator"],
+                          statsbomb.values["planted_numerator"])
+    assert not np.array_equal(other.values["planted_numerator"],
+                              statsbomb.values["planted_numerator"])
+
+
+def test_a_scenario_key_overrides_the_generator_and_the_count_family_counts() -> None:
+    gate, _, info = planted_corpus([1], SCENARIOS["planted_gate"], "independent", CONFIG)
+    assert Counter(gate.subset_of_match.tolist()) == schedule_counts(
+        SCENARIOS["planted_gate"]["tournament_groups"], False)
+    assert set(info["subset_of_team"].tolist()) == {WC}
+    counts, wyscout, _ = planted_corpus([2], SCENARIOS["planted_count_boundary"],
+                                        "count_family", CONFIG)
+    for panel in (counts, wyscout):
+        values = panel.values["planted_numerator"]
+        assert np.array_equal(values, np.round(values)) and values.min() >= 0
+    # With a Wyscout scale, the Wyscout numerators of planted_order_only are larger.
+    sb, wy, _ = planted_corpus([3], SCENARIOS["planted_order_only"], "independent", CONFIG)
+    assert wy.values["planted_numerator"].sum() > 1.2 * sb.values["planted_numerator"].sum()
+    with pytest.raises(ValueError, match="does not name"):
+        planted_corpus([4], SCENARIOS["planted_null"], "systematic", CONFIG)
+
+
+@pytest.mark.parametrize(("key", "structure"), [
+    ("planted_comparable", "independent"), ("planted_moderate", "systematic"),
+    ("la_liga_veto_060", "team_match"), ("planted_count_boundary", "count_family")])
+def test_population_values_lie_within_the_tolerance_of_their_targets(key, structure) -> None:
+    """Fewer population corpora than the acceptance run uses, and the same tolerance."""
+    config = with_config(acceptance_population_corpora=150)
+    value = population_value(SCENARIOS[key], structure, config)
+    assert abs(value - SCENARIOS[key]["target"]) <= CONFIG["acceptance_population_tolerance"]
 
 
 # --- the module -----------------------------------------------------------------------

@@ -32,6 +32,11 @@ RESEARCH_PIPELINES = (
     "transport_forecast",    # E-07
     "partial_evaluation",    # E-08
     "partial_history",       # E-08
+    "sb_reader",             # E-11
+    "provider_crosswalk",    # E-11
+    "provider_inputs",       # E-11
+    "provider_agreement",    # E-11
+    "provider_agreement_synthetic",  # E-11
 )
 
 # Validation modules product code may import. Empty on purpose: determined from

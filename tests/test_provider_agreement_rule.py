@@ -9,9 +9,14 @@ each rule is tested with its interesting outcome and its opposite, the decision 
 and the registry rule are swept over every combination of a grid, and the permuted
 control is checked against an oracle that builds the derangement generator itself.
 
+A reduced acceptance run grades the comparable, boundary and null scenarios of section 6
+through the same rule, and each requirement of ``scenario_requirements`` is tested on hand
+numbers with the record that meets it and the one that does not.
+
 Non-claim: nothing here reads the real corpus; every key and value is invented. The
-reduced acceptance run of section 10 needs ``provider_agreement_synthetic`` and is not
-in this file.
+reduced run has fewer corpora and replicates than the acceptance stamp, so its shares
+are coarser; it shows the rule and the generator behave, not the operating
+characteristics the protocol states.
 """
 
 from __future__ import annotations
@@ -44,6 +49,11 @@ from galactico.validation.provider_agreement import (
     player_weights,
     registry_verdicts,
     team_weights,
+)
+from galactico.validation.provider_agreement_synthetic import (
+    run_acceptance,
+    scenario_requirements,
+    scenario_structures,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -902,3 +912,117 @@ def test_admission_is_unchanged_by_the_registry_rule() -> None:
     clean = registry_verdicts(cells, controls(cells), LINK_BLOCKS, CONFIG)
     assert clean[DECLARED]["token"] == "COMPARABLE"
     assert admission(cells, controls(cells), CONFIG)[DECLARED]["status"] == "EXCLUDED"
+
+
+# --- the acceptance run (PIPELINE section 6) ------------------------------------------------
+
+SCENARIOS = {entry["key"]: entry for entry in CONFIG["acceptance_scenarios"]}
+REDUCED_KEYS = ("planted_comparable", "planted_boundary", "planted_null")
+REDUCED = with_config(acceptance_corpora=20, acceptance_bootstrap_replicates=100,
+                      acceptance_population_corpora=40,
+                      acceptance_scenarios=[SCENARIOS[key] for key in REDUCED_KEYS])
+
+
+@pytest.fixture(scope="module")
+def reduced_run() -> dict:
+    return run_acceptance(REDUCED)
+
+
+def test_a_reduced_acceptance_run_for_the_comparable_boundary_and_null_scenarios(
+        reduced_run) -> None:
+    scenarios = reduced_run["scenarios"]
+    assert list(scenarios) == list(REDUCED_KEYS)
+    assert list(scenarios["planted_comparable"]) == ["independent", "systematic", "team_match"]
+    assert list(scenarios["planted_null"]) == ["independent"]
+    expected = {"planted_comparable": {"required_tokens", "point_inside_interval",
+                                       "population", "permuted_link"},
+                "planted_boundary": {"limited_tokens", "second_limited_tokens", "population"},
+                "planted_null": {"required_tokens", "forbidden_tokens", "population"}}
+    tolerance = CONFIG["acceptance_population_tolerance"]
+    for key, structures in scenarios.items():
+        scenario = SCENARIOS[key]
+        for record in structures.values():
+            assert record["corpora"] == REDUCED["acceptance_corpora"]
+            assert list(record["tokens"]) == TOKENS
+            assert sum(record["tokens"].values()) == pytest.approx(1.0)
+            assert set(record["requirements"]) == expected[key]
+            assert record["passed"] is True and all(record["requirements"].values())
+            assert abs(record["population_value"] - scenario["target"]) <= tolerance
+            assert record["mean_units"] > 0
+    comparable = scenarios["planted_comparable"]
+    for record in comparable.values():
+        assert record["tokens"]["COMPARABLE"] >= 0.95
+        assert record["point_inside_interval_share"] >= 0.95
+        assert record["permuted_link_holds_share"] == 1.0
+    null = scenarios["planted_null"]["independent"]
+    assert sum(null["tokens"][token] for token in AGREEING) == 0.0
+    assert null["permuted_link_holds_share"] is None
+    for structure, record in scenarios["planted_boundary"].items():
+        limit = SCENARIOS["planted_boundary"]["maximum_share"][structure]
+        assert sum(record["tokens"][token] for token in AGREEING) <= limit
+    assert reduced_run["passed"] is True
+
+
+def hand_record(tokens: dict[str, float], *, inside: float | None = 1.0,
+                population: float | None = None, held: float | None = None) -> dict:
+    return {"tokens": {token: tokens.get(token, 0.0) for token in TOKENS},
+            "point_inside_interval_share": inside, "population_value": population,
+            "permuted_link_holds_share": held}
+
+
+def test_each_requirement_is_met_and_missed_on_hand_numbers() -> None:
+    def met(key, structure, record):
+        return scenario_requirements(SCENARIOS[key], structure, record, CONFIG)
+
+    target = SCENARIOS["planted_comparable"]["target"]
+    good = hand_record({"COMPARABLE": 0.95, "NOT_ESTABLISHED": 0.05}, inside=0.95,
+                       population=target + 0.01, held=0.99)
+    assert met("planted_comparable", "independent", good) == dict.fromkeys(
+        ("required_tokens", "point_inside_interval", "population", "permuted_link"), True)
+    for change, failing in (
+            (dict(tokens={**good["tokens"], "COMPARABLE": 0.94}), "required_tokens"),
+            (dict(point_inside_interval_share=0.94), "point_inside_interval"),
+            (dict(point_inside_interval_share=None), "point_inside_interval"),
+            (dict(population_value=target + 0.02), "population"),
+            (dict(population_value=None), "population"),
+            (dict(permuted_link_holds_share=0.98), "permuted_link"),
+            (dict(permuted_link_holds_share=None), "permuted_link")):
+        found = met("planted_comparable", "independent", {**good, **change})
+        assert [name for name, value in found.items() if not value] == [failing]
+    # A share requirement mapped by structure is read for its structure.
+    power = hand_record({"COMPARABLE_IN_RANK_ONLY": 0.7, "NOT_ESTABLISHED": 0.3},
+                        population=SCENARIOS["planted_power_090"]["target"], held=1.0)
+    assert met("planted_power_090", "team_match", power)["required_tokens"] is True
+    assert met("planted_power_090", "independent", power)["required_tokens"] is False
+    # A forbidden token never occurs; a limited share is inclusive at its maximum.
+    null = hand_record({"NOT_COMPARABLE": 0.95, "COMPARABLE": 0.0, "NOT_ESTABLISHED": 0.05},
+                       population=0.0)
+    assert met("planted_null", "independent", null)["forbidden_tokens"] is True
+    null["tokens"].update(COMPARABLE=0.05, NOT_ESTABLISHED=0.0)
+    assert met("planted_null", "independent", null)["forbidden_tokens"] is False
+    boundary = hand_record({"COMPARABLE": 0.1, "NOT_COMPARABLE": 0.15, "NOT_ESTABLISHED": 0.75},
+                           population=SCENARIOS["planted_boundary"]["target"])
+    assert all(met("planted_boundary", "independent", boundary).values())
+    boundary["tokens"].update(COMPARABLE=0.11, NOT_ESTABLISHED=0.74)
+    assert met("planted_boundary", "independent", boundary)["limited_tokens"] is False
+    boundary["tokens"].update(COMPARABLE=0.1, NOT_COMPARABLE=0.16, NOT_ESTABLISHED=0.74)
+    assert met("planted_boundary", "independent", boundary)["second_limited_tokens"] is False
+    # A report-only scenario requires only its population value; a scenario without the
+    # population check requires none.
+    report = hand_record({"NOT_COMPARABLE": 1.0},
+                         population=SCENARIOS["planted_power_085"]["target"])
+    assert met("planted_power_085", "independent", report) == {"population": True}
+    gate = hand_record({"COMPARABLE": 1.0}, population=None)
+    assert met("planted_gate", "independent", gate) == {"required_tokens": False}
+    gate["tokens"] = {token: float(token == "INCONCLUSIVE") for token in TOKENS}
+    assert met("planted_gate", "independent", gate) == {"required_tokens": True}
+
+
+def test_each_scenario_names_its_structures() -> None:
+    for scenario in CONFIG["acceptance_scenarios"]:
+        structures = scenario_structures(scenario, CONFIG)
+        if scenario.get("count_family"):
+            assert structures == ["count_family"]
+        else:
+            assert structures == list(scenario["coder_sd"])
+    assert sum(len(scenario_structures(s, CONFIG)) for s in CONFIG["acceptance_scenarios"]) == 37
