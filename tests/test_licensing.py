@@ -185,8 +185,6 @@ FORMED_FROM_STATSBOMB = (
     "docs/research/E-01-metronome-fit.md",
     "docs/research/STAGE-1C-EXTERNAL-REPLICATION.md",
     "docs/research/M-07-rank-ties.md",
-    # The sizes of two La Liga shifts of Stage 1C, quoted for a boundary it declares.
-    "docs/research/north-star/protocol-drafts/E-09-player-candidates/preregistration.md",
     "docs/research/north-star/protocol-drafts/E-12-transport-movers/preregistration.md",
     "experiments/preregistered/E-11-provider-agreement/preregistration.md",
 )
@@ -228,17 +226,26 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/ROOT-DECISIONS.md":
         "the tier rule, and which matches both releases hold",
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/PIPELINE.md":
-        "function signatures, a mapping to add, and where the external leg writes",
+        "the external leg's readers, mappings, gates, tokens, the provider's coordinate "
+        "scale, where the leg writes and the attribution plan; synthetic figures only",
+    "docs/research/north-star/protocol-drafts/E-09-player-candidates/REVIEW-RECORD.md":
+        "the review's findings on the external leg, key names and attribution, with their "
+        "dispositions; synthetic figures only",
+    "docs/research/north-star/protocol-drafts/E-09-player-candidates/preregistration.md":
+        "the external leg's rule, gates and tokens and the provider's coordinate scale, with "
+        "no figure formed from its data; it draws the logo for the leg's report",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/PIPELINE.md":
-        "the field mapping, the coordinate scale, an orientation rule, the replication's gates "
-        "and statuses, and where replication numbers and folder digests will be written",
+        "the field mapping, the coordinate scale, an orientation rule, how events are read in "
+        "batches, the replication's gates and statuses, and where replication numbers and "
+        "folder digests will be written",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/preregistration.md":
         "that the corpus was seen before and that 40 of its files were inspected, with no "
-        "result of the inspection; the replication rule, its gates and statuses, and the "
-        "provider's coordinate scale",
+        "result of the inspection; the replication rule, its gates and statuses, the "
+        "provider's coordinate scale and which date field it records",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/REVIEW-RECORD.md":
-        "the review's findings on key names, the replication rule, the provider mapping and "
-        "the attribution plan, with their dispositions; synthetic figures only",
+        "the reviews' findings on key names, the replication rule and its gates, the "
+        "provider mapping, the reader's memory and the attribution plan, with their "
+        "dispositions; synthetic figures only",
     "docs/research/north-star/protocol-drafts/E-12-transport-movers/PIPELINE.md":
         "functions, digests and the attribution requirement; league membership and "
         "synthetic sizes",

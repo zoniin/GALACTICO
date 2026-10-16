@@ -8,7 +8,7 @@
   "committed_experiment_dir": "experiments/preregistered/E-09-player-candidates",
   "draft_dir": "docs/research/north-star/protocol-drafts/E-09-player-candidates",
 
-  "pipeline_spec_sha256": "11ec60817395db78bf4df5c0e9d5ab49c8cfbd20d5e19302f2f5c5d4e3758452",
+  "pipeline_spec_sha256": "11b574e4f629b782b2bee02c72fe47bbd544d2e80f4f3492709e6e66212359f9",
   "verified_by_root_before_registration": ["pipeline_spec_sha256", "frozen_rule_decide_source_sha256", "frozen_rule_constants", "sidecar_schema_version", "sidecar_tag_mapping_version", "e11_config_sha256"],
   "counted_by_root_before_registration": ["expected_in_domain_shot_rows", "expected_sentinel_start_shot_rows", "expected_behind_halfway_shot_rows", "sb_folder_digests"],
 
@@ -52,7 +52,7 @@
   "baseline_tie_rule": "every column whose correlation equals baseline_r is listed in closest_baselines, in battery order",
   "top_k": 12,
   "rank_ties": "average",
-  "top_k_tied_statement": "The twelfth and thirteenth values are tied, so the top twelve is not a set of players and no survivor count exists.",
+  "top_k_tied_statement": "The twelfth and thirteenth values are tied, so the twelve largest values do not name a set of players and no survivor count exists.",
 
   "frozen_rule_path": "experiments/run_replication.py",
   "frozen_rule_function": "decide",
@@ -291,6 +291,7 @@
     "candidate": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_INSTRUMENT", "NOT_ESTABLISHED_MIXED", "INCONCLUSIVE"],
     "instrument": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE", "NOT_ESTABLISHED", "INCONCLUSIVE"]
   },
+  "verdict_reason_codes": {"candidate_row_1": "INSTRUMENT_NOT_JUDGED", "candidate_row_3": "TOO_FEW_EVALUABLE_LEAGUES", "instrument_s_count": "S_COUNT", "instrument_s_fit": "S_FIT"},
   "registry_candidate_subjects": ["shot_volume", "shot_location_value", "box_shot_share", "opp_half_defensive_actions"],
   "registry_instrument_subjects": ["shot_location_v1"],
   "registry_common": {
@@ -400,7 +401,7 @@
   "selfcheck_replicates": 12,
   "selfcheck_seed": 20261010,
   "selfcheck_seed_rule": "worlds: np.random.default_rng([selfcheck_seed, world_position, replicate, league_position]); instrument scenarios: np.random.default_rng([selfcheck_seed, 100 + scenario_position, replicate, league_position]); resampling inside the self-check as in the real run (bootstrap_rule)",
-  "selfcheck_predicate": "for each world or scenario and each subject it names: the number of replicates whose token is in expected is at least minimum_replicates_matching, the number whose token is in never is zero, and, where an also entry exists, the number whose token is in also.tokens is at least also.minimum_replicates_matching; each league assertion holds in every replicate league; each generator sanity bound holds",
+  "selfcheck_predicate": "for each world or scenario and each subject it names: the number of replicates whose token is in expected is at least minimum_replicates_matching, the number whose token is in never is zero, where an also entry exists, the number whose token is in also.tokens is at least also.minimum_replicates_matching; where failing_gate is named, a replicate counts as matching only if that gate is among its failed gates; each league assertion holds in every replicate league; each generator sanity bound holds",
   "synthetic_teams": 20,
   "synthetic_rounds": 38,
   "synthetic_position_counts": {"DF": 5, "MD": 5, "FW": 5},
@@ -441,9 +442,9 @@
         "box_shot_share": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
       },
-      "minimum_replicates_matching": 11,
+      "minimum_replicates_matching": 10,
       "never": {
-        "shot_location_v1": ["NOT_ESTABLISHED", "INCONCLUSIVE"]
+        "shot_location_v1": ["INCONCLUSIVE"]
       }
     },
     {
@@ -464,7 +465,7 @@
         "box_shot_share": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"],
         "opp_half_defensive_actions": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"]
       },
-      "minimum_replicates_matching": 11,
+      "minimum_replicates_matching": 10,
       "never": {
         "shot_volume": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
         "shot_location_value": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
@@ -491,7 +492,7 @@
       "expected": {
         "opp_half_defensive_actions": ["NOT_ESTABLISHED_CONFOUNDED"]
       },
-      "minimum_replicates_matching": 11,
+      "minimum_replicates_matching": 10,
       "never": {
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "INCONCLUSIVE"]
       },
@@ -514,7 +515,7 @@
       "expected": {
         "opp_half_defensive_actions": ["NOT_ESTABLISHED_REDUNDANT"]
       },
-      "minimum_replicates_matching": 11,
+      "minimum_replicates_matching": 10,
       "never": {
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
       }
@@ -534,11 +535,11 @@
   "synthetic_instrument_distance_scale_m": 17.0,
   "synthetic_instrument_match_rule": "each shot's game_id drawn uniformly from the league's synthetic_instrument_matches_per_league match ids",
   "synthetic_instrument_scenarios": [
-    {"name": "PLANTED", "expected": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 12, "never": ["NOT_ESTABLISHED", "INCONCLUSIVE"], "also": {"tokens": ["ACCEPTED"], "minimum_replicates_matching": 9}},
-    {"name": "NO_SIGNAL", "goal_rate": 0.105, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"]},
-    {"name": "TOO_SHARP", "logit_multiplier": 4.0, "logit_shift": -3.0, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R5"},
+    {"name": "PLANTED", "expected": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 10, "never": ["INCONCLUSIVE"], "also": {"tokens": ["ACCEPTED"], "minimum_replicates_matching": 9}},
+    {"name": "NO_SIGNAL", "goal_rate": 0.105, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 10, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"]},
+    {"name": "TOO_SHARP", "logit_multiplier": 4.0, "logit_shift": -3.0, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 10, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R5"},
     {"name": "LEVEL_SHIFT", "league_position": 2, "odds_multiplier": 0.80, "expected": ["ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 10, "never": ["ACCEPTED"]},
-    {"name": "SLOPE_SHIFT", "league_position": 2, "logit_slope_multiplier": 0.5, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R3"}
+    {"name": "SLOPE_SHIFT", "league_position": 2, "logit_slope_multiplier": 0.5, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 10, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R3"}
   ],
 
   "power_planning": {
@@ -572,7 +573,7 @@
       "LEVEL_SHIFT": {"ACCEPTED_WITHIN_LEAGUE": 39, "NOT_ESTABLISHED": 1},
       "SLOPE_SHIFT": {"NOT_ESTABLISHED": 40, "with_R3_failed": 40}
     },
-    "minimum_set_from": "each minimum_replicates_matching leaves at least a 0.97 chance of passing at the observed miss rate plus one more miss in 40"
+    "minimum_set_from": "each minimum leaves at least a 0.98 chance that one subject passes when its miss rate is (observed misses + 1) / 40: 0.9971 for 10 of 12 at one miss in 40, 0.9804 for 10 of 12 at two (LEVEL_SHIFT), 0.9904 for 9 of 12 at three (PLANTED, ACCEPTED); never lists hold only tokens that would classify a planted truth as its opposite, none of which occurred"
   },
 
   "data_license": "CC BY 4.0 (Pappalardo et al. 2019)",

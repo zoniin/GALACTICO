@@ -205,7 +205,14 @@ interception; a penalty and a direct free-kick shot (`type == "set_piece"`) neve
 `player_id` 0 never credited; `capped_minutes` caps a starter substituted at minute 93 at 90;
 per-90 scales with minutes and the share does not; a player with no shots has share NaN and
 volume 0.0; `shot_volume` equals `compute_baselines(...)["shots_per_90"]` on the same frame
-with the same minutes; a missing `event_id` in `shot_values` raises; `CANDIDATES.keys()` is
+with the same minutes; the E-11 tie: on a synthetic Wyscout frame of one invented linked
+match passed through E-11's `harmonise_wyscout` (a test may import `provider_inputs`; product
+code may not), the rows flagged `open_play_shot` are exactly `rows(shot_volume.numerator)` and
+the rows flagged `duel_or_interception` with a finite start x above
+`opponent_half_x_minimum_exclusive` are exactly `rows(opp_half_defensive_actions.numerator)`,
+sentinel and flagged-clearance rows included in the frame (E-11's own slow test ties its
+Wyscout `minutes_regulation` to `lineups.parquet` minutes clipped at the cap, which is
+`capped_minutes`); a missing `event_id` in `shot_values` raises; `CANDIDATES.keys()` is
 disjoint from `spec.SPECS`, `CONSTRUCTS`, `REJECTED`, `RESEARCH_ONLY`; `spec.SPECS` has
 exactly its five shipped keys; no clause can read `success` or `clearance`; every display
 name, sentence and claim text passes `labels.scan_labels`; no key or family string is in the
@@ -498,7 +505,7 @@ Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_n
 ```
 {
   "experiment": "E-09", "version": "player-candidates-v2", "tier": "PUBLIC",
-  "verdicts": {"<subject>": {"token": "...", "reason": null | "<rule_row and closure>"}},
+  "verdicts": {"<subject>": {"token": "...", "rule_row": n | null, "reason": null | "<a code of verdict_reason_codes>"}},
   "provenance": {
     "experiment": "E-09", "protocol_commit": "...", "protocol_hash": "...", "config_hash": "...",
     "pipeline_hash": "...", "providers": ["pappalardo"],
@@ -650,7 +657,7 @@ Distance scale `synthetic_instrument_distance_scale_m` for every shot; match ids
 
 | Scenario | What is planted | Must be classified |
 |---|---|---|
-| `PLANTED` | every league follows the truth coefficients | `ACCEPTED` or `ACCEPTED_WITHIN_LEAGUE` always, `ACCEPTED` in at least the stated count |
+| `PLANTED` | every league follows the truth coefficients | `ACCEPTED` or `ACCEPTED_WITHIN_LEAGUE`, and `ACCEPTED` alone in at least the `also` count; never `INCONCLUSIVE` |
 | `NO_SIGNAL` | goal probability `goal_rate` for every shot | `NOT_ESTABLISHED` |
 | `TOO_SHARP` | logit multiplied by `logit_multiplier` around its median, shifted by `logit_shift` | `NOT_ESTABLISHED`, with R5 among the failed gates |
 | `LEVEL_SHIFT` | one league's odds multiplied by `odds_multiplier` | `ACCEPTED_WITHIN_LEAGUE`; never `ACCEPTED` |
