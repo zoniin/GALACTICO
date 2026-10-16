@@ -1,63 +1,110 @@
 {
-  "version": "player-candidates-v1",
-  "experiment": "E-09",
-  "directory": "experiments/preregistered/E-09-player-candidates",
-  "provider": "pappalardo",
+  "version": "player-candidates-v2",
+  "experiment": "E-09-player-candidates",
+  "registry_experiment_id": "E-09",
+  "tier": "PUBLIC",
+  "providers": ["pappalardo"],
+  "key_naming": "sb = StatsBomb side of the LOCAL external leg, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider, a convention most keys of the public run do not need; no key of this file, of results.json or of the LOCAL file of the external leg contains statsbomb, pappalardo or wyscout in any letter case or starts with SB_ (E-11 PIPELINE section 0, key names)",
+  "committed_experiment_dir": "experiments/preregistered/E-09-player-candidates",
+  "draft_dir": "docs/research/north-star/protocol-drafts/E-09-player-candidates",
+
+  "pipeline_spec_sha256": "11ec60817395db78bf4df5c0e9d5ab49c8cfbd20d5e19302f2f5c5d4e3758452",
+  "verified_by_root_before_registration": ["pipeline_spec_sha256", "frozen_rule_decide_source_sha256", "frozen_rule_constants", "sidecar_schema_version", "sidecar_tag_mapping_version", "e11_config_sha256"],
+  "counted_by_root_before_registration": ["expected_in_domain_shot_rows", "expected_sentinel_start_shot_rows", "expected_behind_halfway_shot_rows", "sb_folder_digests"],
+
   "season": "2017/18",
   "leagues": ["Spain", "England", "Italy", "Germany", "France"],
   "periods": ["1H", "2H"],
   "outfield_positions": ["DF", "MD", "FW"],
+  "goalkeeper_position": "GK",
+  "public_tables": ["actions", "lineups", "players"],
+  "action_columns": ["event_id", "game_id", "team_id", "player_id", "period", "type", "subtype", "start_x", "start_y", "end_x", "end_y", "success", "goal", "interception", "counter_attack", "provider"],
 
+  "minutes_rule": "per player-match min(lineups minutes, regulation_minutes_cap), summed over the player's league matches: E-11's minutes_regulation on the Wyscout side, imported unchanged",
+  "regulation_minutes_cap": 90,
   "minutes_floor": 900,
-  "half_minutes_floor": 300,
-  "share_floor_season": 30,
-  "share_floor_half": 10,
+  "match_set_minutes_floor": 300,
+  "share_floor_season_shots": 30,
+  "share_floor_match_set_shots": 10,
+  "share_floor_counts": "box_shot_share denominator rows: every neutral shot row of the player that survives the period filter, in the season or in the match set",
   "split": "league_game_id_parity",
-  "player_team_rule": "most_lineup_minutes_then_smallest_team_id",
+  "split_rule": "a match is in match set h (0 or 1) when the position of its game_id among the league's sorted unique game_ids of actions.parquet is h modulo 2",
+  "player_team_rule": "most_regulation_minutes_then_smallest_team_id",
 
   "reliability_number": 0.70,
   "reliability_band": 0.50,
   "interval_confidence": 0.90,
   "interval_z": 1.6448536269514722,
-  "interval_rule": "min_of_house_and_half_r",
-  "centring": "broad_position_within_half",
+  "reliability_low_rule": "half_low",
+  "half_low_rule": "spearman_brown(tanh(atanh(r_half) - interval_z / sqrt(n - 2 - g))), g the number of position groups kept in R; defined when r_half is finite, |r_half| < 1 and n - 2 - g >= 1, else the league is INCONCLUSIVE",
+  "house_interval_role": "reported_only",
+  "centring": "broad_position_within_match_set",
   "minimum_position_group": 8,
   "within_position_report_minimum": 20,
+  "within_position_rule": "half_low_rule with g = 1, on the uncentred values of one position's players in R",
+  "context_limit_leagues": 3,
+  "context_limit_rule": "a position is a context limit of a candidate when, in at least context_limit_leagues of the five leagues, its within-position lower bound is below reliability_band or is not computed (fewer than within_position_report_minimum players, or undefined); reported, never gating",
   "baseline_ceiling": 0.85,
   "nuisance_r2_ceiling": 0.60,
+  "baseline_centring": "max_of_uncentred_and_position_centred",
+  "nuisance_centring": "max_of_uncentred_and_position_centred",
+  "position_centring_set": "A, by broad position, value and column alike",
+  "baseline_tie_rule": "every column whose correlation equals baseline_r is listed in closest_baselines, in battery order",
   "top_k": 12,
+  "rank_ties": "average",
+  "top_k_tied_statement": "The twelfth and thirteenth values are tied, so the top twelve is not a set of players and no survivor count exists.",
 
   "frozen_rule_path": "experiments/run_replication.py",
   "frozen_rule_function": "decide",
-  "frozen_rule_lf_sha256": "6f705ef5cf4098e34d7c56527c06e159874a860614d63699423c8db789ff2a16",
+  "frozen_rule_decide_source_sha256": "6019951620ffebdf77b1e8a330172592f951e59b1945e4463ea08b63e23d5870",
+  "frozen_rule_decide_source_hash_rule": "galactico.validation.digests.lf_sha256_text(inspect.getsource(run_replication.decide))",
+  "frozen_rule_constants": {"BASELINE_CEILING": 0.85, "RELIABILITY_NUMBER": 0.70, "RELIABILITY_BAND": 0.50},
+  "frozen_rule_nuisance_literal": 0.60,
+  "frozen_rule_file_lf_sha256_at_revision": "e58b90d682974313a3c5bc9a3a038b75063b5264a34037a8705f5988b81a1873",
+  "frozen_rule_file_hash_role": "provenance_only",
 
   "minimum_reliability_units": 40,
   "minimum_audit_units": 40,
   "minimum_evaluable_leagues": 4,
   "survival_leagues": 4,
+  "evaluable_statuses": ["SHIP", "SHIP_WITH_BAND", "REJECT"],
   "degenerate_sd": 1e-12,
   "maximum_zero_share": 0.50,
+  "degenerate_vectors": ["season_values_over_A", "match_set_0_values_over_R", "match_set_1_values_over_R"],
   "maximum_unattributed_share": 0.15,
   "reject_reason_tie_order": ["REDUNDANT", "CONFOUNDED", "UNRELIABLE"],
+  "redundancy_closes_first": ["shot_location_value"],
 
   "zones": [
-    {"name": "opponent_half", "min_start_x_exclusive": 0.50, "fingerprint": "opponent_half[x>0.5]"},
+    {"name": "opponent_half", "min_start_x_exclusive": 0.50, "fingerprint": "opponent_half[x>0.5]", "phrase": "starting in the opponent half"},
     {"name": "penalty_area", "min_start_x_inclusive": 0.84, "min_start_y_inclusive": 0.19,
-     "max_start_y_inclusive": 0.81, "fingerprint": "penalty_area[x>=0.84;0.19<=y<=0.81]"}
+     "max_start_y_inclusive": 0.81, "fingerprint": "penalty_area[x>=0.84;0.19<=y<=0.81]", "phrase": "starting in the penalty area"}
   ],
   "location_sentinels": [[0.0, 0.0], [1.0, 1.0]],
+  "describe_nouns": {
+    "types": {"shot": "shots", "duel": "duel records", "pass": "passes", "touch": "touches"},
+    "types_singular": {"shot": "shot"},
+    "subtypes": {"Ground defending duel": "ground defending duel records"},
+    "flags": {"interception": "interception-flagged events"},
+    "measures": {"count": "count", "sum of location-only conversion value": "sum of location-only conversion value"},
+    "scalings": {"per 90 minutes": "per 90 minutes", "per action in the denominator set": "per {singular noun of the denominator clause}"}
+  },
 
   "house_battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
                     "mean_x", "mean_y", "mean_pass_length", "shot_volume"],
-  "declared_battery_additions": ["opp_half_on_ball_per_90", "defensive_actions_per_90"],
-  "on_ball_types_for_opp_half_presence": ["pass", "touch", "shot"],
+  "declared_battery_additions": ["opp_half_on_ball_per_90", "duel_or_interception_per_90"],
+  "opp_half_on_ball_rule": {"types": ["pass", "touch"], "flags_false": ["interception"], "zone": "opponent_half", "scaling": "per 90 minutes"},
+  "duel_or_interception_rule": "the two numerator clauses of opp_half_defensive_actions with the zone removed, each row once, per 90 minutes",
   "reported_confounds": ["touches", "team_one_hot_drop_first", "position_one_hot_drop_first"],
+
+  "e11_config_sha256": "f1dd69cc75b239bf88addda297c60e6c43fbf6579cf2a2d455cfdd6c193e6224",
+  "e11_directory": "experiments/preregistered/E-11-provider-agreement",
 
   "candidates": [
     {
       "id": "shot_volume",
       "fingerprint": "1c6517c2be31",
-      "display_name": "Shots per 90 (no penalties, no direct free kicks)",
+      "display_name": "Open-play shots per 90 (no penalties, no direct free kicks)",
       "sentence": "count over shots, per 90 minutes",
       "family": "volume",
       "evidence_class": "DERIVED",
@@ -73,16 +120,18 @@
       "confound_kinds": {"touch_volume": "context", "team": "context", "position": "constitutive"},
       "nuisance_columns": [],
       "resolves": "shot_profile",
-      "external": "statsbomb_open_play_shots"
+      "e11_subject": "shot_volume",
+      "e11_definition": "aggregated_player_quantities.shot_volume: open_play_shots / minutes_regulation x 90, open_play_shot = Wyscout type shot",
+      "in_sb_leg": true
     },
     {
       "id": "shot_location_value",
-      "fingerprint": "9998c7120f99",
-      "display_name": "Location-model value of shots per 90",
-      "sentence": "sum of location-only conversion-model probability over shots starting in the opponent half, per 90 minutes",
+      "fingerprint": "537cef62eb4e",
+      "display_name": "Location-only conversion value of open-play shots per 90 (not provider xG)",
+      "sentence": "sum of location-only conversion value over shots starting in the opponent half, per 90 minutes",
       "family": "volume",
       "evidence_class": "PREDICTIVE",
-      "measure": "sum of location-only conversion-model probability",
+      "measure": "sum of location-only conversion value",
       "scaling": "per 90 minutes",
       "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": "opponent_half"}],
       "denominator": [],
@@ -94,12 +143,14 @@
       "confound_kinds": {"touch_volume": "context", "team": "context", "position": "constitutive"},
       "nuisance_columns": [],
       "resolves": "shot_profile",
-      "external": "statsbomb_refit_leave_one_league_out"
+      "e11_subject": null,
+      "e11_definition": "not graded by E-11 (its model is E-09's)",
+      "in_sb_leg": true
     },
     {
       "id": "box_shot_share",
       "fingerprint": "af2b2b118e73",
-      "display_name": "Penalty-area shot-origin share",
+      "display_name": "Share of open-play shots starting in the provider-drawn penalty area",
       "sentence": "count over shots starting in the penalty area, per shot",
       "family": "style",
       "evidence_class": "DERIVED",
@@ -116,12 +167,14 @@
                          "position": "constitutive"},
       "nuisance_columns": ["touches", "shot_volume"],
       "resolves": "shot_profile",
-      "external": "statsbomb_metric_penalty_area"
+      "e11_subject": null,
+      "e11_definition": "not graded by E-11 at the player level (E-11 preregistration, what it cannot show)",
+      "in_sb_leg": true
     },
     {
       "id": "opp_half_defensive_actions",
       "fingerprint": "72619cd8130b",
-      "display_name": "Opponent-half defensive actions per 90",
+      "display_name": "Opponent-half ground defending duels and interception-flagged events per 90",
       "sentence": "count over ground defending duel records or interception-flagged events, starting in the opponent half, per 90 minutes",
       "family": "volume",
       "evidence_class": "DERIVED",
@@ -136,13 +189,15 @@
       "share_floor": false,
       "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
                   "mean_x", "mean_y", "mean_pass_length", "shot_volume", "opp_half_on_ball_per_90",
-                  "defensive_actions_per_90"],
+                  "duel_or_interception_per_90"],
       "identity_exclusions": [],
       "confound_kinds": {"unattributed_duel_share": "nuisance", "touch_volume": "context",
                          "team": "context", "position": "constitutive"},
       "nuisance_columns": ["unattributed_duel_share"],
       "resolves": "defensive_action_profile",
-      "external": "NOT_COMPARABLE"
+      "e11_subject": "opp_half_defensive_actions",
+      "e11_definition": "aggregated_player_quantities.opp_half_defensive_actions: opp_half_duel_or_interception / minutes_regulation x 90, a ground defending duel or an interception-flagged row with a finite start x above 0.5 and no sentinel start",
+      "in_sb_leg": false
     }
   ],
 
@@ -151,7 +206,7 @@
   "pitch_length_m": 105.0,
   "pitch_width_m": 68.0,
   "goal_width_m": 7.32,
-  "model_domain_min_start_x_exclusive": 0.50,
+  "model_domain": "neutral type shot, start in zone opponent_half (start_x > 0.50 strictly, not a location sentinel)",
   "head_or_body_value": "head_or_body",
   "model_terms": {
     "M0": ["intercept"],
@@ -167,71 +222,185 @@
   "reference": "M0",
   "irls_max_iterations": 100,
   "irls_tolerance": 1e-10,
+  "irls_max_halvings": 30,
   "probability_clip": 1e-6,
   "selection_relative_log_loss_gain": 0.01,
   "selection_minimum_folds": 4,
+  "selection_requires_challenger_converged_in_every_fold": true,
 
-  "minimum_training_shots": 20000,
-  "minimum_training_goals": 2000,
-  "minimum_heldout_shots": 5000,
-  "minimum_heldout_goals": 500,
+  "gate_s_count": {"minimum_training_shots": 20000, "minimum_training_goals": 2000, "minimum_heldout_shots": 5000, "minimum_heldout_goals": 500},
+  "gate_s_fit_models": ["MD", "M1"],
+  "gate_s_fit_rule": "every model of gate_s_fit_models converged in every fold; M0 is the training goal rate and is not fitted; a challenger that did not converge in every fold is not selectable and fails nothing",
+  "calibration_fit_failure": "a calibration slope or intercept fit that does not converge is None, and None fails its gate in that league",
 
   "bootstrap_unit": "match_within_heldout_league",
   "bootstrap_replicates": 2000,
+  "bootstrap_rule": "np.random.default_rng([seed, league_position]).multinomial(n_matches, [1/n_matches] * n_matches, size=bootstrap_replicates) over the league's sorted game_ids; statistics recomputed from per-match sums; pooled statistics add the five leagues' resampled sums, replicate by replicate",
   "interval_quantiles": [0.025, 0.975],
+  "interval_quantile_method": "linear",
   "seed": 20261009,
 
   "gate_r1_pooled_brier_skill_minimum": 0.08,
   "gate_r1_pooled_brier_skill_lower_minimum": 0.06,
   "gate_r1_league_brier_skill_lower_exclusive_minimum": 0.03,
   "gate_r1_leagues_required": 5,
+  "gate_r2_gain": "relative: (LL_MD - LL_instrument) / LL_MD on the pooled out-of-league predictions",
   "gate_r2_log_loss_gain_over_comparator_lower_exclusive_minimum": 0.0,
   "gate_r3_calibration_slope_range": [0.85, 1.15],
   "gate_r3_leagues_required": 5,
   "gate_r4_subgroup_o_e_range": [0.85, 1.15],
   "gate_r4_distance_band_edges_m": [10.0, 20.0],
-  "gate_r4_subgroups": ["footed", "head_or_body", "distance_below_10", "distance_10_to_20",
-                        "distance_20_and_beyond"],
+  "gate_r4_subgroups": {"footed": "head_or_body == 0", "head_or_body": "head_or_body == 1",
+                        "distance_below_10": "distance_m < 10", "distance_10_to_20": "10 <= distance_m < 20",
+                        "distance_20_and_beyond": "distance_m >= 20"},
   "gate_r5_pooled_auroc_maximum": 0.82,
+  "auroc_rule": "pooled over the concatenated out-of-league predictions of the five leagues; average ranks for ties",
   "gate_l1_o_e_range": [0.90, 1.10],
   "gate_l2_intercept_absolute_maximum": 0.12,
   "gate_l3_ece_maximum": 0.020,
   "gate_l3_mce_maximum": 0.07,
   "gate_l_leagues_required": 5,
   "ece_bins": 10,
-  "ece_binning": "equal_mass_stable_sort_by_probability_then_event_id",
+  "ece_binning": "equal_mass_cut_at_value_boundaries",
+  "ece_binning_rule": "sort by probability; for k = 1..ece_bins-1 the k-th cut is the first index at or after k*n/ece_bins at which the probability changes value; repeated cuts merge; rows with equal probability are never split between bins",
+  "ece_weighting": "bin_count",
+  "mce_rule": "largest absolute gap between mean probability and observed rate over the bins",
   "ece_null_draws": 1000,
   "ece_null_seed": 20261011,
   "descriptive_subgroups": ["counter_attack"],
 
   "expected_shot_rows": {"Spain": 7979, "England": 8451, "Italy": 8806, "Germany": 6898, "France": 8327},
-  "expected_in_domain_shot_rows": {"Spain": 7958, "England": 8440, "Italy": 8780, "Germany": 6875,
-                                   "France": 8308},
-  "expected_goal_rows_on_shots": {"Spain": 884, "England": 914, "Italy": 853, "Germany": 747,
-                                  "France": 873},
+  "expected_behind_halfway_shot_rows": null,
+  "expected_sentinel_start_shot_rows": null,
+  "expected_in_domain_shot_rows": null,
+  "planning_shot_rows_at_or_behind_halfway_by_x_only": {"Spain": 21, "England": 11, "Italy": 26, "Germany": 23, "France": 19},
+  "expected_goal_rows_on_shots": {"Spain": 884, "England": 914, "Italy": 853, "Germany": 747, "France": 873},
   "expected_matches": {"Spain": 380, "England": 380, "Italy": 380, "Germany": 306, "France": 380},
   "expected_body_part_coverage_on_shots": 1.0,
   "expected_clause_overlap_rows": 0,
+  "expected_shot_family_disagreements": 0,
+  "shot_family_pins": {"shot": "open_play", "set_piece/free_kick_shot": "free_kick", "set_piece/penalty": "penalty"},
 
-  "external_provider": "statsbomb",
-  "external_leagues": ["La_Liga", "Premier_League", "Serie_A", "Ligue_1"],
-  "external_minimum_evaluable_leagues": 3,
-  "external_survival_leagues": 3,
-  "external_rejection_leagues": 3,
-  "external_relative_mean_shift_boundary": 0.12,
-  "external_minimum_training_shots": 15000,
-  "external_minimum_training_goals": 1500,
-  "external_shot_type": "Open Play",
-  "external_head_or_body_parts": ["Head", "Other"],
-  "external_penalty_area": {"min_x_inclusive": 102.0, "min_y_inclusive": 18.0, "max_y_inclusive": 62.0},
-  "external_output": "data/licensed/experiments/E-09/external_results.json",
+  "sidecar_root": "data/public/sidecar/pappalardo/v1",
+  "sidecar_schema_version": "wyscout-tag-sidecar-v1",
+  "sidecar_tag_mapping_version": "wyscout-v2-tags2name-57live-v1",
+  "sidecar_columns": ["event_id", "body_part", "shot_family"],
+  "sidecar_requires_actions_event_ids_equal": true,
+
+  "verdict_vocabulary": {
+    "candidate": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_INSTRUMENT", "NOT_ESTABLISHED_MIXED", "INCONCLUSIVE"],
+    "instrument": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE", "NOT_ESTABLISHED", "INCONCLUSIVE"]
+  },
+  "registry_candidate_subjects": ["shot_volume", "shot_location_value", "box_shot_share", "opp_half_defensive_actions"],
+  "registry_instrument_subjects": ["shot_location_v1"],
+  "registry_common": {
+    "not_run_statement": "E-09 is registered and not run. No candidate statistic and no estimate of the conversion model has been computed."
+  },
+  "registry_candidate": {
+    "scope": "Outfield players with at least the frozen regulation minutes in the 2017/18 first divisions of Spain, England, Italy, Germany and France, public Wyscout event data (Pappalardo et al. 2019); player-season values; reliability within broad position, each league separately; positions listed under context_limits in results.json are outside the claim.",
+    "claim_token": "SURVIVES",
+    "non_claim": "A descriptor of how often or where a player's recorded events occur, repeatable within one season among players of the same broad position. It does not say how well a player shoots or defends, it is not comparable across leagues or seasons, and the data were seen before the protocol was written, so the result is exploratory."
+  },
+  "registry_instrument": {
+    "scope": "Open-play shots starting in the opponent half in the 2017/18 first divisions of Spain, England, Italy, Germany and France, public Wyscout event data (Pappalardo et al. 2019); each league predicted by a model estimated on the other four.",
+    "claim_token": "ACCEPTED",
+    "non_claim": "A location-only model of whether a shot became a goal, fitted out of league for research. It is not the provider's xG, says nothing about finishing or about a single shot, and enters no dated decision."
+  },
+  "registry_outcomes": {
+    "candidate": {
+      "ESTABLISHED_NUMBER": {"status": "ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Repeatable between the two match sets of one season among players of the same broad position, with a reliability lower bound at or above the number threshold in at least four of the five leagues, and not a near-copy of any declared baseline statistic. It is not promoted and is not shown beside players in this release."},
+      "ESTABLISHED_BAND": {"status": "ESTABLISHED", "limits": true, "registry_move": "NONE", "statement": "Repeatable between the two match sets of one season among players of the same broad position, with a reliability lower bound at or above the band threshold in at least four of the five leagues but at or above the number threshold in fewer than four, and not a near-copy of any declared baseline statistic. A band, never a point value; it is not promoted and is not shown beside players in this release."},
+      "NOT_ESTABLISHED_REDUNDANT": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Closed as redundant by the frozen rule: in at least one league where it was evaluated, a statistic the project already has correlated with it above the ceiling declared before the test."},
+      "NOT_ESTABLISHED_CONFOUNDED": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Rejected in more than half of the leagues where it was evaluated, and closed as confounded: a declared nuisance variable explained more of its variance than the ceiling declared before the test allows, the reason the frozen closure rule selects."},
+      "NOT_ESTABLISHED_UNRELIABLE": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Rejected in more than half of the leagues where it was evaluated, and closed as not repeatable: between the two match sets of a season, among players of the same broad position, its reliability lower bound fell below the band threshold, the reason the frozen closure rule selects."},
+      "NOT_ESTABLISHED_INSTRUMENT": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "RESEARCH_ONLY", "statement": "Not evaluated as a candidate: the location-only conversion model it depends on did not meet its frozen out-of-league criteria."},
+      "NOT_ESTABLISHED_MIXED": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "RESEARCH_ONLY", "statement": "Compared and not established. It passed in fewer leagues than the frozen rule needs and was rejected in no more than half of the leagues where it was evaluated."},
+      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "registry_move": "NONE", "statement": "A frozen sample or data gate was not met in too many leagues, or the conversion model it depends on was not judged. Nothing was compared at the candidate level."}
+    },
+    "instrument": {
+      "ACCEPTED": {"status": "ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Fitted out of league on the public event data of five leagues, the location-only conversion model met every frozen criterion on relative value within a league and on level."},
+      "ACCEPTED_WITHIN_LEAGUE": {"status": "ESTABLISHED", "limits": true, "registry_move": "NONE", "statement": "Fitted out of league on the public event data of five leagues, the location-only conversion model met every frozen criterion on relative value within a league and failed at least one on level. Its values carry no goal unit and are never compared across leagues."},
+      "NOT_ESTABLISHED": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Fitted out of league, the location-only conversion model failed at least one frozen criterion on relative value within a league. No candidate that depends on it was evaluated."},
+      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "registry_move": "NONE", "statement": "A frozen sample gate of the model was not met, or a required model estimation did not converge. The model was not judged."}
+    }
+  },
+  "product_admissible_in_this_release": false,
+  "promotion_set_in_this_release": [],
+  "untested_edit": {"after_any_verdict_remove": ["shot_profile", "defensive_action_profile"], "kept": ["carrying_value"], "inconclusive_adds_candidate_id": true},
+  "player_lab_text": {
+    "NOT_ESTABLISHED_REDUNDANT": {"headline": "Too similar to {baseline}", "headline_tied": "Too similar to statistics the project already has", "detail": "Correlated with a statistic the project already has above the ceiling declared before the test, in the leagues where the frozen rule closed it. The analysis names the statistic and the leagues."},
+    "NOT_ESTABLISHED_CONFOUNDED": {"headline": "Mostly explained by {nuisance}", "detail": "A variable declared before the test as one it must not be measuring explained more of its variance than the ceiling allows; that was the reason the frozen rule closed it."},
+    "NOT_ESTABLISHED_UNRELIABLE": {"headline": "Not repeatable between two sets of a season's matches within a position", "detail": "Among players of the same broad position, its values in the odd- and even-numbered matches of the season did not agree closely enough; that was the reason the frozen rule closed it."},
+    "NOT_ESTABLISHED_INSTRUMENT": {"headline": "Its conversion model was not accepted out of league", "detail": "The location-only model it depends on did not meet its frozen criteria on leagues it was not estimated on, so the candidate was not evaluated."},
+    "NOT_ESTABLISHED_MIXED": {"headline": "Survived in too few leagues", "detail": "It passed the frozen rule in some leagues and not in enough of them, and was rejected in no more than half."}
+  },
+  "baseline_fill_rule": "the battery column that is a closest baseline in the most leagues closed as REDUNDANT; when two or more columns share that count, headline_tied",
+  "baseline_prose": {
+    "minutes": "minutes played",
+    "touches": "on-ball action count",
+    "touches_per_90": "on-ball actions per ninety minutes",
+    "passes_per_90": "passes per ninety minutes",
+    "pass_completion": "pass completion",
+    "mean_x": "mean pitch position along its length",
+    "mean_y": "mean pitch position across its width",
+    "mean_pass_length": "mean pass length",
+    "shot_volume": "open-play shot volume",
+    "opp_half_on_ball_per_90": "passes and touches in the opponent half per ninety minutes",
+    "duel_or_interception_per_90": "ground defending duels and interceptions over the whole pitch"
+  },
+  "nuisance_prose": {
+    "box_shot_share": "on-ball action count and open-play shot volume",
+    "opp_half_defensive_actions": "the share of the team's ground duel records that name no player"
+  },
+
+  "sb_leg_tier": "LOCAL_LICENSED",
+  "sb_root": "data/licensed/statsbomb",
+  "sb_forbidden_roots": ["data/licensed/parquet"],
+  "sb_folders": ["La_Liga", "Premier_League", "Serie_A", "Ligue_1"],
+  "sb_folder_digests": {"La_Liga": "d5f78bf6dc6c3cb08e6419125da799df36289358265d29026b3f860ac08b40cf", "Premier_League": null, "Serie_A": null, "Ligue_1": null},
+  "sb_folder_digest_rule": "galactico.validation.sb_reader.folder_manifest, as E-11 section 2 computes it; La_Liga is E-11's registered digest",
+  "wy_league_of_sb_folder": {"La_Liga": "Spain", "Premier_League": "England", "Serie_A": "Italy", "Ligue_1": "France"},
+  "sb_location_scale": [120, 80],
+  "sb_regulation_periods": [1, 2],
+  "sb_period_labels": {"1": "1H", "2": "2H"},
+  "sb_minutes_rule": "galactico.validation.sb_reader.read_team_sheets minutes_regulation (E-11 rule 2) with cap regulation_minutes_cap, summed over the season",
+  "sb_open_play_shot_types": ["Open Play"],
+  "sb_known_shot_types": ["Open Play", "Free Kick", "Penalty", "Corner", "Kick Off"],
+  "sb_head_or_body_parts": ["Head", "Other"],
+  "sb_foot_parts": ["Left Foot", "Right Foot"],
+  "penalty_area_sb": {"min_x": 0.85, "min_y": 0.225, "max_y": 0.775},
+  "sb_position_groups": {
+    "GK": ["Goalkeeper"],
+    "DF": ["Right Back", "Right Center Back", "Center Back", "Left Center Back", "Left Back", "Right Wing Back", "Left Wing Back"],
+    "MD": ["Right Defensive Midfield", "Center Defensive Midfield", "Left Defensive Midfield", "Right Midfield", "Right Center Midfield", "Center Midfield", "Left Center Midfield", "Left Midfield", "Right Attacking Midfield", "Center Attacking Midfield", "Left Attacking Midfield"],
+    "FW": ["Right Wing", "Left Wing", "Right Center Forward", "Striker", "Left Center Forward", "Center Forward", "Secondary Striker"]
+  },
+  "sb_position_rule": "the group of sb_position_groups with most regulation minutes over the player's season spells; a tie goes to the group first in GK, DF, MD, FW order; a position name outside sb_position_groups stops the leg before any statistic",
+  "sb_battery_rule": "compute_baselines on the leg's own frames, in which only shots of sb_open_play_shot_types carry type shot and other shots are dropped; the leg's battery columns are that provider's and are not compared with the public run's",
+  "sb_leg_candidates": ["shot_volume", "shot_location_value", "box_shot_share"],
+  "sb_gate_s_count": {"minimum_training_shots": 15000, "minimum_training_goals": 1500, "minimum_heldout_shots": 5000, "minimum_heldout_goals": 500},
+  "sb_gate_leagues_required": 4,
+  "sb_minimum_evaluable_leagues": 3,
+  "sb_survival_leagues": 3,
+  "sb_rejection_leagues": 3,
+  "sb_verdict_vocabulary": ["REPLICATED", "NOT_REPLICATED", "MIXED", "INCONCLUSIVE", "INSTRUMENT_NOT_ACCEPTED"],
+  "sb_statements": {
+    "REPLICATED": "On the second provider's earlier season of four leagues, the candidate passed the same frozen rule in at least three of them. Provider and season changed together.",
+    "NOT_REPLICATED": "On the second provider's earlier season of four leagues, the candidate was rejected by the same frozen rule in at least three of them. Provider and season changed together.",
+    "MIXED": "On the second provider's earlier season of four leagues, the candidate neither passed nor was rejected in three of them.",
+    "INCONCLUSIVE": "Fewer than three of the second provider's four leagues passed the frozen sample gates; nothing was compared.",
+    "INSTRUMENT_NOT_ACCEPTED": "The location-only conversion model, refitted on the second provider's four leagues, did not meet its frozen criteria there; the candidate was not evaluated."
+  },
+  "sb_level_shift_rule": "reported in the LOCAL file only, never a token: for each league the mean over A of the full-season value; m_sb and m_wy the unweighted means of the four sb_folders leagues and of their wy_league_of_sb_folder leagues; shift = (m_sb - m_wy) / m_wy; null when a league has an empty A or m_wy is 0; not computed for shot_location_value",
+  "sb_output_root": "data/licensed/research/E-09-player-candidates",
+  "sb_report": "docs/research/E-09-EXTERNAL-LEG.md",
 
   "followup_as_of_minimum_training_shots": 6000,
 
   "selfcheck_replicates": 12,
-  "selfcheck_effect_minimum": 11,
-  "selfcheck_null_false_established_maximum": 0,
   "selfcheck_seed": 20261010,
+  "selfcheck_seed_rule": "worlds: np.random.default_rng([selfcheck_seed, world_position, replicate, league_position]); instrument scenarios: np.random.default_rng([selfcheck_seed, 100 + scenario_position, replicate, league_position]); resampling inside the self-check as in the real run (bootstrap_rule)",
+  "selfcheck_predicate": "for each world or scenario and each subject it names: the number of replicates whose token is in expected is at least minimum_replicates_matching, the number whose token is in never is zero, and, where an also entry exists, the number whose token is in also.tokens is at least also.minimum_replicates_matching; each league assertion holds in every replicate league; each generator sanity bound holds",
   "synthetic_teams": 20,
   "synthetic_rounds": 38,
   "synthetic_position_counts": {"DF": 5, "MD": 5, "FW": 5},
@@ -240,7 +409,11 @@
   "synthetic_regular_appearance_probability": 0.75,
   "synthetic_fringe_players_per_team": 2,
   "synthetic_fringe_appearance_probability": 0.20,
-  "synthetic_passes_per_player_match": 5,
+  "synthetic_passes_per_player_match": 40,
+  "synthetic_pass_success_probability": 0.8,
+  "synthetic_coordinate_decimals": 2,
+  "synthetic_lateral_left_probability": 0.5,
+  "synthetic_duel_start_x_percent": {"opponent_half": [51, 95], "own_half": [5, 50]},
   "synthetic_head_or_body_probability": 0.16,
   "synthetic_head_or_body_distance_factor": 0.6,
   "synthetic_distance_gamma_shape": 6.0,
@@ -258,6 +431,7 @@
       "own_half_duel_rate_per_90": {"DF": 7.65, "MD": 4.9, "FW": 1.8},
       "opp_half_duel_rate_log_sd": 0.6,
       "own_half_duel_rate_log_sd": 0.4,
+      "shared_duel_rate_log_sd": null,
       "interception_ratio": 0.4,
       "unattributed_probability_by_team": {"low": 0.10, "high": 0.10},
       "expected": {
@@ -267,7 +441,10 @@
         "box_shot_share": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
       },
-      "minimum_replicates_matching": 11
+      "minimum_replicates_matching": 11,
+      "never": {
+        "shot_location_v1": ["NOT_ESTABLISHED", "INCONCLUSIVE"]
+      }
     },
     {
       "name": "NULL",
@@ -278,53 +455,128 @@
       "own_half_duel_rate_per_90": {"DF": 7.65, "MD": 4.9, "FW": 1.8},
       "opp_half_duel_rate_log_sd": 0.0,
       "own_half_duel_rate_log_sd": 0.0,
+      "shared_duel_rate_log_sd": null,
       "interception_ratio": 0.4,
       "unattributed_probability_by_team": {"low": 0.10, "high": 0.10},
       "expected": {
-        "shot_volume": ["NOT_ESTABLISHED/UNRELIABLE"],
-        "shot_location_value": ["NOT_ESTABLISHED/REDUNDANT"],
-        "box_shot_share": ["NOT_ESTABLISHED/UNRELIABLE"],
-        "opp_half_defensive_actions": ["NOT_ESTABLISHED/UNRELIABLE", "NOT_ESTABLISHED/REDUNDANT",
-                                       "NOT_ESTABLISHED/MIXED"]
+        "shot_volume": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"],
+        "shot_location_value": ["NOT_ESTABLISHED_REDUNDANT"],
+        "box_shot_share": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"],
+        "opp_half_defensive_actions": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"]
       },
-      "minimum_replicates_matching": 12,
-      "never": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
-      "raw_pooled_shot_volume_reliability_must_exceed": 0.70
+      "minimum_replicates_matching": 11,
+      "never": {
+        "shot_volume": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
+        "shot_location_value": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
+        "box_shot_share": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
+        "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
+      },
+      "league_assertions": {
+        "shot_volume_raw_pooled_reliability_strictly_above": 0.70,
+        "shot_volume_centred_reliability_low_strictly_below": 0.50
+      }
     },
     {
       "name": "NUISANCE",
       "shot_rate_per_90": {"DF": 0.5, "MD": 1.2, "FW": 2.5},
       "shot_rate_log_sd": 0.0,
       "distance_scale_m": {"distribution": "constant", "value": 17.0},
-      "opp_half_duel_rate_per_90": {"DF": 6.0, "MD": 6.0, "FW": 6.0},
+      "opp_half_duel_rate_per_90": {"DF": 12.0, "MD": 12.0, "FW": 12.0},
       "own_half_duel_rate_per_90": {"DF": 10.0, "MD": 10.0, "FW": 10.0},
       "opp_half_duel_rate_log_sd": 0.0,
       "own_half_duel_rate_log_sd": 0.8,
-      "interception_ratio": 0.0,
-      "unattributed_probability_by_team": {"low": 0.0, "high": 0.45},
+      "shared_duel_rate_log_sd": null,
+      "interception_ratio": 0.25,
+      "unattributed_probability_by_team": {"low": 0.0, "high": 0.30},
       "expected": {
-        "opp_half_defensive_actions": ["NOT_ESTABLISHED/CONFOUNDED"]
+        "opp_half_defensive_actions": ["NOT_ESTABLISHED_CONFOUNDED"]
       },
       "minimum_replicates_matching": 11,
-      "never": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
+      "never": {
+        "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "INCONCLUSIVE"]
+      },
+      "league_assertions": {
+        "union_unattributed_share_at_most": 0.15
+      }
+    },
+    {
+      "name": "REDUNDANT_WITHIN_POSITION",
+      "shot_rate_per_90": {"DF": 1.2, "MD": 1.5, "FW": 1.8},
+      "shot_rate_log_sd": 0.45,
+      "distance_scale_m": {"distribution": "uniform", "low": 8.0, "high": 28.0},
+      "opp_half_duel_rate_per_90": {"DF": 1.35, "MD": 2.1, "FW": 2.2},
+      "own_half_duel_rate_per_90": {"DF": 7.65, "MD": 4.9, "FW": 1.8},
+      "opp_half_duel_rate_log_sd": null,
+      "own_half_duel_rate_log_sd": null,
+      "shared_duel_rate_log_sd": 0.6,
+      "interception_ratio": 0.4,
+      "unattributed_probability_by_team": {"low": 0.10, "high": 0.10},
+      "expected": {
+        "opp_half_defensive_actions": ["NOT_ESTABLISHED_REDUNDANT"]
+      },
+      "minimum_replicates_matching": 11,
+      "never": {
+        "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
+      }
     }
   ],
+  "synthetic_generator_sanity": {
+    "EFFECT_latent_rate_value_correlation_strictly_below": 0.75,
+    "NUISANCE_latent_team_variance_share_strictly_above": 0.65
+  },
+  "generator_sanity_rules": {
+    "latent_value_rate": "a player's latent shot rate times the mean of the truth model's probability over shots drawn at his distance scale",
+    "latent_rate_value_correlation": "Pearson correlation of latent shot rate and latent value rate over the generator's population of player draws",
+    "latent_team_variance_share": "var over teams of opp_half_duel_rate x (1 - team unattributed probability), divided by itself plus the expected Poisson variance per 90 of a regular's season value of opp_half_defensive_actions"
+  },
   "synthetic_instrument_shots_per_league": 8000,
   "synthetic_instrument_matches_per_league": 380,
+  "synthetic_instrument_distance_scale_m": 17.0,
+  "synthetic_instrument_match_rule": "each shot's game_id drawn uniformly from the league's synthetic_instrument_matches_per_league match ids",
   "synthetic_instrument_scenarios": [
-    {"name": "PLANTED", "expected": ["ACCEPTED"], "minimum_replicates_matching": 10,
-     "never": ["NOT_ESTABLISHED", "INCONCLUSIVE"]},
-    {"name": "NO_SIGNAL", "goal_rate": 0.105, "expected": ["NOT_ESTABLISHED"],
-     "minimum_replicates_matching": 12},
-    {"name": "TOO_SHARP", "logit_multiplier": 4.0, "logit_shift": -3.0,
-     "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "failing_gate": "R5"},
-    {"name": "LEVEL_SHIFT", "league_position": 2, "odds_multiplier": 0.80,
-     "expected": ["ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 11, "never": ["ACCEPTED"]},
-    {"name": "SLOPE_SHIFT", "league_position": 2, "logit_slope_multiplier": 0.5,
-     "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "failing_gate": "R3"}
+    {"name": "PLANTED", "expected": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 12, "never": ["NOT_ESTABLISHED", "INCONCLUSIVE"], "also": {"tokens": ["ACCEPTED"], "minimum_replicates_matching": 9}},
+    {"name": "NO_SIGNAL", "goal_rate": 0.105, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"]},
+    {"name": "TOO_SHARP", "logit_multiplier": 4.0, "logit_shift": -3.0, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R5"},
+    {"name": "LEVEL_SHIFT", "league_position": 2, "odds_multiplier": 0.80, "expected": ["ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 10, "never": ["ACCEPTED"]},
+    {"name": "SLOPE_SHIFT", "league_position": 2, "logit_slope_multiplier": 0.5, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 12, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R3"}
   ],
+
+  "power_planning": {
+    "rule": "per league P(half_low >= threshold) = Phi(sqrt(n - 2 - g) * (atanh(rho) - atanh(t)) - interval_z), rho = R / (2 - R), t = threshold / (2 - threshold), g = 3; P(at least four of five) = p^5 + 5 p^4 (1 - p); the same true within-position reliability R in every league; no redundancy",
+    "n_large": 300,
+    "n_small": 66,
+    "p_band_or_better_n300": {"0.55": 0.011, "0.60": 0.349, "0.65": 0.948},
+    "p_band_or_better_n66": {"0.65": 0.087, "0.70": 0.403, "0.75": 0.846, "0.80": 0.993},
+    "reliability_reached_with_probability_080": {"band_n300": 0.631, "number_n300": 0.779, "band_n66": 0.744, "number_n66": 0.847}
+  },
+  "selfcheck_feasibility": {
+    "by": "the reviser of 14 October 2026, event-level throwaway script on synthetic numbers only, the exact generator, gauntlet, rule and instrument gates of this config with 2000 bootstrap replicates; 40 replicates per world and scenario, seeds by selfcheck_seed_rule from replicate 0",
+    "replicates": 40,
+    "worlds": {
+      "EFFECT": {"shot_location_v1": {"ACCEPTED": 40}, "shot_volume": {"ESTABLISHED_NUMBER": 40}, "shot_location_value": {"ESTABLISHED_NUMBER": 40}, "box_shot_share": {"ESTABLISHED_NUMBER": 40}, "opp_half_defensive_actions": {"ESTABLISHED_NUMBER": 40}},
+      "NULL": {"shot_location_v1": {"ACCEPTED": 40}, "shot_volume": {"NOT_ESTABLISHED_REDUNDANT": 40}, "shot_location_value": {"NOT_ESTABLISHED_REDUNDANT": 40}, "box_shot_share": {"NOT_ESTABLISHED_UNRELIABLE": 40}, "opp_half_defensive_actions": {"NOT_ESTABLISHED_UNRELIABLE": 40}},
+      "NUISANCE": {"opp_half_defensive_actions": {"NOT_ESTABLISHED_CONFOUNDED": 40}},
+      "REDUNDANT_WITHIN_POSITION": {"opp_half_defensive_actions": {"NOT_ESTABLISHED_REDUNDANT": 40}}
+    },
+    "league_assertions": {
+      "NULL_shot_volume_raw_pooled_reliability_range": [0.913, 0.948],
+      "NULL_shot_volume_centred_reliability_low_range": [-1.045, 0.192],
+      "NUISANCE_union_unattributed_share_range": [0.115, 0.125],
+      "NUISANCE_nuisance_r2_range": [0.639, 0.797]
+    },
+    "generator_sanity": {"EFFECT_latent_rate_value_correlation": 0.620, "NUISANCE_latent_team_variance_share": 0.720},
+    "instrument_scenarios": {
+      "PLANTED": {"ACCEPTED": 38, "ACCEPTED_WITHIN_LEAGUE": 2},
+      "NO_SIGNAL": {"NOT_ESTABLISHED": 40},
+      "TOO_SHARP": {"NOT_ESTABLISHED": 40, "with_R5_failed": 40},
+      "LEVEL_SHIFT": {"ACCEPTED_WITHIN_LEAGUE": 39, "NOT_ESTABLISHED": 1},
+      "SLOPE_SHIFT": {"NOT_ESTABLISHED": 40, "with_R3_failed": 40}
+    },
+    "minimum_set_from": "each minimum_replicates_matching leaves at least a 0.97 chance of passing at the observed miss rate plus one more miss in 40"
+  },
 
   "data_license": "CC BY 4.0 (Pappalardo et al. 2019)",
   "reuse_disclosure": "prospective analysis plan on reused historical data; see preregistration.md section 2",
-  "results_maximum_bytes": 524288
+  "results_maximum_bytes": 524288,
+  "results_identifier_key_denylist": ["id", "player_id", "player", "name", "team_id", "game_id", "match_id"]
 }

@@ -1,6 +1,6 @@
 # E-10 — is where a team concedes a property of the defending team?
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the audit's revision has not itself been audited. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. Neither the audit's revision nor those edits has itself been audited, and ROOT 2.9 Z4 requires that audit before E-10 is called READY. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 **Commit this plan, `config.json`, `PIPELINE.md` and `descriptor_test_vectors.json` before
 any E-10 outcome is computed. Nothing in the four may change once the first outcome is
@@ -72,15 +72,16 @@ defender term (ROOT 2.2). Nothing in this paragraph was computed on either corpu
 | What was already seen | Where | Consequence here |
 |---|---|---|
 | All five Wyscout leagues, player-level constructs | Stage 1, 1B, 1C; E-02 (Italy primary) | No league is untouched. None of those analyses computed a team-conceded quantity |
-| Spain 1 Nov to 28 Feb as development rows; Spain and England 1 Mar to season end as evaluation rows; target = first-30-minute positive completed-pass xT with an `opponent_mean` conceded term in the baseline | E-07, E-08 | 312 of the 917 evaluation matches here (624 of 1,834 team-match rows, 34.0%) carry that exposure: Spain 211 matches (88 as E-08 development, 123 as evaluation), England 101. The 69 Spain November to December matches in this development window were E-07/E-08 development rows. The exposure was to a conceded level of xT, never to a channel composition |
+| Spain 1 Nov to 28 Feb as development rows; Spain and England 1 Mar to season end as evaluation rows; target = first-30-minute positive completed-pass xT with an `opponent_mean` conceded term in the baseline | E-07, E-08 | 312 of the 917 evaluation matches here (624 of 1,834 team-match rows, 34.0%) carry that exposure: Spain 211 matches (88 as E-08 development, 123 as evaluation), England 101. The 69 Spain November to December matches in this development window were E-07/E-08 development rows. The exposure was to a conceded level of xT, never to a channel composition. A conceded level is the same kind of claim as the level subject's, so the level shares that exposure: its pooled L1 over `unexposed_leagues` is reported beside it (Reported without a verdict), and (Lb), four of the five leagues, cannot hold unless at least two of the three unexposed leagues have L1 below zero |
+| The xT surface E-07 and E-08 fitted | E-07 (`xt_training_league` Spain), E-07 and E-08 (`xt_cutoff` 2017-11-01) | A league-level map of where Spain's passes started and ended before 1 November 2017, the expected-threat values of the pitch cells. It is league-level, holds no team and no lateral split by team, and no quantity here reads it |
 | StatsBomb 2015/16, player-level constructs | E-01, Stage 1C | The replication corpus is not untouched. No team-conceded quantity was computed on it |
 | E-11, registered 14 October 2026, not run | `experiments/preregistered/E-11-provider-agreement/preregistration.md` | Its prior-exposure section prints review-time counts one provider at a time: for Wyscout England 2017/18 the number of non-penalty shots and the number in the provider-drawn box, which is the league-level split behind S3 for one league of this corpus; the same split for one StatsBomb 2015/16 league of the replication arm (not repeated here); that every team-match of Barcelona's double-coded La Liga matches has at least ten final-third entries; and, on the public side of those matches, that 75 of 76 team-matches (122 of 128 at the World Cup) have at least five open-play shots. These are league or club totals, not a composition by team, and the model's league term removes a league's share |
-| E-11's pipeline and results | E-11 `PIPELINE.md` section 4 | Being built. On Barcelona's 36 double-coded La Liga matches, both sides, it computes per team-match final-third entries by left, centre and right, box entry passes, defensive actions by third and `high_zone_defensive_action_share`. Its committed `results.json` holds tokens only; its `analysis.md` prints agreement statistics and per-provider means and spreads over team-matches, and no team row. E-10 is to be registered before E-11's results are committed; if they are committed first, the registration commit states whether its analysis was read, and by whom |
-| Match Lab | every served match | Per team-match shots, key passes, interceptions and completed passes are served on the team profiles of every match; so are the start coordinates of every shot of both teams (the shot map), which are S3's raw inputs for each team-match, and the mean pass locations of each player (the passing-network nodes). No conceded channel split, no defensive-action location and no team-season composition is served |
-| Sidecar audit counts | `tests/test_sidecar.py`, pinned per league | Structure only: red-card (tag 1701) and second-yellow (tag 1703) event records against the sheet's red-card entries are Spain 29 + 42 against 71, England 22 + 19 against 39, Italy 46 + 45 against 91, Germany 21 + 22 against 43, France 53 + 33 against 87. Exact in three leagues, which supports the assumption that the sheet's `red_minute` carries a second-yellow dismissal; the England and France differences are why the check before registration is a share, not a zero (Match validity) |
+| E-11's pipeline and results | E-11 `PIPELINE.md` section 4 | Built on synthetic data and its acceptance stamp committed (f6f9184); not run; no real value computed. On Barcelona's 36 double-coded La Liga matches, both sides, it computes per team-match final-third entries by left, centre and right, box entry passes, defensive actions by third and `high_zone_defensive_action_share`. Its committed `results.json` will hold tokens only; its `analysis.md` prints agreement statistics and per-provider means and spreads over team-matches, and no team row. E-10 is to be registered before E-11's results are committed; if E-11 runs first, the registration commit says so and states whether its analysis was read, and by whom, and the frozen `reuse_disclosure` names that case |
+| Match Lab | every served match | Per team-match shots, key passes, interceptions and completed passes are served on the team profiles of every match, and so are each team's wide-channel and half-space pass-origin shares (`width`, completed-pass origins at `y < 0.21` or `y > 0.79`, and `half_space_share`): the opponent's per-match share is a wide-against-the-rest split of what the team conceded, by pass origin over the whole pitch, not by lateral third and not of final-third entries. Also served: the start coordinates of every shot of both teams (the shot map), which are S3's raw inputs for each team-match, and the mean pass locations of each player (the passing-network nodes). No conceded split by lateral third, no defensive-action location and no team-season composition is served |
+| Sidecar audit counts | `tests/test_sidecar.py` (`AUDIT`), pinned per league | Structure only, league totals. The red-card (tag 1701) and second-yellow (tag 1703) event records against the sheet's red-card entries are Spain 29 + 42 against 71, England 22 + 19 against 39, Italy 46 + 45 against 91, Germany 21 + 22 against 43, France 53 + 33 against 87. Exact in three leagues, which supports the assumption that the sheet's `red_minute` carries a second-yellow dismissal; the England and France differences are why the check before registration is a share, not a zero (Match validity). The same pinned dict holds per league the goal tags (and those on save rows), own goals, the open-play, free-kick and penalty shot totals (S3's league totals, with no inside-the-box split), and the counts of starts and ends at a corner (the rows `wy_location_sentinels` drops), with event, tag, substitution and match counts. None is a team composition |
 | Structure only: entry-pass counts per team-match (median 37 to 39.5 by league), state-filter survival (79.0% in Spain with dismissals; about 84% in five leagues from goals alone), share of entries on a lateral-third edge (about 3%), calendars, coach-id counts, mean pass `y` by listed position in 40 StatsBomb files | reconnaissance, critic, this design | Exposure and structure only. No channel split by team, no reliability, no persistence, no loss was computed. Sample gates were set with the entry-pass counts known; they are not expected to bind for the primary and S1. For S2 and S3 no count was looked at, and the events minimum may bind there |
 | `synthetic_gate.league_composition` | the gate's generator | Its source is not recorded by the designer and the reviser could not establish it (`league_composition_source`). If it was read from the corpus it discloses a league-level share of conceded entries by lateral third, which the model's league term removes; no team-level split |
-| Simulations | the designer's prototype (`_work/prototype.py`, logs `_work/rates_*.log`); the reviewers' and the reviser's scripts of 14 October 2026 | Synthetic only; none read `data/`. None of these files is committed |
+| Simulations | the designer's prototype (`_work/prototype.py`, logs `_work/rates_*.log`); the reviewers' and the reviser's scripts of 14 October 2026; the auditors', refuters' and revisers' scripts of the two audits of 16 October 2026 (among them `twotail_sim.py`, `twotail_invariance.py`, `lattice_holm.py`, `check_results_contract.py`, `draw_order_4_1.py`, `estimator_walk.py`, `replication_walk.py`) | Synthetic only; none read `data/`. None of these files is committed |
 
 Italy, Germany and France (535 evaluation matches, 1,070 rows) carry no E-07/E-08 exposure.
 They are reported as a separate pooled estimate and enter the decision rule as criterion (f).
@@ -100,8 +101,9 @@ lineup minutes are read: they are nominal.
 *context* is its opponent. For conceded descriptors the unit defends and the context
 attacks. A match yields two rows.
 
-**Prior.** A row dated `t` may use only rows whose calendar date (UTC, normalised to the
-day) is strictly before `t`. `gameweek` is never read.
+**Prior.** A row dated `t` may use only rows whose calendar date is strictly before `t`: the
+date as the provider records it (Wyscout `dateutc`; StatsBomb `match_date`, a local date with
+no time or zone), normalised to the day. `gameweek` is never read.
 
 **Development** = rows dated before `evaluation_start`. **Evaluation** = rows on or after it
 and before `end`. Evaluation forecasts use an expanding window: every prior row, development
@@ -123,9 +125,11 @@ repaired. One England match is known to lack a scoring event and will be exclude
 team-match with no row on the sheet stops the run before it starts (`PIPELINE.md` section 7.2).
 
 The dismissal check assumes that the sheet's `red_minute` carries a second-yellow dismissal.
-Before registration (`verified_by_root_before_registration`) a structure-only count tests the
-assumption: per league, the share of players with a second-yellow event card whose sheet
-`red_minute` in that match is not null. It holds when that share is at least
+Before registration the root runs a structure-only count on the corpus
+(`verified_by_root_before_registration`, ROOT 2.9 Z2); it computes no outcome, and its counts
+and share per league are recorded in the registration commit. It tests the assumption: per
+league, the share of players with a second-yellow event card whose sheet `red_minute` in that
+match is not null. It holds when that share is at least
 `dismissal_assumption_minimum_share` in every league: a sheet convention that drops second
 yellows gives a share near zero, data gaps give one near one. If it fails,
 `dismissal_check_fallback` replaces the rule and the draft is audited again. The residual
@@ -258,6 +262,13 @@ whether the context team is at home.
 - **Candidate**: `p proportional to A_c exp(nu_v + delta_u)`.
 
 `kA`, `kD` are prior strengths in pseudo-events. Closed form, NumPy only, no iterative fit.
+`pi`, `pi_v`, `nu_v`, `A_c`, `A_c^(-u)`, `e`, `O`, `E` and `delta_u`, and the level model's
+`lam_v`, `lam`, `rA_c`, `rA_c^(-u)`, `rD_u` and `rD_peers` (the last from the peers' pooled `O`
+and `E`), are computed by one estimator on the product side,
+`galactico/features/team/estimator.py`, which the research pipeline imports and Opponent Lab's
+panel calls; no second implementation exists (ROOT 2.9 Z3; `PIPELINE.md` section 3.8). B5, the
+peer grouping and every loss and deviance stay in the research engine. The estimator's source
+hash is among the pinned source hashes, so an edit to it after registration is visible.
 
 **Baseline ladder.** A count vector with independent Poisson parts factorises exactly into
 a level loss on `N` and a shape loss given `N`. Every rung is a (level, shape) pair. The shape
@@ -435,12 +446,15 @@ completed-pass share from valid matches). The confound kind is declared now
   floor's meaning; both tails are read; a tied `k`-th place in either tail leaves that tail's
   count undefined and the check fails by name (ADR-0026); a missing value is a failure.
 - For the level subject, strength is **CONTEXT**: how many entries a team concedes is partly
-  its strength by construction. V1 is reported for it, with the same two calls, and gates
-  nothing; its sentence says the two are not separated.
+  its strength by construction. V1 is reported for it, with the same two calls on its team
+  value `ln((sum y + s) / sum e)` over all of the team's valid rows (`s =
+  log_ratio_smoothing_per_part`), league-centred, and gates nothing; its sentence says the two
+  are not separated.
 
 Reported beside (g) for every coordinate: once, from the call on the coordinate as computed
 (the two calls agree on them up to floating-point rounding), unadjusted `R2`, its noise floor
-`k/(n - G)` = 0.043, `R2_adj = 1 - (1 - R2)(n - G)/(n - G - k)`, a permutation reference
+`q/(n - G)` = 0.043 and `R2_adj = 1 - (1 - R2)(n - G)/(n - G - q)`, with `q` the number of
+`strength_covariates` (not `k`, which is `strength_top_k`), a permutation reference
 (covariate rows permuted within league, `strength_permutations` draws, a fresh
 `default_rng(seed + seed_streams.strength_permutation)` per descriptor, consumed coordinate by
 coordinate) and the Spearman correlation; and for each tail, the top-12 survivors or, when
@@ -466,8 +480,10 @@ weighted by the product of its two meetings' multiplicities). `all_states` P1 an
 primary: P1 with the `close_11v11` `kA` and `kD`, no re-selection, on the same eligible rows
 (eligibility counts valid matches and does not depend on the window) in the shared world, and
 R1 with the same split. Loss of every rung. The implied per-match intraclass correlation
-`R / (m - (m - 1) R)`, `m` the mean number of valid rows per qualifying team over both halves. Coverage, exclusion, placeholder and dropped-replicate counts, and the number of
-teams with more than one coach id. Empty metrics are `null`, never zero.
+`R / (m - (m - 1) R)`, `m` the mean number of valid rows per qualifying team over both halves.
+For the level, pooled L1 over `unexposed_leagues` with its interval (Prior exposure). Coverage,
+exclusion and dropped-replicate counts, and the number of teams with more than one coach id.
+Empty metrics are `null`, never zero.
 
 ## Decision rule — frozen
 
@@ -486,8 +502,9 @@ teams with more than one coach id. Empty metrics are `null`, never zero.
 `shape_gates` and `level_gates` list them. G1 to G5 are evaluated on counts before any loss
 is computed; G6 and LG6 after development selection and before any evaluation loss is
 aggregated. A subject whose own gates fail is `INCONCLUSIVE`, the failed gates are its
-reasons, and nothing of it is compared. The level subject is evaluated whenever its own gates
-pass, whatever G5 and G6 return for the primary.
+reasons, and no evaluation result of it is compared (under G6 or LG6 the development selection
+losses were compared, and are not serialised). The level subject is evaluated whenever its own
+gates pass, whatever G5 and G6 return for the primary.
 
 **Criteria.** "Below zero" means below `-zero_tolerance`. `alpha = criterion_alpha_one_sided`.
 A criterion that cannot be evaluated is `None` and counts as not met.
@@ -510,7 +527,7 @@ one; the first row that holds decides.
 
 | Order | Condition | Token | Question it answers |
 |---|---|---|---|
-| 1 | a gate of `shape_gates` failed | `INCONCLUSIVE` | nothing was compared |
+| 1 | a gate of `shape_gates` failed | `INCONCLUSIVE` | no evaluation result was compared |
 | 2 | (a) to (g) all hold | `DEFENDER_SHAPE_SIGNAL` | all three, and side information where it applies |
 | 3 | (a), (b), (c) or (f) does not hold | `ADDED_INFORMATION_NOT_SHOWN` | out-of-sample skill not shown |
 | 4 | (d) does not hold | `SIDE_NOT_SHOWN` | skill shown; which side not shown |
@@ -612,7 +629,7 @@ statement and gate comes from `verdicts.derive` and `verdicts.badge_text`.
 | `vocabulary`, `outcomes` | `verdict_vocabulary.descriptor`, `registry_outcomes.descriptor` | `verdict_vocabulary.level`, `registry_outcomes.level` |
 | `claim_token` | `registry_descriptor.claim_token` | `registry_level.claim_token` |
 | `scope` | `registry_descriptor.scope` | `registry_level.scope` |
-| `non_claim` (the fixed panel sentence, printed in every state) | `registry_non_claims.conceded` for the primary, S1, S2, S3; `registry_non_claims.own_actions` for S4, S5 | `registry_non_claims.level` |
+| `non_claim` (the fixed panel sentence, printed in every state; before registration the registry has no record and so no `non_claim`, and the panel prints the same sentence from its own constant, which a test ties to `registry_non_claims` and, once registered, to the record) | `registry_non_claims.conceded` for the primary, S1, S2, S3; `registry_non_claims.own_actions` for S4, S5 | `registry_non_claims.level` |
 | `not_run_statement` | `registry_common.not_run_statement` | same |
 | `figures` (results commit, only under an established token) | `registry_figures.descriptor`: `k_context`, `k_unit`, `reliability_lower_bound`, each with its pointer into `results.json` | `registry_figures.level` |
 
@@ -647,7 +664,9 @@ Fixed in every state (`product_rules`):
   none when `may_gate` is true; `proposal_sentence_not_tested`, *"based on a record E-10 has
   not tested"*, when the record is not registered, `PENDING` or `INCONCLUSIVE` (unknown is
   never evidence of absence, R11); `proposal_sentence_not_established`, *"based on a record
-  that did not pass E-10"*, when its status is NOT_ESTABLISHED.
+  that did not pass E-10"*, when its status is NOT_ESTABLISHED. A proposal that cites several
+  E-10 records carries one qualifier per cited record whose `may_gate` is false, beside that
+  record's label; none is merged or dropped.
 - S5's panel shows the share under its label, the tested quantity, with the share's badge
   (`s5_panel_rule`). `s5_ratio_name`, ROOT H14-H21's name for the analogue (*opponent passes
   per recorded high-zone defensive action*), names in prose only the ratio of which the share
@@ -707,7 +726,8 @@ absent or stale sidecar, a team-match with no sheet row, or a missing or failing
 gate.
 
 **One execution.** `real` writes `results.json`, the failure logs, the determinism record and
-the local artifact under `output_root`, which git ignores, so its clean-tree check stays
+the local artifact under `output_root`, one directory for both arms' files, which git ignores as
+it does E-11's (ROOT 2.9 Z1); nothing under it is committed, and its clean-tree check stays
 satisfiable; the results commit copies `results.json` unchanged into the experiment directory.
 A failed execution (an exception after the refusal checks, outside the replication stage)
 appends the exception type, stage, file and line and source hashes, never the message, to

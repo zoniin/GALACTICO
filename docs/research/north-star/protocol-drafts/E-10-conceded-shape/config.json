@@ -7,11 +7,11 @@
   "provider": "pappalardo",
   "season_label": "2017/18",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider; no key at any depth of this file, of descriptor_test_vectors.json, of synthetic_gate.json or of results.json contains statsbomb, pappalardo or wyscout in any letter case or starts with SB_ (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first and the prefix; the runner test of PIPELINE section 9 for all three)",
-  "pipeline_spec_sha256": "8c8471bbb1b5a4c0b0a04dbc7e509d10eff5d209dfa518a4118d2a7815b290f6",
+  "pipeline_spec_sha256": "75e59037f05d028d33c4533af4bb8cab3a03259a835206e68714797c3025726c",
   "verified_by_root_before_registration": [
     "pipeline_spec_sha256: lf_sha256 of PIPELINE.md as registered",
     "descriptor_fingerprints and descriptor_fingerprints_sb: recomputed from the payloads of descriptor_test_vectors.json",
-    "dismissal_check assumption: a structure-only count, per league, of the players whose event record carries a second_yellow card and of those among them whose sheet red_minute in that match is not null; the assumption holds when that share is at least dismissal_assumption_minimum_share in every league; otherwise dismissal_check_fallback replaces dismissal_check before registration and the draft is audited again",
+    "dismissal_check assumption (ROOT 2.9 Z2): a structure-only count, run by the root on the corpus before registration and computing no outcome, per league, of the players whose event record carries a second_yellow card and of those among them whose sheet red_minute in that match is not null, its counts and share per league recorded in the registration commit; the assumption holds when that share is at least dismissal_assumption_minimum_share in every league; otherwise dismissal_check_fallback replaces dismissal_check before registration and the draft is audited again",
     "dismissal_check residuals: the same structure-only count of players with a dismissal card in the event record and a null sheet red_minute, and of the reverse, per league, is stated in the registration commit; these are the matches dismissals_mismatch is built to invalidate, and only G1 bounds them"
   ],
   "leagues": [
@@ -537,7 +537,7 @@
       "INCONCLUSIVE": {
         "status": "INCONCLUSIVE",
         "limits": false,
-        "statement": "E-10 could not test this descriptor: a frozen sample gate failed. Nothing was compared."
+        "statement": "E-10 could not test this descriptor: a frozen gate failed before any evaluation loss was aggregated. No evaluation result was compared."
       }
     },
     "level": {
@@ -559,7 +559,7 @@
       "INCONCLUSIVE": {
         "status": "INCONCLUSIVE",
         "limits": false,
-        "statement": "E-10 could not test this volume: a frozen sample gate failed. Nothing was compared."
+        "statement": "E-10 could not test this volume: a frozen gate failed before any evaluation loss was aggregated. No evaluation result was compared."
       }
     }
   },
@@ -628,9 +628,10 @@
       "shares_and_rates": "DERIVED"
     },
     "proposal_class": "HEURISTIC",
-    "proposal_sentence_rule": "keyed on the cited record's may_gate: may_gate true needs no sentence; otherwise proposal_sentence_not_tested when the record is not registered, PENDING or INCONCLUSIVE, and proposal_sentence_not_established when its status is NOT_ESTABLISHED",
+    "proposal_sentence_rule": "keyed on the cited record's may_gate: may_gate true needs no sentence; otherwise proposal_sentence_not_tested when the record is not registered, PENDING or INCONCLUSIVE, and proposal_sentence_not_established when its status is NOT_ESTABLISHED; a proposal that cites several E-10 records carries one qualifier per cited record whose may_gate is false, each beside that record's label, in the order of subject_groups, none merged or dropped",
     "proposal_sentence_not_tested": "based on a record E-10 has not tested",
     "proposal_sentence_not_established": "based on a record that did not pass E-10",
+    "planning_research_sentence": "E-10 tested whether a defending team's own history adds information about where and how many final-third entry passes it concedes. That is not validity or decision use, and no quantity on this page is an E-10 descriptor.",
     "words_never_on_the_page": [
       "weak",
       "weakness",
@@ -756,7 +757,7 @@
       "G1",
       "G3"
     ],
-    "gate_rule": "G1 with this block's minimum_valid_match_share_per_league, the valid share being valid matches over the matches the folder's index lists; G3 with this block's minimum_evaluation_rows_per_league, minimum_evaluation_weeks_per_league and minimum_evaluation_events_per_league; no G2, G4, G5 or G6",
+    "gate_rule": "G1 with this block's minimum_valid_match_share_per_league, the valid share being valid matches over the matches the folder's index lists (a listed match whose files are absent has no row and counts as invalid; the listed count reaches evaluate_replication as listed_matches); G3 with this block's minimum_evaluation_rows_per_league, minimum_evaluation_weeks_per_league and minimum_evaluation_events_per_league; no G2, G4, G5 or G6",
     "estimands": [
       "P1",
       "M1"
@@ -785,7 +786,8 @@
     },
     "status_rule": "the first that holds: NOT_COMPARABLE, NOT_RUN, REPLICATION_INCONCLUSIVE with the first reason that holds, REPLICATED, NOT_REPLICATED; FAILED_RUN replaces only a status that reached REPLICATION_INCONCLUSIVE's step; entries are keyed by descriptor, and the level subject has none",
     "local_artifact": "data/licensed/research/E-10/replication.json",
-    "local_artifact_records": "per comparable descriptor the replication's gates, events, shape ladder, p1, m1 and status, and the folder_manifest digest of each folder of leagues; never committed",
+    "local_artifact_records": "written only when a comparable descriptor reached step 3 of status_rule: per such descriptor the replication's gates, events, shape ladder, p1, m1 (those computed) and status, and the folder_manifest digest of each folder of leagues whose match index exists (null for an absent folder or index); returned by run_replication and written by the runner in stage serialise; never committed",
+    "sb_events_batch_matches": 40,
     "served_by_product": false,
     "registry_record": false
   },
@@ -835,7 +837,7 @@
     "coordinate_rule": "sd_side and sd_width are standard deviations of the defender effect on log-ratio coordinates z1 and z2; at league_composition a shift of 0.15 moves a channel share by about four percentage points (3.9 on z1, 3.6 on z2)",
     "strength_shape_rules": {
       "latent_tercile": "f = +1, 0, -1 for the top, middle and bottom latent-strength tercile (descending latent strength s_t, tercile = (strength_tercile_count * position) // T), standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
-      "measured_points": "f = full-season points per match standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
+      "measured_points": "f = full-season points per match from the season's goals, which are drawn before the team terms (PIPELINE section 5), standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
       "none": "no strength-shaped term"
     },
     "secondary_laws": {
@@ -1205,7 +1207,7 @@
       "seed": 20261005,
       "teams": 4,
       "side_effect": 1.0,
-      "statistic": "team 0's side-balance coordinate (basis row 1 of the primary, log_ratio_smoothing_per_part per part, pooled counts of its valid rows as defender) minus the mean of the other teams' same coordinate",
+      "statistic": "team 0's side-balance coordinate (the first basis row of the primary, Python index 0 of log_ratio_basis(3), [s, 0, -s]; log_ratio_smoothing_per_part per part, pooled counts of its valid rows as defender) minus the mean of the other teams' same coordinate",
       "passed": "the statistic is above zero read through the descriptor (def_left reads att_right) and below zero when att_left is read as def_left"
     },
     "workers_maximum": 4
@@ -1217,7 +1219,7 @@
     "product_effect": "Opponent Lab may show a descriptor as a tested tendency of one season, behind an opt-in, only under an established token; under every other token the panel shows the prior-date record only. No requirement, optimiser weight or ordering of teams changes.",
     "identity_stress_note": "Teams are permuted within league and strength tercile; this is a stress diagnostic, not an exchangeable permutation test and not a p-value.",
     "data_license": "Public Pappalardo/Wyscout CC BY 4.0; the replication arm's numbers are local only and are not in this file.",
-    "reuse_disclosure": "E-07 and E-08 scored a third of these evaluation rows for a conceded level of xT; no channel composition was computed on this corpus before registration."
+    "reuse_disclosure": "E-07 and E-08 scored a third of these evaluation rows for a conceded level of xT; before registration no descriptor of this protocol was computed by team on this corpus, except, if E-11 ran first, its per team-match counts on 36 double-coded matches, which the registration commit states."
   },
   "forbidden_result_substrings": [
     "player_id",

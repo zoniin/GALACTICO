@@ -276,3 +276,44 @@ Refuted claims: none.
    one product-side estimator imported by both is the alternative ROOT 4's "one object" rule
    might prefer.
 4. The revision has not been audited. The E-11 precedent re-audited each revision before READY.
+
+## 16 October 2026 — root rulings applied (ROOT 2.9 Z1 to Z3)
+
+The root ruled on the four items above (ROOT-DECISIONS 2.9). The reviser applied the rulings
+and nothing else; no file under `data/` was opened and no number was computed.
+
+- **Z3 (one estimator).** The estimator of section 4.2, `state_at` and
+  `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART` are now one product-side object,
+  `galactico/features/team/estimator.py`, specified in `PIPELINE.md` 3.8 (owned by WP A, with
+  `tests/test_team_estimator.py`): the walk-forward state (`PriorState`, `empty_state`,
+  `add_rows`, `state_at`), the shape and level estimates, `unit_deviation`, `unit_level_ratio`,
+  `predicted_shape`, `predicted_level`, `served_composition`, `served_volume`, and the row
+  contract `descriptor_rows`, moved from the engine so that the engine and the panel read the
+  same rows. Every argument the protocol fixes is passed by the caller with no default: the
+  engine passes the config's `league_prior_pseudocount_per_part`, and the panel passes the
+  module constant, which `test_estimator_constant_matches_the_config` ties to the config (3.7,
+  7.5). The second implementation in the Opponent Lab module and its parity test are removed
+  (12.3), together with `state_at` in the engine (4.3); the engine computes none of 4.2's state
+  quantities itself (4.2, 4.3, `test_engine_reads_the_one_estimator`, review item 21). The
+  estimator's `lf_sha256` is in `source_hashes` (7.3). The firewall keeps its direction: the
+  research pipeline imports `galactico.features.team`, and no product module imports
+  `galactico.validation` (section 0, the firewall test row of section 9). The hand-computed test
+  of the state formulas and the own-match exclusion test moved to the estimator's tests; the
+  engine's hand-computed test keeps the rung assembly. Protocol: one sentence under Models and
+  baselines. The parity tolerance `1e-12`, a number that was in prose only, went with the test.
+- **Z1 (output root).** Already in the draft (`output_root` `data/licensed/research/E-10`,
+  every output and `replication.local_artifact` under it, `data/licensed/` ignored by git). The
+  protocol's One execution paragraph and `PIPELINE.md` 7.1 now say also that it is one
+  directory for both arms' files and that nothing under it is committed.
+- **Z2 (dismissal pre-check).** Already in the draft (`dismissal_assumption_minimum_share` 0.5,
+  `dismissal_check_fallback`). The protocol's Match validity paragraph, the
+  `verified_by_root_before_registration` entry of `config.json` and the dismissal row of
+  `PIPELINE.md` section 13 now each say that the root runs the structure-only count on the
+  corpus before registration, that it computes no outcome, and that its counts and share per
+  league are recorded in the registration commit; OPEN QUESTION 1 notes the ruling.
+- **Z4.** Not an edit: the draft's banner says that neither the audit's revision nor these edits
+  has been audited, and that ROOT 2.9 Z4 requires that audit before E-10 is called READY.
+
+`pipeline_spec_sha256` was recomputed with `galactico.validation.digests.lf_sha256` after the
+last `PIPELINE.md` edit. `descriptor_test_vectors.json` is unchanged; no payload or fingerprint
+moved.

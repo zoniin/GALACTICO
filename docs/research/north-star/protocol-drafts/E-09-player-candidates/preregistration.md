@@ -1,106 +1,153 @@
 # E-09 — four player candidates and a location-only shot conversion model
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build and never adversarially reviewed or audited. No outcome named here has been computed. It becomes a protocol only when a reviewed version is committed under `experiments/preregistered/` in a single commit that precedes any run. Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding and its disposition). The revision has not been independently audited, and the house order (an independent audit that walks every branch of the verdict rule) applies before E-09 is called READY. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
-**Commit this plan and `config.json` before any E-09 outcome is computed. Nothing
-below may change once the first result is observed.** This is a prospective
-analysis plan on **reused historical data**, not a claim of untouched data
-collection; the section "Prior exposure" lists what has already been seen. Every
-threshold, seed, grid and gate lives in `config.json`. A statement here that
-disagrees with `config.json` is a defect to be fixed before the protocol commit,
-never after. Implementation corrections are recorded, not silently adopted.
+**Commit this plan, `config.json` and `PIPELINE.md` before any E-09 outcome is computed.
+Nothing in the three may change once the first outcome is observed.** This is a
+prospective analysis plan on **reused historical data**, not a claim of untouched data
+collection; section 2 lists what has already been seen. Every threshold, seed, grid, gate,
+list and served sentence lives in `config.json` and is named here by its key; a number that
+appears only in this prose is a defect, except figures this document derives from config
+values and states as planning figures (section 9.2), which are in `config.json` too. A
+statement here that disagrees with `config.json` is a defect to be fixed before the protocol
+commit, never after. `PIPELINE.md` is frozen with the protocol through
+`pipeline_spec_sha256`. Deviations are recorded in `analysis.md`, never silently adopted.
 
-Destination: `experiments/preregistered/E-09-player-candidates/`.
+Destination: `committed_experiment_dir`. Tier: PUBLIC (`tier`); the external leg of section
+11 alone is LOCAL_LICENSED and gates nothing.
 
 ---
 
 ## 1. Claim and unchanged boundaries
 
-Four named statistics and one model are taken through the measurement lifecycle.
-The question for each is whether it is repeatable, whether it is more than a
-statistic the project already has, and whether that holds in more than one league.
+Four named statistics and one model are taken through the house measurement lifecycle
+(`galactico/validation/lifecycle.py`). The question for each statistic is whether it is
+repeatable within a season among players of the same broad position, whether it is more
+than a statistic the project already has, and whether both hold in at least four of five
+leagues. The model is judged out of league against frozen criteria.
 
 | Subject | What it is | Evidence class | Resolves placeholder |
 |---|---|---|---|
-| `shot_location_v1` | A location-only shot conversion **model**: P(goal) from shot origin and the provider head-or-body class | PREDICTIVE | instrument only |
-| `shot_volume` | Shots per 90, no penalties, no direct free kicks | DERIVED | `shot_profile` |
-| `shot_location_value` | Sum of `shot_location_v1` probabilities over those shots, per 90 | PREDICTIVE | `shot_profile` |
+| `shot_location_v1` | A location-only shot conversion **model**: the probability that an open-play shot became a goal, from the shot's origin and the provider's head-or-body class | PREDICTIVE | instrument only |
+| `shot_volume` | Open-play shots per 90 (no penalties, no direct free kicks) | DERIVED | `shot_profile` |
+| `shot_location_value` | Location-only conversion value of those shots per 90: the sum of `shot_location_v1` values over the player's shots in the model domain | PREDICTIVE | `shot_profile` |
 | `box_shot_share` | Share of those shots that start inside the provider-drawn penalty area | DERIVED | `shot_profile` |
 | `opp_half_defensive_actions` | Ground defending duel records and interception-flagged events starting in the opponent half, per 90 | DERIVED | `defensive_action_profile` |
 
+Display names are the `display_name` entries of `config.json` (ROOT 2.5 H14: "location-only
+conversion value", never shot quality, never provider xG). Two candidates import the
+registered E-11 definitions unchanged (`e11_subject`, `e11_definition`, `e11_config_sha256`):
+`shot_volume` is E-11's open-play shots over regulation minutes, and
+`opp_half_defensive_actions` is E-11's ground duel or interception in the opponent half over
+regulation minutes. E-11's token for the same subject id therefore applies to them as a
+cross-provider label. `shot_location_value` and `box_shot_share` are not graded by E-11.
+`shot_volume` departs from ROOT 2.2's "non-penalty shots" by leaving out direct free kicks;
+`PIPELINE.md` DISSENT 6 gives the evidence.
+
 Not claimed, by any verdict:
 
-- `shot_location_v1` is **not xG supplied by the provider**. The provider supplies
-  none. It is not comparable with StatsBomb, Opta or Wyscout xG as if on one scale.
-- **Finishing skill is out of scope.** No goals-minus-model quantity is computed,
-  for any player or team, as a construct, a control or a diagnostic.
-- `shot_volume` and `shot_location_value` do not say a player shoots well, only
-  how often and from where.
-- `opp_half_defensive_actions` is not pressing, not pressing intensity, not
-  ball-winning and not defending ability. The corpus has no pressure, tackle or
-  recovery event. A record tagged lost counts the same as a record tagged won.
-- Passing the lifecycle earns a **descriptor**. It does not earn an optimiser
-  weight with football meaning, a cross-league comparison, persistence across
-  seasons or across a club change, or decision utility.
+- `shot_location_v1` is **not xG supplied by the provider**. The provider supplies none. It
+  is not on one scale with any provider's xG.
+- **Finishing skill is out of scope.** No goals-minus-model quantity is computed, for any
+  player or team, as a construct, a control or a diagnostic.
+- `shot_volume` and `shot_location_value` do not say a player shoots well, only how often
+  and from where.
+- `opp_half_defensive_actions` is not a record of pressing, of winning the ball or of
+  defending ability. The corpus has no pressure, tackle or recovery event, and a duel record
+  tagged lost counts the same as one tagged won.
+- Passing the lifecycle earns a **descriptor**. It does not earn an optimiser weight with
+  football meaning, a cross-league comparison, persistence across seasons or across a club
+  change, or decision utility.
+- The verdicts are exploratory: the data were seen before this protocol (section 2), and
+  `MetricEvaluation.exploratory` stays true for every subject.
 
-Unchanged: `spec.SPECS`, `CONSTRUCTS`, the five shipped constructs, their
-fingerprints, every shipped endpoint and every product evidence gate. No
-candidate value reaches Player Lab, Match Lab or the shipped XI Lab from this
-experiment. E-07 and E-08 are not reopened.
+Unchanged: `spec.SPECS`, `CONSTRUCTS`, the five shipped constructs, their fingerprints,
+every product evidence gate, and every XI Lab and Match Lab output. No candidate value
+reaches Player Lab, Match Lab, the XI tools or a planning page from this experiment. **ROOT
+2.6 ARCH D1 binds:** a candidate that survives is not promoted and is not shown beside
+players in this release, and `product_admissible` is false for every E-09 subject under
+every token (section 10). E-07 and E-08 are not reopened.
+
+### 1.1 The gates against the lifecycle stages
+
+| Stage (`lifecycle.Stage`) | Gate here | Where |
+|---|---|---|
+| DEFINITION | fingerprints and hand-computable contracts; the instrument's acceptance | 4, 5 |
+| RELIABILITY | position-centred split-half lower bound, number and band thresholds | 6 step 3 |
+| CONFOUND_AUDIT | nuisance R-squared above the ceiling rejects (nuisance kinds only); the joint audit is reported | 6 steps 5 and 8 |
+| CONSTRUCT_VALIDITY | **not tested.** The observable implications of section 5 are written down and not tested; no outcome criterion exists for these candidates in this corpus | 13 |
+| INCREMENTAL_INFORMATION | the baseline ceiling over the declared battery, at the larger of the uncentred and the position-centred correlation | 6 step 4 |
+| ROBUSTNESS | four of five leagues; the LOCAL external leg is a label only | 9, 11 |
+
+`ConfoundFinding.damaging` (variance explained above 0.25 by a nuisance kind) is reported
+per league and does not gate; the gate is the frozen rule's nuisance ceiling
+(`nuisance_r2_ceiling`), as in Stage 1B.
 
 ## 2. Prior exposure of the data
 
 | What | Seen by | Touches E-09 how |
 |---|---|---|
-| All five Wyscout leagues, full season | Stage 1, 1B, 1C for seven other axes | `shots_per_90` was a baseline column there: its correlation with seven other axes was computed and only the maximum per axis reported. Its own reliability was never computed |
+| All five Wyscout leagues, full season | Stage 1, 1B, 1C for seven other axes | `shots_per_90` was a baseline column there: its correlation with other axes was computed and only the maximum per axis reported. Its own reliability was never computed |
 | Shot origin and goal by 16x12 grid cell, per league | every xT fit | A per-cell conversion rate is a component of the shipped xT surface. It was never evaluated out of sample or read as a conversion model |
 | Spain and England, March to May rows | E-07, E-08 | Opening-30-minute passing forecasts. No shot or defensive quantity |
 | Italy | E-02 | Metronome index only |
-| Shot marginals, five leagues | council reconnaissance (`research/xg-and-shots.md`) | Goal rate by league (Spain 11.08%, England 10.82%, Italy 9.69%, Germany 10.83%, France 10.48%), by body-part tag (head-or-body 12.5%, footed 10.2%), by counter-attack and opportunity tags, for penalties and direct free kicks; shot counts by 5 m distance band; shot-count quantiles per player; 4 of the 100 own-half shots are tagged goals |
-| Duel, interception and attribution counts | council reconnaissance (`research/event-taxonomy-audit.md`) | Outcome-tag counts by duel sub-type, share of duel records with no player by league and by team-match, team-match volume quantiles |
-| Eligibility counts | this design pass (`_work/structure_counts.py`, `_work/structure2.py`) | Outfield players at 900+ minutes per league (319 / 306 / 306 / 270 / 306); reliability-set sizes; players with 30+ shots and 10+ per half (80 / 84 / 88 / 66 / 80); quantiles of the opponent-half defensive-action count among eligible players; shot rows in and out of the model domain; lattice count of penalty-area shots |
-| Open-play shot rows before four cutoff dates (9,693 pooled before 2017-10-22; 1,799 in Spain) | reconnaissance critic (`research/_critic.md` R8) | exposure only; it fixes the pooled as-of rule of section 10 |
+| Shot marginals, five leagues | council reconnaissance (a working note kept out of the repository; README, "What the drafts cite") | Goal rate by league (Spain 11.08%, England 10.82%, Italy 9.69%, Germany 10.83%, France 10.48%), by body-part tag (head-or-body 12.5%, footed 10.2%), by counter-attack and opportunity tags, for penalties and direct free kicks; shot counts by 5 m distance band; shot-count quantiles per player; 4 of the 100 shot rows recorded at or behind the halfway line are tagged goals |
+| Duel, interception and attribution counts | council reconnaissance (working note, not kept) | Outcome-tag counts by duel sub-type, share of duel records with no player by league and by team-match, team-match volume quantiles |
+| Eligibility counts | this design pass (structure-only scripts, working notes, not kept) | Outfield players at 900+ nominal minutes per league (319 / 306 / 306 / 270 / 306); reliability-set sizes; players with 30+ shots and 10+ per match set (80 / 84 / 88 / 66 / 80); quantiles of the opponent-half defensive-action count among eligible players; shot rows in and out of the model domain by `start_x` only; lattice count of penalty-area shots. These counts are planning values; the pinned counts of section 3 are recomputed by the root with a committed structure-only script before registration (`counted_by_root_before_registration`) |
+| Open-play shot rows before four cutoff dates (9,693 pooled before 2017-10-22; 1,799 in Spain) | reconnaissance critic (working note, not kept) | exposure only; it fixes the pooled as-of rule of section 10 |
+| Wyscout England 2017/18: 8,801 non-penalty shots, 5,139 in the provider-drawn box | E-11 prior exposure (registered) | the same box as `box_shot_share`, pooled over players |
+| Every shot's start coordinates of both teams, per match; per team-match shots and interceptions | Match Lab, served since its release | match-level records, never a player-season statistic |
+| Tag sidecar build: body-part, duel-outcome and goal-zone tag counts per league | ADR-0028 and its audit | structure only; body part is a model input here |
+| StatsBomb 2015/16, four leagues | Stage 1C | within-provider reliability, confound share, baselines and level shifts of the five shipped constructs; no shot or defensive quantity of this protocol |
 | Published fits on this corpus | Soccermatics (England, 8,451 shots, in-sample logistic); Mead et al. 2023 (five leagues, random split) | The model family and the expected skill range were chosen with these in view. England is not untouched for this model class |
 
 Not computed by anyone in this project before the protocol commit: any split-half
-reliability, confound audit or baseline correlation of a candidate; any fit or
-evaluation of a shot conversion model; any relation between a candidate and an
-outcome.
+reliability, confound audit or baseline correlation of a candidate; any fit or evaluation of
+a shot conversion model; any relation between a candidate and an outcome.
 
-One planning figure is derived from the disclosed marginals and stated so that it
-cannot later be presented as a surprise: if shot-location mix were identical
-across leagues, Italy's observed-over-expected ratio under a model trained on the
-other four leagues would be about 0.897 (9.69% against 10.80%). The level
-thresholds in section 4.4 were not widened to accommodate it.
+One planning figure is derived from the disclosed marginals and stated so that it cannot
+later be presented as a surprise: if shot-location mix were identical across leagues,
+Italy's observed-over-expected ratio under a model trained on the other four leagues would
+be about 0.897 (9.69% against 10.80%). The level thresholds of section 4.4 were not widened
+to accommodate it.
 
 ## 3. Data, cohorts and exclusions
 
-Public Pappalardo/Wyscout 2017/18 only: Spain, England, Italy, Germany, France.
-Neutral Parquet `actions`, `lineups`, `players`; the head-or-body class comes from
-the tag sidecar (provider tag 403; it pools headers with chest, knee and other
-non-foot contact, so it is named `head_or_body`, never `header`).
+Public Pappalardo/Wyscout 2017/18 only (`leagues`, `season`). The neutral frames named in
+`public_tables` are read through `galactico.storage.public.load_public` with the column list
+`action_columns`. Body part and the provider's shot family come from the tag sidecar
+(`galactico.ingestion.sidecar`, ADR-0028): `verify`, then `load(league, "events",
+columns=sidecar_columns)` and `attach`, the only sanctioned join. The head-or-body class is
+provider tag 403; it pools headers with chest, knee and other non-foot contact, so it is
+named `head_or_body`, never "header" (ROOT 2.5 H14).
 
-| Rule | Value | Note |
+| Rule | Key | Note |
 |---|---|---|
-| Periods | `1H`, `2H` | the leagues contain no other; the filter is asserted to drop zero rows |
-| Shot set | neutral `type == "shot"` | provider `Shot` event. Penalties and direct free-kick shots are `set_piece` rows and are excluded by construction. Shots after a set-piece delivery are included. The 26 shots within 6 s of the same team's penalty stay in |
-| Model domain | `start_x > 0.50` | 100 shot rows start in the shooter's own half (21 / 11 / 26 / 23 / 19). They are excluded from model fitting, evaluation and `shot_location_value`, and counted. They stay in `shot_volume` and in the denominator of `box_shot_share` |
-| Eligible player | 900+ nominal league minutes, broad position DF, MD or FW, `player_id != 0` | goalkeepers excluded. Stage 1B did not exclude them; excluding structural zeros can only lower between-player variance |
-| Half floor | 300+ nominal minutes in each half | house value |
-| Share floor (`box_shot_share` only) | 30+ shots in the season and 10+ in each half | a share over five shots is noise |
-| Unattributed rows | rows with `player_id == 0` are never credited to a player | about one ground defending duel record in ten. Missing stays missing; no reallocation |
-| Location sentinels | a row whose start is exactly (0,0) or (1,1) is excluded from any zone test | provider placeholder, not a position |
-| No exclusion | on team, age, club strength or league | |
+| Periods | `periods` | the leagues contain no other; the filter is asserted to drop zero rows |
+| Shot set | neutral `type == "shot"` | the provider's Shot event, which E-11 calls `open_play_shot`. Penalties and direct free-kick shots are `set_piece` rows and are excluded by construction. Shots after a set-piece delivery are included. The sidecar's `shot_family` is pinned to the neutral type (`shot_family_pins`, `expected_shot_family_disagreements`) |
+| Model domain | `model_domain` | a shot row starting in zone `opponent_half`: `start_x` strictly above 0.50 and not a location sentinel. Shot rows recorded at or behind the halfway line, and shot rows at a sentinel start, are outside it: their recorded location is not trusted. They are excluded from model fitting, evaluation and `shot_location_value`, counted per league (`expected_behind_halfway_shot_rows`, `expected_sentinel_start_shot_rows`), and stay in `shot_volume` and in the denominator of `box_shot_share` |
+| Minutes | `minutes_rule`, `regulation_minutes_cap` | per player-match the lineup minutes capped at 90, which is E-11's `minutes_regulation` on this provider, imported unchanged. The house sums nominal lineup minutes, which credit a starter substituted after the 90th minute with more than 90; capping can only lower a player's minutes, so no evidence gate is lowered (R6) |
+| Eligible player | `minutes_floor`, `outfield_positions`, `goalkeeper_position` | 900+ league minutes, broad position DF, MD or FW, `player_id != 0`. Goalkeepers excluded (ADR-0025) |
+| Match sets | `split`, `split_rule` | two sets of a league's matches by game-id parity, called match set 0 and match set 1; never "halves", which are the periods |
+| Match-set floor | `match_set_minutes_floor` | 300+ minutes in each match set; house value |
+| Share floor (`box_shot_share` only) | `share_floor_season_shots`, `share_floor_match_set_shots`, `share_floor_counts` | 30+ shots in the season and 10+ in each match set, counting every shot row of the denominator; a share over five shots is noise |
+| Unattributed rows | | rows with `player_id == 0` are never credited to a player: about one ground defending duel record in ten. Missing stays missing; no reallocation |
+| Location sentinels | `location_sentinels` | a row whose start is exactly (0,0) or (1,1) is excluded from every zone test and from the model domain, and kept in zone-free counts |
+| No exclusion | | on team, age, club strength or league |
 
-Known and uncorrected, recorded so that it is not later presented as a discovery:
-the minutes floor conditions on selection; nominal minutes credit a dismissed
-starter with 90 and ignore stoppage time; a mid-season mover is one player with
-pooled minutes and is assigned the team of most minutes; the share floor
-conditions on shooting.
+Known and uncorrected, recorded so that it is not later presented as a discovery: the
+minutes floor conditions on selection; lineup minutes ignore stoppage time; a mid-season
+mover is one player with pooled minutes and is assigned the team of most minutes
+(`player_team_rule`); the share floor conditions on shooting.
 
-Structural pins in `config.json` (`expected_*`) are checked before any outcome is
-computed. A mismatch stops the run with nothing written; that is a pipeline
-defect, not an outcome, and a corrected run is disclosed in `analysis.md`.
+Structural pins in `config.json` (`expected_*`, the shot-family pins, the sidecar manifest's
+`actions_event_ids_equal` and versions) are checked before any outcome is computed. A
+mismatch stops the run with nothing written; that is a pipeline defect, not an outcome, and
+a corrected run is disclosed in `analysis.md`. The pins whose value is `null` in this draft
+are counted by the root before registration with a committed structure-only script and
+written into the config in the registration commit (`counted_by_root_before_registration`);
+the planning count of shot rows at or behind the halfway line by `start_x` alone is
+`planning_shot_rows_at_or_behind_halfway_by_x_only`.
 
 ## 4. The instrument — frozen
 
@@ -108,219 +155,285 @@ defect, not an outcome, and a corrected run is disclosed in `analysis.md`.
 
 ```
 X     = (1 - start_x) * 105          metres from the goal line (convention, not measurement)
-C     = |start_y - 0.5| * 68         metres from the centre line
+C     = |start_y - 0.5| * 68         lateral distance from the goal-to-goal axis (convention)
 d     = sqrt(X^2 + C^2)              metres to the goal centre
 theta = atan2(7.32 * X, X^2 + C^2 - 3.66^2)     visible goal angle, radians, in [0, pi]
 H     = 1 if the sidecar body part is head_or_body else 0
 ```
 
-| Model | Terms | Role |
+(`pitch_length_m`, `pitch_width_m`, `goal_width_m`.)
+
+| Model | Terms (`model_terms`) | Role |
 |---|---|---|
-| `M0` | intercept (training goal rate) | reference |
+| `M0` | intercept (the training goal rate; not fitted) | reference |
 | `MD` | intercept, d | comparator |
 | `M1` | intercept, d, theta, H, H*d | default instrument |
 | `MFLEX` | `M1` plus hinge terms (d-8)+, (d-16)+, (d-25)+, (theta-0.4)+, (theta-0.9)+, and H*theta | declared challenger |
 
-Family: unpenalised logistic regression, fitted by iteratively reweighted least
-squares in NumPy. Label: the `goal` flag on the shot row.
+Family: unpenalised logistic regression, fitted by iteratively reweighted least squares in
+NumPy (`irls_max_iterations`, `irls_tolerance`, `irls_max_halvings`). Label: the `goal` flag
+on the shot row.
 
 Never a feature: the provider opportunity tag (201; on 99.5% of goals and 67.3% of
-non-goals, so it was assigned with the result in view), the accuracy tags, the
-blocked tag, the goal-mouth zone tags, the counter-attack tag (a tagger's
-judgement), the shooter, the team, the league, the game state, anything after the shot.
-There is no shot end location in this corpus.
+non-goals, so it was assigned with the result in view), the accuracy tags, the blocked tag,
+the goal-mouth zone tags, the counter-attack tag (a tagger's judgement), the shooter, the
+team, the league, the game state, anything after the shot. There is no shot end location
+in this corpus.
 
 ### 4.2 Leave-one-league-out
 
-Five folds. Fold f fits every model on the other four leagues and predicts league
-f. Every league shot therefore has a probability from a model that saw none of its
-league, its teams or its players. Candidate values in league f use the fold-f
-instrument only. The reference rate for skill is the **training** goal rate.
+Five folds. Fold f fits every model on the other four leagues and predicts league f, so
+every shot of a league has a value from a model that saw none of that league's matches. A
+player who moved between two of the five leagues in the 2017/18 winter window has shots in
+both the held-out league and a training fold; the model has no player term, so this leaks
+nothing about him. Candidate values in league f use the fold-f instrument only. The
+reference rate for skill is the **training** goal rate.
 
 ### 4.3 Frozen selection
 
-The instrument is `M1` unless the pooled relative log-loss gain of `MFLEX` over
-`M1`, `(LL_M1 - LL_MFLEX) / LL_M1` on out-of-league predictions, is at least 0.01
-**and** the fold gain is at least 0.01 in at least 4 of 5 folds; then the
-instrument is `MFLEX`. Nothing else is tried. Selecting between two models on the
-same out-of-league predictions that are then judged is mildly optimistic and is
+The instrument is `M1` unless the pooled relative log-loss gain of `MFLEX` over `M1`,
+`(LL_M1 - LL_MFLEX) / LL_M1` on out-of-league predictions, is at least
+`selection_relative_log_loss_gain` **and** the fold gain reaches it in at least
+`selection_minimum_folds` of 5 folds **and** `MFLEX` converged in every fold
+(`selection_requires_challenger_converged_in_every_fold`); then the instrument is `MFLEX`.
+Nothing else is tried. The selected specification is reported as `shot_location_v1/M1` or
+`shot_location_v1/MFLEX` in results and on the model card. Selecting between two models on
+the same out-of-league predictions that are then judged is mildly optimistic and is
 disclosed, not corrected.
 
 ### 4.4 Frozen acceptance
 
-All statistics use out-of-league predictions. Intervals are percentile intervals
-from 2,000 match-level resamples within each held-out league; coefficients are
-held fixed, so training-fold uncertainty is omitted.
+All statistics use out-of-league predictions of the selected specification. Intervals are
+two-sided 95% percentile intervals (`interval_quantiles`, `interval_quantile_method`) from
+`bootstrap_replicates` match-level resamples within each held-out league (`bootstrap_rule`);
+coefficients are held fixed, so training-fold uncertainty is omitted. Pooled statistics add
+the five leagues' resampled sums.
 
-| Gate | Statistic | Passes if | Basis |
+| Gate | Statistic | Passes if (config keys) | Basis |
 |---|---|---|---|
-| S | sample | each training fold has 20,000+ shots and 2,000+ goals; each held-out league 5,000+ shots and 500+ goals; every fit converged | logistic-basic converges near 6,000 shots (Robberechts & Davis 2020) |
-| R1 | Brier skill against the training rate | pooled point at least 0.08 and pooled lower bound at least 0.06; lower bound above 0.03 in 5 of 5 held-out leagues | published 0.10 to 0.13 for this feature set; derived standard error about 0.012 per league |
-| R2 | pooled log-loss gain of the instrument over `MD` | lower bound above 0 | angle and head-or-body must earn their parameters |
-| R3 | calibration slope (logistic recalibration) | within 0.85 to 1.15 in 5 of 5 | derived standard error about 0.04 |
-| R4 | observed over expected, pooled, in five subgroups: footed, head_or_body, d below 10 m, 10 to 20 m, 20 m and beyond | each within 0.85 to 1.15 | derived standard errors 1.6% to 4.3% |
-| R5 | pooled AUROC | at most 0.82 | published 0.75 to 0.79; anything higher on this schema is treated as a leak |
-| L1 | observed over expected per held-out league | within 0.90 to 1.10 in 5 of 5 | derived standard error about 3.3% |
-| L2 | calibration intercept at slope 1 | within 0.12 of zero in 5 of 5 | |
-| L3 | expected calibration error, 10 equal-mass bins; maximum bin gap | at most 0.020 and at most 0.07 in 5 of 5 | a perfectly calibrated synthetic model reached 0.0154 and 0.050 in 100 league evaluations |
+| S-count | sample, before any fit | each training fold and each held-out league meets `gate_s_count` | logistic-basic converges near 6,000 shots (Robberechts & Davis 2020) |
+| S-fit | convergence, after the fits | every model of `gate_s_fit_models` converged in every fold (`gate_s_fit_rule`); a challenger that did not converge in every fold is not selectable and fails nothing | |
+| R1 | Brier skill against the training rate | pooled point at least `gate_r1_pooled_brier_skill_minimum`, pooled lower bound at least `gate_r1_pooled_brier_skill_lower_minimum`; lower bound above `gate_r1_league_brier_skill_lower_exclusive_minimum` in `gate_r1_leagues_required` of 5 held-out leagues | published 0.10 to 0.13 for this feature set; derived standard error about 0.012 per league |
+| R2 | pooled relative log-loss gain of the instrument over `MD` (`gate_r2_gain`) | lower bound above `gate_r2_log_loss_gain_over_comparator_lower_exclusive_minimum` | angle and head-or-body must earn their parameters |
+| R3 | calibration slope (logistic recalibration) | within `gate_r3_calibration_slope_range` in `gate_r3_leagues_required` of 5 | derived standard error about 0.04 |
+| R4 | observed over expected, pooled, in the five subgroups of `gate_r4_subgroups` | each within `gate_r4_subgroup_o_e_range` | derived standard errors 1.6% to 4.3% |
+| R5 | pooled AUROC (`auroc_rule`) | at most `gate_r5_pooled_auroc_maximum` | published 0.75 to 0.79; anything higher on this schema is treated as a leak |
+| L1 | observed over expected per held-out league | within `gate_l1_o_e_range` in `gate_l_leagues_required` of 5 | derived standard error about 3.3% |
+| L2 | calibration intercept at slope 1 | absolute value at most `gate_l2_intercept_absolute_maximum` in `gate_l_leagues_required` of 5 | |
+| L3 | expected calibration error over `ece_bins` equal-mass bins cut at value boundaries (`ece_binning_rule`, `ece_weighting`); largest bin gap (`mce_rule`) | at most `gate_l3_ece_maximum` and at most `gate_l3_mce_maximum` in `gate_l_leagues_required` of 5 | a bin never splits tied probabilities, so no row order or event id moves either number |
 
-R gates concern relative value within a league. L gates concern level. The
-candidates below are analysed within a league, where a league-constant shift in
-level moves no ordering; cross-league use needs level as well.
+A calibration fit that does not converge gives `None`, and `None` fails its gate in that
+league (`calibration_fit_failure`). Any undefined gated statistic fails its gate.
+
+R gates concern relative value within a league. L gates concern level. The candidates are
+analysed within a league, where a league-constant shift in level moves no ordering;
+cross-league use needs level as well.
+
+**Multiplicity.** Acceptance is an intersection of gates: every gate must pass, so the
+chance of accepting a model that fails one criterion is at most the chance of that one gate
+passing wrongly. No adjustment is made, and none is needed for that direction. The two
+model specifications are compared once, by the frozen rule of 4.3.
 
 ### 4.5 Instrument verdict
 
-| Outcome | Verdict |
+| Outcome, first match wins | Token |
 |---|---|
-| gate S fails | `INCONCLUSIVE` |
+| S-count or S-fit fails | `INCONCLUSIVE` |
 | S passes, any of R1 to R5 fails | `NOT_ESTABLISHED` |
 | S and R1 to R5 pass, any of L1 to L3 fails | `ACCEPTED_WITHIN_LEAGUE` |
 | every gate passes | `ACCEPTED` |
 
+The tokens are `verdict_vocabulary.instrument`.
+
 ## 5. Candidate measurements — frozen
 
-Definitions are `CandidateSpec` objects in `galactico/features/candidates.py`,
-outside `spec.SPECS`. Their fingerprints are in `config.json`; a run whose
-computed fingerprints differ stops before any outcome.
+Definitions are `CandidateSpec` objects in `galactico/features/candidates.py`, outside
+`spec.SPECS` (ROOT 2.5 O3). Their fingerprints are in `config.json`; a run whose computed
+fingerprints differ stops before any outcome. A fingerprint identifies numerator, measure,
+scaling, denominator and instrument; the minutes rule is `minutes_rule`, hashed with the
+config.
 
 ### 5.1 `shot_volume` (`1c6517c2be31`)
 
-- **Definition.** Count of shot rows / minutes x 90.
-- **Claim.** How often the player shoots. **Non-claim.** That the shots are good ones.
-- **Observable implication.** A player who shoots more in odd matches shoots more
-  in even matches, among players of the same broad position.
+- **Definition.** Count of shot rows / minutes x 90, minutes by `minutes_rule`. E-11's
+  `shot_volume`, imported unchanged.
+- **Claim.** How often the player shoots in open play. **Non-claim.** That the shots are
+  good ones.
+- **Observable implication.** A player who shoots more in one match set shoots more in the
+  other, among players of the same broad position.
 - **Confounds.** touch volume (context), team (context), broad position (constitutive).
 - **Negative control.** Must not be a near-copy of touch volume or of mean field position.
-- **Incremental claim.** None. This is the baseline statistic itself, proposed
-  under its own name, as pass completion was after E-03. Its own column is
-  therefore removed from its battery and from no other.
+- **Incremental claim.** None. This is the house baseline column itself, proposed under its
+  own name, as pass completion was after E-03. Its own column is therefore removed from its
+  battery and from no other.
 
-### 5.2 `shot_location_value` (`9998c7120f99`)
+### 5.2 `shot_location_value` (`537cef62eb4e`)
 
-- **Definition.** Sum of the fold instrument's probability over the player's
-  in-domain shot rows / minutes x 90.
-- **Claim.** Shot volume weighted by where the shots came from. Shot volume is a
-  declared component. **Non-claim.** Chance value as the shooter met it: defenders,
-  goalkeeper, pressure and shot type are not in the number.
-- **Observable implication.** Two players with equal shot volume separate if one
-  shoots from closer and more central positions.
+- **Definition.** Sum of the fold instrument's values over the player's shot rows in the
+  model domain / minutes x 90.
+- **Claim.** Shot volume weighted by where the shots came from. Shot volume is a declared
+  component. **Non-claim.** The opportunity as the shooter met it: defenders, goalkeeper,
+  pressure and shot type are not in the number.
+- **Observable implication.** Two players with equal shot volume separate if one shoots
+  from closer and more central positions.
 - **Confounds.** touch volume (context), team (context), broad position (constitutive).
-- **Negative control.** Must not be a near-copy of `shot_volume`. The ceiling is
-  the frozen 0.85. Algebra says the sum is about 1.5 times noisier than the count
-  and that the count dominates its variance; rejection as redundant is the
-  expected outcome and is written here as a prediction.
+- **Negative control.** Must not be a near-copy of `shot_volume`. The ceiling is the frozen
+  `baseline_ceiling`. Algebra says the sum is about 1.5 times noisier than the count and that
+  the count dominates its variance; rejection as redundant is the expected outcome and is
+  written here as a prediction.
 - **Incremental claim.** The location weighting separates players that counting does not.
-- **Dependency.** Evaluated only if the instrument verdict is `ACCEPTED` or
-  `ACCEPTED_WITHIN_LEAGUE`.
+  ROOT 2.2 requires it to show that or be rejected as redundant: a league rejected as
+  redundant closes it as redundant unless it is established (`redundancy_closes_first`,
+  section 9).
+- **Dependency.** Evaluated only if the instrument token is `ACCEPTED` or
+  `ACCEPTED_WITHIN_LEAGUE`; otherwise no statistic of it is computed.
 
 ### 5.3 `box_shot_share` (`af2b2b118e73`)
 
-- **Definition.** Shot rows starting at `start_x >= 0.84` and
-  `0.19 <= start_y <= 0.81` / shot rows. The box is the provider's pitch drawing
-  in provider coordinates, a frozen convention.
-- **Claim.** Where the player's shots originate. **Non-claim.** A preference; the
-  share includes deployment and team-mates.
-- **Observable implication.** A player whose shots come from inside the area in
-  odd matches shows the same in even matches, among players of his position.
-- **Confounds.** touch volume (nuisance), shot volume (nuisance), team (context),
-  broad position (constitutive).
+- **Definition.** Shot rows starting at `start_x >= 0.84` and `0.19 <= start_y <= 0.81`,
+  not at a sentinel / shot rows. The box is the provider's pitch drawing in provider
+  coordinates, a frozen convention.
+- **Claim.** Where the player's shots originate. **Non-claim.** A preference; the share
+  includes deployment and team-mates.
+- **Observable implication.** A player whose shots come from inside the area in one match
+  set shows the same in the other, among players of his position.
+- **Confounds.** touch volume (nuisance), shot volume (nuisance), team (context), broad
+  position (constitutive).
 - **Negative control.** Must not be a near-copy of mean field position or of shot volume.
-- **Incremental claim.** None beyond location. It is the model-free location
-  descriptor: it needs no instrument, so the location half of `shot_profile` is
-  tested even if the instrument is not accepted, and under weakest-class
-  composition a counted share outranks a modelled mean. A per-shot mean of the
-  instrument is deliberately **not** a candidate and is not computed.
+- **Incremental claim.** None beyond location. It is the model-free location descriptor: it
+  needs no instrument, so the location half of `shot_profile` is tested even if the
+  instrument is not accepted, and under weakest-class composition a counted share outranks
+  a modelled mean. A per-shot mean of the instrument is deliberately **not** a candidate and
+  is not computed.
 
 ### 5.4 `opp_half_defensive_actions` (`72619cd8130b`)
 
-- **Definition.** Rows that are (`type == "duel"` and
-  `subtype == "Ground defending duel"`) or (`interception` flag true), with
-  `start_x > 0.50` in the acting player's own frame, / minutes x 90. Any duel
-  outcome. The two clauses do not overlap in this corpus (0 rows).
-- **Honest reading of the inputs.** Each duel is logged twice, once per
-  participant; a player's own record is counted once. The neutral duel `success`
-  means not-lost and is **not used**. The sidecar's won / lost / neutral outcome is
-  **not used**: the candidate counts engagements, and outcome composition would be
-  a different construct needing its own registration. Interception is a tag on the
-  intercepting player's next event, not an event.
-- **Claim.** How often the player is recorded contesting or cutting out the ball in
-  the opponent half. **Non-claim.** See section 1.
-- **Observable implication.** Repeatable between halves among players of the same
+- **Definition.** Rows that are (`type == "duel"` and `subtype == "Ground defending duel"`) or
+  (`interception` flag true), starting in zone `opponent_half` in the acting player's own
+  frame, / minutes x 90. Any duel outcome. The two clauses do not overlap in this corpus
+  (`expected_clause_overlap_rows`). E-11's `opp_half_defensive_actions`, imported unchanged.
+- **Honest reading of the inputs.** Each duel is logged twice, once per participant; a
+  player's own record is counted once. The neutral duel `success` means not-lost and is
+  **not used**. The sidecar's won / lost / neutral outcome is **not used**: the candidate
+  counts engagements, and outcome composition would be a different construct needing its
+  own registration. Interception is a tag on the intercepting player's next event, which
+  can be a clearance; a flagged clearance counts once, as an interception.
+- **Claim.** How often the player is recorded contesting or cutting out the ball in the
+  opponent half. **Non-claim.** See section 1.
+- **Observable implication.** Repeatable between match sets among players of the same
   position, and not reducible to how much the player is in that half at all.
 - **Confounds.** share of the team's ground defending duel records with no player
   (nuisance), touch volume (context), team (context), broad position (constitutive).
-- **Negative control.** Must not be a near-copy of defensive-action volume over
-  the whole pitch, of on-ball presence in the opponent half, or of mean field position.
+- **Negative control.** Must not be a near-copy of ground defending duels and
+  interceptions over the whole pitch, of on-ball presence in the opponent half, or of mean
+  field position.
 - **Incremental claim.** Location of defensive activity, separate from its amount.
 
 ## 6. Gauntlet — frozen
 
-Per league and candidate, in this order. Gates in section 8 are evaluated from
-counts for **all** leagues before any statistic below is computed.
+Per league and candidate, in this order. The count gates of section 8 are evaluated for
+**all** leagues and candidates before any statistic below is computed.
 
-1. **Value.** Full season on the audit set A (eligible players with a finite
-   value), and per half on the reliability set R (eligible, both half floors met,
-   position group of at least 8 players in R).
-2. **Split.** A match is in half h if the rank of its `game_id` in the league's
-   sorted unique ids has parity h. House method.
-3. **Reliability.** Within each half subtract the mean over R of the player's
-   broad position; Pearson r across R of the two centred vectors is `r_half`;
-   `r_sb = 2 r_half / (1 + r_half)`.
-4. **Lower bound.** Critical value 1.6448536269514722 in both: the two-sided 90%
-   Fisher-z interval, whose lower end is a one-sided 95% bound. `house_low` is that
-   lower end for `r_sb` (`AxisReliability.interval`). `half_low` is the
-   Spearman-Brown transform of that lower end for `r_half`.
-   `reliability_low = min(house_low, half_low)`.
-5. **Baseline.** `baseline_r` is the largest absolute Pearson correlation, over A,
-   between the raw value and each column of the candidate's declared battery.
-   A battery column with no variance is dropped and recorded.
-6. **Nuisance.** `nuisance_r2` is the unadjusted R-squared, over A, of the raw
-   value on the candidate's nuisance-kind columns only
-   (`discriminant_validity`). A candidate with no nuisance column has none.
-7. **Status.** `decide(reliability_low, nuisance_r2 or 0.0, baseline_r,
-   kind_is_nuisance)` — the frozen Stage 1B rule, imported unchanged from
-   `experiments/run_replication.py` (LF sha256 pinned in `config.json`):
-   baseline above 0.85 rejects first; then a nuisance R-squared above 0.60; then
-   lower bound at least 0.70 `SHIP`, at least 0.50 `SHIP_WITH_BAND`, else reject.
+1. **Sets.** A, the audit set: eligible players with a finite full-season value (with the
+   share floor where `share_floor`). R, the reliability set: A with both match-set floors
+   (and both match-set share floors), keeping only position groups of at least
+   `minimum_position_group` players in R. g is the number of position groups kept.
+2. **Split.** `split_rule`, the house method.
+3. **Reliability.** Within each match set, subtract from each player's value the mean over
+   R of his broad position (`centring`). `r_half` is the Pearson correlation across R of the
+   two centred vectors (house `split_half_reliability`, called with mappings keyed by
+   player); `r_sb = 2 r_half / (1 + r_half)`. The gate is `reliability_low = half_low`
+   (`reliability_low_rule`, `half_low_rule`): the Spearman-Brown transform of the lower end
+   of the Fisher-z interval for `r_half`, with critical value `interval_z` (the two-sided 90%
+   interval, whose lower end is a one-sided 95% bound, ROOT 2.5 O5) and standard error
+   `1/sqrt(n - 2 - g)`, since a correlation of within-group centred vectors is a partial
+   correlation on g - 1 group indicators. A strongly negative `r_half` therefore gives a
+   strongly negative bound, never a missing one. The house interval
+   (`AxisReliability.interval` on `r_sb`) is reported, never gating (`house_interval_role`);
+   it is `None` when `|r_sb| >= 1`.
+4. **Baseline.** For each column of the candidate's battery with sd over A at least
+   `degenerate_sd` (a column below it is dropped and recorded), the absolute Pearson
+   correlation with the value is computed twice over A: on the raw values, and on values and
+   column both centred by broad position over A (`position_centring_set`). The column's
+   correlation is the larger of the two (`baseline_centring`). `baseline_r` is the largest
+   over the battery; every column that attains it is listed (`baseline_tie_rule`).
+5. **Nuisance.** `nuisance_r2` is the unadjusted R-squared, over A, of the value on the
+   candidate's nuisance-kind columns only, computed raw and position-centred, the larger
+   kept (`nuisance_centring`). A candidate with no nuisance column has none.
+6. **Guard.** Each vector of `degenerate_vectors` (the full-season values over A, and each
+   match set's raw values over R) is tested on its own: sd below `degenerate_sd`, or a share
+   of exact zeros above `maximum_zero_share`, makes the league `INCONCLUSIVE` for that
+   candidate and names the vector. So does any non-finite input to the rule, or an undefined
+   `half_low`. The rule is then not called.
+7. **Status.** `decide(reliability_low, nuisance_r2 or 0.0, baseline_r, kind_is_nuisance)`,
+   the frozen Stage 1B rule, imported unchanged from `frozen_rule_path`: a baseline above
+   `baseline_ceiling` rejects first; then, for a candidate with nuisance columns, a nuisance
+   R-squared above `nuisance_r2_ceiling`; then a lower bound of at least `reliability_number`
+   is `SHIP`, of at least `reliability_band` is `SHIP_WITH_BAND`, else `REJECT`. The rule is
+   pinned by the hash of its source text (`frozen_rule_decide_source_sha256`) and by its
+   three module constants (`frozen_rule_constants`); its nuisance threshold is a literal in
+   its body (`frozen_rule_nuisance_literal`), held to `nuisance_r2_ceiling` by a truth
+   table. The runner's file hash is recorded and does not gate: ADR-0026 and ADR-0027
+   changed `run_replication.py` twice after this draft was written, and `decide` did not
+   change.
+8. **Reported, never gating** (as in Stage 1B): the joint audit
+   `discriminant_validity(value, [touches, team one-hot, position one-hot], ties=rank_ties)`
+   with its unadjusted and adjusted R-squared and noise floor k/(n-1); the rank correlation
+   between raw and residualised values under average ranks; the top-`top_k` survivor count,
+   which is `null` when the twelfth value ties the thirteenth (raw or adjusted), reported
+   with the two tied counts and the sentence `top_k_tied_statement`; the uncentred pooled
+   reliability with the house interval; reliability within each position with at least
+   `within_position_report_minimum` players (`within_position_rule`) and the context limits
+   (`context_limit_rule`); reliability centred on team as well as position; every battery
+   correlation under both centrings; `ConfoundFinding.damaging`; mean, sd and zero share; the
+   house replication label from `classify_replication`.
 
-Batteries (exact columns in `config.json`). House nine: `minutes`, `touches`,
-`touches_per_90`, `passes_per_90`, `pass_completion`, `mean_x`, `mean_y`,
-`mean_pass_length`, and shots per 90, which is `shot_volume` itself.
+Batteries (exact columns in `config.json`). House nine (`house_battery`): `minutes`,
+`touches`, `touches_per_90`, `passes_per_90`, `pass_completion`, `mean_x`, `mean_y`,
+`mean_pass_length`, and open-play shots per 90, which is `shot_volume` itself. Declared
+additions: `opp_half_on_ball_per_90`, passes and touches without the interception flag
+starting in the opponent half, per 90 (`opp_half_on_ball_rule`): it leaves out shot rows and
+interception-flagged rows, so it contains no candidate's own rows; and
+`duel_or_interception_per_90`, the two clauses of `opp_half_defensive_actions` with the zone
+removed (`duel_or_interception_rule`), which contains that candidate by design: it is the
+negative control of amount. The house columns `touches`, `touches_per_90`, `mean_x` and
+`mean_y` are taken over on-ball rows that include shots and duels, as the house defines them;
+they are not redefined.
 
 | Candidate | Battery |
 |---|---|
 | `shot_volume` | house nine without its own column, plus `opp_half_on_ball_per_90` |
 | `shot_location_value` | house nine, plus `opp_half_on_ball_per_90` |
 | `box_shot_share` | house nine, plus `opp_half_on_ball_per_90` |
-| `opp_half_defensive_actions` | house nine, plus `opp_half_on_ball_per_90`, `defensive_actions_per_90` |
-
-Reported, never gating (as in Stage 1B): joint R-squared on touch count, team
-one-hot and position one-hot, unadjusted and adjusted, with its noise floor
-k/(n-1); rank correlation between raw and residualised values; top-12 overlap;
-the uncentred pooled reliability with the house interval, for comparison with the
-shipped five; reliability within each position (20+ players); reliability after
-centring on team as well as position; every battery correlation; mean, sd and
-zero share; the house replication label from `classify_replication`.
+| `opp_half_defensive_actions` | house nine, plus `opp_half_on_ball_per_90`, `duel_or_interception_per_90` |
 
 ### 6.1 House methods inherited and departed
 
-One principle governs every departure but one: **it can only make survival
-harder.** The exception is flagged.
+No single principle covers the departures. Each is stated with its direction against the
+house statistic on the same data: **stricter** (it can only make survival harder),
+**lenient** (it can make survival easier; flagged per league in `results.json` and named in
+`analysis.md` for any candidate that survives where it was active), or **neither**.
 
-| Trap | Choice | Why |
-|---|---|---|
-| T8 baseline batteries | **Departs.** One battery function for this experiment: the Stage 1B eight, plus `minutes` (as the Stage 1 report and E-02 list it), plus the declared columns above. Fixed by name in `config.json` | three scripts hold three lists; a candidate's closest baseline must not depend on which script ran it. More columns can only raise `baseline_r` |
-| T8 identity column | **Departs.** `shot_volume` is removed from its own battery only | the house battery contains shots per 90; without this the candidate is rejected against itself at r = 1 |
-| T9 xT surfaces | **Not applicable by design.** No candidate and no battery column uses an xT surface | the three turnover definitions cannot move these numbers. The only fitted instrument has one definition and one fit per held-out league |
-| T11 thin samples | **Departs.** A league needs 40+ players in R and in A or it is `INCONCLUSIVE`; a missing interval is `INCONCLUSIVE`; the point estimate is never used as a bound | the house fallback grades the thinnest sample `NUMBER` |
-| T17 interval method | **Departs.** The gate is the smaller of the house bound and the half-r bound. Both are published | the house bound is anti-conservative: at a half correlation of 0.5 it sits about 0.01 above the half-r bound at n = 300 and about 0.04 above it at n = 66, the smallest share set. The house number stays comparable with the shipped five |
-| T18 R-squared floor | **Departs.** The gating R-squared uses nuisance columns only (k of 1 or 2, floor at most 2/(n-1)). The joint R-squared is published with its adjusted value and floor | about 20 regressors at n = 66 put the unadjusted floor near 0.31 |
-| T20 split | **Inherits** league-wide game-id parity and the 300-minute half floor. Exposure imbalance per half is reported | a per-team alternation would put one match in different halves for its two teams, which is not one partition of matches; comparability with the shipped five |
-| T22 shared instrument | **Departs.** Both halves share an instrument that never saw the league | the house halves share a surface fitted on the league itself |
-| T23 nuisance rule | **Departs, flagged.** The rule thresholds nuisance-kind variance only, as its own docstring says; the house code thresholded it jointly with team. `house_joint_r2_exceeds_ceiling` is published per league | this is the one departure that can make survival easier than the Stage 1B code path. A candidate that survives only through it is named as such in `analysis.md` |
-| T24 degenerate vectors | **Departs.** A value vector with sd below 1e-12 or more than half exact zeros makes the league `INCONCLUSIVE`; a non-finite input to the rule makes the league `INCONCLUSIVE`; `_safe_abs_corr` is never asked about a constant vector | the house helper returns 0.0 for a constant, and the rule passes a NaN baseline |
-| Position centring | **Departs.** Reliability is gated on position-centred values | pooled reliability of a shot count is mostly the statement that forwards shoot more than defenders. Centring can only lower r |
-| Goalkeepers | **Departs.** Excluded | structural zeros inflate variance |
+| Trap | Choice | Direction | Why |
+|---|---|---|---|
+| T8 baseline batteries | **Departs.** One battery function for this experiment: the Stage 1B eight, plus `minutes` (as the Stage 1 report and E-02 list it), plus the declared columns above | stricter: more columns can only raise the maximum | three scripts hold three lists; a candidate's closest baseline must not depend on which script ran it |
+| T8 identity column | **Departs.** `shot_volume` is removed from its own battery only | lenient, necessary | the house battery contains shots per 90; without this the candidate is rejected against itself at r = 1 |
+| Declared presence column | `opp_half_on_ball_per_90` holds no shot and no interception-flagged row | lenient against a column holding them, necessary | a column that contains a candidate's own rows measures the candidate |
+| T9 xT surfaces | **Not applicable by design.** No candidate and no battery column uses an xT surface | — | the three turnover recipes cannot move these numbers |
+| T11 thin samples | **Departs.** A league needs `minimum_reliability_units` players in R and `minimum_audit_units` in A or it is `INCONCLUSIVE`; the point estimate is never used as a bound | stricter | the house fallback graded the thinnest sample `NUMBER` |
+| T17 interval method | **Departs.** The gate is `half_low` with `n - 2 - g` | stricter in every case examined: on a grid of `r_half` and n the half-r bound was never above the house bound, and the degrees-of-freedom correction lowers it further | the house bound is anti-conservative at small n (about 0.04 above the half-r bound at n = 66 and a half correlation of 0.5); the house number stays reported for comparison with the shipped five |
+| T18 R-squared floor | **Departs.** The gating R-squared uses nuisance columns only (k of 1 or 2). The joint R-squared is published with its adjusted value and floor | see T23 | about 20 regressors at n = 66 put the unadjusted floor near 0.31 |
+| T20 split | **Inherits** league-wide game-id parity and the 300-minute floor per match set. Exposure imbalance per match set is reported | — | a per-team alternation would put one match in different sets for its two teams |
+| T22 shared instrument | **Departs.** Both match sets share an instrument that never saw the league | neither | the house match sets share a surface fitted on the league itself |
+| T23 nuisance rule | **Departs, flagged.** The rule thresholds nuisance-kind variance only, as its own docstring says; the house code thresholded it jointly with team. `house_joint_r2_exceeds_ceiling` is published per league | lenient | the docstring is the rule's statement |
+| T24 degenerate vectors | **Departs.** Step 6 | stricter | the house helper returns 0.0 for a constant, and the rule passes a NaN baseline |
+| Position centring of reliability | **Departs.** Reliability is gated on position-centred values | neither: lower when position means are stable between match sets, which game-id parity makes likely; higher when they move (a planted case shows both) | pooled reliability of a shot count is mostly the statement that forwards shoot more than defenders |
+| Baseline and nuisance centring | **Departs.** The larger of the raw and the position-centred statistic | stricter than the raw statistic on the same set | a near-copy within every position must not pass because positions dilute the pooled correlation |
+| Goalkeepers | **Departs.** Excluded (ADR-0025) | lenient on baseline correlations: goalkeeper rows can extend a line between a candidate and a battery column | goalkeepers are outside every candidate's declared context |
+| Minutes | **Departs.** `minutes_rule` (E-11's regulation minutes) | stricter on the floor; neither on the statistics | one definition with E-11 for the two shared subjects |
+
+Required test: each departure's direction is shown on a planted frame and each lenient one
+is flagged in `results.json` (`departures_active` per league and candidate).
 
 ## 7. Models and baselines, summarised
 
@@ -328,134 +441,199 @@ harder.** The exception is flagged.
 |---|---|---|
 | instrument | training goal rate; distance-only model | R1, R2 |
 | `M1` | `MFLEX` | 4.3 |
-| each candidate | its battery | 0.85 ceiling |
-| each candidate | its halves | 0.70 / 0.50 on the lower bound |
-| `shot_location_value` | `shot_volume` | the same 0.85 ceiling; no second test |
+| each candidate | its battery, raw and position-centred | `baseline_ceiling` |
+| each candidate | its match sets, position-centred | `reliability_number` / `reliability_band` on `half_low` |
+| `shot_location_value` | `shot_volume` | the same ceiling, plus `redundancy_closes_first` |
 
-No hyperparameter search, no feature selection, no per-league tuning, no
-sensitivity re-run chooses a result.
+No hyperparameter search, no feature selection, no per-league tuning, no sensitivity re-run
+chooses a result.
 
 ## 8. Sample gates
 
 | Gate | Value | Failing it |
 |---|---|---|
-| players in R, per league and candidate | 40 | league `INCONCLUSIVE` for that candidate |
-| players in A, per league and candidate | 40 | same |
-| share of the candidate-4 union rows with no player, per league | at most 0.15 | league `INCONCLUSIVE` for `opp_half_defensive_actions` |
-| degenerate or non-finite input (T24) | see 6.1 | league `INCONCLUSIVE` |
-| evaluable leagues, per candidate | 4 of 5 | candidate `INCONCLUSIVE` |
-| instrument gate S | 4.4 | instrument `INCONCLUSIVE` |
+| players in R, per league and candidate | `minimum_reliability_units` | league `INCONCLUSIVE` for that candidate |
+| players in A, per league and candidate | `minimum_audit_units` | same |
+| share of the pitch-wide union rows of `opp_half_defensive_actions` with no player, per league | at most `maximum_unattributed_share` | league `INCONCLUSIVE` for `opp_half_defensive_actions` |
+| degenerate or non-finite input (6 step 6) | `degenerate_vectors` | league `INCONCLUSIVE` for that candidate |
+| instrument gates S-count and S-fit | 4.4 | instrument `INCONCLUSIVE` |
 
-If the count gates leave a candidate fewer than 4 leagues, no statistic of that
-candidate is computed in any league. If a league only becomes inconclusive through
-a degenerate or non-finite input, the other leagues' statistics exist and are
-published under the `INCONCLUSIVE` verdict.
+**Evaluable leagues.** E is the set of leagues whose status for the candidate came from
+`decide()`: `SHIP`, `SHIP_WITH_BAND` or `REJECT` (`evaluable_statuses`). A league that
+failed a count gate or the guard of step 6 is `INCONCLUSIVE`, is outside E, and counts in
+neither the surviving nor the rejected leagues. If the count gates leave a candidate fewer
+than `minimum_evaluable_leagues` leagues, no statistic of that candidate is computed in any
+league. A league that becomes `INCONCLUSIVE` only through the guard keeps whatever it
+computed before the guard, reported under its own status.
 
 ## 9. Decision rule — frozen
 
-**League status.** `INCONCLUSIVE`, or the output of `decide()`: `SHIP`,
-`SHIP_WITH_BAND`, `REJECT`. A reject carries one reason, read off the frozen rule
-by counterfactual calls: `REDUNDANT` if the baseline alone rejects; else
-`CONFOUNDED` if the nuisance R-squared alone rejects; else `UNRELIABLE`.
+### 9.1 League status and candidate token
 
-**Candidate verdict.** Let E be the evaluable leagues, s the leagues at `SHIP` or
-`SHIP_WITH_BAND`, n the leagues at `SHIP`, j the leagues at `REJECT`.
+**League status.** `INCONCLUSIVE`, or the output of `decide()`: `SHIP`, `SHIP_WITH_BAND`,
+`REJECT`. A reject carries one reason, read off the frozen rule by counterfactual calls:
+`REDUNDANT` if the baseline alone rejects; else `CONFOUNDED` if the nuisance R-squared
+alone rejects; else `UNRELIABLE`.
 
-| # | Condition, first match wins | Verdict | Closure |
-|---|---|---|---|
-| 1 | candidate depends on the instrument and the instrument is `INCONCLUSIVE` | `INCONCLUSIVE` | — |
-| 2 | candidate depends on the instrument and the instrument is `NOT_ESTABLISHED` | `NOT_ESTABLISHED` | `INSTRUMENT` |
-| 3 | E < 4 | `INCONCLUSIVE` | — |
-| 4 | n >= 4 | `ESTABLISHED_NUMBER` | — |
-| 5 | s >= 4 | `ESTABLISHED_BAND` | — |
-| 6 | j > E / 2 | `NOT_ESTABLISHED` | the most frequent reject reason; ties resolve `REDUNDANT`, then `CONFOUNDED`, then `UNRELIABLE` |
-| 7 | otherwise | `NOT_ESTABLISHED` | `MIXED` |
+**Candidate token.** |E| is the number of evaluable leagues, s the leagues in E at `SHIP`
+or `SHIP_WITH_BAND`, n those at `SHIP`, j those at `REJECT`.
 
-`INCONCLUSIVE` means a frozen gate failed and nothing was compared at the
-candidate level. `NOT_ESTABLISHED` means the comparison ran and the criterion was
-not met: a published null, not evidence that the football concept is absent.
-Rows 1 to 7 are exhaustive and mutually exclusive by order. There is no other
-token and no verdict is assigned by hand.
-
-## 10. Product consequence of each verdict — fixed now
-
-| Verdict | Registry | Copy (frozen; braces are filled from `results.json`) |
+| # | Condition, first match wins | Token |
 |---|---|---|
-| `INCONCLUSIVE` | the candidate id replaces its placeholder in `UNTESTED` | none |
-| `NOT_ESTABLISHED` / `REDUNDANT` | `REJECTED` | "Too similar to {closest baseline}" |
-| `NOT_ESTABLISHED` / `CONFOUNDED` | `REJECTED` | "Mostly explained by {nuisance}" |
-| `NOT_ESTABLISHED` / `UNRELIABLE` | `REJECTED` | "Not repeatable between halves of a season within a position" |
-| `NOT_ESTABLISHED` / `INSTRUMENT` | `RESEARCH_ONLY` | "Its conversion model was not accepted out of league" |
-| `NOT_ESTABLISHED` / `MIXED` | `RESEARCH_ONLY` | "Survived in {s} of {E} leagues; the frozen rule needs four" |
-| `ESTABLISHED_*`, external leg not run | `RESEARCH_ONLY` | "Passed the five-league lifecycle; provider and season leg not yet run" |
-| `ESTABLISHED_*`, external verdict declared `NOT_COMPARABLE` (`opp_half_defensive_actions`) | `RESEARCH_ONLY` until the registration release of `PIPELINE.md` 11.2 | "Passed the five-league lifecycle; not comparable in the second provider" |
-| `ESTABLISHED_*`, external leg run | section 11 | |
+| 1 | candidate depends on the instrument and the instrument is `INCONCLUSIVE` | `INCONCLUSIVE` |
+| 2 | candidate depends on the instrument and the instrument is `NOT_ESTABLISHED` | `NOT_ESTABLISHED_INSTRUMENT` |
+| 3 | \|E\| < `minimum_evaluable_leagues` | `INCONCLUSIVE` |
+| 4 | n >= `survival_leagues` | `ESTABLISHED_NUMBER` |
+| 5 | s >= `survival_leagues` | `ESTABLISHED_BAND` |
+| 6 | the candidate is in `redundancy_closes_first` and at least one league of E is `REJECT` with reason `REDUNDANT` | `NOT_ESTABLISHED_REDUNDANT` |
+| 7 | j > \|E\| / 2 | `NOT_ESTABLISHED_` + the most frequent reject reason; ties resolve in `reject_reason_tie_order` |
+| 8 | otherwise | `NOT_ESTABLISHED_MIXED` |
 
-In every case the placeholders `shot_profile` and `defensive_action_profile`
-leave `UNTESTED`; `carrying_value` stays. Proposed constructs go from 11 to 13.
+`INCONCLUSIVE` means a frozen gate failed and nothing was compared at the candidate level.
+`NOT_ESTABLISHED_*` means the comparison ran and the criterion was not met: a published
+null, not evidence that the football concept is absent. The rows are exhaustive and
+mutually exclusive by order. The tokens are `verdict_vocabulary.candidate`; there is no
+other token and none is assigned by hand. Row 6 is ROOT 2.2's requirement that the
+location-weighted value show incremental information over shot volume or be rejected as
+redundant; for the other three candidates a redundant league is weighed by rows 7 and 8.
+`NOT_ESTABLISHED_CONFOUNDED` is reachable only for a candidate with nuisance columns, and
+rows 1 and 2 only for `shot_location_value`.
 
-Fixed regardless of verdict:
+Required truth-table cases include: five leagues with three `SHIP` and two `INCONCLUSIVE`
+(one degenerate, one non-finite) give row 3; four `SHIP` and one degenerate give row 4;
+three `SHIP`, one guard `INCONCLUSIVE` and one count-gate failure give row 3; two `REJECT`
+and three degenerate give row 3; `shot_location_value` with two `REDUNDANT` and three
+`SHIP_WITH_BAND` gives row 6; the same statuses for `box_shot_share` give row 8.
 
-- No hosted surface renders `shot_location_value` from this experiment. A
-  full-season fit inside a dated decision has seen later shots; fitting out of
-  league does not remove that. A positive verdict licenses one follow-up build
-  only: an instrument fitted on the shots of **all five leagues** from matches
-  strictly before the decision date, with a 6,000-shot minimum-training gate (one
-  league alone does not reach it until late in the season), shown to agree with
-  the full-season fit. Until then it is UNAVAILABLE.
-- A list of players carrying a candidate value is ordered by name or id, never by
-  the value.
-- Under `ACCEPTED_WITHIN_LEAGUE` the instrument's values carry no goal unit and
-  are never compared across leagues.
-- `box_shot_share` is a share: never summed over players, never a requirement
-  dimension, never scaled by break-even retention.
-- Only an `ESTABLISHED_NUMBER` construct with an external verdict of `ROBUST`,
-  `ROBUST_WITH_SHIFT` or `NOT_COMPARABLE` may be offered as a user-declared
-  requirement dimension, in new endpoints only, with evidence class HEURISTIC (a
-  DERIVED or PREDICTIVE rate, composed with the additive historical per-90
-  assumption and a declared minimum, takes the weakest). `ESTABLISHED_BAND` is
-  offered as inactive research only. Gating a hosted dimension on an external
-  label makes a StatsBomb-derived label reach a hosted surface; precedent exists
-  for labels only (the five shipped constructs). If the owner's decision on that
-  precedent goes the other way, the consequence is the conservative one: not offered.
-- A position whose within-position lower bound is below 0.50 in 3 or more
-  leagues is written into `invalid_contexts`: "within-position ordering of
-  {position} not established (E-09)".
-- No verdict changes a shipped evidence gate, endpoint, hash or test.
+### 9.2 Multiplicity and power
+
+Each candidate is a separate claim; no familywise adjustment is made across the four
+candidates or the five leagues. Within a candidate the rule is conjunctive: survival needs
+a bound at or above the threshold in four of five leagues, which is stricter than any one
+league. The instrument's gates are an intersection (4.4). The two interval levels differ
+on purpose and are stated: a two-sided 95% percentile interval for the instrument, a
+one-sided 95% Fisher-z bound for reliability.
+
+Power of the four-of-five rule, from the normal approximation to Fisher's z with standard
+error `1/sqrt(n - 2 - g)` and g = 3, assuming the same true within-position reliability in
+every league and no redundancy (planning figures, `power_planning`): with 300 players in R a
+candidate whose true reliability is 0.55 reaches `ESTABLISHED_BAND` or better with
+probability 0.011, at 0.65 with 0.948; the reliability it reaches with probability 0.80 is
+0.631 for the band and 0.779 for the number. With 66 players in R (the smallest share set)
+those two reliabilities are 0.744 and 0.847, and at a true 0.75 the band is reached with
+probability 0.846. A null on `box_shot_share` is therefore a weak statement about any
+reliability below about 0.74.
+
+## 10. Product consequence of each token — fixed now
+
+**The verdict registry.** The registration commit adds five PUBLIC records to
+`galactico/domain/verdicts.py`, token `PENDING`: the four candidates and the instrument,
+built from the config's own entries (`registry_candidate_subjects`,
+`registry_instrument_subjects`, `registry_common`, `registry_candidate`,
+`registry_instrument`, `registry_outcomes`). After the run each record takes its token from
+`results.json`. Every statement a record prints is frozen in `registry_outcomes`, holds no
+digit and no placeholder, and passes the copy guard; numbers stay in `results.json` and
+`analysis.md`. No `ESTABLISHED` outcome moves a construct (rule V6).
+
+| Candidate token | Status | Player Lab registry (`registry_move`) |
+|---|---|---|
+| `ESTABLISHED_NUMBER` | ESTABLISHED | none: research only, by ARCH D1 |
+| `ESTABLISHED_BAND` | ESTABLISHED, with limits | none: research only, by ARCH D1 |
+| `NOT_ESTABLISHED_REDUNDANT`, `_CONFOUNDED`, `_UNRELIABLE` | NOT_ESTABLISHED | `REJECTED` |
+| `NOT_ESTABLISHED_INSTRUMENT`, `_MIXED` | NOT_ESTABLISHED | `RESEARCH_ONLY` |
+| `INCONCLUSIVE` | INCONCLUSIVE | none; the candidate id is added to `UNTESTED` by the declared hand edit `untested_edit` |
+
+The instrument's four tokens move nothing.
+
+**`product_admissible` stays false.** `verdicts.product_admissible(c)` is true today for any
+construct with a PUBLIC, executed, ESTABLISHED E-09 record, which would open the gate the
+moment a candidate is established; ARCH D1 says it stays false until a later, separate
+promotion. The registration commit therefore also changes `product_admissible` to require
+membership in a promotion set that is empty in this release (`promotion_set_in_this_release`,
+`product_admissible_in_this_release`), with a test over every E-09 subject under every
+token. E-09 is not registered without that change. The instrument subject is never a
+construct id and never enters the promotion set.
+
+**Player Lab registries.** `galactico/profiles/build.py` holds `REJECTED`, `RESEARCH_ONLY`
+and `UNTESTED`, which Player Lab serves (`/api/constructs` and its hero counts). After the
+run, whatever the tokens, `shot_profile` and `defensive_action_profile` leave `UNTESTED`;
+`carrying_value` stays (ROOT 2.2 authorises the replacement). A rejected or research-only
+candidate enters its registry with the headline and detail of `player_lab_text`: digit-free,
+with a battery column named through `baseline_prose` by `baseline_fill_rule` and a nuisance
+set through `nuisance_prose`. Proposed constructs go from 11 to 13. These edits change served
+Player Lab output, which R13 and ADR-0011 pin; they are applied by the root with an ADR note
+that names them (`PIPELINE.md` 11.1).
+
+Fixed regardless of token:
+
+- No candidate becomes a requirement dimension, an XI or Squad input, a value beside a
+  player or a planning-page number in this release. A later promotion is a separate change
+  with its own ADR (`PIPELINE.md` 11.2); it may rest on the PUBLIC E-09 token only. A
+  second-provider token, from section 11 or from E-11, may then sit beside it as a label
+  linked to its note and never gates it (ADR-0018, ROOT 2.5 O1).
+- No hosted surface renders `shot_location_value` from this experiment. A full-season fit
+  inside a dated decision has seen later shots; fitting out of league does not remove that
+  (R9). A positive token licenses one follow-up build only: an instrument fitted on the
+  shots of **all five leagues** from matches strictly before the decision date, with a
+  `followup_as_of_minimum_training_shots` minimum-training gate (one league alone does not
+  reach it until late in the season), shown to agree with the full-season fit. Until then
+  it is UNAVAILABLE.
+- Under `ACCEPTED_WITHIN_LEAGUE` the instrument's values carry no goal unit and are never
+  compared across leagues.
+- `box_shot_share` is a share: never summed over players, never a requirement dimension,
+  never scaled by break-even retention.
+- A list of players carrying a candidate value, in any later release, is ordered by name or
+  id, never by the value.
+- Positions that are context limits of a candidate (`context_limit_rule`) are written to
+  `results.json` and are outside the claim (the record's scope says so). The
+  `invalid_contexts` entry of a construct definition waits for a promotion.
+- No token changes a shipped evidence gate, a construct definition or its hash, or any XI
+  Lab or Match Lab output. The edits named above change the Player Lab registry lists, the
+  proposed count and their tests, and nothing else.
 
 ## 11. External leg — StatsBomb 2015/16, LOCAL tier
 
-Run only for a candidate at `ESTABLISHED_*`, by its own command, after this
-experiment's results are committed. Provider and season change together; this leg
-cannot attribute a difference to either (E-11 exists for that).
+Run only for a candidate in `sb_leg_candidates` whose token is `ESTABLISHED_*`, by its own
+command, after this experiment's results are committed. Provider and season change together;
+this leg cannot attribute a difference to either (E-11 exists for that). Its token is a
+label: it moves no registry entry, opens no gate and parameterises nothing (ADR-0018).
 
-| Candidate | StatsBomb estimator | Equivalence |
+| Candidate | Estimator on the second provider | Equivalence |
 |---|---|---|
-| `shot_volume` | Shot events whose shot type is Open Play | SEMANTICALLY_EQUIVALENT |
-| `shot_location_value` | the same specification **refitted** leave-one-league-out on the four StatsBomb leagues; head_or_body is body part Head or Other | SEMANTICALLY_EQUIVALENT; coefficients are LOCAL |
-| `box_shot_share` | same shots, penalty area in metric StatsBomb coordinates (x >= 102, 18 <= y <= 62) | APPROXIMATED (the Wyscout box is a pitch drawing) |
-| `opp_half_defensive_actions` | none | **NOT_COMPARABLE**, declared now: Wyscout logs every ground contest from both sides and tags interception on the next event; StatsBomb has tackles, a separate interception event, pressures and recoveries. No faithful estimator exists |
+| `shot_volume` | Shot events whose shot type is in `sb_open_play_shot_types`, per regulation minute (`sb_minutes_rule`) | SEMANTICALLY_EQUIVALENT |
+| `shot_location_value` | the selected specification of section 4, **refitted** leave-one-league-out on the four `sb_folders`; head-or-body is a body part in `sb_head_or_body_parts`; gates `sb_gate_s_count` and the R and L gates in `sb_gate_leagues_required` of 4 | SEMANTICALLY_EQUIVALENT; coefficients are LOCAL |
+| `box_shot_share` | the same shots, penalty area `penalty_area_sb` on the unit square (102/120, 18/80 and 62/80 of the provider's drawing, as E-11 freezes it) | APPROXIMATED (the Wyscout box is a pitch drawing) |
+| `opp_half_defensive_actions` | not in this leg | its cross-provider status is E-11's token for the same subject id, which applies because the definition is imported unchanged |
 
-Frozen external rule, same gauntlet, same `decide()`, four leagues, at least 3
-evaluable: `ROBUST` if 3+ leagues are at `SHIP` or `SHIP_WITH_BAND` and the mean
-over the four common leagues moves by at most 12% relative to Wyscout;
-`ROBUST_WITH_SHIFT` if 3+ and it moves by more; `FAILED_EXTERNAL_REPLICATION` if
-3+ reject; anything else leaves the construct `RESEARCH_ONLY` with the leg
-reported. The 12% boundary is a convention declared here and local to E-09: the house
-labelled a 10% shift robust and a 14% shift robust-with-shift, and no code or
-prose defines the rule. A house rule written later supersedes it only for later
-experiments.
-No StatsBomb-derived number, coefficient or identifier enters a committed
-machine-readable file or a hosted surface; the leg's aggregate findings appear
-only in a research report with attribution.
+Frames on the second provider: positions by `sb_position_groups` and `sb_position_rule`,
+periods by `sb_period_labels`, minutes by `sb_minutes_rule`, the battery by `sb_battery_rule`.
+The same gauntlet and the same `decide()`, four leagues.
+
+| # | Condition, first match wins | Token (`sb_verdict_vocabulary`) |
+|---|---|---|
+| 1 | `shot_location_value` and the refitted instrument is `INCONCLUSIVE` or `NOT_ESTABLISHED` | `INSTRUMENT_NOT_ACCEPTED` |
+| 2 | fewer than `sb_minimum_evaluable_leagues` evaluable leagues | `INCONCLUSIVE` |
+| 3 | at least `sb_survival_leagues` leagues at `SHIP` or `SHIP_WITH_BAND` | `REPLICATED` |
+| 4 | at least `sb_rejection_leagues` leagues at `REJECT` | `NOT_REPLICATED` |
+| 5 | otherwise | `MIXED` |
+
+Each token's sentence is `sb_statements`. The level shift between the two providers'
+league means is reported in the LOCAL file only (`sb_level_shift_rule`) and separates no
+tokens, so no boundary for it is chosen here; it is not computed for `shot_location_value`,
+whose two values come from two different models.
+
+No StatsBomb-derived number, coefficient or identifier enters a committed machine-readable
+file or a hosted surface. The leg writes under `sb_output_root` (gitignored); its aggregate
+findings appear only in the research note `sb_report`, with the logo and attribution. No
+registry record is created for the leg in this release (`PIPELINE.md` DISSENT 7).
 
 ## 12. Predictions, written before the run
 
 | Subject | Predicted | Reason |
 |---|---|---|
 | instrument | `ACCEPTED_WITHIN_LEAGUE` | Italy's level |
-| `shot_volume` | `ESTABLISHED_NUMBER` | published year-to-year r about 0.66 for strikers |
-| `shot_location_value` | `NOT_ESTABLISHED` / `REDUNDANT` | the identity value = volume x mean probability |
+| `shot_volume` | `ESTABLISHED_NUMBER` | published year-to-year r about 0.66 for strikers; the raw correlation with mean pitch position is the likeliest closure if it fails |
+| `shot_location_value` | `NOT_ESTABLISHED_REDUNDANT` | the identity value = volume x mean value |
 | `box_shot_share` | `ESTABLISHED_BAND` | 66 to 88 players per league; no published figure exists |
 | `opp_half_defensive_actions` | `ESTABLISHED_NUMBER`, with team explaining a large share | team instruction is context here |
 
@@ -463,70 +641,79 @@ These are predictions, not hypotheses with a test. A miss changes nothing.
 
 ## 13. What this experiment cannot show
 
-- Persistence across seasons or clubs: one season, odd/even halves interleaved in time.
-- That any candidate is a property of the player rather than of his deployment
-  and team. Team is declared context and is reported, not removed.
-- Validity against an outcome. No candidate is related to goals, points or
-  results here. Reliability is not validity is not decision utility.
+- Persistence across seasons or clubs: one season, odd and even matches interleaved in time.
+- That any candidate is a property of the player rather than of his deployment and team.
+  Team is declared context and is reported, not removed.
+- Construct validity or validity against an outcome. No candidate is related to goals,
+  points or results here. Reliability is not validity is not decision utility.
 - Anything about a single shot, a goalkeeper, a season, tier, sex or provider not evaluated.
-- The size of what the instrument omits. The between-player spread of the gap to
-  a model with defender positions cannot be estimated from this corpus.
+- The size of what the instrument omits. The between-player spread of the gap to a model
+  with defender positions cannot be estimated from this corpus.
 - That the level of the instrument transports to national-team matches; they are not evaluated.
 - Cross-provider agreement for any candidate (E-11) or transport across a club change (E-12).
 
 ## 14. Interpretation language — frozen
 
-- Redundant: "weighting shots by a location-only conversion model did not
-  separate players that counting shots does not, in this corpus." **Not**:
-  "shot location does not matter", "xG is useless".
-- Instrument not accepted: "this five-parameter location model did not meet its
-  frozen out-of-league criteria." **Not**: "conversion cannot be modelled".
-- Established: "repeatable within a season among players of the same broad
-  position, and not a copy of the declared baselines." **Not**: "measures
-  shooting", "measures pressing", "identifies better players".
+- Redundant: "weighting shots by a location-only conversion model did not separate players
+  that counting shots does not, in this corpus." **Not**: "shot location does not matter",
+  "xG is useless".
+- Instrument not accepted: "this location-only model did not meet its frozen
+  out-of-league criteria." **Not**: "conversion cannot be modelled".
+- Established: "repeatable within a season among players of the same broad position, and
+  not a copy of the declared baselines." **Not**: "measures shooting", "measures
+  pressing", "identifies better players".
 
 ## 15. Reproducibility and tests
 
-Artifact: protocol, config and code hashes on LF-normalised bytes; protocol commit
-verified against git, not typed; content hashes of every input frame; package
-versions; candidate fingerprints; seeds; every gate with its count; aggregate
-results only. No player or team identifier, no per-player row, nothing over
-512 KB. The runner writes the file itself as UTF-8.
+Artifact: protocol, config, pipeline and code hashes on LF-normalised bytes; protocol commit
+(the commit that first added `preregistration.md`) verified against git, not typed; content
+hashes of every input frame and the sidecar's provenance; package versions; candidate
+fingerprints; the selected specification; seeds; every gate with its count; aggregate results
+only. `results.json` carries the registry contract at its top level (`experiment` =
+`registry_experiment_id`, `version`, `tier`, `verdicts` {subject: {token, reason}}). No player
+or team identifier (`results_identifier_key_denylist`), no per-player row, nothing over
+`results_maximum_bytes`. The runner writes the file itself as UTF-8.
 
-Pipelines are developed and tested on synthetic data only. Before any real outcome
-is read the runner executes the planted checks of `PIPELINE.md` section 8 at the
-rates fixed in `config.json`: over 12 seeded synthetic replicates every planted
-candidate effect must be classified established in at least 11, the planted
-instrument accepted in all 12 (without scope restriction in at least 10), and no
-planted null classified established or accepted in any. A failed self-check stops
-the run.
+Pipelines are developed and tested on synthetic data only. Before any real outcome is read
+the runner executes the planted checks of `PIPELINE.md` section 8, and a failed check stops
+the run. The predicate is `selfcheck_predicate` over `selfcheck_replicates` seeded replicates:
+for each planted world (`synthetic_worlds`) and instrument scenario
+(`synthetic_instrument_scenarios`), and each subject it names, at least
+`minimum_replicates_matching` replicates give a token in `expected`, and none gives a token
+in `never`. The worlds plant a within-position effect in every candidate (`EFFECT`), no
+within-position effect (`NULL`, with the assertion that the raw pooled reliability of
+`shot_volume` is high while its centred bound is below the band), a nuisance attribution
+effect (`NUISANCE`), and a defensive candidate that is a fixed share of all defensive
+activity within every position (`REDUNDANT_WITHIN_POSITION`). The reviser's event-level
+simulation of this exact generator and rule, before registration, met every predicate with
+the margins recorded in `selfcheck_feasibility` (synthetic numbers only, no real row read).
 
-Tests required: hand-computable definition contracts for all four candidates and
-their sentences; fingerprints equal `config.json`; zone edges exact at the
-lattice; sentinel and unattributed rows never credited; goalkeepers excluded;
-`shot_volume` equals the house shots-per-90 column and the plain `ConstructSpec`
-form; `decide()` pinned by a truth table written from this document at every
-threshold edge; every reject reason and every verdict row reachable; each
-departure of 6.1 shown to be no more lenient than the house statistic on the same
-data, except T23 which is shown to be flagged; input-order invariance; half
-assignment equal to the house split; instrument coefficient recovery, analytic
-gradient zero at the fit, leave-one-league-out leakage (changing a held-out
-league's labels changes none of its own predictions); every acceptance gate
-reachable in both directions; null reporting (`None`, never 0 or NaN);
-determinism of the full run under a fixed seed.
+Tests required (named in `PIPELINE.md`): hand-computable definition contracts for all four
+candidates and their sentences; fingerprints equal `config.json`; zone edges exact at the
+lattice; sentinel and unattributed rows never credited; goalkeepers excluded; `shot_volume`
+equals `compute_baselines(...)["shots_per_90"]` on the same frame and minutes; `decide()`
+pinned by its source hash, its constants and a truth table written from this document at
+every threshold edge; every reject reason and every token row reachable, including the
+cases of 9.1 and `r_half = -0.4` giving `REJECT` with reason `UNRELIABLE`; each departure of
+6.1 shown in its stated direction and each lenient one flagged; input-order invariance,
+including a tied twelfth place giving a `null` survivor count; match-set assignment equal to
+the house split; instrument coefficient recovery, analytic gradient zero at the fit,
+leave-one-league-out leakage (changing a held-out league's labels changes none of its own
+predictions); every acceptance gate reachable in both directions, S-count and S-fit apart;
+calibration bins invariant to row order and event ids; null reporting (`None`, never 0 or
+NaN); every registry record built under every token passes `VerdictRecord` and
+`runtime.finalize`; determinism of the full run under a fixed seed.
 
 ---
 
-*Committed before running. Results in `results.json`, interpretation in
-`analysis.md`, model card in `MODEL-CARD.md`. If any of them contradicts this
-document, this document wins.*
+*Committed before running. Results in `results.json`, interpretation in `analysis.md`,
+model card in `MODEL-CARD.md`. If any of them contradicts this document, this document
+wins.*
 
 ![StatsBomb](../../../../assets/statsbomb/statsbomb-logo.png)
 
-Data source: StatsBomb. The sizes of the two La Liga shifts quoted in section 11
-are analysis formed from StatsBomb data, published in
-[Stage 1C](../../../STAGE-1C-EXTERNAL-REPLICATION.md). This document carries the
-StatsBomb logo as clause 1.4 of the StatsBomb Public Data User Agreement requires.
-The conclusions are not the opinions or analytical insights of StatsBomb. No
-StatsBomb data is in this repository, and no machine-readable table derived from it
-is in the tree. The StatsBomb-side figures printed here are published analysis.
+Data source: StatsBomb open data, for the external leg of section 11 only, read locally under
+the StatsBomb Public Data User Agreement. This document prints no figure formed from
+StatsBomb data; the leg's report will, with this logo and the attribution clause 1.4 of that
+agreement requires. No StatsBomb data is in this repository, and no machine-readable table
+derived from it is in the tree.
