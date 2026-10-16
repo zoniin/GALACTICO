@@ -1,36 +1,66 @@
 # E-10 — is where a team concedes a property of the defending team?
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build and never adversarially reviewed or audited. No outcome named here has been computed. It becomes a protocol only when a reviewed version is committed under `experiments/preregistered/` in a single commit that precedes any run. Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding and its disposition); not yet independently audited. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
-**Commit this plan, `config.json` and `PIPELINE.md` before any E-10 outcome is computed.
-Nothing below may change once the first outcome is observed.** This is a prospective
-analysis plan on **reused public data**, not a claim of untouched data collection. Every
-threshold, seed, window, list, grid and gate lives in `config.json`; a number that appears
-only in this prose is a defect. Deviations are recorded in `analysis.md`, never silently
-adopted. The pipeline is developed and tested on synthetic data only; the root integrator
-executes the real run once, plus one determinism re-run.
+**Commit this plan, `config.json`, `PIPELINE.md` and `descriptor_test_vectors.json` before
+any E-10 outcome is computed. Nothing in the four may change once the first outcome is
+observed.** This is a prospective analysis plan on **reused public data**, not a claim of
+untouched data collection. Every threshold, seed, window, list, grid, gate and served sentence
+lives in `config.json` and is named here by its key; a number that appears only in this prose
+is a defect. Deviations are recorded in `analysis.md`, never silently adopted. The pipeline is
+developed and tested on synthetic data only; the root integrator executes the real run once,
+plus one determinism re-run.
 
 ## Claim and unchanged boundaries
 
-> After accounting for the attacking team's own tendencies, the total conceded and venue,
-> the defending team's prior history adds out-of-sample information about the channel
-> composition of the final-third entry passes it concedes.
+Seven subjects: six descriptors (a primary and five secondaries) and one level subject. For a
+descriptor the claim under test is the conjunction of three questions ROOT 2.2 asks:
 
-"Shape" below means the composition of a declared count vector. "Level" means how many.
-They are separate claims with separate models. Published reliability evidence exists only
-for level; no published study was found that tests shape against an attacker-only baseline.
+> On eligible later matches of the season, the defending team's prior history adds
+> out-of-sample information about the composition of the declared counts it concedes (or
+> records), beyond the attacking team's own history, the total and venue, and for a
+> descriptor with mirror pairs including which side; the composition repeats across the two
+> halves of the team's season; and it is more than team strength measured by points, goals
+> and pass share.
 
-**Not claimed, under any verdict.** That a channel a team concedes through is defended
-badly: a team can leave a channel open on purpose, and event data cannot separate that from
-failing to close it. That attacking that channel pays. That the composition persists into
-another season, another squad or another coach. That a specific pair of teams interacts.
-Anything about a player. Anything about shot conversion: the corpus has no expected-goals
-value and no shot end location.
+For the level subject:
+
+> On eligible later matches, the defending team's prior history adds out-of-sample information
+> about how many final-third entry passes it concedes per unit of window time, beyond the
+> attacking team's own volume and venue, and that volume repeats across the two halves of the
+> team's season. It is not claimed to be more than team strength.
+
+"Shape" below means the composition of a declared count vector; "level" means how many. They
+are separate claims with separate models and separate verdicts. The primary is
+`conceded_f3_entries_by_channel`; the experiment's headline is the primary's token with the
+level subject's token beside it.
+
+**Not claimed, under any verdict.** That a channel a team concedes through is defended badly:
+a team can leave a channel open on purpose, and event data cannot separate that from failing
+to close it. That attacking that channel pays. That the composition persists into another
+season, another squad or another coach. That a specific pair of teams interacts. Anything
+about a player. Anything about shot conversion: the corpus has no expected-goals value and no
+shot end coordinate (its goal-zone tags place shots on target, not on the pitch). That a
+level difference is a property of the team separate from its strength.
 
 **Unchanged.** No key enters `features/spec.py::SPECS` or `CONSTRUCTS`. No Player Lab,
 Match Lab or XI Lab output, endpoint, hash or evidence gate changes. E-07 and E-08 stay
 closed at their published results. Passing earns a labelled descriptor in Opponent Lab,
-never a requirement, an optimiser weight or an ordering of teams (R1, R4).
+never a requirement, an optimiser weight or an ordering of teams (R1, R4). Registration adds
+seven PUBLIC records, token `PENDING`, to `galactico/domain/verdicts.py` (product section).
+
+## Prior knowledge
+
+ROOT 2.5 (4.4) asks for a paragraph built from section 4.4 of the critique, a working note
+that is not in this repository (north-star README). What the design relied on, with no
+source recorded here beyond the designer's reading: published team-level work finds
+repeatable between-team differences in how much a team concedes, which is why the level is a
+separate subject; no published study was found that tests where a team concedes against an
+attacker-only baseline; the provider reports no positional accuracy and no inter-operator
+agreement for its event locations (ADR-0004 cites a published similarity of about one half
+for the two providers' action sequences on identical matches), which is why three channels
+are used and nothing finer; and team strength is the obvious rival explanation of any
+defender term (ROOT 2.2). Nothing in this paragraph was computed on either corpus.
 
 ## Prior exposure of the data
 
@@ -39,19 +69,26 @@ never a requirement, an optimiser weight or an ordering of teams (R1, R4).
 | All five Wyscout leagues, player-level constructs | Stage 1, 1B, 1C; E-02 (Italy primary) | No league is untouched. None of those analyses computed a team-conceded quantity |
 | Spain 1 Nov to 28 Feb as development rows; Spain and England 1 Mar to season end as evaluation rows; target = first-30-minute positive completed-pass xT with an `opponent_mean` conceded term in the baseline | E-07, E-08 | 312 of the 917 evaluation matches here (624 of 1,834 team-match rows, 34.0%) carry that exposure: Spain 211 matches (88 as E-08 development, 123 as evaluation), England 101. The 69 Spain November to December matches in this development window were E-07/E-08 development rows. The exposure was to a conceded level of xT, never to a channel composition |
 | StatsBomb 2015/16, player-level constructs | E-01, Stage 1C | The replication corpus is not untouched. No team-conceded quantity was computed on it |
-| Structure only: entry-pass counts per team-match (median 37 to 39.5 by league), state-filter survival (79.0% in Spain with dismissals; about 84% in five leagues from goals alone), share of entries on a lateral-third edge (about 3%), calendars, coach-id counts, mean pass `y` by listed position in 40 StatsBomb files | reconnaissance, critic, this design | Exposure and structure only. No channel split by team, no reliability, no persistence, no loss was computed. Sample gates were set with these counts known; they are not expected to bind and exist to catch a broken data path |
+| E-11, registered 14 October 2026, not run | `experiments/preregistered/E-11-provider-agreement/preregistration.md` | Its prior-exposure section prints review-time counts one provider at a time: for Wyscout England 2017/18 the number of non-penalty shots and the number in the provider-drawn box, which is the league-level split behind S3 for one league of this corpus; the same split for one StatsBomb 2015/16 league of the replication arm (not repeated here); and that every team-match of Barcelona's double-coded La Liga matches has at least ten final-third entries. These are league or club totals, not a composition by team, and the model's league term removes a league's share |
+| E-11's pipeline and results | E-11 `PIPELINE.md` section 4 | Being built. On Barcelona's 36 double-coded La Liga matches, both sides, it computes per team-match final-third entries by left, centre and right, box entry passes, defensive actions by third and `high_zone_defensive_action_share`. Its committed `results.json` holds tokens only; its `analysis.md` prints agreement statistics and per-provider means and spreads over team-matches, and no team row. E-10 is to be registered before E-11's results are committed; if they are committed first, the registration commit states whether its analysis was read, and by whom |
+| Match Lab | every served match | Per team-match shots, key passes, interceptions and completed passes are served on the team profiles of every match; no conceded channel split, no defensive-action location |
+| Structure only: entry-pass counts per team-match (median 37 to 39.5 by league), state-filter survival (79.0% in Spain with dismissals; about 84% in five leagues from goals alone), share of entries on a lateral-third edge (about 3%), calendars, coach-id counts, mean pass `y` by listed position in 40 StatsBomb files | reconnaissance, critic, this design | Exposure and structure only. No channel split by team, no reliability, no persistence, no loss was computed. Sample gates were set with the entry-pass counts known; they are not expected to bind for the primary and S1. For S2 and S3 no count was looked at, and the events minimum may bind there |
+| `synthetic_gate.league_composition` | the gate's generator | Its source is not recorded by the designer and the reviser could not establish it (`league_composition_source`). If it was read from the corpus it discloses a league-level share of conceded entries by lateral third, which the model's league term removes; no team-level split |
+| Simulations | the designer's prototype (`_work/prototype.py`, logs `_work/rates_*.log`); the reviewers' and the reviser's scripts of 14 October 2026 | Synthetic only; none read `data/`. None of these files is committed |
 
 Italy, Germany and France (535 evaluation matches, 1,070 rows) carry no E-07/E-08 exposure.
 They are reported as a separate pooled estimate and enter the decision rule as criterion (f).
-A designer-side prototype was run on **synthetic** seasons only, to confirm the rule is
-satisfiable before freezing; it never read `data/`.
 
 ## Data, cohorts and exclusions
 
-Corpus: public Pappalardo/Wyscout 2017/18, `config.leagues`, 1,826 matches, 3,652
-team-match rows, 98 teams. Tournaments are excluded: no round-robin. Inputs are the neutral
-Parquet frames plus the event sidecar (cards, own goals) and the match sidecar (full-time
-goals). No lineup minutes are read: they are nominal.
+Corpus: public Pappalardo/Wyscout 2017/18, `leagues`, 1,826 matches, 3,652 team-match rows,
+98 teams. Tournaments are excluded: no round-robin. Inputs: the neutral frames `actions` and
+`matches`, read through `galactico.storage.public.load_public`; from the tag sidecar
+(`galactico.ingestion.sidecar`, ADR-0028) the `events` columns `goal_incident_columns` and
+`card`, joined only through `sidecar.attach`, the `matches` score columns and the `squads`
+column `red_minute`. A sidecar that is absent, stale, or whose join is not one to one stops
+the run before it starts (`PIPELINE.md` section 7.2); it is never a per-match exclusion. No
+lineup minutes are read: they are nominal.
 
 **Row.** One row per team per match: the *unit* is the team whose descriptor is read, the
 *context* is its opponent. For conceded descriptors the unit defends and the context
@@ -60,83 +97,122 @@ attacks. A match yields two rows.
 **Prior.** A row dated `t` may use only rows whose calendar date (UTC, normalised to the
 day) is strictly before `t`. `gameweek` is never read.
 
-**Development** = rows dated before `config.evaluation_start`. **Evaluation** = rows on or
-after it and before `config.end`. Evaluation forecasts use an expanding window: every prior
-row, development included.
+**Development** = rows dated before `evaluation_start`. **Evaluation** = rows on or after it
+and before `end`. Evaluation forecasts use an expanding window: every prior row, development
+included.
 
-**Match validity.** A match is invalid, for both rows and all models alike, when: a period
-in `windows[...].periods` is absent; an event clock is non-finite or negative; sidecar rows
-are missing for the match; or the full-time goals reconstructed from events (goal-flagged
-`shot` and `set_piece` rows credited to the acting team, own-goal rows credited to the
-other team) differ from the match sidecar. Invalid matches are counted by reason and never
-repaired. One England match is known to lack a scoring event and will be excluded.
+**Match validity** (`validity_reasons`, decided once per match for every window and every
+model, `validity_scope`). A match is invalid, with the first reason that applies:
+`period_missing` (a period of `regulation_periods` has no row); `clock_invalid` (a
+non-finite or negative clock in regulation; the adapter writes a missing Wyscout clock as
+0.0, so on this corpus a missing clock is indistinguishable from the kick-off and this
+reason cannot fire; it can on the replication's files); `goals_mismatch` (the full-time
+goals from events under `goal_incident_rule` differ from the sheet's score);
+`dismissals_mismatch` (`dismissal_check`: per team, the players with a dismissal card in the
+event record differ in number from the sheet's players with a red-card minute; an event that
+has no position is not in the event record, so a card it carried is missing there, and the
+check catches it). Invalid matches are counted by reason and never repaired. One England
+match is known to lack a scoring event and will be excluded. The rule for a second yellow on
+the sheet is checked before registration (`verified_by_root_before_registration`).
+
+**Goals.** `goal_incident_rule`: a row with the sidecar's own-goal tag is a goal of the other
+team; otherwise a row with `goal_on_scoring_event` (the goal tag, not on a save attempt, not
+in a shootout) is a goal of the acting team. Own goal first, so no row is credited twice.
+This is Match Lab's timeline rule (the goal flag on any row other than a save, own goal
+first); the draft's narrower rule (shot and set-piece rows only) was dropped so that one
+definition of a goal serves both.
+
+**Results and strength.** Points and goal difference come from the sheet for every match,
+valid or not (`strength_tercile_source`, `strength_covariate_sources`); validity governs
+event-derived quantities only.
 
 **Eligibility.** A row is eligible when its unit and its context each have at least
 `minimum_prior_matches` prior valid matches. Ineligible rows still feed later histories.
 No exclusion on team, strength, coach or venue. Promoted clubs and coach changes are not
-adjusted for: a team is one unit for the season (coach ids exist upstream, 49 of 98 teams
-show more than one; the sidecar does not carry them).
+adjusted for: a team is one unit for the season. The sidecar's match table carries both
+coach ids (49 of 98 teams show more than one in the raw sheets); this experiment does not
+read them beyond reporting that count in coverage, and a coach-tenure analysis is in
+`not_run_in_this_experiment`.
 
 ## Measurements — frozen
 
-**Frames.** Every neutral coordinate is in the acting team's attacking frame: `x = 0` its
-own goal line, `y = 0` its left touchline (verified on both providers). The defending
-team's left is the acting team's right. That mirror is written once, in the descriptor
-definition: part `def_left` reads the opponent's `att_right` column.
+**Frames.** Every neutral coordinate is in the acting team's attacking frame, `x = 0` its own
+goal line. `y = 0` is the acting team's left by each provider's coordinate convention: for
+StatsBomb it is checked by the orientation check before any replication loss (`PIPELINE.md`
+section 6); for Wyscout it is the provider's convention, which this repository does not
+document and which was not checked on the data (the Wyscout role code does not tell left from
+right). No verdict depends on it: exchanging left and right everywhere exchanges `def_left`
+and `def_right` and leaves every criterion unchanged; the names on the panel would be
+exchanged. The defending team's left is the acting team's right. That mirror is written once,
+in the descriptor definition: part `def_left` reads the opponent's `att_right` column.
 
-**Placeholders.** A start or end at exactly `(0,0)` or `(1,1)` is a provider placeholder
-that encodes home/away, not a location. An event set that reads a location drops such rows
-and any row with a coordinate outside `[0,1]` or non-finite; the count dropped is reported
-per event set.
+**Locations.** A Wyscout start or end at exactly a point of `wy_location_sentinels` is not
+read as a location: the sidecar records such raw corners as facts and says nothing of their
+meaning. The rule is Wyscout's only; a StatsBomb location at the far corner is a real one. On
+both providers a coordinate outside `coordinate_range` or non-finite is not a location. An
+event set that reads a location drops such rows and the count dropped is reported per event
+set. The adapter writes a missing Wyscout coordinate as 0, which lands on a touchline or goal
+line and is caught only when both coordinates sit at a sentinel.
+
+**Cuts** (`fraction_rule`): a cut the config gives as `[n, d]` is the float64 quotient
+`n/d`, compared with float64 coordinates. On the Wyscout lattice `x = 0.84`, `y = 0.19` and
+`y = 0.81` are inside the box; on the StatsBomb scale `x = 80/120` is in the attacking third
+and `y = 40/120` is centre, not left.
 
 **Measurement window** (`close_11v11`, primary). An event counts when, among incidents with
-a strictly earlier `(period, seconds)`, there is no dismissal (red card or second yellow,
-either team) and the absolute goal difference is at most one. Regulation periods only.
-`window_seconds` is the measure of that state on each period's `[0, last event second]`.
-This conditions on events after kick-off: results describe behaviour in comparable states
-and are not forecasts for arbitrary states. `all_states` is a reported sensitivity only.
+a strictly earlier `(period, seconds)`, there is no dismissal (`dismissal_cards`, either
+team) and the absolute goal difference is at most `max_abs_goal_difference`. Regulation
+periods only. `window_seconds` is the measure of that state on each period's `[0, last
+event second]`. This conditions on events after kick-off: results describe behaviour in
+comparable states and are not forecasts for arbitrary states. `all_states` is a reported
+sensitivity only, on the same valid matches.
 
-**Event sets** (acting team's frame; bounds are exact fractions; a row is counted once).
+**Event sets** (acting team's frame; a row is counted once).
 
-| Key | Rows | Location rule |
-|---|---|---|
-| `f3_entry_pass` | `type == "pass"` and `success == True` | start `x < 2/3`, end `x >= 2/3`; real start and end |
-| `box_entry_pass` | same | end inside the rectangle `x >= 21/25`, `19/100 <= y <= 81/100`; start not inside it; real start and end |
-| `open_play_shot` | `type == "shot"` | real start |
-| `defensive_action` | ground defending duel record, or any row with the interception flag, or `type == "foul"` with subtype `Foul` | real start |
-| `defensive_action_high` | same | start `x >= 2/5` |
-| `own_60_pass` | `type == "pass"`, any outcome | start `x <= 3/5` |
+| Key | Rows | Location rule | Phrase |
+|---|---|---|---|
+| `f3_entry_pass` | `type == "pass"` and `success == True` | start `x < 2/3`, end `x >= 2/3`; start and end are locations | completed open-play passes |
+| `box_entry_pass` | same | end inside the box (`penalty_box_wy`), start not inside it; start and end are locations | completed open-play passes |
+| `open_play_shot` | `type == "shot"` | start is a location | shots not taken directly from a set piece |
+| `defensive_action` | ground defending duel record, or any row with the interception flag, or `type == "foul"` with subtype `Foul` | start is a location | recorded defensive actions (ground defending duel records, interception-tagged events and fouls recorded as Foul) |
+| `defensive_action_high` | same | start `x >= 2/5` | same |
+| `own_60_pass` | `type == "pass"`, any outcome | start `x <= 3/5` | open-play pass attempts |
 
-Lateral thirds: `y < 1/3` acting team's left, `y > 2/3` its right, otherwise centre (on the
-Wyscout lattice: 0 to 33, 34 to 66, 67 to 100; the rule is its own mirror image).
+`open_play_shot` includes headers and shots after corner and free-kick deliveries; only
+shots taken directly from a set piece (direct free kicks, penalties) are out. Lateral thirds:
+`y < 1/3` acting team's left, `y > 2/3` its right, otherwise centre (on the Wyscout lattice:
+0 to 33, 34 to 66, 67 to 100; the rule is its own mirror image).
 
 **Descriptors.** Each is a composition of counts read from the unit's row. Executable
 definitions, sentences and fingerprints are in `galactico/features/team/descriptors.py`;
-the fingerprints are frozen in `config.descriptor_fingerprints` and the runner refuses a
-mismatch.
+`descriptor_test_vectors.json` freezes payload, fingerprint, sentence and column names, the
+fingerprints are also `descriptor_fingerprints`, and the runner refuses a mismatch.
 
-| Role | Key | Parts (unit's row) |
-|---|---|---|
-| Primary | `conceded_f3_entries_by_channel` | opponent `f3_entry_pass` by lateral third of the **end**, in the defending frame: `def_left`, `def_centre`, `def_right` |
-| S1 | `conceded_f3_entries_wide_share` | `wide` = `def_left + def_right`; `centre` |
-| S2 | `conceded_box_entries_by_origin_channel` | opponent `box_entry_pass` by lateral third of the **start**, defending frame |
-| S3 | `conceded_shots_inside_box_share` | opponent `open_play_shot` starting inside the rectangle; outside it |
-| S4 | `defensive_actions_by_pitch_third` | own `defensive_action` with start `x < 1/3`; middle; `x >= 2/3` |
-| S5 | `high_zone_defensive_action_share` | own `defensive_action_high`; opponent `own_60_pass` |
+| Role | Key | Label | Parts (unit's row) |
+|---|---|---|---|
+| Primary | `conceded_f3_entries_by_channel` | Share of final-third entry passes conceded, by lateral third (defending team's frame) | opponent `f3_entry_pass` by lateral third of the **end**: `def_left`, `def_centre`, `def_right` |
+| S1 | `conceded_f3_entries_wide_share` | Share of final-third entry passes conceded in the two outer lateral thirds | `wide` = `def_left + def_right`; `centre` |
+| S2 | `conceded_box_entries_by_origin_channel` | Share of penalty-area entry passes conceded, by lateral third of origin | opponent `box_entry_pass` by lateral third of the **start** |
+| S3 | `conceded_shots_inside_box_share` | Share of conceded shots not taken directly from a set piece that start inside the penalty-area rectangle | opponent `open_play_shot` starting inside the rectangle; outside it |
+| S4 | `defensive_actions_by_pitch_third` | Share of recorded defensive actions by pitch third (team's own frame) | own `defensive_action` with start `x < 1/3`; middle; `x >= 2/3` |
+| S5 | `high_zone_defensive_action_share` | High-zone defensive actions as a share of those actions plus opponent pass attempts in the opponent's own 60% | own `defensive_action_high`; opponent `own_60_pass` |
 
-S5 is `1 / (1 + passes per action)`: a monotone transform of opponent passes per recorded
-high-zone defensive action. It is never labelled PPDA: the Wyscout action set differs from
-every published one. S4 is where recorded actions happened, which follows the ball; it is
-not a line height. **Level subject** `conceded_f3_entries_per_90`: the primary's total per
-`exposure = window_seconds / 5400`.
+The labels follow ROOT 2.5 (H14-H21). S5 is `1 / (1 + passes per action)`, a monotone
+transform of opponent passes per recorded high-zone defensive action; it is never labelled
+PPDA, because the Wyscout action set differs from every published one, and it keeps E-11's
+name for the same `D / (D + P)`. S4 is where recorded actions happened, which follows the
+ball; it does not show where the team's defensive line stands. **Level subject**
+`conceded_f3_entries_per_90`: the primary's total per `exposure = window_seconds /
+exposure_unit_seconds`.
 
 Log-ratio coordinates of a composition `p` with parts in the order above: for three parts
 `z1 = sqrt(1/2) ln(p1/p3)`, `z2 = sqrt(2/3) ln(sqrt(p1 p3)/p2)`; for two parts
 `z1 = sqrt(1/2) ln(p1/p2)`. For the primary, `z1` is side balance and `z2` is wide versus
 centre. Counts are never converted to per-match shares before modelling.
 
-**Not run here** (`config.not_run_in_this_experiment`): no xT-weighted version, nothing
-that needs a possession segmentation, no set-piece or transition quantity, no finer grid.
+**Not run here** (`not_run_in_this_experiment`): no xT-weighted version, nothing that needs a
+possession segmentation, no set-piece or transition quantity, no finer grid, no coach-change
+adjustment.
 
 ## Models and baselines — frozen
 
@@ -144,8 +220,8 @@ All quantities at date `t` in league `L` use prior valid rows only. `n` is a row
 vector, `N` its total, `K` the number of parts, `c` a context team, `u` a unit team, `v`
 whether the context team is at home.
 
-- League composition `pi = (S + 1) / (S_total + K)` over all prior league rows; by venue
-  `pi_v` likewise; venue offset `nu_v = ln pi_v - ln pi`.
+- League composition `pi = (S + a) / (S_total + a K)`, `a = league_prior_pseudocount_per_part`,
+  over all prior league rows; by venue `pi_v` likewise; venue offset `nu_v = ln pi_v - ln pi`.
 - Context composition `A_c = (F_c + kA pi) / (F_c_total + kA)`, `F_c` the pooled counts of
   rows in which `c` was the context. `A_c^(-u)` is the same with rows against `u` removed.
 - Expected composition of a history row `j` of unit `u`:
@@ -169,14 +245,16 @@ components are reported for every rung, pooled and by league.
 | B2 | context and unit rates | `pi_v` | the defender matters for how much, not where |
 | B3 | context rate times the pooled ratio of the unit's strength peers | `A_c exp(nu_v + delta_peers)` | "it is just being a stronger or weaker team" |
 | **B4** | B2 level | `A_c exp(nu_v)` | **attacker shape times defender level: the decisive null** |
-| B5 | unit's unshrunken last-five rate | unit's unshrunken last-five composition, `+0.5` per part | raw persistence: is shrinkage doing the work |
+| B5 | unit's unshrunken last-`raw_persistence_matches` rate | that composition, `+ log_ratio_smoothing_per_part` per part | raw persistence: is shrinkage doing the work |
 | B6 | B2 level | candidate with the mirror pairs of `delta_u` swapped | mirror placebo |
-| B7 | B2 level | candidate with `delta` of a permuted donor, 20 seeds | identity-link stress test |
+| B7 | B2 level | candidate with `delta` of a permuted donor, one per `permutation_seeds` | identity-link stress test |
 | Candidate | B2 level | `A_c exp(nu_v + delta_u)` | |
 
-Peers: the other teams in the unit's league and strength tercile at `t` (prior points per
-match, ties by prior goal difference per match, then team id; terciles by descending
-order, `floor(3 i / T)`). `delta_peers` uses the peers' pooled `O` and `E`.
+Peers: the other teams in the unit's league and strength tercile at `t`. Terciles: teams
+with at least one prior match on the sheet, ordered by descending prior points per match,
+then descending prior goal difference per match, then ascending team id
+(`strength_tercile_key`, from the sheet); tercile = `(strength_tercile_count * position) //
+count`, position 0-based. `delta_peers` uses the peers' pooled `O` and `E`.
 
 **Level model.** `y = N`, `e` = exposure. League-by-venue rate `lam_v = sum y / sum e`.
 Context ratio `rA_c = (Y_c + kA') / (X_c + kA')` with `X_c = sum_j e_j lam_{v_j}`; unit
@@ -190,21 +268,26 @@ Poisson deviance per row with positive exposure. Both are strictly proper.
 ## Frozen selection procedure
 
 Per descriptor, on eligible development rows of all five leagues pooled, by walk-forward
-prediction inside the development window:
+prediction inside the development window (`selection_scope`):
 
-1. `kA` = the grid value with the smallest pooled shape loss of B4.
+1. `kA` = the value of `shrinkage_grid` with the smallest pooled shape loss of B4.
 2. With `kA` fixed, `kD` = the candidate with the smallest pooled shape loss among the
    grid and the boundary `context_only` (`delta = 0`, the candidate **is** B4).
 
-Ties within `selection_tie_tolerance`: `context_only` first, then the larger value (more
-shrinkage). Grid order cannot decide a tie. The level constants `kA'`, `kD'` are selected
-the same way with the deviance. `kA` is frozen for evaluation and for every placebo's own
-re-selection of `kD`; `kA` and `kD` are both frozen for the replication. No other tuning exists: no
-feature search, no window search, no per-league constants. Selecting among ten candidates
-on about a thousand rows can overfit; the evaluation window exists for that reason.
+Ties (`selection_tie_rule`): the tie set is every candidate whose pooled loss is at most the
+smallest pooled loss plus `selection_tie_tolerance`; `context_only` if it is in the set,
+otherwise the largest value in the set (more shrinkage). Grid order cannot decide a tie.
+The level constants (`level_selection_rule`): `kA'` on the pooled B1 deviance over the grid;
+with `kA'` fixed, `kD'` on the pooled B2 deviance over the grid and `context_only` (`rD = 1`,
+B2 **is** B1); the same tie rule. `kA` is frozen for evaluation and for every placebo's own
+re-selection of `kD`; `kA`, `kD`, `kA'`, `kD'` are all frozen for the replication. No other
+tuning exists: no feature search, no window search, no per-league constants. Selecting among
+ten candidates on about a thousand rows can overfit; the evaluation window exists for that
+reason.
 
-If `context_only` is selected the candidate's loss array is B4's, the difference is exactly
-zero, and criteria (a), (b), (c), (d) and (f) are false by definition.
+If `context_only` is selected the candidate's loss array is B4's, every difference is
+exactly zero, and criteria (a), (b), (c), (d) and (f) are false by definition; likewise for
+the level, (La) and (Lb).
 
 ## Evaluation and reporting
 
@@ -215,219 +298,305 @@ zero, and criteria (a), (b), (c), (d) and (f) are false by definition.
 | P1 | utility (primary) | shape loss of the candidate minus B4, per event. Negative: defender history helps |
 | L1 | level utility | deviance of B2 minus B1, per row (level subject only) |
 | M1 | side information | shape loss of the candidate minus B6, per event (descriptors with mirror pairs) |
-| P2 | calibration | per coordinate, the event-weighted slope through the origin of the observed log-ratio residual (row composition with `+0.5` per part, minus B4) on the coordinate of `delta_u` computed without any match against the row's context team. 0 = no defender shape, 1 = correctly scaled |
-| R1 | reliability (gate) | alternating split-half of the team-season descriptor, per coordinate, stepped up by Spearman-Brown |
+| P2 | calibration | per coordinate, the event-weighted slope through the origin of the observed log-ratio residual (row composition with `log_ratio_smoothing_per_part` per part, minus B4) on the coordinate of `delta_u` computed without any match against the row's context team, rows with at least `calibration_minimum_events_per_row` events. 0 = no defender shape, 1 = correctly scaled |
+| R1 | reliability (gate) | split-half of the team-season descriptor, per coordinate, stepped up by Spearman-Brown |
 | T1 | persistence (reported) | correlation of the development-window value with the evaluation-window value, no step-up: persistence under real squad and coach change |
-| V1 | validity against strength | variance of the team-season coordinate explained by `strength_covariates` |
-| I1 | pair interaction | correlation between the two meetings of a directed pair of the residual coordinates after an additive context, unit and venue fit within league |
+| V1 | validity against strength | the confound audit of the team-season coordinate on `strength_covariates` |
+| I1 | pair interaction (reported) | correlation between the two meetings of a directed pair of the residual coordinates after an additive context, unit and venue fit within league, meetings with at least `interaction_minimum_events_per_meeting` events |
 
-**Resampling.** Paired differences are resampled by calendar week (`W-SUN`) within league:
-clusters are (league, week), strata are leagues, `bootstrap_replicates` draws, statistic =
-ratio of resampled sums. Both rows of a match share a date and therefore a cluster. The
-interval is the percentile interval at `interval_quantiles`. The one-sided p-value is
-`(1 + number of replicates >= 0) / (replicates + 1)`. Intervals condition on the selected
-constants and the post-kick-off window; they omit selection uncertainty and dependence
-across weeks within a team. The identity-link test, not the interval, is the guard against
-that dependence, and the synthetic gate measures the false-positive rate of the whole rule.
+**Resampling: one shared world** (R12). Every interval and p-value of every descriptor, the
+level subject, every estimand, every subset (a league, the unexposed leagues) and both
+windows is computed in one set of worlds. Clusters are `world_cluster`, (league, calendar
+week of the match date); strata are `world_strata`, league × part (development,
+evaluation), so an evaluation estimand always draws each league's own number of evaluation
+weeks. `world_draw`: one generator, `default_rng(seed + seed_streams.season_world)`, draws
+for each stratum of `m` clusters `bootstrap_replicates` vectors of `m` cluster indices,
+counted into multiplicities; a match takes its week's multiplicity, and both rows of a match
+share a date and so a weight. A replicate's statistic is the ratio of the weighted sums of
+the estimand's numerator and denominator over the clusters it touches; a subset is the
+restriction of the same replicates to its clusters. A replicate whose denominator is zero is
+a hole: it is left out of that estimand and counted. The world's fingerprint (`PIPELINE.md`
+section 4.3) is in `results.json`. The interval is the `interval_quantiles` pair of the
+replicates by `interval_quantile_method`. The one-sided p-value is `p_value_rule`: `(1 +
+number of replicates >= -zero_tolerance) / (replicates kept + 1)`. Intervals condition on the
+selected constants and the post-kick-off window; they omit selection uncertainty and
+dependence across weeks within a team. The identity-link test, not the interval, is the guard
+against that dependence, and the synthetic gate measures the false-positive rate of the
+whole rule (DISSENT 1).
 
 **Mirror placebo (B6).** Swapping the left and right components of `delta_u` keeps
 wide-versus-centre information and reverses side information. M1 asks whether side
-information exists; a strict inequality between two point estimates would pass half the
-time under no side information, so M1 is tested with its own interval.
+information exists; a strict inequality between two point estimates would pass half the time
+under no side information, so M1 is tested with its own p-value.
 
 **Identity-link stress test (B7).** For each of `permutation_seeds`, at each date, teams are
-permuted within league and strength tercile (sorted ids; generator seeded from SHA-256 of
-`seed | placebo seed | league | date | tercile`), each unit receives its donor's `delta`,
-and `kD` is re-selected on development rows. This breaks the link between a team and its
-own history while keeping league and coarse measured strength. It cannot hold latent
-strength fixed: terciles estimated from prior points misclassify, and a designer-side
-synthetic check showed a shape planted as a function of latent strength passing this test
-in every season. V1 is the check for "the shape is strength", and only up to its ceiling.
-B7 is a stress diagnostic, not an exchangeable permutation test and not a p-value. The
-share of rows whose donor differs is reported per seed.
+permuted within league and strength tercile (members sorted by team id; generator seeded by
+`donor_seed_rule`), each unit receives its donor's `delta`, and `kD` is re-selected on
+development rows with `kA` fixed. This breaks the link between a team and its own history
+while keeping league and coarse measured strength. It cannot hold latent strength fixed:
+terciles estimated from prior points misclassify, and a designer-side synthetic check showed
+a shape planted as a function of latent strength passing this test in every season. V1 is
+the check for "the shape is strength" (below). B7 is a stress diagnostic, not an
+exchangeable permutation test and not a p-value. The share of rows whose donor differs is
+reported per seed.
 
 **Reliability (R1).** Units: teams with at least `minimum_half_matches_per_team` valid rows
-in each half. Each team's valid rows over the whole season are ordered by date and
-alternated. A half's value is the log-ratio coordinate of its pooled counts (`+0.5` per
-part); the league mean is removed within each half. With `r` the correlation over `n`
-teams in `G` leagues: `R = 2r/(1+r)`; lower bound
-`R_lo = SB(tanh(atanh(r) - c / sqrt(n - 3 - (G - 1))))`, `c = reliability_critical_value`
-(two-sided 95%, so a one-sided 97.5% bound). The house interval applies Fisher's transform
-to the stepped-up value, which is anti-conservative at team-level `n`; it is reported
-beside this one and gates nothing. At `n = 98` this gate needs an observed `R` of at least
-0.669 for a band and 0.801 for a number (house method: 0.616 and 0.776). A descriptor
-passes when **every** coordinate has `R_lo >= reliability_band`. No per-league reliability
-is gated: at 20 teams the sample size decides the outcome.
+in each half. The split is `reliability_split`: each half holds one meeting with each
+opponent; opponents are ordered by the date of the first valid meeting, then team id; for an
+opponent at an even position (0-based) half A takes the meeting at which the team was at
+home, for an odd position the away meeting; half B takes the other; a missing meeting is not
+replaced. Each half therefore faces the same opponents and is home in about half its
+matches. A date-alternating split puts most of one team's home matches in one half of a
+mirrored double round-robin, and an alternation within home and within away matches leaves
+the halves facing different opponents; on synthetic seasons the first lowered the mean half
+correlation under a planted venue effect and the second lowered it without one
+(REVIEW-RECORD, R-statistics-16). A half's value is the log-ratio coordinate of its pooled
+counts (`log_ratio_smoothing_per_part` per part); the league mean is removed within each half
+(`reliability_centring`). With `r` the correlation over `n` teams in `G` leagues:
+`R = 2r/(1+r)`; lower bound `R_lo = SB(tanh(atanh(r) - c / sqrt(n - 3 - (G - 1))))`, `c =
+reliability_critical_value`, the one-sided 95% value ROOT 2.5 O5 writes for a protocol with
+fewer than 100 units, applied to the half-sample correlation before the step-up, as O5
+orders. At `n = 98` a coordinate needs an observed `R` of at least 0.646 for a band
+(`reliability_band`) and 0.788 for a number (`reliability_number`). The house interval
+applies Fisher's transform to the stepped-up value with `n - 3`; it is reported beside this
+one (`house_reliability_critical_value`, 0.616 and 0.776 at `n = 98`) and gates nothing. A
+descriptor passes when **every** coordinate has `R_lo >= reliability_band`. Its render state
+is "number" when the smallest `R_lo` is at least `reliability_number`, "band" when at least
+`reliability_band`, else "insufficient" (ADR-0002). No per-league reliability is gated: at
+20 teams the sample size decides the outcome. (Le) applies the same split and bound to
+`ln((sum y + s) / sum e)`, `s = log_ratio_smoothing_per_part`.
 
-**Validity against strength (V1).** Per coordinate, league-centred, ordinary least squares
-of the team-season value on the league-centred `strength_covariates` (`k = 4`,
-`n = 98`, `G = 5`). Reported: unadjusted `R2`, its noise floor `k/(n - G)` = 0.043,
-`R2_adj = 1 - (1 - R2)(n - G)/(n - G - k)`, a permutation reference (covariate rows
-permuted within league), the Spearman correlation between raw and residualised values, and
-the overlap of the twelve largest values before and after (chance expectation 1.5 of 12;
-reported, gating nothing; never computed per league, where chance exceeds the house floor).
-Passes when every coordinate has `R2_adj <= strength_adjusted_r2_ceiling` and Spearman
-correlation `>= strength_rank_correlation_floor`. A missing value is a failure.
+**Validity against strength (V1).** Per coordinate, the team-season value from the pooled
+counts of all valid rows, league-centred, and the four `strength_covariates`, league-centred,
+from `strength_covariate_sources` (points and goals per match from the sheet over every match;
+completed-pass share from valid matches). The confound kind is declared now
+(`strength_confound_kind`, `strength_confound_reasoning`, `galactico/validation/lifecycle.py`):
+
+- For every descriptor, strength is a **NUISANCE**: the claim is a property of the defending
+  team beyond its measured strength (ROOT 2.2), so variance shared with points, goals and pass
+  share is what the claim must exclude. Criterion (g) is the house confound audit,
+  `galactico.reliability.confound.discriminant_validity`, on these values with the top `k =
+  strength_top_k`, ties `strength_tie_policy`, and three thresholds passed explicitly, never
+  its defaults: variance explained at most `strength_variance_explained_ceiling` (the
+  lifecycle's line for a damaging nuisance, `ConfoundFinding.damaging`), Spearman correlation
+  between raw and residualised values at least `strength_spearman_floor`, and top-`k`
+  survival at least `strength_top_k_survival_floor`, pooled over the 98 teams (chance overlap
+  at `k = 12` is 1.5). (g) holds when `ConfoundVerdict.passed` is true for every coordinate.
+  Departures from the house audit, stated: the ceiling is the lifecycle's 0.25, not the
+  audit's default 0.60, because the claim names strength as a nuisance; the survival count is
+  pooled, never per league, where chance overlap exceeds the floor's meaning; a tied `k`-th
+  place leaves the count undefined and the check fails by name (ADR-0026); a missing value is
+  a failure.
+- For the level subject, strength is **CONTEXT**: how many entries a team concedes is partly
+  its strength by construction. V1 is reported for it and gates nothing; its sentence says the
+  two are not separated.
+
+Reported beside (g) for every coordinate: unadjusted `R2`, its noise floor `k/(n - G)` =
+0.043, `R2_adj = 1 - (1 - R2)(n - G)/(n - G - k)`, a permutation reference (covariate rows
+permuted within league, `strength_permutations` draws, `default_rng(seed +
+seed_streams.strength_permutation)`), the Spearman correlation, and the top-12 survivors or,
+when undefined, the tie counts. The draft's rule (adjusted `R2` at most 0.6, no survival
+check) let a shape planted as a function of latent strength tercile, at a size of 0.10, pass
+(e) and (g) together in a sixth to a quarter of synthetic seasons (the reviewer's and the
+reviser's simulations, which differ in split and critical value); the rule above let none
+through in 200 seasons at any of four planted sizes and three overdispersion values
+(REVIEW-RECORD, R-statistics-2).
 
 **Secondary family.** S1 to S5 run through the same machinery. Their one-sided p-values for
-P1 enter Holm's step-down procedure at `holm_family_alpha_one_sided`: ordered ascending,
-the `i`-th is rejected while `p_(i) <= alpha / (5 - i + 1)`; the first failure stops it.
+P1 enter Holm's step-down procedure at `holm_family_alpha_one_sided` with `holm_order_rule`:
+`m = holm_family_size` always; p-values in ascending order, `None` and NaN (an `INCONCLUSIVE`
+secondary, or a `context_only` selection, which gives no p-value) after every number; ties in
+the order of `secondary_descriptors`; the `i`-th (1-based) is rejected while every earlier
+one was rejected and `p_(i) <= alpha / (m - i + 1)`; the first failure stops it; `None` and
+NaN never reject. A secondary's criterion (a) is its Holm rejection.
 
-**Reported without a verdict.** Per-league P1 with intervals. The Italy, Germany and
-France pooled P1 with its interval. `all_states` P1 and R1 for the primary. Loss of every
-rung. The implied per-match intraclass correlation `R / (m - (m - 1) R)` at the mean
-number of matches `m`. Coverage, exclusion and placeholder counts. Empty metrics are
-`null`, never zero.
+**Reported without a verdict.** Per-league P1 with intervals. The Italy, Germany and France
+pooled P1 with its interval. P2, T1 and I1 (I1 permits nothing: `interaction_reported_only`;
+its interval is computed in the shared world, a directed pair weighted by the product of its
+two meetings' multiplicities). `all_states` P1 and R1 for the primary. Loss of every rung.
+The implied per-match intraclass correlation `R / (m - (m - 1) R)` at the mean number of
+matches `m`. Coverage, exclusion, placeholder and dropped-replicate counts, and the number of
+teams with more than one coach id. Empty metrics are `null`, never zero.
 
 ## Decision rule — frozen
 
-**Sample gates.** G1 to G5 are evaluated on counts only, before any loss is computed; G6
-after development selection and before any evaluation loss is aggregated. If any fails for
-a descriptor, its verdict is `INCONCLUSIVE`, the reason is recorded, and nothing is compared.
+**Sample gates** (every league unless marked pooled).
 
-| Gate | Requirement, every league |
-|---|---|
-| G1 | valid matches at least `minimum_valid_match_share_per_league` of matches |
-| G2 | eligible development rows and weeks at least the configured minima |
-| G3 | eligible evaluation rows, weeks and events at least the configured minima |
-| G4 | at least `minimum_reliability_teams` teams qualify for R1 (pooled) |
-| G5 | every placebo seed changes the donor on at least `minimum_permutation_changed_share` of eligible evaluation rows (pooled) |
-| G6 | every development selection loss is finite |
+| Gate | Requirement | Applies to |
+|---|---|---|
+| G1 | valid matches at least `minimum_valid_match_share_per_league` of matches | shape and level |
+| G2 | eligible development rows and weeks at least `minimum_development_rows_per_league`, `minimum_development_weeks_per_league` | shape and level |
+| G3 | eligible evaluation rows and weeks at least `minimum_evaluation_rows_per_league`, `minimum_evaluation_weeks_per_league`; the subject's sum of `N` over eligible evaluation rows at least `minimum_evaluation_events_per_league` (`evaluation_events_rule`) | shape and level |
+| G4 | at least `minimum_reliability_teams` teams qualify for R1 (pooled) | shape and level |
+| G5 | every placebo seed changes the donor on at least `minimum_permutation_changed_share` of eligible evaluation rows (pooled) | shape only |
+| G6 | every development selection loss of the shape (B4 over the grid, the candidate over the grid and `context_only`, each placebo's) is finite | shape only |
+| LG6 | every development selection deviance of the level (B1 over the grid, B2 over the grid and `context_only`) is finite | level only |
 
-**Criteria.** "Below zero" means below `-zero_tolerance`.
+`shape_gates` and `level_gates` list them. G1 to G5 are evaluated on counts before any loss
+is computed; G6 and LG6 after development selection and before any evaluation loss is
+aggregated. A subject whose own gates fail is `INCONCLUSIVE`, the failed gates are its
+reasons, and nothing of it is compared. The level subject is evaluated whenever its own gates
+pass, whatever G5 and G6 return for the primary.
+
+**Criteria.** "Below zero" means below `-zero_tolerance`. `alpha = criterion_alpha_one_sided`.
+A criterion that cannot be evaluated is `None` and counts as not met.
 
 | | Criterion |
 |---|---|
-| (a) | Upper bound of the pooled interval of P1 is below zero. Secondary descriptors: Holm rejects instead |
-| (b) | P1 is below zero in at least `minimum_leagues_with_negative_estimate` of five leagues |
-| (c) | Pooled P1 is strictly smaller than P1 of every one of the 20 permuted placebos. Ties fail |
-| (d) | Upper bound of the pooled interval of M1 is below zero. Applies only where mirror pairs exist; otherwise true |
+| (a) | Primary: the one-sided p-value of pooled P1 is at most `alpha`. Secondary: Holm rejects |
+| (b) | P1 is below zero in at least `minimum_leagues_with_negative_estimate` of the five leagues |
+| (c) | Pooled P1 is strictly smaller than P1 of every placebo of `permutation_seeds`. Ties fail |
+| (d) | The one-sided p-value of pooled M1 is at most `alpha`. Only where mirror pairs exist; otherwise true |
 | (e) | R1 passes |
-| (f) | Pooled P1 over Italy, Germany and France is below zero |
-| (g) | V1 passes |
-| (La) | A finite `kD'` was selected and the upper bound of the pooled interval of L1 is below zero |
-| (Lb) | L1 is below zero in at least four of five leagues |
-| (Le) | R1 of `ln((sum y + 0.5) / sum e)` passes |
+| (f) | Pooled P1 over `unexposed_leagues` is below zero |
+| (g) | V1 passes (the audit above) |
+| (La) | `kD'` is a grid value (not `context_only`) and the one-sided p-value of pooled L1 is at most `alpha` |
+| (Lb) | L1 is below zero in at least `level_minimum_leagues_with_negative_estimate` of the five leagues |
+| (Le) | R1 of `ln((sum y + s) / sum e)` passes |
 
-**Verdict.** Exactly one, in this order:
+**Verdict of a descriptor** (`verdict_vocabulary.descriptor`, `verdict_precedence`). Exactly
+one; the first row that holds decides.
 
-| Order | Condition | Verdict |
-|---|---|---|
-| 1 | a sample gate failed | `INCONCLUSIVE` |
-| 2 | (a) to (g) all hold | `DEFENDER_SHAPE_SIGNAL` |
-| 3 | primary descriptor only: (La), (Lb), (Le) all hold | `LEVEL_ONLY` |
-| 4 | otherwise | `NOT_ESTABLISHED` |
+| Order | Condition | Token | Question it answers |
+|---|---|---|---|
+| 1 | a gate of `shape_gates` failed | `INCONCLUSIVE` | nothing was compared |
+| 2 | (a) to (g) all hold | `DEFENDER_SHAPE_SIGNAL` | all three, and side information where it applies |
+| 3 | (a), (b), (c) or (f) does not hold | `FORECAST_NOT_SHOWN` | out-of-sample skill not shown |
+| 4 | (d) does not hold | `SIDE_NOT_SHOWN` | skill shown; which side not shown |
+| 5 | (e) does not hold | `NOT_RELIABLE` | skill shown; not shown to repeat |
+| 6 | (g) does not hold | `STRENGTH_NOT_EXCLUDED` | skill shown, repeats; not shown to be more than strength |
 
-`INCONCLUSIVE` = a frozen sample gate failed and nothing was compared. `NOT_ESTABLISHED` =
-compared, criterion not met: a published null, not evidence of absence. `LEVEL_ONLY` = the
-team concedes more or fewer entries than the attacker alone predicts; where they arrive is
-not shown to be its own property. The level component status (`LEVEL_ESTABLISHED` when
-(La), (Lb), (Le) hold, else `NOT_ESTABLISHED`, or `INCONCLUSIVE`) is recorded under every
-primary verdict. The experiment's headline verdict is the primary descriptor's.
+**Verdict of the level subject** (`verdict_vocabulary.level`): `INCONCLUSIVE` if a gate of
+`level_gates` failed; `LEVEL_ESTABLISHED` if (La), (Lb), (Le) hold; `FORECAST_NOT_SHOWN` if
+(La) or (Lb) does not; otherwise `NOT_RELIABLE`.
 
-**Replication qualifier.** For each descriptor with `DEFENDER_SHAPE_SIGNAL`, the frozen
-specification (same definitions in unit coordinates, same selected constants, no selection)
-is run on StatsBomb 2015/16, four leagues, every eligible row of the season.
-`REPLICATED`: pooled P1 upper bound below zero. `NOT_REPLICATED`: evaluated, not met.
-`REPLICATION_INCONCLUSIVE`: fewer than the configured rows, weeks or valid-match share in
-any league. `NOT_COMPARABLE`: S4 and S5, declared now (the providers' defensive-event
-ontologies differ). `NOT_RUN`: every other case. The provider mapping is frozen in
-`config.replication` and in `PIPELINE.md` before any replication outcome is read. Ligue 1
-has 377 matches. Replication numbers stay in the local tier and in `analysis.md`.
+Each subject's reasons are recorded with its token: the failed gates, or every criterion
+that did not hold. A token other than `INCONCLUSIVE`, `DEFENDER_SHAPE_SIGNAL` and
+`LEVEL_ESTABLISHED` is a published null, not evidence of absence; each names the first
+question that failed and asserts nothing about the questions after it. The lifecycle status
+each token earns is `lifecycle_status`: `EXPERIMENTAL` for the two established tokens,
+`RESEARCH_ONLY` for every other.
 
-**Matchup features.** Permitted only if the lower `interaction_lower_quantile` bound of I1
-exceeds `interaction_floor` on at least one coordinate of the primary descriptor. Each
-directed pair meets twice, about half a season apart; smaller interaction cannot be
-claimed from one season.
+**Replication qualifier** (`replication`). For each descriptor with `DEFENDER_SHAPE_SIGNAL`,
+the frozen specification (the definitions of `comparable_descriptors` in unit coordinates,
+`kA` and `kD` as selected on the Pappalardo development rows, no selection) is run on
+StatsBomb 2015/16, four leagues, every eligible row of the season, in its own world
+(`seed_streams.replication_world`, `replication.bootstrap_replicates`; quantiles, quantile
+method, p-value rule and `zero_tolerance` as above). The provider mapping is frozen in
+`replication` and `PIPELINE.md` section 6 before any replication outcome is read: the
+open-play pass types are E-11's (`sb_open_play_pass_types`, a kick-off is an ordinary pass,
+as on the Wyscout side), the sentinel rule does not apply, and matches come from the match
+index only. Status, the first that holds:
 
-**No rescue.** No change of grid, window, event set, state filter, lateral rule, gate or
-criterion after an outcome is read. A second operationalisation needs a new preregistration.
+1. `NOT_COMPARABLE`: S4 and S5, declared now (the providers' defensive-event ontologies
+   differ).
+2. `NOT_RUN`: the descriptor's token is not `run_only_if_descriptor_verdict`.
+3. `REPLICATION_INCONCLUSIVE`, with the first reason of `inconclusive_reasons` that holds:
+   `DATA_MISSING` (the licensed folders are absent), `VOCABULARY` (a pass type, shot type or
+   card name outside `sb_known_pass_types`, `sb_known_shot_types`, `sb_known_card_names`),
+   `ORIENTATION` (the orientation check fails), `SAMPLE` (a league below the replication's
+   valid-share, rows, weeks or events minima; a listed match without its files counts as an
+   invalid match), `FAILED_RUN` (an exception inside the replication stage).
+4. `REPLICATED`: the p-value of pooled P1 is at most `alpha`, and for a descriptor with
+   mirror pairs the p-value of pooled M1 is too.
+5. `NOT_REPLICATED`: otherwise.
+
+The Pappalardo results are written whatever the replication returns. Ligue 1 has 377 matches
+in the provider's index. The replication status sits in `results.json` as a token and reason
+only, with no number and no digest of a LOCAL file; its numbers stay in the local artifact
+and in `analysis.md`, with the logo and credit. It is never served (`served_by_product`,
+`registry_record`): ADR-0018 permits a LOCAL label beside a hosted panel, and this protocol
+creates no registry record for one, so product code cannot read it. No replication status
+changes what a panel shows, its opt-in, its interval or its evidence class.
+
+**No rescue.** No change of grid, window, event set, state filter, lateral rule, split, gate,
+threshold or criterion after an outcome is read. A second operationalisation needs a new
+preregistration.
 
 **What a null will mean.** DERIVED, not measured: with about 60,000 evaluation events the
 paired statistic is `z = 1.5 tau sqrt(R_h n / D)`, `tau` the between-team SD of a channel
-share, `R_h` the reliability of the history at hand, `D` the design effect. At `R_h = 0.5`
-and `D` of 4 to 9, 80% power needs `tau` of two to three percentage points, a per-match
-intraclass correlation near 0.05. Criterion (e) is stricter: a descriptor whose true
-38-match reliability is 0.67 passes it about half the time. A null therefore means "smaller
-than about that", which is also too small to show as a number from 38 matches. The synthetic
-gate publishes the measured detection rate at four planted effect sizes before the real run.
+share, `R_h` the reliability of the history at hand, `D` the design effect of a row's events.
+At `R_h = 0.5` and `D` of 4 to 9, the range this design assumes for real matches, 80% power
+needs `tau` of two to three percentage points, a per-match intraclass correlation near 0.05.
+Criterion (e) is stricter: a coordinate whose true 38-match reliability is 0.646 passes it
+about half the time, and the primary's two coordinates together about a quarter of the time.
+The gate's generator sets `D` through `overdispersion_grid`: about 1.1, 3.3 and 6.1 at its
+three values (`design_effect`; the gate reports what it realises). On the reviser's synthetic
+seasons (`REVIEW-RECORD.md`; not the gate), (e) and (g) together, which bound the detection
+rate from above, held for a planted defender SD of 0.15 on both coordinates (about four
+percentage points of a channel share) in 200 of 200 seasons at `D` 1.1, 87 of 200 at 3.3 and
+none at 6.1, and for an SD of 0.09 in 132 of 200 at 1.1 and none above. If real overdispersion
+is near the top of the assumed range, this protocol will return `NOT_RELIABLE` or
+`FORECAST_NOT_SHOWN` even for an effect of four percentage points. A null therefore means
+"smaller than about that, or not separable from match-to-match variation at this sample
+size", which is also too small to show as a number from 38 matches. The synthetic gate
+publishes the measured detection rate at three smaller planted effects and at every value of
+`overdispersion_grid` before the real run.
 
 ## Product consequence of each verdict — fixed now
 
 One panel per subject in Opponent Lab: the six descriptors and the level subject. The
-prior-date record (counts over the team's prior matches in the same window, matches and
-events used) is shown in every state.
+prior-date record (counts over the team's prior matches in the same window, matches and events
+used) is shown in every state. Product code reads nothing from this experiment but its
+registry records (ROOT 3b): seven PUBLIC `VerdictRecord`s in `galactico/domain/verdicts.py`,
+built at registration from the config's own entries, token `PENDING`, and given their tokens,
+hashes and figures in the results commit (`PIPELINE.md` sections 12 and 13). Every badge,
+statement and gate comes from `verdicts.derive` and `verdicts.badge_text`.
 
-| Subject | State | Shown beyond the record | Badge (verbatim) | Evidence class |
-|---|---|---|---|---|
-| any | not yet run, or `INCONCLUSIVE` | nothing | `RECORD · NOT TESTED` | counts OBSERVED, shares and rates DERIVED |
-| descriptor | `NOT_ESTABLISHED`; primary under `LEVEL_ONLY` | nothing | `RECORD · NOT SHOWN TO PERSIST` | same |
-| descriptor | `DEFENDER_SHAPE_SIGNAL` | behind an explicit opt-in: the shrunken composition `pi exp(delta_u)` normalised, its interval and shrink weight. R1 lower bound at least `reliability_number`: point and interval; otherwise interval only | `TESTED TENDENCY · ONE SEASON, ONE PROVIDER` | EXPERIMENTAL |
-| descriptor | the same with `REPLICATED`, and only if an ADR permits a StatsBomb-derived label on a hosted surface | the same, without opt-in | `TESTED TENDENCY · REPLICATED` | PREDICTIVE |
-| level | `LEVEL_ESTABLISHED` (always so under `LEVEL_ONLY`) | shrunken entries per 90 window minutes, interval, shrink weight | `VOLUME TESTED · ONE SEASON` | ESTIMATED |
-| level | `NOT_ESTABLISHED` | nothing | `RECORD · NOT SHOWN TO PERSIST` | DERIVED |
+| Field | Descriptor records | Level record |
+|---|---|---|
+| `vocabulary`, `outcomes` | `verdict_vocabulary.descriptor`, `registry_outcomes.descriptor` | `verdict_vocabulary.level`, `registry_outcomes.level` |
+| `claim_token` | `registry_descriptor.claim_token` | `registry_level.claim_token` |
+| `scope` | `registry_descriptor.scope` | `registry_level.scope` |
+| `non_claim` (the fixed panel sentence, printed in every state) | `registry_non_claims.conceded` for the primary, S1, S2, S3; `registry_non_claims.own_actions` for S4, S5 | `registry_non_claims.level` |
+| `not_run_statement` | `registry_common.not_run_statement` | same |
+| `figures` (results commit, only under an established token) | `registry_figures.descriptor`: `k_context`, `k_unit`, `reliability_lower_bound`, each with its pointer into `results.json` | `registry_figures.level` |
 
-Until that ADR exists the hosted panel depends on the Pappalardo verdict only and the
-replication qualifier appears only in `analysis.md` with the required attribution. The
-volume estimate is classed ESTIMATED, not EXPERIMENTAL: persistence of conceded volume is
-the part the literature already supports, and the panel states a rate for this team in
-this window, not a forecast.
+| Registry state | Badge (`badge_text`) | Shown beyond the record | Evidence class |
+|---|---|---|---|
+| no record (before registration) | `RECORD ONLY · NOT TESTED` | nothing | counts OBSERVED, shares and rates DERIVED |
+| `PENDING` | `E-10 · RECORD ONLY · NOT RUN` | nothing | same |
+| `INCONCLUSIVE` | `E-10 · INCONCLUSIVE` | nothing | same |
+| a token of status NOT_ESTABLISHED | `E-10 · TESTED · NOT ESTABLISHED` | nothing | same |
+| `DEFENDER_SHAPE_SIGNAL` | `E-10 · TESTED · TENDENCY, ONE SEASON` | behind an explicit opt-in, at decision dates on or after `evaluation_start` only: the shrunken composition, its interval and shrink weight (`PIPELINE.md` section 12); the point only when the `reliability_lower_bound` figure is at least `reliability_number` (ADR-0002), otherwise the interval only | EXPERIMENTAL |
+| `LEVEL_ESTABLISHED` | `E-10 · TESTED · VOLUME, ONE SEASON` | the same rule: shrunken entries per 90 window minutes, interval and shrink weight | EXPERIMENTAL |
 
-Fixed in every state:
+The statement shown is the record's (`registry_outcomes`), verbatim, and names which question
+failed; no sentence denies what an earlier criterion found. The established statements say the
+verdict was decided on matches of the whole season, which a decision date inside the season
+precedes. The volume panel is EXPERIMENTAL, not ESTIMATED: its sentence says that stronger
+teams concede fewer entries and the check does not separate the two. `may_gate` (true only for
+an executed, PUBLIC, ESTABLISHED record) is the only thing that unlocks a panel, and only these
+PUBLIC tokens set it.
 
-- Parts are listed in the declared order. No part is highlighted, sorted by size, or
-  called the largest. No league-relative adjective. No single number summarises an
-  opponent. Teams are never ordered by a descriptor.
-- The words weak, weakness, vulnerable, vulnerability and exploit do not appear on the
-  page.
-- Under every conceded panel (primary, S1, S2, S3, level): *"This is where the opponent's
-  actions were recorded. A team can leave a channel open on purpose. Event data cannot
-  tell that apart from failing to close it, so this panel does not say the team defends
-  that channel badly."*
-- Under S4 and S5: *"This is where the team's defensive actions were recorded. Actions
-  happen where the ball is, so this follows the opponent's play as well as the team's
-  choices. It is not a line height and does not say how well the team defends."*
-- `NOT_ESTABLISHED`: *"E-10 compared this team-specific split with what the opposing
-  team's own history predicts and did not find that it adds out-of-sample information.
-  Read it as a record of past matches, not as a tendency."*
-- `INCONCLUSIVE`: *"E-10 could not test this descriptor: a frozen sample gate failed.
-  Nothing was compared."*
-- `LEVEL_ESTABLISHED`, volume panel: *"E-10 found that how many entries this team concedes
-  carries information beyond the attacking team's own volume."* Under `LEVEL_ONLY` it
-  continues: *"Where they arrive was not shown to be the team's own property."*
-- `DEFENDER_SHAPE_SIGNAL`: *"E-10 found that this team-specific split adds out-of-sample
-  information beyond what the opposing team's own history predicts, in one season from one
-  provider. The
-  estimate is shrunken toward the league composition and describes matches at eleven
-  against eleven within one goal."*
-- V1 failed (possible only without `DEFENDER_SHAPE_SIGNAL`), appended: *"Most of the
-  between-team variation in this descriptor is explained by points, goals and pass share."*
-- The optional requirement proposal stays HEURISTIC under every verdict and needs the
-  user's acceptance. When it cites a descriptor without `DEFENDER_SHAPE_SIGNAL` its text
-  must contain *"based on a record not shown to persist"*.
-- S5 may be displayed as opponent passes per recorded high-zone defensive action; the
-  tested quantity and the badge are those of the share.
+Fixed in every state (`product_rules`):
 
-`galactico/domain/verdicts.py` receives one row per descriptor and one for the level
-subject: status = the verdict token; product state `PASSED_WITH_LIMITS` for
-`DEFENDER_SHAPE_SIGNAL` and `LEVEL_ESTABLISHED`, `FAILED` for `NOT_ESTABLISHED` and for the
-channel row under `LEVEL_ONLY`, `INCONCLUSIVE` for `INCONCLUSIVE`; hostable true. Product
-code reads nothing else from this experiment.
+- Parts are listed in the declared order. No part is highlighted, sorted by size, or called the
+  largest. No league-relative adjective. No single number summarises an opponent. Teams are
+  never ordered by a descriptor, here or in `analysis.md`.
+- The words of `words_never_on_the_page` do not appear on the page.
+- The optional requirement proposal stays HEURISTIC under every verdict and needs the user's
+  acceptance. When it cites a descriptor without `DEFENDER_SHAPE_SIGNAL` its text contains
+  `proposal_sentence`: *"based on a record that did not pass E-10"*.
+- S5 may be displayed as `s5_display_name`; the tested quantity and the badge are those of the
+  share.
 
 ## Interpretation language — frozen
 
-A null is stated as: *"this procedure did not find that the defending team's history adds
-information about where it concedes beyond the attacking team's own habits"*. It is not
-stated as "teams have no defensive shape" or "opposition analysis does not work". A signal
-is stated as predictive information about a composition, never as a flaw of the defending
-team and never as advice to attack a channel.
+A null is stated by its token's sentence and, in `analysis.md`, as: *"this procedure did not
+meet every frozen criterion for that question"*, naming the question and the criteria that
+failed. It is not stated as "teams have no defensive shape" or "opposition analysis does not
+work", and a token that names a later question is never stated as the absence of what an
+earlier criterion found. A signal is stated as out-of-sample information about a composition,
+never as a flaw of the defending team and never as advice to attack a channel. `analysis.md`
+names no team and prints no ordered list of teams.
 
 ## What this experiment cannot show
 
 - Why a team concedes where it does. Funnelling and failure are observationally the same.
-- That a signal is separate from latent team strength. Strength enters through league
-  tercile peers (B3, B7) and four measured covariates (V1); a shape that tracks strength
-  in a way those miss would pass.
+- That a signal is separate from latent team strength in every form. Strength enters through
+  league tercile peers (B3, B7) and four measured covariates (V1); a shape that tracks
+  strength in a way those miss would pass. The synthetic gate tests the two forms it plants.
 - Persistence across seasons: the corpus holds one season per provider, and the two
   providers are two years apart with different ontologies.
 - Anything for states outside the window, or for matches not yet kicked off: the window and
@@ -435,41 +604,81 @@ team and never as advice to attack a channel.
 - Danger. An entry pass is territory, not a chance; no conversion model is used.
 - That event locations are precise: the provider reports no positional accuracy and no
   inter-operator agreement, which is why three channels are used and nothing finer.
+- Which side is left on the Wyscout pitch, beyond the provider's convention (Frames).
 - Stability under a coach or squad change: not adjusted, counted as part of the team.
 - Calibrated uncertainty: intervals omit selection uncertainty and week-to-week dependence
   within a team.
+- Small effects under high overdispersion (What a null will mean).
 - Independence from earlier work: a third of the evaluation rows were previously scored
   for a different conceded target.
 
 ## Reproducibility and tests
 
-Artifact (`results.json`, aggregate only, under 512 KB, no player identifier or name):
-protocol, config, pipeline-document and source hashes on LF-normalised bytes; content
-hashes of every input frame and of each team-match table; sidecar and table versions;
-descriptor fingerprints; package versions; seeds; the protocol commit read from git; the
-synthetic-gate report hash; coverage and gate counts; every rung, estimand, criterion and
-verdict. Replication numbers are written only under `data/licensed/`. The runner refuses a
-dirty working tree, a fingerprint mismatch, or a missing or failing synthetic gate.
+Artifact (`results.json`, aggregate only, at most `results_maximum_bytes`, no player identifier
+or name, no team-level row): the registry contract (`experiment`, `tier`, `verdicts` per
+subject with token and reasons, `provenance.protocol_commit`, `provenance.protocol_hash`);
+protocol, config, pipeline-document, vectors and source hashes on LF-normalised bytes;
+`pipeline_spec_sha256`; content hashes of every input frame and of each team-match table; the
+sidecar's `provenance()` per league and the loader version; descriptor fingerprints; package
+versions; seeds and the world's fingerprint; the synthetic-gate report hash; coverage and gate
+counts; every rung, estimand, criterion and verdict; the replication's tokens and reasons. No
+key at any depth names a provider (`forbidden_result_key_names`). Replication numbers are
+written only to `replication.local_artifact`. The runner refuses a dirty working tree, a
+fingerprint mismatch in either dictionary, a pipeline document whose hash differs from
+`pipeline_spec_sha256`, an absent or stale sidecar, or a missing or failing synthetic gate.
 
-**Synthetic gate, before any real outcome.** Seeded synthetic seasons with the real double
-round-robin shape plant a known defender effect and a known zero. The frozen rule must
-return `DEFENDER_SHAPE_SIGNAL` in at least 90% of seasons with a strong planted effect, at
-most 5% with no defender shape (alone, with a level effect, with a wide-only effect, or
-with a shape that is a function of strength tercile), `LEVEL_ONLY` in at least 90% with a
-planted level effect and no shape, and `NOT_ESTABLISHED` in at least 90% with nothing
-planted. Detection rates at three smaller effects are published, gating nothing.
+**One execution.** A failed execution (an exception after the refusal checks) records the
+exception type, stage and source hashes, never the message, in a local failure log, writes no
+`results.json`, and is listed in `analysis.md`; no value from it may be read; the repair may
+touch only the failing stage, the gate stamp is regenerated, and the next execution is
+permitted only once the failure is on the record. A determinism re-run that differs from the
+first in any byte is such a failure: the results are not committed. An exception inside the
+replication stage is not: the Pappalardo results stand and every replication status is
+`REPLICATION_INCONCLUSIVE (FAILED_RUN)`, with no second replication attempt.
 
-Tests (synthetic or hand-computed only): defender-frame mirror with the wrong-sign negative
-control; placeholder and out-of-range coordinates; lateral and box edges on the lattice;
-state window with goals, own goals, dismissals and same-second ties; window seconds; count
-once under the action union; row-order invariance; table oracle against
-`build_match(...).team_profiles`; descriptor payloads and fingerprints against the frozen
-vectors; future and same-day poisoning; own-match exclusion; `context_only` identity with
-B4; Poisson-multinomial factorisation; ratio of sums; selection ties; development-only
-selection; permutation determinism, strata and order invariance; mirror swap; both rows of
-a match in one cluster; Holm against a hand example; the reliability bound at the stated
-thresholds; fail-closed validity; every gate yielding `INCONCLUSIVE` with no loss computed;
-the full truth table of the verdict map; strict JSON; no identifier in the artifact.
+**Synthetic gate, before any real outcome** (`synthetic_gate`). Seeded synthetic seasons with
+the real double round-robin shape (Berger tables) plant known effects and known zeros, at each
+value of `overdispersion_grid` that `requirements` names. The frozen rule must meet every
+requirement:
+
+- `DEFENDER_SHAPE_SIGNAL` for the primary in at least 90% of seasons with a strong planted
+  defender shape (`EFFECT_STRONG`, at the lowest overdispersion);
+- `DEFENDER_SHAPE_SIGNAL` in at most 5% of seasons, at the lowest and the highest
+  overdispersion, with no defender shape (`NULL_NOTHING`), with a defender level and no shape
+  (`NULL_SHAPE_WITH_LEVEL`), with a width-only defender shape (`WIDTH_ONLY`, which has no side
+  information and so cannot pass (d)), with a shape that is a function of latent strength
+  tercile at each of four sizes (`STRENGTH_TERCILE_*`, the case that motivated (g)), and with
+  a shape that is a function of measured points (`STRENGTH_MEASURED_0_15`);
+- any of the five secondaries `DEFENDER_SHAPE_SIGNAL` in at most 5% of seasons with nothing
+  planted (`SECONDARY_FAMILY_NULL`, the family-wise rate; Holm's own family-wise rejection
+  rate is reported);
+- for the level, `LEVEL_ESTABLISHED` in at least 90% of `NULL_SHAPE_WITH_LEVEL` seasons and at
+  most 5% of `NULL_NOTHING` seasons; and a token of status NOT_ESTABLISHED for the primary in
+  at least 90% of `NULL_NOTHING` seasons.
+
+Detection rates at three smaller planted effects, at every overdispersion value, are
+published with the realised design effect, gating nothing.
+
+Tests (synthetic or hand-computed only; `PIPELINE.md` section 9): defender-frame mirror with
+the wrong-sign negative control; sentinel, out-of-range and missing coordinates, Wyscout only
+for the sentinels; float64 cuts on the Wyscout lattice and on the StatsBomb scale; state
+window with goals, own goals (own goal first), a goal flag on a row that is not a shot,
+dismissals and same-second ties; dismissals against the sheet; window seconds; count once
+under the action union; row-order invariance; table oracle against
+`build_match(...).team_profiles`, with a penalty and a direct free-kick shot; descriptor
+payloads, fingerprints, sentences and column names against the frozen vectors for both
+dictionaries; future and same-day poisoning; own-match exclusion; `context_only` identity
+with B4 and with B1; Poisson-multinomial factorisation; ratio of sums; selection ties by the
+tie set; development-only selection; permutation determinism, strata and order invariance;
+mirror swap; the shared world (both rows of a match in one cluster, one world for every
+estimand and subset, its fingerprint); Holm against hand examples with `None`, NaN and ties;
+the reliability bound at the stated thresholds; the split's opponent and venue balance; the
+confound audit as `discriminant_validity` with the frozen thresholds, including a tied
+twelfth place; fail-closed validity; every gate yielding `INCONCLUSIVE` with no loss
+computed, and the level evaluated when only G5 or G6 fails; the full truth table of both
+verdict maps over `{True, False, None}`, token and statement; every registry sentence served
+through the response boundary under `PENDING` and every token; strict JSON; no identifier
+and no provider-named key in any artifact.
 
 *Committed before running. Results in `results.json`, interpretation in `analysis.md`. If
 either contradicts this document, this document wins.*

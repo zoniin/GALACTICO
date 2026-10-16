@@ -234,6 +234,9 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/preregistration.md":
         "that the corpus was seen before and that 40 of its files were inspected, with no "
         "result of the inspection; the replication rule",
+    "docs/research/north-star/protocol-drafts/E-10-conceded-shape/REVIEW-RECORD.md":
+        "the review's findings on key names, the replication rule, the provider mapping and "
+        "the attribution plan, with their dispositions; synthetic figures only",
     "docs/research/north-star/protocol-drafts/E-12-transport-movers/PIPELINE.md":
         "functions, digests and the attribution requirement; league membership and "
         "synthetic sizes",

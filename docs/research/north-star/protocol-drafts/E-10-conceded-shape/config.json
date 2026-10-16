@@ -1,9 +1,18 @@
 {
-  "version": "conceded-shape-v1",
+  "version": "conceded-shape-v2",
   "experiment_id": "E-10",
-  "experiment_directory": "experiments/preregistered/E-10-conceded-shape",
+  "registry_experiment_id": "E-10",
+  "committed_experiment_dir": "experiments/preregistered/E-10-conceded-shape",
+  "tier": "PUBLIC",
   "provider": "pappalardo",
   "season_label": "2017/18",
+  "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider; no key at any depth of this file, of descriptor_test_vectors.json, of synthetic_gate.json or of results.json contains statsbomb, pappalardo or wyscout in any letter case or starts with SB_ (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first and the prefix; the runner test of PIPELINE section 9 for all three)",
+  "pipeline_spec_sha256": "0b1ab037b3c66e614c9ef30e0348404fe9b345471e4f97611922ab4bf2748570",
+  "verified_by_root_before_registration": [
+    "pipeline_spec_sha256: lf_sha256 of PIPELINE.md as registered",
+    "descriptor_fingerprints and descriptor_fingerprints_sb: recomputed from the payloads of descriptor_test_vectors.json",
+    "dismissal_check: a structure-only count, per league, of players whose event record carries a dismissal card and whose sheet red_minute is null, and of the reverse; a non-zero count stops registration until the rule is revised"
+  ],
   "leagues": [
     "Spain",
     "England",
@@ -53,16 +62,33 @@
     }
   },
   "state_change_rule": "an incident changes the state of events with a strictly later (period, seconds)",
-  "goal_event_types": [
-    "shot",
-    "set_piece"
+  "regulation_periods": [
+    "1H",
+    "2H"
+  ],
+  "goal_incident_rule": "a row whose sidecar own_goal is true is a goal of the other team of the match; otherwise a row whose sidecar goal_on_scoring_event is true is a goal of the acting team; regulation periods only",
+  "goal_incident_columns": [
+    "own_goal",
+    "goal_on_scoring_event"
   ],
   "dismissal_cards": [
     "red_card",
     "second_yellow"
   ],
+  "dismissal_check": {
+    "sheet_table": "squads",
+    "sheet_field": "red_minute",
+    "rule": "per team and match, the number of distinct players with a regulation event whose sidecar card is in dismissal_cards equals the number of the team's sheet players whose red_minute is not null; otherwise the match is invalid (dismissals_mismatch)"
+  },
+  "validity_reasons": [
+    "period_missing",
+    "clock_invalid",
+    "goals_mismatch",
+    "dismissals_mismatch"
+  ],
+  "validity_scope": "once per match, for every window and every model",
   "exposure_unit_seconds": 5400,
-  "sentinel_coordinates": [
+  "wy_location_sentinels": [
     [
       0.0,
       0.0
@@ -76,6 +102,7 @@
     0.0,
     1.0
   ],
+  "fraction_rule": "a cut the config gives as [n, d] is the float64 quotient n/d, compared with float64 coordinates",
   "final_third_x": [
     2,
     3
@@ -97,7 +124,7 @@
     2,
     3
   ],
-  "penalty_box_wyscout": {
+  "penalty_box_wy": {
     "x_min": [
       21,
       25
@@ -111,7 +138,7 @@
       100
     ]
   },
-  "penalty_box_statsbomb": {
+  "penalty_box_sb": {
     "x_min": [
       17,
       20
@@ -173,6 +200,21 @@
     "defensive_actions_by_pitch_third",
     "high_zone_defensive_action_share"
   ],
+  "subject_groups": {
+    "conceded": [
+      "conceded_f3_entries_by_channel",
+      "conceded_f3_entries_wide_share",
+      "conceded_box_entries_by_origin_channel",
+      "conceded_shots_inside_box_share"
+    ],
+    "own_actions": [
+      "defensive_actions_by_pitch_third",
+      "high_zone_defensive_action_share"
+    ],
+    "level": [
+      "conceded_f3_entries_per_90"
+    ]
+  },
   "descriptor_parts": {
     "conceded_f3_entries_by_channel": [
       "def_left",
@@ -224,7 +266,7 @@
     "defensive_actions_by_pitch_third": "5ecfbefcb7634b29",
     "high_zone_defensive_action_share": "0d2ee50169a05af9"
   },
-  "descriptor_fingerprints_statsbomb": {
+  "descriptor_fingerprints_sb": {
     "conceded_f3_entries_by_channel": "2be74ac2872fc2cd",
     "conceded_f3_entries_wide_share": "d251a8b6ea11589a",
     "conceded_box_entries_by_origin_channel_sb": "11161bb6ef93404e",
@@ -259,8 +301,9 @@
   "shrinkage_grid_unit": "pseudo-events of prior strength",
   "unit_term_boundary_candidate": "context_only",
   "selection_tie_tolerance": 1e-12,
-  "selection_tie_rule": "context_only first, then the larger shrinkage value",
+  "selection_tie_rule": "the tie set is every candidate whose pooled loss is at most the smallest pooled loss plus selection_tie_tolerance; context_only if it is in the set, else the largest value in the set",
   "selection_scope": "eligible development rows, all five leagues pooled, ratio of sums",
+  "level_selection_rule": "kA' on the pooled B1 deviance over shrinkage_grid; with kA' fixed, kD' on the pooled B2 deviance over shrinkage_grid and context_only (rD = 1); same tie rule",
   "zero_tolerance": 1e-12,
   "minimum_valid_match_share_per_league": 0.95,
   "minimum_development_rows_per_league": 100,
@@ -268,27 +311,41 @@
   "minimum_evaluation_rows_per_league": 150,
   "minimum_evaluation_weeks_per_league": 8,
   "minimum_evaluation_events_per_league": 1600,
+  "evaluation_events_rule": "the subject's sum of N over eligible evaluation rows of the league",
   "minimum_reliability_teams": 90,
   "minimum_half_matches_per_team": 8,
   "minimum_permutation_changed_share": 0.6,
+  "shape_gates": [
+    "G1",
+    "G2",
+    "G3",
+    "G4",
+    "G5",
+    "G6"
+  ],
+  "level_gates": [
+    "G1",
+    "G2",
+    "G3",
+    "G4",
+    "LG6"
+  ],
   "bootstrap_replicates": 10000,
   "interval_quantiles": [
     0.025,
     0.975
   ],
+  "interval_quantile_method": "linear",
   "seed": 20261009,
-  "seed_offsets": {
-    "primary": 0,
-    "mirror": 1,
-    "level": 2,
-    "unexposed": 3,
-    "calibration": 4,
-    "interaction": 5,
-    "strength_permutation": 6,
-    "per_league": 7,
-    "sensitivity_all_states": 8
+  "seed_streams": {
+    "season_world": 1,
+    "strength_permutation": 2,
+    "replication_world": 3
   },
-  "seed_stride_per_descriptor": 100,
+  "world_cluster": "(league, calendar week W-SUN of the match date)",
+  "world_strata": "league x part, leagues in the order of leagues, development before evaluation; a part holds the weeks of rows dated in it",
+  "world_draw": "per stratum of m clusters, rng.integers(0, m, size=(bootstrap_replicates, m)) counted into multiplicities; one generator for every stratum, in stratum order",
+  "donor_seed_rule": "int.from_bytes(sha256(f'{seed}|{placebo_seed}|{league}|{date}|{tercile}').digest()[:8], 'big')",
   "permutation_seeds": [
     0,
     1,
@@ -317,14 +374,19 @@
     "prior_goal_difference_per_match",
     "team_id"
   ],
+  "strength_tercile_source": "the match sheet, every prior match, valid or not",
   "strength_tercile_count": 3,
+  "criterion_alpha_one_sided": 0.025,
+  "p_value_rule": "(1 + number of replicates >= -zero_tolerance) / (replicates with a non-zero denominator + 1)",
   "minimum_leagues_with_negative_estimate": 4,
+  "level_minimum_leagues_with_negative_estimate": 4,
   "holm_family_alpha_one_sided": 0.025,
   "holm_family_size": 5,
-  "reliability_split": "alternating matches within each team's own date-ordered valid rows",
+  "holm_order_rule": "ascending p; None and NaN after every number and never rejected; ties in the order of secondary_descriptors; m is holm_family_size always",
+  "reliability_split": "each half holds one meeting with each opponent: opponents ordered by the date of the first valid meeting, then team id; for opponents at even positions (0-based) half A takes the meeting at which the team was at home, for odd positions the meeting at which it was away; half B takes the other; a missing meeting is not replaced",
   "reliability_centring": "league mean removed within each half",
   "reliability_interval_method": "fisher_z_on_half_correlation_then_spearman_brown",
-  "reliability_critical_value": 1.959963984540054,
+  "reliability_critical_value": 1.6448536269514722,
   "reliability_degrees_of_freedom": "n_teams - 3 - (n_leagues - 1)",
   "reliability_band": 0.5,
   "reliability_number": 0.7,
@@ -336,17 +398,253 @@
     "goals_against_per_match",
     "completed_pass_share"
   ],
-  "strength_adjusted_r2_ceiling": 0.6,
-  "strength_rank_correlation_floor": 0.5,
-  "strength_top_k_reported_only": 12,
+  "strength_covariate_sources": {
+    "points_per_match": "the match sheet, every match",
+    "goals_for_per_match": "the match sheet, every match",
+    "goals_against_per_match": "the match sheet, every match",
+    "completed_pass_share": "match__completed_passes of valid matches"
+  },
+  "strength_confound_kind": {
+    "descriptor": "NUISANCE",
+    "level": "CONTEXT"
+  },
+  "strength_confound_reasoning": {
+    "descriptor": "the claim of a descriptor is a property of the defending team beyond its measured strength (ROOT 2.2: more than team strength or schedule), so shared variance with points, goals and pass share is what the claim must exclude",
+    "level": "how many entries a team concedes is partly its strength by construction; the level claim is beyond the attacking team's volume, not beyond strength, and its sentence says the two are not separated"
+  },
+  "strength_variance_explained_ceiling": 0.25,
+  "strength_spearman_floor": 0.5,
+  "strength_top_k": 12,
+  "strength_top_k_survival_floor": 0.5,
+  "strength_tie_policy": "average",
   "strength_permutations": 10000,
   "interaction_minimum_events_per_meeting": 10,
-  "interaction_lower_quantile": 0.0125,
-  "interaction_floor": 0.07,
+  "interaction_reported_only": true,
   "calibration_minimum_events_per_row": 10,
+  "verdict_vocabulary": {
+    "descriptor": [
+      "DEFENDER_SHAPE_SIGNAL",
+      "FORECAST_NOT_SHOWN",
+      "SIDE_NOT_SHOWN",
+      "NOT_RELIABLE",
+      "STRENGTH_NOT_EXCLUDED",
+      "INCONCLUSIVE"
+    ],
+    "level": [
+      "LEVEL_ESTABLISHED",
+      "FORECAST_NOT_SHOWN",
+      "NOT_RELIABLE",
+      "INCONCLUSIVE"
+    ]
+  },
+  "verdict_precedence": {
+    "descriptor": [
+      [
+        "INCONCLUSIVE",
+        "a gate of shape_gates failed"
+      ],
+      [
+        "DEFENDER_SHAPE_SIGNAL",
+        "a, b, c, d, e, f and g all true"
+      ],
+      [
+        "FORECAST_NOT_SHOWN",
+        "a, b, c or f not true"
+      ],
+      [
+        "SIDE_NOT_SHOWN",
+        "d not true"
+      ],
+      [
+        "NOT_RELIABLE",
+        "e not true"
+      ],
+      [
+        "STRENGTH_NOT_EXCLUDED",
+        "g not true"
+      ]
+    ],
+    "level": [
+      [
+        "INCONCLUSIVE",
+        "a gate of level_gates failed"
+      ],
+      [
+        "LEVEL_ESTABLISHED",
+        "La, Lb and Le all true"
+      ],
+      [
+        "FORECAST_NOT_SHOWN",
+        "La or Lb not true"
+      ],
+      [
+        "NOT_RELIABLE",
+        "Le not true"
+      ]
+    ]
+  },
+  "registry_common": {
+    "not_run_statement": "E-10 is registered and not run. Nothing has been compared."
+  },
+  "registry_non_claims": {
+    "conceded": "This is where the opponent's actions were recorded. A team can leave a channel open on purpose. Event data cannot tell that apart from failing to close it, so this panel does not say the team defends that channel badly.",
+    "own_actions": "This is where the team's defensive actions were recorded. Actions happen where the ball is, so this follows the opponent's play as well as the team's choices. It does not show where the team's defensive line stands and does not say how well the team defends.",
+    "level": "This counts the opponent's final-third entry passes that were recorded. Conceding them can be a choice as well as a failure, and event data cannot tell the two apart, so this panel does not say how well the team defends."
+  },
+  "registry_descriptor": {
+    "scope": "Teams of the five leagues of the public Pappalardo/Wyscout corpus, 2017/18; one row per team and match, first and second half, both teams at eleven, goal difference at most one; the defending team's history against the attacking team's own history.",
+    "claim_token": "TENDENCY, ONE SEASON"
+  },
+  "registry_level": {
+    "scope": "Teams of the five leagues of the public Pappalardo/Wyscout corpus, 2017/18; one row per team and match, first and second half, both teams at eleven, goal difference at most one; final-third entry passes conceded per 90 minutes of that window.",
+    "claim_token": "VOLUME, ONE SEASON"
+  },
+  "registry_outcomes": {
+    "descriptor": {
+      "DEFENDER_SHAPE_SIGNAL": {
+        "status": "ESTABLISHED",
+        "limits": true,
+        "statement": "On later matches of one season from one provider, the defending team's own history accounted for part of this split beyond the attacking team's own history, and the split passed the frozen checks that it repeats across the two halves of the team's season and is more than team strength measured by points, goals and pass share. The estimate is shrunken toward the league composition, describes matches at eleven against eleven within one goal, and was decided on matches of the whole season."
+      },
+      "FORECAST_NOT_SHOWN": {
+        "status": "NOT_ESTABLISHED",
+        "limits": false,
+        "statement": "E-10 compared this split with what the attacking team's own history accounts for, on later matches, and the defending team's own history did not meet every frozen criterion for adding to it. Read it as a record of past matches, not as a tendency."
+      },
+      "SIDE_NOT_SHOWN": {
+        "status": "NOT_ESTABLISHED",
+        "limits": false,
+        "statement": "On later matches the defending team's own history added to what the attacking team's own history accounts for in this split, but it was not shown to tell the team's left from its right. Read it as a record of past matches, not as a tendency."
+      },
+      "NOT_RELIABLE": {
+        "status": "NOT_ESTABLISHED",
+        "limits": false,
+        "statement": "On later matches the defending team's own history added to what the attacking team's own history accounts for in this split, but the split did not pass the frozen check that it repeats across the two halves of the team's season. Read it as a record of past matches, not as a tendency."
+      },
+      "STRENGTH_NOT_EXCLUDED": {
+        "status": "NOT_ESTABLISHED",
+        "limits": false,
+        "statement": "On later matches the defending team's own history added to what the attacking team's own history accounts for in this split, and the split repeats across the two halves of the team's season, but it did not pass the frozen check that it is more than team strength measured by points, goals and pass share. Read it as a record of past matches, not as a tendency."
+      },
+      "INCONCLUSIVE": {
+        "status": "INCONCLUSIVE",
+        "limits": false,
+        "statement": "E-10 could not test this descriptor: a frozen sample gate failed. Nothing was compared."
+      }
+    },
+    "level": {
+      "LEVEL_ESTABLISHED": {
+        "status": "ESTABLISHED",
+        "limits": true,
+        "statement": "On later matches of one season from one provider, the defending team's own history accounted for part of how many final-third entry passes it conceded beyond the attacking team's own volume, and the volume passed the frozen check that it repeats across the two halves of the team's season. Stronger teams concede fewer entries, and this check does not separate the two. It was decided on matches of the whole season."
+      },
+      "FORECAST_NOT_SHOWN": {
+        "status": "NOT_ESTABLISHED",
+        "limits": false,
+        "statement": "E-10 compared how many final-third entry passes this team conceded with what the attacking team's own volume accounts for, on later matches, and the defending team's own history did not meet every frozen criterion for adding to it. Read it as a record of past matches."
+      },
+      "NOT_RELIABLE": {
+        "status": "NOT_ESTABLISHED",
+        "limits": false,
+        "statement": "On later matches the defending team's own history added to what the attacking team's own volume accounts for, but the volume did not pass the frozen check that it repeats across the two halves of the team's season. Read it as a record of past matches."
+      },
+      "INCONCLUSIVE": {
+        "status": "INCONCLUSIVE",
+        "limits": false,
+        "statement": "E-10 could not test this volume: a frozen sample gate failed. Nothing was compared."
+      }
+    }
+  },
+  "registry_figures": {
+    "descriptor": [
+      {
+        "key": "k_context",
+        "unit": "pseudo-events",
+        "pointer": "/descriptors/{subject}/selection/k_context",
+        "sentence": "Pseudo-events by which the attacking team's composition is drawn toward the league composition, selected on development matches."
+      },
+      {
+        "key": "k_unit",
+        "unit": "pseudo-events",
+        "pointer": "/descriptors/{subject}/selection/k_unit",
+        "sentence": "Pseudo-events by which the defending team's own deviation is drawn toward zero, selected on development matches."
+      },
+      {
+        "key": "reliability_lower_bound",
+        "unit": "",
+        "pointer": "/descriptors/{subject}/reliability/minimum_lower_bound",
+        "sentence": "Lower bound of the split-half reliability, the smallest over the coordinates; a point is shown only at 0.70 or above."
+      }
+    ],
+    "level": [
+      {
+        "key": "k_context",
+        "unit": "pseudo-events",
+        "pointer": "/level/selection/k_context",
+        "sentence": "Pseudo-events by which the attacking team's volume ratio is drawn toward one, selected on development matches."
+      },
+      {
+        "key": "k_unit",
+        "unit": "pseudo-events",
+        "pointer": "/level/selection/k_unit",
+        "sentence": "Pseudo-events by which the defending team's own volume ratio is drawn toward one, selected on development matches."
+      },
+      {
+        "key": "reliability_lower_bound",
+        "unit": "",
+        "pointer": "/level/reliability/minimum_lower_bound",
+        "sentence": "Lower bound of the split-half reliability of the volume; a point is shown only at 0.70 or above."
+      }
+    ],
+    "on_tokens": [
+      "DEFENDER_SHAPE_SIGNAL",
+      "LEVEL_ESTABLISHED"
+    ]
+  },
+  "lifecycle_status": {
+    "DEFENDER_SHAPE_SIGNAL": "EXPERIMENTAL",
+    "LEVEL_ESTABLISHED": "EXPERIMENTAL",
+    "FORECAST_NOT_SHOWN": "RESEARCH_ONLY",
+    "SIDE_NOT_SHOWN": "RESEARCH_ONLY",
+    "NOT_RELIABLE": "RESEARCH_ONLY",
+    "STRENGTH_NOT_EXCLUDED": "RESEARCH_ONLY",
+    "INCONCLUSIVE": "RESEARCH_ONLY"
+  },
+  "product_rules": {
+    "panel_needs_opt_in": true,
+    "panel_from_date": "evaluation_start",
+    "point_needs_reliability_lower_bound_at_least": 0.7,
+    "evidence_class_of_panel": "EXPERIMENTAL",
+    "evidence_class_of_record": {
+      "counts": "OBSERVED",
+      "shares_and_rates": "DERIVED"
+    },
+    "proposal_class": "HEURISTIC",
+    "proposal_sentence": "based on a record that did not pass E-10",
+    "words_never_on_the_page": [
+      "weak",
+      "weakness",
+      "vulnerable",
+      "vulnerability",
+      "exploit"
+    ],
+    "s5_display_name": "opponent passes per recorded high-zone defensive action"
+  },
+  "served_panel": {
+    "world_scheme": "LEAGUE_MATCHES",
+    "worlds": 40,
+    "world_seed": 20261009,
+    "interval_quantiles": [
+      0.025,
+      0.975
+    ],
+    "interval_quantile_method": "linear"
+  },
   "replication": {
     "provider": "statsbomb",
+    "tier": "LOCAL_LICENSED",
     "season_label": "2015/16",
+    "sb_root": "data/licensed/statsbomb",
     "leagues": [
       "La_Liga",
       "Premier_League",
@@ -362,8 +660,8 @@
     "season_start": "2015-07-01",
     "evaluation_start": "2015-07-01",
     "end": "2016-07-01",
-    "retuning": "none: shrinkage values are those selected on the Pappalardo development rows",
-    "run_only_if_primary_corpus_verdict": "DEFENDER_SHAPE_SIGNAL",
+    "retuning": "none: kA and kD are those selected on the Pappalardo development rows",
+    "run_only_if_descriptor_verdict": "DEFENDER_SHAPE_SIGNAL",
     "comparable_descriptors": {
       "conceded_f3_entries_by_channel": "conceded_f3_entries_by_channel",
       "conceded_f3_entries_wide_share": "conceded_f3_entries_wide_share",
@@ -374,28 +672,98 @@
       "defensive_actions_by_pitch_third",
       "high_zone_defensive_action_share"
     ],
-    "set_piece_pass_types": [
-      "Kick Off",
-      "Throw-in",
-      "Free Kick",
-      "Corner",
-      "Goal Kick"
+    "sb_location_scale": [
+      120,
+      80
     ],
-    "open_play_shot_type": "Open Play",
-    "own_goal_event_type": "Own Goal Against",
-    "dismissal_card_names": [
+    "sb_regulation_periods": [
+      1,
+      2
+    ],
+    "sb_open_play_pass_types": [
+      null,
+      "Recovery",
+      "Interception",
+      "Kick Off"
+    ],
+    "sb_open_play_shot_types": [
+      "Open Play"
+    ],
+    "sb_goal_shot_outcome": "Goal",
+    "sb_own_goal_kind": "Own Goal Against",
+    "sb_card_detail_keys": [
+      "foul_committed",
+      "bad_behaviour"
+    ],
+    "sb_dismissal_card_names": [
       "Red Card",
       "Second Yellow"
     ],
+    "sb_known_pass_types": [
+      null,
+      "Recovery",
+      "Interception",
+      "Kick Off",
+      "Corner",
+      "Free Kick",
+      "Throw-in",
+      "Goal Kick"
+    ],
+    "sb_known_shot_types": [
+      "Open Play",
+      "Free Kick",
+      "Penalty",
+      "Corner",
+      "Kick Off"
+    ],
+    "sb_known_card_names": [
+      "Yellow Card",
+      "Second Yellow",
+      "Red Card"
+    ],
+    "sb_sheet_card_types_not_dismissal": [
+      "Yellow Card"
+    ],
+    "sb_team_sheet_arguments": {
+      "cap": 90,
+      "goalkeeper_position": "Goalkeeper",
+      "spell_end_reason_contains": "Permanent",
+      "note": "read_team_sheets requires them; E-10 reads only its dismissed column; the values are E-11's"
+    },
+    "orientation_check_minimum_matches": 40,
+    "orientation_threshold": 0.5,
+    "orientation_positions": {
+      "left": "Left Back",
+      "right": "Right Back"
+    },
+    "bootstrap_replicates": 10000,
     "minimum_evaluation_rows_per_league": 150,
     "minimum_evaluation_weeks_per_league": 8,
+    "minimum_evaluation_events_per_league": 1600,
     "minimum_valid_match_share_per_league": 0.95,
-    "orientation_check_minimum_matches": 40,
+    "statuses": [
+      "REPLICATED",
+      "NOT_REPLICATED",
+      "REPLICATION_INCONCLUSIVE",
+      "NOT_COMPARABLE",
+      "NOT_RUN"
+    ],
+    "inconclusive_reasons": [
+      "DATA_MISSING",
+      "VOCABULARY",
+      "ORIENTATION",
+      "SAMPLE",
+      "FAILED_RUN"
+    ],
     "local_artifact": "data/licensed/research/E-10/replication.json",
-    "hosted_label_permitted": false
+    "served_by_product": false,
+    "registry_record": false
   },
   "synthetic_gate": {
     "base_seed": 20261010,
+    "seed_stride_per_scenario": 10000,
+    "seed_stride_per_overdispersion": 1000,
+    "season_seed_rule": "base_seed + seed_stride_per_scenario * (position of the scenario in scenarios) + seed_stride_per_overdispersion * (position of the value in overdispersion_grid) + season index; the season's seed replaces seed in the configuration its evaluation reads",
     "seasons_per_gating_scenario": 200,
     "seasons_per_reported_scenario": 100,
     "bootstrap_replicates": 2000,
@@ -406,6 +774,7 @@
       18,
       20
     ],
+    "schedule_rule": "Berger tables: for n teams, the last team is fixed and the others rotate one place each round; in round r the fixed team's pair is (the first rotating team, fixed) if r is even and reversed if odd; the other pairs (rotating[i], rotating[n - 1 - i]) for i = 1 .. n/2 - 1, home first if i is odd and reversed if even; rounds n - 1 .. 2n - 3 repeat rounds 0 .. n - 2 with venues swapped",
     "first_round_date": "2017-08-12",
     "days_between_rounds": 7,
     "winter_break_extra_days": 14,
@@ -416,8 +785,18 @@
       0.28,
       0.36
     ],
+    "league_composition_source": "not recorded by the designer; the reviser could not establish it (preregistration.md, prior exposure)",
     "sd_attacker_shape": 0.2,
-    "sd_match_shape": 0.1,
+    "home_shape_attacker": [
+      0.05,
+      0.05
+    ],
+    "overdispersion_parameter": "sd_match_shape",
+    "overdispersion_grid": [
+      0.1,
+      0.5,
+      0.8
+    ],
     "sd_match_level": 0.25,
     "level_strength_attacker": 0.2,
     "home_level": 0.05,
@@ -428,98 +807,373 @@
     },
     "mean_completed_passes": 350.0,
     "pass_strength_slope": 0.15,
-    "coordinate_rule": "sd_side and sd_width are standard deviations of the defender effect on log-ratio coordinates z1 and z2; 0.15 is about five percentage points of a channel share",
-    "strength_shape_rule": "delta_u = strength_shape * (full-season points per match standardised within league) * (+1, -1) on (z1, z2): a shape that is an exact function of measured strength",
+    "coordinate_rule": "sd_side and sd_width are standard deviations of the defender effect on log-ratio coordinates z1 and z2; at league_composition a shift of 0.15 moves a channel share by about four percentage points (3.9 on z1, 3.6 on z2)",
+    "strength_shape_rules": {
+      "latent_tercile": "f = +1, 0, -1 for the top, middle and bottom latent-strength tercile (descending latent strength s_t, tercile = (strength_tercile_count * position) // T), standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
+      "measured_points": "f = full-season points per match standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
+      "none": "no strength-shaped term"
+    },
+    "secondary_laws": {
+      "conceded_box_entries_by_origin_channel": {
+        "league_composition": [
+          0.3,
+          0.4,
+          0.3
+        ],
+        "mean_events_per_row": 8.0
+      },
+      "conceded_shots_inside_box_share": {
+        "league_composition": [
+          0.6,
+          0.4
+        ],
+        "mean_events_per_row": 9.0
+      },
+      "defensive_actions_by_pitch_third": {
+        "league_composition": [
+          0.4,
+          0.45,
+          0.15
+        ],
+        "mean_events_per_row": 40.0
+      },
+      "high_zone_defensive_action_share": {
+        "league_composition": [
+          0.1,
+          0.9
+        ],
+        "mean_events_per_row": 250.0
+      },
+      "source": "invented round values written for the gate on 14 October 2026; read from no corpus",
+      "rule": "conceded_f3_entries_wide_share is formed from the primary's counts; each other secondary draws its own counts with the primary's attacker, overdispersion and level laws and no defender term"
+    },
+    "design_effect": {
+      "rows": 200000,
+      "reference_shift": [
+        0.06,
+        -0.06
+      ],
+      "rule": "Var(n . w) / E[N] at each overdispersion value over the same at sd_match_shape 0, with w = -ln(q_shifted / q_league) per part; rows drawn from the generator law with default_rng(base_seed)"
+    },
     "scenarios": {
       "NULL_NOTHING": {
         "sd_side": 0.0,
         "sd_width": 0.0,
         "sd_level": 0.0,
         "level_strength_defender": 0.0,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       },
       "NULL_SHAPE_WITH_LEVEL": {
         "sd_side": 0.0,
         "sd_width": 0.0,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       },
       "EFFECT_STRONG": {
         "sd_side": 0.15,
         "sd_width": 0.15,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       },
       "WIDTH_ONLY": {
         "sd_side": 0.0,
         "sd_width": 0.15,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       },
-      "STRENGTH_ONLY": {
+      "STRENGTH_TERCILE_0_08": {
         "sd_side": 0.0,
         "sd_width": 0.0,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.15
+        "strength_shape": 0.08,
+        "strength_shape_rule": "latent_tercile",
+        "secondaries": false
+      },
+      "STRENGTH_TERCILE_0_10": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.1,
+        "strength_shape_rule": "latent_tercile",
+        "secondaries": false
+      },
+      "STRENGTH_TERCILE_0_12": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.12,
+        "strength_shape_rule": "latent_tercile",
+        "secondaries": false
+      },
+      "STRENGTH_TERCILE_0_15": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.15,
+        "strength_shape_rule": "latent_tercile",
+        "secondaries": false
+      },
+      "STRENGTH_MEASURED_0_15": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.2,
+        "level_strength_defender": 0.2,
+        "strength_shape": 0.15,
+        "strength_shape_rule": "measured_points",
+        "secondaries": false
+      },
+      "SECONDARY_FAMILY_NULL": {
+        "sd_side": 0.0,
+        "sd_width": 0.0,
+        "sd_level": 0.0,
+        "level_strength_defender": 0.0,
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": true
       },
       "EFFECT_0_09": {
         "sd_side": 0.09,
         "sd_width": 0.09,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       },
       "EFFECT_0_06": {
         "sd_side": 0.06,
         "sd_width": 0.06,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       },
       "EFFECT_0_03": {
         "sd_side": 0.03,
         "sd_width": 0.03,
         "sd_level": 0.2,
         "level_strength_defender": 0.2,
-        "strength_shape": 0.0
+        "strength_shape": 0.0,
+        "strength_shape_rule": "none",
+        "secondaries": false
       }
     },
     "gating_scenarios": [
       "NULL_NOTHING",
       "NULL_SHAPE_WITH_LEVEL",
-      "EFFECT_STRONG",
       "WIDTH_ONLY",
-      "STRENGTH_ONLY"
+      "EFFECT_STRONG",
+      "STRENGTH_TERCILE_0_08",
+      "STRENGTH_TERCILE_0_10",
+      "STRENGTH_TERCILE_0_12",
+      "STRENGTH_TERCILE_0_15",
+      "STRENGTH_MEASURED_0_15",
+      "SECONDARY_FAMILY_NULL"
     ],
     "reported_scenarios": [
       "EFFECT_0_09",
       "EFFECT_0_06",
       "EFFECT_0_03"
     ],
-    "requirements": {
-      "NULL_NOTHING": {
-        "DEFENDER_SHAPE_SIGNAL_max": 0.05,
-        "LEVEL_ONLY_max": 0.05,
-        "NOT_ESTABLISHED_min": 0.9
+    "requirements": [
+      {
+        "scenario": "NULL_NOTHING",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
       },
-      "NULL_SHAPE_WITH_LEVEL": {
-        "DEFENDER_SHAPE_SIGNAL_max": 0.05,
-        "LEVEL_ONLY_min": 0.9
+      {
+        "scenario": "NULL_SHAPE_WITH_LEVEL",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
       },
-      "EFFECT_STRONG": {
-        "DEFENDER_SHAPE_SIGNAL_min": 0.9
+      {
+        "scenario": "WIDTH_ONLY",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
       },
-      "WIDTH_ONLY": {
-        "DEFENDER_SHAPE_SIGNAL_max": 0.05
+      {
+        "scenario": "STRENGTH_TERCILE_0_08",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
       },
-      "STRENGTH_ONLY": {
-        "DEFENDER_SHAPE_SIGNAL_max": 0.05
+      {
+        "scenario": "STRENGTH_TERCILE_0_10",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
+      },
+      {
+        "scenario": "STRENGTH_TERCILE_0_12",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
+      },
+      {
+        "scenario": "STRENGTH_TERCILE_0_15",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
+      },
+      {
+        "scenario": "STRENGTH_MEASURED_0_15",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
+      },
+      {
+        "scenario": "NULL_NOTHING",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "level",
+        "token": "LEVEL_ESTABLISHED",
+        "bound": "max",
+        "value": 0.05
+      },
+      {
+        "scenario": "NULL_NOTHING",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "primary",
+        "status": "NOT_ESTABLISHED",
+        "bound": "min",
+        "value": 0.9
+      },
+      {
+        "scenario": "NULL_SHAPE_WITH_LEVEL",
+        "overdispersion": [
+          0.1
+        ],
+        "subject": "level",
+        "token": "LEVEL_ESTABLISHED",
+        "bound": "min",
+        "value": 0.9
+      },
+      {
+        "scenario": "EFFECT_STRONG",
+        "overdispersion": [
+          0.1
+        ],
+        "subject": "primary",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "min",
+        "value": 0.9
+      },
+      {
+        "scenario": "SECONDARY_FAMILY_NULL",
+        "overdispersion": [
+          0.1,
+          0.8
+        ],
+        "subject": "secondary_family",
+        "token": "DEFENDER_SHAPE_SIGNAL",
+        "bound": "max",
+        "value": 0.05
       }
-    },
+    ],
+    "reported": [
+      {
+        "scenario": "EFFECT_STRONG",
+        "overdispersion": [
+          0.5,
+          0.8
+        ]
+      },
+      {
+        "scenario": "EFFECT_0_09",
+        "overdispersion": [
+          0.1,
+          0.5,
+          0.8
+        ]
+      },
+      {
+        "scenario": "EFFECT_0_06",
+        "overdispersion": [
+          0.1,
+          0.5,
+          0.8
+        ]
+      },
+      {
+        "scenario": "EFFECT_0_03",
+        "overdispersion": [
+          0.1,
+          0.5,
+          0.8
+        ]
+      },
+      {
+        "scenario": "NULL_SHAPE_WITH_LEVEL",
+        "overdispersion": [
+          0.5,
+          0.8
+        ]
+      }
+    ],
     "frame_negative_control": "with the defender-frame mirror removed, the planted side effect is recovered with the opposite sign",
     "workers_maximum": 4
   },
@@ -528,6 +1182,12 @@
     "player_id",
     "player_name"
   ],
-  "hash_policy": "sha256 over LF-normalised bytes for protocol, config, pipeline document and source files; content hashes for data frames",
-  "determinism_reruns": 1
+  "forbidden_result_key_names": [
+    "statsbomb",
+    "pappalardo",
+    "wyscout"
+  ],
+  "hash_policy": "sha256 over LF-normalised bytes for protocol, config, pipeline document, vectors and source files; content hashes for data frames",
+  "determinism_reruns": 1,
+  "failed_run_log": "data/research/E-10/failed_runs.json"
 }
