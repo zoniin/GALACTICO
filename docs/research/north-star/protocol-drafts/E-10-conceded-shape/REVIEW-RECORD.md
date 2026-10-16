@@ -152,4 +152,127 @@ Several findings are one defect seen by two or three lenses; each is listed unde
 - `tests/test_licensing.py` and `scripts/check_licensing.py` pass with this file on
   `NO_FIGURE_FORMED_FROM_STATSBOMB`.
 
-Not yet done: an independent audit that walks every branch of both verdict rules.
+Not yet done after this round: an independent audit that walks every branch of both verdict
+rules (done on 16 October 2026; next section).
+
+## 16 October 2026 — Audit, and the audit's revision
+
+An independent audit read the revised draft in four scopes against ROOT-DECISIONS, the ADRs,
+KNOWN_LIMITATIONS, LICENSING, VALIDATION, the house lifecycle and the registered E-11
+protocol: A-1 measurement, frames and football data; A-2 statistics and models; A-3 claims,
+product consequence and registry; A-4 pipeline, runner and reproducibility. Every claimed
+blocker was given to a refuter, who rebuilt it on synthetic numbers; none was refuted, and
+four of the five came back with a corrected proposal, which is the one applied. One reviser
+then verified every major and minor against the draft, the shipped code and the rules and
+applied it, or applied a variant with the reason stated. No file under `data/` was opened;
+every number below is synthetic or arithmetic, or a structure count already pinned in a
+committed test.
+
+Scope readiness as audited: A-1, A-3 and A-4 each had at least one confirmed blocker, so none
+was READY; A-2 had no blocker and three majors. After this revision every finding is applied,
+but the revision itself has not been audited.
+
+| Severity | Findings | Applied | Applied with a variant or a part changed | Rejected | Refuted |
+|---|---|---|---|---|---|
+| blocker | 5 | 5 | 0 (each with the refuter's corrected proposal) | 0 | 0 |
+| major | 12 | 12 | 2 (A-1-2, A-3-4) | 0 | 0 |
+| minor | 32 | 32 | 2 (A-2-8, A-4-15) | 0 | 0 |
+
+Duplicates, each listed under its own id: A-3-1 = A-4-3; A-1-7 = A-2-1 = A-3-3; A-2-2 = A-4-6;
+A-2-5 = A-4-15; A-2-9 = A-3-12; A-2-11 = A-3-5 = A-4-5; A-3-4 overlaps A-4-17.
+
+### Blockers
+
+| Id | Finding | Disposition |
+|---|---|---|
+| A-1-1 | (g) was not invariant to exchanging left and right: the house audit counts survivors among the `k` largest values only, so the token could be `DEFENDER_SHAPE_SIGNAL` or `STRENGTH_NOT_EXCLUDED` by the sign of a basis row. The Frames sentence "no verdict depends on it" (R-football-data-16) was false | Applied, refuter's version. (g) calls `discriminant_validity` on the coordinate and on its negation and needs both (`strength_survival_tails`); R2, R2_adj, permutation p and Spearman are reported once from the call as computed; survivors and tie counts per tail; `failures` prefixed by tail; the Frames sentence and the not-claimed line rewritten (this also revises R-football-data-16's disposition: the invariance now holds because (g) reads both tails); I8, 4.3 `strength_validity`, section 8 keys, section 11 item 18, two tests with hand-built vectors written in the test (one-tail pass and two-tail fail; a tied twelfth place in the lower tail). Reviser's rerun of the 14 October simulation on the same seeds with the two-tail rule (scratch `audit-rev/twotail_sim.py`, 200 seasons per cell): every (e)-and-(g) count is unchanged, 0 for every strength plant at 0.08 to 0.15 and for measured points, `WIDTH_ONLY` and `NULL_NOTHING`, `EFFECT_STRONG` 200 / 87 / 0, `EFFECT_0_09` 132 / 0 / 0, so the `EFFECT_STRONG` gate requirement is not made harder to meet. On the auditor's 4,000 draws the one-tail rule changed under negation in 39 and the two-tail rule in 0 (`audit-rev/twotail_invariance.py`) |
+| A-3-1 | The synthetic seasons named their leagues `L0..L4` while the rule reads `leagues` and `unexposed_leagues`, so (f) was `None` in every gate season and `EFFECT_STRONG` could never reach `DEFENDER_SHAPE_SIGNAL` | Applied, refuter's version, option 1: synthetic league `i` is named `leagues[i]` with `expected_teams_per_league` teams (`synthetic_gate.league_rule`); `team_counts` removed. A synthetic season's evaluation reads `config.json` with exactly `seed` and `bootstrap_replicates` replaced, stated in section 5, section 10, `season_seed_rule` and the protocol, and asserted by `run_gate`. Tests: every league subset fed, (b), (f), (Lb) not `None`, G1 to G3 on non-empty counts, strata in `leagues` order; the end-to-end shape test now runs one five-league season |
+| A-4-1 | The runner's clean-tree refusal could not be satisfied by the determinism re-run or by any run after a failure, because outputs and the failure log were untracked and not ignored | Applied, refuter's version. `output_root` = `data/licensed/research/E-10` (already ignored; E-11's form), with `output_results`, `failed_run_log`, `replication_failure_log` and `determinism_record` under it; the results commit copies `results.json` unchanged and checks it as if at its committed path. Clean tree stays the full `git status --porcelain`. A replication exception goes to `replication_failure_log`, never to `failed_run_log`; `--verify` takes a `FAILED_RUN` replication unchanged, compares `results.json` and the local artifact, writes only the determinism record, and on a difference removes the outputs and appends one `serialise` record. The failure-on-the-record rule is one sentence in 7.2, 7.4 and the protocol (committed `analysis.md` at `HEAD` holds the log's sha256); "(or a commit of its own)" dropped. Five runner tests |
+| A-4-2 | `results.json` echoes the config verbatim, and the config holds `forbidden_result_substrings`, so the substring test could never pass | Applied, refuter's version: the echo is kept (`tests/test_digests.py` line 126 compares it), and the substring scan reads the exact text written with `provenance.config` removed (`forbidden_result_substrings_scope`); key-name rules and `banned_key_paths` still read the whole payload. The runner applies the checks before writing (7.4). Test cases: the full payload contains `player_id`; a `player_id` planted outside the echo is refused. Reviser's check (`audit-rev/check_results_contract.py`): the full payload holds both substrings, the scanned text neither, the planted one is caught, and the `test_digests` echo assertion holds |
+| A-4-3 | As A-3-1, seen from the world and 7.5 | Applied with A-3-1, refuter's version: `season_world` takes `leagues` explicitly and asserts the league set; the replication passes `replication.leagues`; 7.5 adds `leagues` and `unexposed_leagues` to the criteria row and `leagues` to the resampling row, and keeps `exposed_leagues` in coverage only, with a refusal unless the two lists partition `leagues` |
+
+### Majors
+
+| Id | Finding | Disposition |
+|---|---|---|
+| A-1-2 | The pre-registration dismissal check stopped registration on any non-zero count, which data gaps make all but certain (pinned sidecar audit counts: England 41 card events against 39 sheet entries, France 86 against 87) | Applied with a variant. Split into an assumption test and residuals. The assumption holds when, in every league, at least `dismissal_assumption_minimum_share` (0.5) of players with a second-yellow event card have a sheet `red_minute`; otherwise `dismissal_check_fallback`, declared now, replaces the rule and the draft is re-audited. Residual mismatches are stated at registration and bounded by G1 only. Variant: a share, not the auditor's example of "more than one player in any league", because England's difference alone could already be two players from gaps; a sheet convention that drops second yellows gives a share near zero. The pinned counts are disclosed in the prior-exposure table |
+| A-2-1 | The `context_only` sentence ("(a) to (d) and (f) false by definition") contradicted the criteria table, and the Holm paragraph said such a selection gives no p-value | Applied: (a), (b), (f), and (d) where mirror pairs exist, are false by computation; (c) and the rest are evaluated as defined; the p-value is the computed 1, written in the Holm paragraph, `holm` and `cluster_ratio`; a test with grid-selecting placebos |
+| A-2-2 | The replication's frozen path had no gate, placebo or estimand rule, so built literally it applied G2, G4 to G6 and REPLICATED was unreachable | Applied with A-4-6: `evaluate_replication` with gates G1 and G3 from the `replication` minima only (`replication.gates`, `gate_rule`), P1 and M1 only (`estimands`, `estimand_rule`), no placebo, R1, V1, P2, T1 or I1; a test that a planted replication season reaches `REPLICATED` |
+| A-2-3 | The `all_states` sensitivity could not be built from the frozen signatures | Applied: `sensitivity_rows` replaces the boolean; the `close_11v11` `kA` and `kD`, no re-selection, the same eligible rows (asserted), the shared world; R1 with the same split; a test |
+| A-3-2 | Served sentences said the split "repeats across the two halves of the team's season", which reads as persistence in time; R1 interleaves the halves | Applied: the claim and every affected statement say "two halves of the team's matches that each hold one meeting with every opponent"; the protocol says T1, reported only, is the check in time, and lists in-season persistence as not shown. Copy guard clean |
+| A-3-3 | As A-2-1 | Applied with A-2-1 |
+| A-3-4 | The served composition must equal 4.2 but product code cannot import the engine, nothing tied the two, and the league pseudocount was neither a product constant nor a figure | Applied with a variant: a parity test in ROOT 2.7 X7's form (served `pi`, `delta_u`, `lam`, `rD_u` equal the engine's `state_at` to `1e-12`, a planted change fails it; it must pass before any panel is served), and `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART` among the Opponent Lab constants tied to the config. The alternative, one product-side estimator imported by both, is left as a root choice |
+| A-3-5 | Strings committed in `results.json` were frozen nowhere | Applied: `results_strings` (interpretation, uncertainty limit, product effect, identity-stress note, data licence, reuse disclosure), copied verbatim and asserted by the runner, read in 7.5, copy guard clean |
+| A-3-6 | The S5 panel could carry a ratio's name over a share | Applied, option 1: the panel shows the share under its label with the share's badge; `s5_ratio_name` (ROOT H14-H21's name) is used in prose only (`s5_panel_rule`); no panel shows or labels the ratio |
+| A-4-4 | The gate's frame negative control had no seed, size, effect or statistic in config, and the no-literal test forbade them in code | Applied: `synthetic_gate.frame_negative_control` holds the rule, seed, teams, side effect, statistic (team 0's side-balance coordinate minus the other teams' mean) and the pass rule; `synthetic_match_events`'s layout literals are exempt by name |
+| A-4-5 | As A-3-5 | Applied with A-3-5 |
+| A-4-6 | The replication status rule had no test and the frozen path was underspecified, with two `run_replication` signatures | Applied with A-2-2: one entry point `run_replication(config, tokens, frozen)`; `replication_status` and `test_replication_status_truth_table` over every reason and P1/M1 pattern, including a mirror descriptor with P1 at most `alpha` and M1 above it |
+
+### Minors
+
+| Id | Finding | Disposition |
+|---|---|---|
+| A-1-3 | Two StatsBomb edge cases were wrong or off the lattice | Applied: `80/120` is in the final third, as an exact rational also says; lateral cases on the `/80` scale at 0.1 resolution (26.6, 26.7, 53.3, 53.4); float64 and `Fraction` agree at every cut on both lattices (reviser's check `audit-rev/lattice_holm.py`) |
+| A-1-4 | The protocol's S2 label and defensive-action phrase differed from the PIPELINE and vectors | Applied: the protocol's cells aligned; no payload moves |
+| A-1-5 | The Wyscout y convention is already assumed by E-11, XI Lab and Match Lab | Applied in the Frames paragraph |
+| A-1-6 | The prior-exposure table understated what was seen | Applied: Match Lab's served shot coordinates and passing-network nodes; E-11's public-side open-play-shot team-match count; the pinned sidecar card counts |
+| A-1-7 | As A-2-1 | Applied with A-2-1 |
+| A-1-8 | WP A interfaces under-specified | Applied: `match_state` returns `(state, incidents)` with named columns; `period_ends`; `match__` columns computed for every match; the oracle's extra inputs; `LevelSubject`; a team-match without a sheet row raises, and the runner refuses such a sidecar first |
+| A-1-9 | "Both teams at eleven" says more than the window measures | Applied: "before any dismissal" in the window phrase, both scopes and the signal statement; the ten vector sentences regenerated (the independent generator rebuilds them byte for byte; payloads and fingerprints unchanged) |
+| A-2-4 | B3 and B5 level rungs undefined; "both components for every rung" | Applied: `peers_level_rule`, `raw_persistence_level_rule` (smoothed toward the league rate, so no infinite deviance); level components for the level subject only |
+| A-2-5 | The house bound took a confidence, not a critical value | Applied: `house_reliability_confidence`; a test ties it to `house_reliability_critical_value` |
+| A-2-6 | The donor seed string was written two ways | Applied: one text in config and PIPELINE |
+| A-2-7 | Cluster label format unfixed; "every interval and p-value" too broad | Applied: the house week label and part names; "bootstrap interval and bootstrap p-value" |
+| A-2-8 | T1, I1, the implied ICC's `m` and `strength_validity`'s inputs under-specified | Applied with a part changed: I1 residualises the row's coordinates, primary only in both documents; `m` is the mean valid rows per qualifying team over both halves; `strength_validity` derives covariates from the rows, one generator per call. Changed part: T1 uses all valid rows of each part (`persistence_rule`), not eligible rows only, because T1 describes team values and eligibility is a forecasting condition that would drop each team's first matches |
+| A-2-9 | The Holm test cited an example no frozen file held | Applied: two examples written into the test, one that separates the frozen reading from "m shrinks" and "None first" (reviser's check `audit-rev/lattice_holm.py`) |
+| A-2-10 | `select_k` undefined on a non-finite loss | Applied: returns `None`; G6 or LG6 false; no further forward pass |
+| A-2-11 | As A-3-5 | Applied with A-3-5 |
+| A-3-7 | The proposal sentence said "did not pass" for untested records | Applied: keyed on `may_gate`; `proposal_sentence_not_tested` and `proposal_sentence_not_established` |
+| A-3-8 | `FORECAST_NOT_SHOWN` holds a word the copy guard refuses when spelled as words | Applied: renamed `ADDED_INFORMATION_NOT_SHOWN` in both vocabularies, the precedence, outcomes, lifecycle status, prose and tests; every token spelled as words passes the guard |
+| A-3-9 | Two level sentences said more than the test | Applied: "This check does not separate it from team strength."; "teams conceded" |
+| A-3-10 | Replication statuses incompletely defined | Applied: `FAILED_RUN` replaces only a status that reached step 3; the level has no replication entry (`status_rule`) |
+| A-3-11 | The level's figure pointer had no key to point at | Applied: the level's reliability has `split_half`'s shape with coordinate `log_rate` and `minimum_lower_bound`; the registry test builds the established tokens with figures (reviser's check: every checker of `tests/test_verdict_registry.py` passes, `figure_failures` included) |
+| A-3-12 | As A-2-9 | Applied with A-2-9 |
+| A-4-7 | `clock_invalid` cannot fire on the replication's files | Applied: it fires on neither provider and is kept as a guard; a malformed timestamp raises and is `FAILED_RUN`; a test |
+| A-4-8 | `expected_matches` unused; `DATA_MISSING` and the valid-share denominator undefined | Applied: `inconclusive_reason_rules` |
+| A-4-9 | No source for the StatsBomb `competition`; coach ids not loaded | Applied: the folder name; `home_coach_id`, `away_coach_id` in I4, coverage only |
+| A-4-10 | The synthetic world's seed was ambiguous and its streams collided with the next season's | Applied: the world is `default_rng(season seed + seed_streams.season_world)`; `seed_stride_per_season` 10, per overdispersion 10,000, per scenario 100,000; `design_effect.seed` and the frame control's seed below the season range (reviser's check: 6,900 season seeds and their streams all distinct) |
+| A-4-11 | The two-part generator law and the draw order were unstated | Applied: one-dimensional terms for S3 and S5; the loop order |
+| A-4-12 | `WIDTH_ONLY` can pass (d) by chance | Applied in both documents |
+| A-4-13 | Key order, "no path", the level's reliability shape and the LOCAL wording | Applied |
+| A-4-14 | Canonical sort of sheet frames not unique | Applied: a stable sort on every read column |
+| A-4-15 | As A-2-5 | Applied with A-2-5, with a variant: the confidence is the config key `house_reliability_confidence`, not a literal `0.90` in code, which `test_no_number_is_hard_coded` would refuse |
+| A-4-16 | The replication's inputs were recorded nowhere | Applied: the local artifact records each folder's `folder_manifest` digest, never committed (ADR-0027) |
+| A-4-17 | `source_hashes` omitted `domain/precision.py` and `domain/thesis.py`; the served pseudocount | Applied: both added; the pseudocount with A-3-4 |
+
+Refuted claims: none.
+
+### Checks run by the reviser (synthetic or data-free)
+
+- The ten descriptor sentences rebuilt by the independent vector generator with the new window
+  phrase equal the committed vectors byte for byte; the eight fingerprints recompute.
+- The seven records built from the config are served by `finalize` under `PENDING` and every
+  token with no refusal; a planted `line height` is refused; every token spelled as words, the
+  scopes, statements, figure sentences, proposal sentences, `s5_ratio_name`, the
+  `results_strings` and the vector sentences pass the copy guard.
+- No key at any depth of `config.json` or `descriptor_test_vectors.json` names a provider or
+  carries a banned key part.
+- A synthetic `results.json` in the revised section 8 shape, with established tokens and their
+  figures, passes every checker of `tests/test_verdict_registry.py`, and its size is within
+  `results_maximum_bytes`.
+- `pipeline_spec_sha256` recomputed after the last `PIPELINE.md` edit.
+- `tests/test_licensing.py` passes and `scripts/check_licensing.py` is clean; the list entries
+  for this folder's protocol and pipeline now name the replication's gates and statuses, the
+  coordinate scale and the folder digests.
+
+### For a root ruling
+
+1. `output_root` is `data/licensed/research/E-10`, as E-11 does, so a PUBLIC experiment's
+   results file is first written under the licensed tree and copied at the results commit. A
+   PUBLIC location would need a `.gitignore` line in the registration commit.
+2. The dismissal assumption threshold (`dismissal_assumption_minimum_share` 0.5) departs from
+   the auditor's example; the count itself is the root's to run before registration.
+3. The served computation is a second implementation of 4.2 tied by a parity test (X7's form);
+   one product-side estimator imported by both is the alternative ROOT 4's "one object" rule
+   might prefer.
+4. The revision has not been audited. The E-11 precedent re-audited each revision before READY.

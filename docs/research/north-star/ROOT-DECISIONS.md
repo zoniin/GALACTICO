@@ -391,6 +391,22 @@ unlinked players who have no Wyscout role.
   (E-11 section 14, item 10), and its sample gates and power statements are recomputed for
   the `ROLE_SAME` units before it is frozen.
 
+### 2.9 Root rulings on the E-10 draft's audit (16 October 2026; binding on its reviser)
+
+- Z1 ACCEPTED. E-10's outputs go to `data/licensed/research/E-10`, gitignored like E-11's; one
+  root holds both arms' files, and nothing there is committed.
+- Z2 ACCEPTED. The dismissal pre-check is the share `dismissal_assumption_minimum_share` = 0.5
+  with its declared fallback. Its structure-only count is run by the root on the corpus before
+  registration and recorded in the registration commit; it computes no outcome.
+- Z3 RULED. The estimator of E-10's descriptors is one object (ROOT 4: "a definition and its
+  implementation must be one object"). It lives on the product side, in
+  `galactico/features/team/` beside `match_table.py` and `descriptors.py`, and the research
+  pipeline imports it; the firewall forbids only the other direction. Two implementations tied by
+  a parity test are not accepted. Its source hash is in E-10's pinned sources, so a later edit is
+  visible to the protocol.
+- Z4 RULED. The audited revision is audited again before E-10 is called READY, as every E-11
+  revision was.
+
 ## 3. Scenario decisions
 
 - Real Madrid stays the laboratory subject. Add a third snapshot kind: a PLANNING snapshot

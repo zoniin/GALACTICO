@@ -230,10 +230,12 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/PIPELINE.md":
         "function signatures, a mapping to add, and where the external leg writes",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/PIPELINE.md":
-        "the field mapping, an orientation rule, and where replication numbers will appear",
+        "the field mapping, the coordinate scale, an orientation rule, the replication's gates "
+        "and statuses, and where replication numbers and folder digests will be written",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/preregistration.md":
         "that the corpus was seen before and that 40 of its files were inspected, with no "
-        "result of the inspection; the replication rule",
+        "result of the inspection; the replication rule, its gates and statuses, and the "
+        "provider's coordinate scale",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/REVIEW-RECORD.md":
         "the review's findings on key names, the replication rule, the provider mapping and "
         "the attribution plan, with their dispositions; synthetic figures only",
