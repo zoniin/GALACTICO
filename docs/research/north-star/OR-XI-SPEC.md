@@ -12,17 +12,28 @@ why, and the root's ruling on each, are under DISSENT.
 short. Revised the same day after three adversarial reviews (exactness, constitution,
 product); every finding and its disposition is in the Review record at the end. Its DISSENT,
 gates and open questions were ruled by the root the same day (ROOT-DECISIONS 2.7, X1 to X11),
-and this file specifies the ruled state. Not audited, nothing built. Every claim about the
-shipped code below was read from the tree at `25128e8`; line numbers refer to it.
+and this file specifies the ruled state. Audited once, in five scopes (the CEILING model,
+CONFLICT, FRONTIER, RISK and its oracle, and the API, page and tests): 14 blockers survived
+independent refuters and are applied, with the refuters' corrections where they gave one; the
+64 majors and minors were checked against the code and each is applied, five with a
+correction; none is rejected (Review record, "Audit of 14 October 2026"). Three points of that
+audit need a root ruling under X4 (section 12, R-A to R-C) and one needs the E-13 draft's owner
+(section 13, the `risk_report` statistic). Nothing built. Every claim about the shipped code
+below was read from the tree at `25128e8`,
+and the claims the audit touched were checked again at `fda88c2`; line numbers refer to
+`25128e8`, which differs from `fda88c2` in none of the cited files except `KNOWN_LIMITATIONS.md`,
+whose lines are cited at `fda88c2`.
 
 **Rulings in force (ROOT-DECISIONS 2.7).** Both conflict variants are built and routed:
 `explain_solve` in the half-even arithmetic of XI Lab's Satisfy solve and `explain_floors` in
 the conservative arithmetic of a hard-floor query (X2); the page explains the main solve with
 `explain_solve`. The five additive edits to `web/xi.html` are granted on X4's condition (every
 shipped XI test and browser spec passes unchanged, and the new panels send nothing until their
-own button is pressed); the stand-alone page once specified in 8.4 is not built. `xi.risk.tail`
-is in `runtime.LONG_ROUTES` (X5). The risk menu offers 12 worlds until the 40-world solves are
-timed on the corpus (X5; section 11, item 15).
+own button is pressed); the stand-alone page once specified in 8.4 is not built. The audit
+asks the root to rule three points under X4 (section 12, R-A to R-C): the corpus-free `GET` on
+load, the placement of edits (3) and (4) before the inline script, and the committed screenshots
+the shipped specs rewrite. `xi.risk.tail` is in `runtime.LONG_ROUTES` (X5). The risk menu offers
+12 worlds until the 40-world solves are timed on the corpus (X5; section 11, item 15).
 
 **What the four tools are.** Exact computation on a declared model, the first of the three
 kinds of deliverable ROOT section 0 allows. Each has a written decision claim, a certificate,
@@ -84,7 +95,8 @@ the optional id prefix for `Shell.ledger` was declined as not needed (X11).
 | `SCENARIOS`, `decision_inputs`, `DecisionRoute` | `api/decision_lab.py` | the scenario table, the shipped XI model, 422 bodies without input values |
 | `load_snapshot`, `SEED` | `optimization/historical.py` (imported, never edited) | the build of a match snapshot, called by the gated loader of 7.3 exactly as `decision_lab.snapshot` calls it |
 | `declared_row`, `ledger_row`, `evidence_payload`, `verdict_payload` | `api/shell.py` | the O12 ledger and the O13 badges |
-| `_outward`, `corpus_token`, `FLAGSHIP`, `_built_once` | `api/planning.py` | outward printing at four decimals, the cheap corpus identity of a cache key, and the ADR-0024 build gate |
+| `verdict_for`, `record`, `derive`, `PENDING`, `as_payload` | `domain/verdicts.py` | the E-13 payloads, and their pending form for a request outside E-13's scope (5.7) |
+| `_outward`, `corpus_token`, `FLAGSHIP`, `_built_once`, `INTEGER_ONLY`, `_APPROXIMATE`, `_DERIVED_PLACES` | `api/planning.py` | outward printing at four decimals, the cheap corpus identity of a cache key, the ADR-0024 build gate, the integer-only `Literal` validator, and the printed form of a minimum read off the record (`planning._minimum_text`, planning.py:897-909). The API tests pin the call signatures of the private ones, as X9 pins the kernel's (section 9) |
 | `window.Shell` | `web/labs-shared.js` | badges, ledger, error, infeasible and not-certified markup |
 
 **Engineering (ROOT section 4).** `from __future__ import annotations`; frozen dataclasses;
@@ -150,8 +162,12 @@ one quantity:
 
 Half-even infeasibility implies conservative infeasibility, not the converse: a conservative
 coefficient `floor(v / n · q)` (exact) is never above `_q(v, n, q)` and a conservative target
-`ceil(m / n · q)` is never below `_q(m, n, q)`, because the float error of `_q` is far below one
-half. So an XI meeting a set of minima conservatively meets it half-even, and a Satisfy solve
+`ceil(m / n · q)` is never below `_q(m, n, q)`, because for every coefficient and target within
+`MAX_MAGNITUDE = 10**12` the float error of `_q` is below `10**-3` (two roundings of relative
+size `2**-53` each). The bound is enforced, not assumed: `kernel._tables` raises `ValueError` on
+a coefficient or a target above `MAX_MAGNITUDE` under either policy (kernel.py:602-612), every
+new tool builds its tables through it or with the same check (3.4), and `solve_xi` itself
+checks coefficients only (solver.py:267). So an XI meeting a set of minima conservatively meets it half-even, and a Satisfy solve
 that is INFEASIBLE is INFEASIBLE in the conservative model too. The converse fails: a set
 `explain_floors` certifies in the conservative model may hold together under the solve's
 half-even comparison. That is why the page explains XI Lab's solve with `explain_solve`, in
@@ -184,8 +200,8 @@ main solve had the side requirements in force, which is always (DISSENT 5, OPEN 
 ruled by X6). The router enforces the second: `explains: "solve"` is refused without the
 opt-in with its own sentence (`CONFLICT_SOLVE_NEEDS_OPT_IN`), because without it the tool would
 explain a model in which the side requirements are inactive, which is not the solve the reader
-saw. A test asserts that `explain_solve`'s requirements in force equal `solve_xi`'s active set
-on the same declarations.
+saw. A test asserts that `explain_solve`'s `requirements_in_force` (3.4) equal `solve_xi`'s
+active set on the same declarations.
 
 Without the opt-in, the ceilings and risk panels answer on a model that holds progression
 alone while the main solve above them holds three requirements. Each such reply carries the
@@ -206,7 +222,7 @@ Used by the risk modes only.
 | used worlds `U` | the others, ascending. `k` and `B` are never recomputed on `|U|` |
 | lemma | for every `w ∈ U` the admissible keys under `V^w` are exactly the keys with `Eligible(p, s)` and `p ∉ X`, so `𝒳` is the same set in every used world. `risk.py` asserts it (a `RuntimeError` if not) |
 | world fingerprint | `solver._fingerprint(snap.worlds)` over all `B` worlds, discarded ones included: the function and input of `bootstrap_world_fingerprint` (solver.py:609). For `B = 12`, when both snapshots are built from the same files, it equals the fingerprint the main solve on the same scenario carries: a fact of construction, tested on the corpus (slow test), never checked per request. Equal fingerprints say the worlds were drawn alike; they do not say which worlds the main solve's selection frequencies use: those are only the worlds it certified under its own decision rule and requirements (`bootstrap_used_worlds`, solver.py:566-568) |
-| prefix property | `shared_match_weights` draws all replicates from one generator with `multinomial(..., size=B)` (profiles/uncertainty.py:139-141), which draws rows in sequence: the first 12 of the 40 worlds are the 12 worlds, row for row (checked under numpy 2.5.3). A structure test pins it to the installed numpy version; while it holds, the 40-world certificate may say that the main solve's 12 worlds are its worlds 0 to 11 (`RISK_PREFIX`, 7.7) |
+| prefix property | `shared_match_weights` draws all replicates from one generator with `multinomial(..., size=B)` (profiles/uncertainty.py:139-141), which draws rows in sequence: the first 12 of the 40 worlds are the 12 worlds, row for row (checked under numpy 2.5.3 and under 2.5.4, the version in the project's `.venv`). A structure test checks the property itself under the installed numpy and records `numpy.__version__` as information only; no test asserts a version string. While that test passes, the 40-world certificate may say that the main solve's 12 worlds are its worlds 0 to 11 (`RISK_PREFIX`, 7.7) |
 | seeds | the world seed is `snap.provenance["seed"]` (`historical.SEED`); the solver seed is `historical.SEED` too, as `decision_lab` passes it. The router passes the world seed and `snap.provenance["bootstrap_version"]` to every risk function as the keyword arguments `world_seed` and `bootstrap_version` (5.7) |
 
 ### 1.5 Deadlines, deterministic time, statuses, completeness
@@ -225,10 +241,13 @@ has passed; every tool records that call as `NOT_RUN`, never as `UNKNOWN`.
 | statuses | `OPTIMAL`, `FEASIBLE`, `INFEASIBLE`, `UNKNOWN`, `MODEL_INVALID`, `NOT_RUN`, one per call, in call order |
 | undecided | `UNKNOWN` and `NOT_RUN` are never evidence of absence: no tool turns them into "no XI", "no further point", "not needed" or a value |
 | incumbents | a `FEASIBLE` incumbent of an optimisation is not an optimum. FRONTIER and RISK never report one. CEILING reports it as `FEASIBLE_NOT_PROVEN` with the solver's bound, which still brackets every sum (section 2.4), as the shipped maximiser does (tradeoffs.py:417-421) |
-| completeness | `EXACT` (every statement proved), `COMPLETE` (an enumeration proved complete), `LIMIT_REACHED`, `DEADLINE`, `MODEL_INVALID`; no other token, in any block. `runtime.is_complete` caches a reply only when every `completeness` value in it is `EXACT` or `COMPLETE` |
-| proved terminal outcomes | an outcome proved without a solve or by an INFEASIBLE proof is complete: `UNFIELDABLE` and `NOT_SATISFIABLE` (CEILING, FRONTIER, RISK), `NOT_EVALUABLE` (RISK) and `MODEL_FEASIBLE` (CONFLICT) carry `EXACT` (the frontier's empty set `COMPLETE`); a membership block that is vacuous because no selection exists is `EXACT` with no rows. Each is cached like any exact reply, and a test calls `is_complete` on each |
-| which limit stopped a call | for every CP-SAT call a tool makes itself, the solver's `wall_time` and `deterministic_time` (from the response) are recorded in the tool's provenance (`*_solve_times`; times are not encodings). An undecided call stopped at its deterministic limit (`deterministic_time ≥` the limit, wall clock not exhausted) is load-independent and gives `LIMIT_REACHED`; one the wall clock stopped, or a call not made (`NOT_RUN`), gives `DEADLINE`. Calls made inside `kernel.value` expose no solver and count as `DEADLINE`. A certificate with an undecided call names which stopped it in `stopped_by` (`DETERMINISTIC_LIMIT`, `WALL_CLOCK`, or for FRONTIER also `POINT_LIMIT`) |
+| integers from the solver | CP-SAT's float `objective_value` and `best_objective_bound` are not exact integers: with ortools 9.15.6755 an `OPTIMAL` integer objective can be reported one or two ulp off (`1524.9999999999995` for 1525, `-14.000000000000002` for −14). Every integer a tool reports, compares or reuses (an objective value, a lexicographic stage value `v_i`, `Φ*`, `ρ*`) is `solver.value` of the expression the solve optimised, an exact Python int, or is recomputed in Python from the witness. `objective_value` is never compared, stored as an integer or served; `best_objective_bound` is used only rounded outward as in 2.3 step 7 |
+| completeness | `EXACT` (every statement proved), `COMPLETE` (an enumeration proved complete), `LIMIT_REACHED`, `DEADLINE`, `MODEL_INVALID`; no other token, in any block, except `NOT_REQUESTED` on a RISK membership block computed with `analyze_ties=False`, which the router never sends (5.7). `runtime.is_complete` caches a reply only when every `completeness` value in it is `EXACT` or `COMPLETE` |
+| proved terminal outcomes | an outcome proved without a solve or by an INFEASIBLE proof is complete: `UNFIELDABLE` and `NOT_SATISFIABLE` (CEILING, FRONTIER, RISK), `NOT_EVALUABLE` (RISK) and `MODEL_FEASIBLE` (CONFLICT) carry `EXACT` (the frontier's empty set `COMPLETE`); a membership block that is vacuous because no selection exists is `EXACT` with no rows. Each is cached like any exact reply, and a test calls `is_complete` on each. `FLOORS_UNMET` (CEILING, FRONTIER: no XI meets the declared floors, proved; whether an XI exists without them, not decided) is not one of them: its completeness is that of the undecided solve, so it is not stored |
+| which limit stopped a call | for every CP-SAT call a tool makes itself, the solver's `deterministic_time` and `wall_time` (from the response) are recorded in the tool's provenance under two keys: `<tool>_solve_deterministic_times`, a list in call order of `{"status", "deterministic_time"}`, which is reproducible, and `<tool>_solve_wall_times`, a list in call order of `wall_time` floats, which depends on load and is diagnostic only; `<tool>` is `ceiling`, `conflict`, `frontier` or `risk`. A `NOT_RUN` call has no entry in either list. Neither list is a certificate field, and neither enters `input_contract` or `input_fingerprint`; times are not encodings. An undecided call (`UNKNOWN`, or `FEASIBLE` where an optimum was asked) is `LIMIT_REACHED` with `DETERMINISTIC_LIMIT` when its `deterministic_time` is at least its limit and `time.monotonic() < deadline` right after it returns; that stop is load-independent. Every other undecided call is `DEADLINE` with `WALL_CLOCK`: one the wall clock stopped, a call not made (`NOT_RUN`), a call inside `kernel.value` (which exposes no solver), and an `UNKNOWN` that reached neither limit |
+| one certificate, one token | a certificate has one `completeness` and one `stopped_by`. Completeness: `MODEL_INVALID` if any call was `MODEL_INVALID`; otherwise `DEADLINE` if any undecided call is `DEADLINE`; otherwise `LIMIT_REACHED` if any undecided call is `LIMIT_REACHED` or, for FRONTIER, the point limit stopped the list; otherwise `EXACT` (`COMPLETE` for an enumeration). `stopped_by` is read from the undecided calls alone: `WALL_CLOCK` if any is `DEADLINE`, else `DETERMINISTIC_LIMIT` if any is `LIMIT_REACHED`, else `POINT_LIMIT` for a FRONTIER list cut at its limit, else `None`. A load-dependent stop therefore always wins, and a reply is never called load-independent while one of its calls was not |
 | wall clock | the wall-clock budget can stop a solve before its deterministic limit. Such a status is load-dependent; it is reported as `DEADLINE`. Neither `DEADLINE` nor `LIMIT_REACHED` is cached, so a load-dependent answer is never stored |
+| solver faults | an exception raised by CP-SAT (`MemoryError` from `std::bad_alloc`, or any other) is not a status: it is an internal fault and the API answers 500 (7.8). The risk models are written so that none is expected (5.1, split encoding); a test runs every seeded oracle instance's risk solves in a subprocess capped in memory and time, so a regression fails the test instead of exhausting the machine (section 9) |
 
 ### 1.6 Prior exposure (ROOT 2.5, 4.4)
 
@@ -245,9 +264,12 @@ Design claim (a note for the builder, never served; the served `claim` and `non_
 are the 7.7 constants `CEILING_CLAIM` and `CEILING_NON_CLAIM`, defined in `ceilings.py` and
 re-exported by the router, word for word; the same rule holds for every tool): for each
 requirement in force, the least and the largest sum any XI reaches under the eligibility
-rules, locks, exclusions and declared hard floors, each with one XI that reaches it,
-bracketed exactly. Each range is over all XIs for one requirement alone; a sum is arithmetic
-on prior rates, not a forecast, and neither end is a target.
+rules, locks, exclusions and declared hard floors (compared conservatively, 2.1), each
+bracketed exactly: one end is the sum of one XI, the other a proved bound no XI passes. When
+the end is `QUANTIZED_OPTIMAL`, that XI has the extreme rounded sum `I±_r`; it need not have the
+extreme sum `R±_r` (2.1), and another XI can sum to more (or less). Each range is over all XIs
+for one requirement alone; a sum is arithmetic on prior rates, not a forecast, and neither end
+is a target.
 
 ### 2.1 Definition
 
@@ -259,7 +281,7 @@ on prior rates, not a forecast, and neither end is a target.
 |---|---|
 | `I⁺_r`, `x⁺_r` | `max_{x ∈ 𝒳_F} O_r(x)` and one XI attaining it |
 | `I⁻_r`, `x⁻_r` | `min_{x ∈ 𝒳_F} O_r(x)` and one XI attaining it |
-| largest raw sum `R⁺_r = max_{x ∈ 𝒳_F} S_r(x)` | lies in `[S_r(x⁺_r), (n_r / q) · I⁺_r + e_r]`: the left end is attained by `x⁺_r`; the right end bounds every `S_r(x)` because `S_r(x) ≤ (n_r / q) · O_r(x) + e_r ≤ (n_r / q) · I⁺_r + e_r` |
+| largest raw sum `R⁺_r = max_{x ∈ 𝒳_F} S_r(x)` | lies in `[S_r(x⁺_r), (n_r / q) · I⁺_r + e_r]`: the left end is the sum of `x⁺_r`; the right end bounds every `S_r(x)` because `S_r(x) ≤ (n_r / q) · O_r(x) + e_r ≤ (n_r / q) · I⁺_r + e_r`. `R⁺_r` itself need not be reached by `x⁺_r`: XIs tied at `I⁺_r` can differ in `S_r` (the top-tie instance of section 9), and which of them the solver returns is its choice |
 | least raw sum `R⁻_r` | lies in `[(n_r / q) · I⁻_r − e_r, S_r(x⁻_r)]`, symmetrically |
 | bracket | every `x ∈ 𝒳_F` has `(n_r / q) · I⁻_r − e_r ≤ S_r(x) ≤ (n_r / q) · I⁺_r + e_r` |
 
@@ -270,15 +292,46 @@ whose `minimum` is `φ_r`; a test with `φ_r ≠ m_r` asserts it:
 
 | Field | True | False | None |
 |---|---|---|---|
-| `minimum_reached_by_some_xi` | `S_r(x⁺_r) ≥ m_r` (witness `x⁺_r`) | `(n_r / q) · J⁺_r + e_r < m_r` with `J⁺_r` the proved integer upper bound of the LARGEST end | neither |
-| `minimum_missed_by_some_xi` | `S_r(x⁻_r) < m_r` (witness `x⁻_r`) | `(n_r / q) · J⁻_r − e_r ≥ m_r`, `J⁻_r` the proved integer lower bound of the LEAST end | neither |
+| `minimum_reached_by_some_xi` | `S_r(x) ≥ m_r` for a returned witness `x`, read in the order `x⁺_r`, then `x⁻_r`; `minimum_reached_witness` names the end whose witness decided (`LARGEST` or `LEAST`) | `(n_r / q) · J⁺_r + e_r < m_r` with `J⁺_r` the proved integer upper bound of the LARGEST end | neither |
+| `minimum_missed_by_some_xi` | `S_r(x) < m_r` for a returned witness `x`, read in the order `x⁻_r`, then `x⁺_r`; `minimum_missed_witness` names that end | `(n_r / q) · J⁻_r − e_r ≥ m_r`, `J⁻_r` the proved integer lower bound of the LEAST end | neither |
 
-A witness decides True and a proved bound decides False whatever the end's certification: a
-`FEASIBLE_NOT_PROVEN` end has both (its incumbent is an XI and CP-SAT's bound is proved), so it
-decides a fact whenever either does. A `NO_SOLUTION` end decides nothing. `None` has two
-causes, and the router serves a different sentence for each (`reason` beside the fact:
-`ALLOWANCE` when the end has a witness and a bound and `m_r` lies between them, `NOT_CERTIFIED`
-when the end is `NO_SOLUTION`); 7.7 has the four sentences.
+Both witnesses are XIs of `𝒳_F`, so each can decide either True fact: with floors, or when `O_r`
+ties at an end, `x⁻_r` can reach a minimum `x⁺_r` misses, and when one end is `NO_SOLUTION` the
+other end's witness can still decide. The sentence a True fact serves prints the deciding
+witness's exact sum (7.5). A proved bound decides False whatever the end's certification. A
+`FEASIBLE_NOT_PROVEN` end with a finite bound has both a witness and a bound; one whose bound is
+not finite (2.3 step 7) decides only through its witness; a `NO_SOLUTION` end decides nothing.
+A fact is `None` only when no returned witness and no bound decides it. `None` has two causes,
+each with its own sentence (`reason` beside the fact, 7.7), read from the end whose bound would
+decide False (LARGEST for reached, LEAST for missed):
+
+- `ALLOWANCE`: that end is `QUANTIZED_OPTIMAL`. Then `m_r` lies between its witness's sum and its
+  raw bound, a band at most `2e_r` wide, because `I± = O_r(x±)` and
+  `|S_r − (n_r / q) · O_r| ≤ e_r`; "it lies inside the rounding allowance of the search" is true.
+- `NOT_CERTIFIED`: that end is not `QUANTIZED_OPTIMAL`: `FEASIBLE_NOT_PROVEN` with a finite bound,
+  `FEASIBLE_NOT_PROVEN` without one, or `NO_SOLUTION`. "The largest (least) end was not certified
+  within the search limits" is true in each case. The `ALLOWANCE` sentence is never served for an
+  unproved end: its undecided band holds CP-SAT's optimality gap, which no rounding allowance
+  bounds (with `n = 1`, `q = 100000`, `a = 10`, an incumbent at 2.9 and a bound at 4.00005 leave a
+  minimum of 3.5 undecided, 0.6 away from the incumbent while `e_r = 0.00005`).
+
+The facts compare exact sums in `Fraction`. XI Lab's Satisfy solve above compares half-even
+integers (`SHORTFALL_POLICY`), so within `e_r` of a minimum the two can disagree: with `n = 1`,
+`q = 100000`, two slots and two players at 0.500004, a minimum of 1.000006 is reached by an XI
+here (it sums to 1.000008) while `solve_xi(mode="SATISFY")` is INFEASIBLE (50000 + 50000 <
+100001). Every reply that serves a minimum statement therefore also serves
+`CEILING_EXACT_FACTS` (7.7), which names both comparisons (ADR-0020: every tool says which
+policy a statement uses).
+
+With declared floors, `𝒳_F` is the conservative inner set: an XI that meets a raw floor with less
+than `(a_r + 1) · n_r / q` to spare can lie outside it (tradeoffs.py:215-230). Two players at
+0.15 on one requirement meet a floor of 0.3 exactly, yet `14999 + 14999 < 30000`, so their XI is
+outside `𝒳_F`, and a bound read off `𝒳_F` ("none sums to more than 5.0001") can be passed by
+that XI (it sums to 10 on another requirement). Every statement read off a bound (the False
+facts, the outer ends of the intervals, the ledger's "no XI above" and "no XI below") is
+therefore about `𝒳_F`: whenever `floors` is non-empty, those sentences are served with the scope
+`{xi}` of 7.7 and the reply carries `FLOORS_SCOPE`. The True facts and the attained sums need no
+scope: a witness meets each raw floor exactly (2.3).
 
 They are per requirement and marginal. Two minima reachable one at a time say nothing about
 reaching both; the page says so.
@@ -294,10 +347,11 @@ class SumEnd:
     direction: str                 # LARGEST | LEAST
     solver_status: str             # status of the one solve of this end, or NOT_RUN
     certification: str             # QUANTIZED_OPTIMAL | FEASIBLE_NOT_PROVEN | NO_SOLUTION
-    integer_value: int | None      # O_r of the witness, OBJECTIVE_POLICY units of n_r / q
-    integer_bound: int | None      # I± when QUANTIZED_OPTIMAL; the solver's bound when FEASIBLE_NOT_PROVEN
+    integer_value: int | None      # O_r of the witness recomputed in Python, OBJECTIVE_POLICY units of n_r / q
+    integer_bound: int | None      # I± when QUANTIZED_OPTIMAL; the solver's bound when FEASIBLE_NOT_PROVEN,
+                                   # None when that bound is not finite (2.3 step 7)
     attained: float | None         # S_r(witness), the float nearest the exact sum (never printed: 7.5)
-    raw_bound: float | None        # (n_r / q)·integer_bound ± e_r, rounded outward with math.nextafter
+    raw_bound: float | None        # (n_r / q)·integer_bound ± e_r, rounded outward with math.nextafter; None with integer_bound
     lineup: Lineup                 # the witness, (slot_id, player_id) in formation order; () when none
 
 @dataclass(frozen=True)
@@ -314,13 +368,16 @@ class RequirementRange:
     largest: SumEnd
     least: SumEnd
     minimum_reached_by_some_xi: bool | None
-    minimum_reached_reason: str | None    # None | ALLOWANCE | NOT_CERTIFIED (2.1)
+    minimum_reached_witness: str | None   # LARGEST | LEAST: the end whose witness decided True; else None
+    minimum_reached_reason: str | None    # None | ALLOWANCE (LARGEST end QUANTIZED_OPTIMAL) | NOT_CERTIFIED (any other LARGEST end), 2.1
     minimum_missed_by_some_xi: bool | None
-    minimum_missed_reason: str | None
+    minimum_missed_witness: str | None
+    minimum_missed_reason: str | None     # as above, read from the LEAST end
 
 @dataclass(frozen=True)
 class CeilingCertificate:
-    feasible_set: str              # FIELDABLE | UNFIELDABLE | NOT_SATISFIABLE | UNKNOWN | MODEL_INVALID
+    # FIELDABLE | UNFIELDABLE | NOT_SATISFIABLE | FLOORS_UNMET | UNKNOWN | MODEL_INVALID (2.3 step 6)
+    feasible_set: str
     solves: int
     statuses: tuple[str, ...]      # every call, in call order
     completeness: str              # EXACT | LIMIT_REACHED | DEADLINE | MODEL_INVALID (1.5)
@@ -334,7 +391,7 @@ class CeilingCertificate:
 @dataclass(frozen=True)
 class CeilingResult:
     formation: str
-    ranges: tuple[RequirementRange, ...]      # requirement_id ascending
+    ranges: tuple[RequirementRange, ...]      # requirement_id ascending; () when the tool ended at step 6
     floors: tuple[tuple[str, float], ...]     # (requirement_id, φ_r) ascending; () when none
     locked: tuple[int, ...]
     excluded: tuple[int, ...]
@@ -360,48 +417,79 @@ def requirement_ranges(
 ```
 
 `floors` keys must be active requirement ids (`ValueError` otherwise), values finite and at
-most `MAX_MAGNITUDE`. Every other input is validated by `ShortfallKernel.__init__` and
-`_background` (unknown ids, duplicates, non-finite values, unknown slots).
+most `MAX_MAGNITUDE`. At least one requirement must be in force: with `R` empty there is
+nothing to range and no solve would show that an XI exists, so it is a `ValueError` (the
+router always holds progression). A requirement in force with `hard=True` is a `ValueError`,
+as `kernel.value` refuses one (kernel.py:670-674): a hard minimum is declared to this tool as a
+floor, and a field that would be ignored is refused (the rule of 7.2). Each of these sentences
+names no value. Every other input is validated by `ShortfallKernel.__init__`, `_background`
+and `_tables` (unknown ids, duplicates, non-finite values, unknown slots, a coefficient, minimum
+or expression above its magnitude limit).
 
 ### 2.3 Formulation
 
 1. `kernel = ShortfallKernel(candidates, requirements′, formation, quantization=q, seed=seed)`
    with `requirements′` the requirements in which each floored `r` has `minimum = φ_r`
-   (`dataclasses.replace`; only the floored tables are read, so the other minima do not
-   matter; the minimum facts read `m_r` from the unmodified `requirements`).
+   (`dataclasses.replace`; only the floored tables enter the model, though `_tables` still
+   validates every active requirement's minimum and raises `ValueError` on one above
+   `MAX_MAGNITUDE`; the minimum facts read `m_r` from the unmodified `requirements`).
    `β = kernel._background(excluded, locked, None, (), None)`.
 2. If the deadline has passed: every end `NOT_RUN`, `feasible_set = UNKNOWN`, completeness
    `DEADLINE`. If `β.model is None`: `feasible_set = UNFIELDABLE` with `β.reasons`, no
    solve, completeness `EXACT`.
 3. `H = kernel._tables(β, conservative=True)`; region `= β.model.clone()` plus
-   `_at_least(region, kernel._expression(β, H[r][0]), H[r][1])` for each floored `r`.
+   `_at_least(region, kernel._expression(β, H[r][0]), H[r][1])` for each floored `r`, in
+   ascending requirement id, so that a reordered `floors` mapping builds the same model.
 4. Objective coefficients, mirroring tradeoffs.py:299-312: for each key `(p, s)` of
    `β.variables` with `applies(r, s)`, `c = round(_scaled(β.vectors[p][μ_r], n_r, q))`;
    `|c| > MAX_MAGNITUDE` or `Σ|c| ≥ MAX_EXPRESSION_MAGNITUDE` is a `ValueError` naming no value.
 5. For `r` in requirement-id order: one clone maximising `Σ c·x`, then one minimising it.
    At most `2·|R|` solves, plus one (step 6).
-6. The first solve that is `INFEASIBLE` ends the tool: with no floor, `feasible_set =
-   UNFIELDABLE`; with floors, one solve of `β.model` decides `UNFIELDABLE` (INFEASIBLE) or
-   `NOT_SATISFIABLE` (a witness), else `UNKNOWN` / `MODEL_INVALID`. No range is reported.
-   `UNFIELDABLE` and `NOT_SATISFIABLE` are proved: completeness `EXACT` (1.5).
+6. The first solve that is `INFEASIBLE` proves `𝒳_F` empty and ends the tool; no range is
+   reported. With no floor, `feasible_set = UNFIELDABLE`, with the reason `UNFIELDABLE_PROVED`
+   (7.7) when the kernel recorded none, as the maximiser and `kernel.value` add one
+   (tradeoffs.py:453-457, kernel.py:739-743). With floors, one solve of `β.model` decides the
+   cause: `INFEASIBLE` gives `UNFIELDABLE` (with that reason), a witness gives
+   `NOT_SATISFIABLE`, `MODEL_INVALID` gives `MODEL_INVALID`, and `UNKNOWN` or `NOT_RUN` gives
+   `FLOORS_UNMET`: no XI meets the floors (proved by the first solve), and whether one exists
+   without them is not decided; its completeness is that of the undecided solve (1.5), so the
+   reply is not stored. `UNFIELDABLE` and `NOT_SATISFIABLE` are proved: completeness `EXACT`.
+   The first solve that is `MODEL_INVALID` also ends the tool: `feasible_set = MODEL_INVALID`,
+   no range reported, completeness `MODEL_INVALID`, and the reply's statement `CEILING_REFUSED`
+   (7.7) in place of a cell that would blame the search limits. Otherwise, after the last
+   solve, `feasible_set = FIELDABLE` when some solve returned a witness, and `UNKNOWN` when none
+   did (every end undecided or `NOT_RUN`).
 7. `OPTIMAL`: `QUANTIZED_OPTIMAL`, `integer_bound = integer_value`. `FEASIBLE`:
    `FEASIBLE_NOT_PROVEN`, `integer_bound = max(value, ceil(best_objective_bound))` (LARGEST)
-   or `min(value, floor(best_objective_bound))` (LEAST), `None` if the bound is not finite.
-   Otherwise `NO_SOLUTION` with every number `None`.
+   or `min(value, floor(best_objective_bound))` (LEAST), the shipped formula
+   (tradeoffs.py:421). The rounding is sound: the solver's true bound on an integer objective is
+   an integer, and its float errs by far less than one unit for any expression within
+   `MAX_EXPRESSION_MAGNITUDE`, so the rounded bound is at most one unit loose and never on the
+   wrong side; a loose bound only makes a False fact of 2.1 harder to decide. A `FEASIBLE` end
+   whose bound is not finite keeps its witness, `integer_value` and `attained`, with
+   `integer_bound = None` and `raw_bound = None`; its fact is decided by the witness or is
+   `None` with reason `NOT_CERTIFIED`. Otherwise `NO_SOLUTION` with every number `None`.
 
 Witness check, without the solver, on every returned XI (a `RuntimeError` on failure, never a
 silent answer): `kernel._admissible(β, lineup)`; each floor holds in integers and
-`S_r(x) ≥ φ_r` in `Fraction` (tradeoffs.py:383-385); `O_r(lineup)` recomputed in Python equals
-the solver's objective value.
+`S_r(x) ≥ φ_r` in `Fraction` (tradeoffs.py:383-385); `O_r(lineup)` recomputed in Python
+(OBJECTIVE_POLICY, from the lineup's values) equals `solver.value(Σ c·x)`, an exact Python int,
+where `Σ c·x` is the same expression object the solve maximised or minimised. `integer_value`
+is that recomputed `O_r` (tradeoffs.py:413-415). `solver.objective_value` is never compared,
+stored as an integer or served (1.5): on an `OPTIMAL` solve it can be one or two ulp off the
+integer. No `|objective_value − O_r| < 1/2` check is made either: with `Σ|c|` near
+`MAX_EXPRESSION_MAGNITUDE = 2**50` one ulp is 1/4, so such a check could itself fail on a
+correct optimum and serve a 500.
 
 ### 2.4 Certificate and time
 
 | Situation | Reported |
 |---|---|
 | every end `QUANTIZED_OPTIMAL` | completeness `EXACT`; both facts decided wherever the minimum is outside the allowance |
-| an end `FEASIBLE_NOT_PROVEN` | the attained sum and the bound are reported; the bracket still contains every feasible sum because the bound is CP-SAT's proved bound; completeness `LIMIT_REACHED` or `DEADLINE` by the rule of 1.5 |
+| an end `FEASIBLE_NOT_PROVEN` | the attained sum and the bound are reported; the bracket still contains every feasible sum because the bound is CP-SAT's proved bound; a fact this end leaves undecided has reason `NOT_CERTIFIED`, never `ALLOWANCE` (2.1); a bound that is not finite is reported as no bound (`CEILING_NOT_CERTIFIED` in its cell); completeness `LIMIT_REACHED` or `DEADLINE` by the rule of 1.5 |
 | an end `NOT_RUN`, `UNKNOWN` | `NO_SOLUTION`, no number, the sentence `CEILING_NOT_CERTIFIED`; completeness `LIMIT_REACHED` or `DEADLINE` (1.5; `NOT_RUN` is always `DEADLINE`) |
-| `MODEL_INVALID` anywhere | completeness `MODEL_INVALID` |
+| `MODEL_INVALID` anywhere | the tool ends (2.3 step 6): no range, `CEILING_REFUSED`, completeness `MODEL_INVALID` |
+| `FLOORS_UNMET` | no range; `FLOORS_CONSERVATIVE` and `FLOORS_CAUSE_UNDECIDED`; completeness of the undecided solve (1.5) |
 
 Relation to shipped code. `maximize_requirement` makes every active minimum a floor, has no
 minimiser, no deterministic limit, and warnings that fail the copy guard (tradeoffs.py:233-244:
@@ -412,8 +500,12 @@ with `floors` equal to every active minimum, the LARGEST end of each requirement
 `integer_value`, `integer_upper_bound` and certification of
 `maximize_requirement(target_requirement_id=r)` on the same inputs. The witnesses are not
 compared: the kernel background adds symmetry breaking the maximiser lacks (kernel.py:530-548),
-so two exact solvers can return different XIs with the same integer value. Each witness's raw
-sum is asserted to lie in the other's bracket instead.
+so two exact solvers can return different XIs with the same integer value, whose exact sums can
+differ (2.1). Instead, on instances where both are `QUANTIZED_OPTIMAL`, each witness's exact sum
+is asserted to lie in `[(n_r / q) · I⁺_r − e_r, (n_r / q) · I⁺_r + e_r]`, the band every XI with
+integer value `I⁺_r` lies in (1.2), with `I⁺_r` the integer value both report. "The other's
+bracket" read as `[witness sum, bound]` is not used: two correct witnesses tied at `I⁺_r` need
+not lie in each other's.
 
 ## 3. CONFLICT: `galactico/optimization/xi/conflict.py`
 
@@ -426,9 +518,11 @@ XI: the model can hold another, independent conflict, and the assignment that sh
 is needed can leave slots empty and use a player the reader excluded, when those declarations
 lie outside the set. A separate solve per member answers the reader's question directly
 (3.3, "restore test"): with every other declaration kept, does dropping this one alone leave
-an XI (yes, no, or not decided). It is one such set, not the only one and not the smallest by
-count; eligibility, the minutes gate, the evidence gate and missing measurements are part of
-the model and are never offered for removal; nothing was relaxed in the solve it explains.
+an XI (yes, no, or not decided). It is one such set; the filter does not show whether another
+exists, and it does not choose the set to be the smallest by count; eligibility, the minutes
+gate, the evidence gate and missing measurements are part of the model and are never offered
+for removal; nothing was relaxed in the solve it explains. Only a `MINIMAL_CERTIFIED` reply
+carries this claim; every other status carries its own (3.4).
 
 ### 3.1 Declarations and background
 
@@ -449,8 +543,13 @@ Arithmetic, named by the public function:
 
 | Function | Floors | Arithmetic | Mirrors |
 |---|---|---|---|
-| `explain_floors(..., floors)` | `floors` given: those `r` at `φ_r` (`{}`: no floor); `floors=None`: every `r ∈ R` at `m_r` | `HARD_POLICY` | `kernel.satisfiable` and `maximize_requirement`. It explains a hard-floor query; the API accepts it (`explains: "floors"`) and no page part sends it in this release (X10) |
-| `explain_solve(..., mode)` (X2) | every `r ∈ R` with `r.hard or mode == "SATISFY"`, at `m_r` | `SHORTFALL_POLICY` (`_q` coefficients and target) | `solve_xi`'s feasibility, solver.py:198-246, 274-275. The page explains the main solve with it, in the main solve's mode (8.2) |
+| `explain_floors(..., floors)` | `floors` given: those `r` at `φ_r` (`{}`: no floor), keys and values validated as CEILING's (2.2); `floors=None`: every `r ∈ R` at `m_r` | `HARD_POLICY` | `kernel.satisfiable` and `maximize_requirement`. It explains a hard-floor query; the API accepts it (`explains: "floors"`) and no page part sends it in this release (X10) |
+| `explain_solve(..., mode)` (X2) | every `r ∈ R` with `r.hard or mode == "SATISFY"`, at `m_r`; `mode` other than `"BALANCE"` or `"SATISFY"` is a `ValueError`, as `solve_xi` refuses one | `SHORTFALL_POLICY` (`_q` coefficients and target) | `solve_xi`'s feasibility, solver.py:198-246, 274-275. The page explains the main solve with it, in the main solve's mode (8.2). In `BALANCE` mode with no hard requirement it declares no floor, and the reply's arithmetic sentence says so (`CONFLICT_NO_MINIMUM`, 7.7) |
+
+A floor at a minimum the reader did not enter (the snapshot's default, which
+`decision_inputs` takes for every requirement missing from `minimums`, decision_lab.py:293) is
+still a declaration of the problem, and is labelled as the default it is (7.5); the module does
+not know which minima were entered, the router does.
 
 ### 3.2 Model
 
@@ -482,7 +581,8 @@ for c in order:
     INFEASIBLE      -> current = current − {c}            DROPPED
     witness w       -> check w against current − {c}       KEPT_WITNESS (w stored)
     UNKNOWN         -> kept                                KEPT_UNDECIDED
-    MODEL_INVALID   -> kept; the tool ends MODEL_INVALID
+    MODEL_INVALID   -> c kept, its row recorded; every later declaration NOT_RUN;
+                       stop: status MODEL_INVALID, conflict = (), no restore test
 conflict = current, in deletion order
 for c in conflict, in deletion order:              # restore tests, after the filter
     SLOT_COVERAGE   -> NOT_APPLICABLE, no solve     # an XI fills every slot
@@ -491,7 +591,8 @@ for c in conflict, in deletion order:              # restore tests, after the fi
     INFEASIBLE      -> restores_alone = False      # another conflict remains
     witness w       -> check w against all − {c}; it is an XI; restores_alone = True
     UNKNOWN         -> restores_alone = None
-    MODEL_INVALID   -> restores_alone = None; the tool ends MODEL_INVALID
+    MODEL_INVALID   -> restores_alone = None; completeness MODEL_INVALID; the set's status
+                       stands (the filter proved it) and the later restore tests still run
 ```
 
 | Statement | Proof |
@@ -500,14 +601,17 @@ for c in conflict, in deletion order:              # restore tests, after the fi
 | the final set's infeasibility is certified by one recorded solve on exactly that set | the last `DROPPED` test was on the final set (later tests only keep), or `s0` if nothing was dropped. Its position in `statuses` is `final_set_proof_solve` |
 | each `KEPT_WITNESS` member `c` is necessary to the set | its witness satisfies `current_t − {c} ⊇ final − {c}`, and a satisfiable set stays satisfiable when declarations are removed. The witness is checked again, without the solver, against exactly `final − {c}`. It is an assignment, not an XI: declarations outside `final − {c}` were not imposed on it |
 | every proper subset of the final set is satisfiable | each proper subset is contained in `final − {c}` for some member `c` |
-| what this does not prove | that `all − {c}` is satisfiable. Instance, with non-negative rates: slots, then `exclusion:A`, a progression floor above every sum the squad can reach, `lock:A`; every slot and the exclusion are dropped because the floor conflict persists, the floor is kept with a witness that leaves slots empty, and the final set is `{floor:progression}`; dropping the floor from everything declared still leaves `lock:A` with `exclusion:A`. The restore test reports `restores_alone = False` for it |
+| what this does not prove | that `all − {c}` is satisfiable. Instance, with non-negative rates: slots, then `exclusion:A`, a progression floor above the largest sum any assignment reaches (for example above the sum, over the applicable slots, of each slot's largest admissible coefficient; above every XI's sum is not enough, because with slot coverage dropped an assignment can sum to more than every XI), `lock:A`, where `A` has an admissible key; every slot and the exclusion are dropped because the floor conflict persists, the floor is kept with a witness that leaves slots empty, and the final set is `{floor:progression}`; dropping the floor from everything declared still leaves `lock:A` with `exclusion:A`. The restore test reports `restores_alone = False` for it |
 | `restores_alone = True` | the witness meets every declaration but `c`, slot coverage included, so it is an XI of the model without `c`; checked without the solver against `all − {c}` |
 | solves | at most `1 + |order|` for the filter (with 11 slots, 11 locks, 30 exclusions and 3 floors, 56 small feasibility solves) plus one restore test per member of the final set that is not slot coverage |
 
 Deletion order is a declared device: declarations tested early are dropped whenever possible,
 so the set leans on locks and floors, the declarations a reader made, rather than on slot
-coverage. Another order can return another minimal set; the response says so and prints the
-order. QuickXplain is not used: it needs fewer solves for small sets and its certificate is
+coverage. When the model holds more than one minimal conflicting set, another order can return
+another; the response says so conditionally and prints the order. When the set is the only
+one, or a one-member set (the smallest any conflict can be, because the empty assignment
+meets the background), an unconditional "another order can return another" or "it is not the
+smallest by count" would be false, so the copy never says either (7.7). QuickXplain is not used: it needs fewer solves for small sets and its certificate is
 harder to read; the deletion filter's certificate is one line per declaration.
 
 ### 3.4 Interface
@@ -537,6 +641,7 @@ class DeletionTest:
     # be empty and a player whose exclusion lies outside final − {c} may appear
     witness: ConflictLineup
     witness_excluded_players: tuple[int, ...]   # excluded players the witness uses; () when none
+    witness_missing_locked_players: tuple[int, ...]   # locked players the witness leaves out; () when none
 
 @dataclass(frozen=True)
 class RestoreTest:
@@ -566,15 +671,16 @@ class ConflictCertificate:
 class MinimalConflict:
     # MINIMAL_CERTIFIED | NOT_PROVEN_MINIMAL | MODEL_FEASIBLE | UNDECIDED | MODEL_INVALID
     status: str
+    requirements_in_force: tuple[str, ...]  # R, requirement_id ascending (1.3: equal to solve_xi's active set)
     declarations: tuple[Declaration, ...]   # all of them, deletion order
-    conflict: tuple[str, ...]               # constraint ids of the set, deletion order; () unless infeasible
-    tests: tuple[DeletionTest, ...]         # one per declaration, deletion order
-    restore_tests: tuple[RestoreTest, ...]  # one per member of the set, deletion order
+    conflict: tuple[str, ...]               # constraint ids of the set, deletion order; () unless the final set is certified
+    tests: tuple[DeletionTest, ...]         # filter rows, deletion order; () for MODEL_FEASIBLE and UNDECIDED (status rules)
+    restore_tests: tuple[RestoreTest, ...]  # one per member of the set, deletion order; () when conflict is ()
     feasible_witness: Lineup                # MODEL_FEASIBLE: an XI meeting every declaration
     certificate: ConflictCertificate
     locked: tuple[int, ...]
     excluded: tuple[int, ...]
-    claim: str                              # CONFLICT_CLAIM, word for word
+    claim: str                              # the 7.7 constant its status selects, word for word
     non_claim: str                          # CONFLICT_NON_CLAIM, word for word
     provenance: dict
 
@@ -588,44 +694,71 @@ def explain_solve(candidates, requirements, formation="4-3-3", *, mode: str,
                   deadline: float, provenance=None) -> MinimalConflict
 ```
 
-Status rules: `MINIMAL_CERTIFIED` iff the initial test is INFEASIBLE and every member of the
-final set is `KEPT_WITNESS`. `NOT_PROVEN_MINIMAL`: the final set is certified infeasible and at
-least one member is `KEPT_UNDECIDED` or `NOT_RUN`; each such member carries the sentence
-`CONFLICT_MEMBER_UNDECIDED`, never "needed". `MODEL_FEASIBLE`: the initial test found an XI,
-which is checked and returned (completeness `EXACT`). `UNDECIDED`: the initial test was not
-decided; nothing is said. Completeness is `EXACT` only when every filter test and every
-applicable restore test is decided; otherwise `LIMIT_REACHED` or `DEADLINE` by 1.5. An
+Status rules. The status selects the reply's `claim` (7.7), and `non_claim` is always
+`CONFLICT_NON_CLAIM`:
+
+| Status | When | `claim` | `tests`, `restore_tests`, `conflict` |
+|---|---|---|---|
+| `MINIMAL_CERTIFIED` | the initial test is INFEASIBLE and every member of the final set is `KEPT_WITNESS` | `CONFLICT_CLAIM` | every filter row; one restore row per member; the set |
+| `NOT_PROVEN_MINIMAL` | the final set is certified infeasible and at least one member is `KEPT_UNDECIDED` or `NOT_RUN`; each such member carries `CONFLICT_MEMBER_UNDECIDED`, never "needed" | `CONFLICT_NOT_PROVEN_CLAIM` | as above |
+| `MODEL_FEASIBLE` | the initial test found an XI, which is checked and returned (completeness `EXACT`) | `CONFLICT_FEASIBLE` | `()`, `()`, `()`; no filter test runs, so no `NOT_RUN` row turns the reply into `DEADLINE` |
+| `UNDECIDED` | the initial test was not decided (`UNKNOWN`, or `NOT_RUN` for a deadline already passed at entry) | `CONFLICT_NOT_DECIDED` | `()`, `()`, `()`; completeness by 1.5, nothing stored |
+| `MODEL_INVALID` | the initial test, or a filter test, was `MODEL_INVALID` | `CONFLICT_MODEL_INVALID` | at the initial test `()`; in the filter, the rows recorded so far, the refused one, and every later declaration `NOT_RUN`; `restore_tests = ()`, `conflict = ()`, `final_set_proof_solve = None`; completeness `MODEL_INVALID` |
+
+Completeness is `EXACT` only when every filter test and every applicable restore test is
+decided; otherwise `LIMIT_REACHED`, `DEADLINE` or `MODEL_INVALID` by the rule of 1.5. An
 undecided restore test never changes the status of the set: it only leaves that member's
-`restores_alone` at `None`. Coefficient tables are computed here with the shipped functions
-(`_q`, or `floor`/`ceil` of `_scaled`) and a test asserts they equal `kernel._tables` on the
-keys both hold. Witness checks verify admissibility, injectivity, every declaration of the
-tested set in integers and, for `HARD_FLOOR_CONSERVATIVE`, every floor in `Fraction`; a restore
-witness is also checked to be an XI of the model without `c` (every slot filled, every lock
-but `c` in, every exclusion but `c` out).
+`restores_alone` at `None`. A restore test that is `MODEL_INVALID` does not either: the filter
+proved the set, so its status and its `claim` stand, that member's `restores_alone` is `None`,
+the later restore tests still run, and the completeness is `MODEL_INVALID`.
+
+Coefficient tables are computed here with the shipped functions (`_q`, or `floor`/`ceil` of
+`_scaled`), with the `MAX_MAGNITUDE` and `MAX_EXPRESSION_MAGNITUDE`
+checks of `kernel._tables` on every coefficient, target and expression, and a test asserts they
+equal `kernel._tables` on the keys both hold. Witness checks verify admissibility, injectivity,
+every declaration of the tested set in integers and, for `HARD_FLOOR_CONSERVATIVE`, every floor
+in `Fraction`; a restore witness is also checked to be an XI of the model without `c` (every
+slot filled, every lock but `c` in, every exclusion but `c` out). A filter witness records the
+excluded players it uses and the locked players it leaves out: either can happen when that
+declaration lies outside `final − {c}`, and the page names both (7.5).
 
 ## 4. FRONTIER: `galactico/optimization/xi/frontier.py`
 
 Design claim (never served; the served sentences are the 7.7 constants `FRONTIER_CLAIM` and
 `FRONTIER_NON_CLAIM`, defined in `frontier.py`): every combination of 2 or 3 declared
-requirement sums **in the shipped rounding** (OBJECTIVE_POLICY integers) that no XI's rounded
-sums match or exceed on all of them while exceeding it on one, each with one XI that reaches
-it, with a proof that none is missing. The certified object is the integer vector, and that
-is what the page prints as the point (exactly, 7.5); the witness's unrounded sums are printed
-beside it as a secondary column and are not the point. Not a ranking, no point is preferred,
-nothing is said about a requirement that was not declared, and a sum is not a forecast. O7
-lists three words that are never served; a test checks them.
+requirement sums **in the shipped rounding** (OBJECTIVE_POLICY integers) that some XI reaches
+and that no XI's rounded sums match or exceed on all of them while exceeding it on one, each
+with one XI that reaches it, with a proof that none is missing. The certified object is the
+integer vector, and that is what the page prints as the point (exactly, 7.5); the witness's
+unrounded sums are printed beside it, in the same unit, as a secondary column and are not the
+point. Not a ranking, no point is preferred, nothing is said about a requirement that was not
+declared, and a sum is not a forecast. O7 forbids "best/optimal trade-off/knee". Because that
+can be read as three phrases ("best", "optimal trade-off", "knee") or with "best" and
+"optimal" each qualifying "trade-off", the words never served on the frontier are the union:
+"best", "optimal", "trade-off" (also "tradeoff" and "trade off") and "knee". A test checks
+every served frontier string outside provenance and the rendered frontier panel for them. The
+one exception is the solver status token `OPTIMAL` in a status field of the certificate
+(`stage_statuses`, `statuses`, `final_region_status`): a certified solver status under R11, not
+the forbidden phrase.
 
 ### 4.1 Definition
 
 Dimensions `D = (r_1, …, r_d)`, `d ∈ {2, 3}`, distinct members of `R`, declared by the
 reader in an order; no default exists. The feasible set is `𝒳_F` of section 2.1 (eligibility,
-locks, exclusions, and hard floors only if declared; ROOT 2.4). For `x ∈ 𝒳_F`,
+locks, exclusions, and hard floors only if declared, compared conservatively; ROOT 2.4), so
+with floors the completeness sentence is scoped to it as CEILING's bound sentences are (2.1,
+`{xi}` and `FLOORS_SCOPE` of 7.7): an XI that meets a raw floor exactly can be outside `𝒳_F` and
+above every listed point. For `x ∈ 𝒳_F`,
 `V(x) = (O_{r_1}(x), …, O_{r_d}(x))` in OBJECTIVE_POLICY integers. `u` dominates `v` iff
 `u ≥ v` componentwise and `u ≠ v`. The frontier `P` is the set of vectors `V(x)` that no
 `V(y)` dominates. The claim is "nondominated among the declared descriptors at the shipped
 quantisation" (O7): two XIs with different raw sums can share a vector, and an XI whose raw
 vector is nondominated can be dominated after rounding, within `a_r · n_r / q` per dimension.
-Each point reports the allowance `e_r` beside it.
+Each point reports beside it, in club medians (the unit of the point `V_i / q`), the witness's
+sums divided by `n_r` and the allowance `a_r / (2q) = e_r / n_r`: for every XI,
+`|S_r(x) / n_r − O_r(x) / q| ≤ a_r / (2q)` exactly (1.2). Raw sums in per-90 units beside a point
+in club medians would differ from it by a factor near `n_r`, which is not 1 for any shipped
+requirement (decision_lab.py:302); the three columns therefore share one unit (7.5).
 
 Why the printed point is the integer vector and not the witness's raw sums (exact
 counterexample, `q = 1`, `n = 1`, two slots, half-even): players `a(0.5, 1.0)`, `b(0.5, 1.0)`,
@@ -639,18 +772,34 @@ four decimals do not guarantee (on Madrid one integer unit of progression is abo
 ### 4.2 Algorithm and proof
 
 ```
-region R_0 = background β + declared floors (section 2.3 steps 1 to 3)
+region R_0 = background β + declared floors, in ascending id, and the objective coefficients
+             of each dimension (section 2.3 steps 1 to 4, with their ValueErrors)
 loop k = 0, 1, …
-    stage 1: maximise V_1 over R_k
-        INFEASIBLE and no point yet -> empty feasible set (UNFIELDABLE / NOT_SATISFIABLE, as 2.3 step 6), COMPLETE
-        INFEASIBLE                  -> COMPLETE (final_region_status INFEASIBLE)
-        OPTIMAL and |points| = max  -> LIMIT_REACHED, stopped_by POINT_LIMIT (final_region_status OPTIMAL: a point exists)
-    stage i = 2..d: fix V_j = v_j for j < i, maximise V_i
-        any stage not OPTIMAL       -> LIMIT_REACHED / DEADLINE (1.5) / MODEL_INVALID; this iteration records nothing
-        INFEASIBLE at stage i > 1   -> RuntimeError (a lexicographic level was lost)
+    for stage i = 1..d (stage i > 1 first fixes V_j = v_j for j < i), maximise V_i over R_k;
+    dispatch its status in this order, the same for every stage:
+        INFEASIBLE, i = 1, no point yet  -> P is proved empty; status and completeness by the cause (below)
+        INFEASIBLE, i = 1                -> COMPLETE (final_region_status INFEASIBLE)
+        INFEASIBLE, i > 1                -> RuntimeError (a lexicographic level was lost)
+        OPTIMAL or FEASIBLE, i = 1, |points| = max
+                                         -> LIMIT_REACHED, stopped_by POINT_LIMIT, final_region_status
+                                            that status (a feasible point of R_k proves a further point)
+        not OPTIMAL (FEASIBLE, UNKNOWN, NOT_RUN, MODEL_INVALID)
+                                         -> stop: completeness and stopped_by by 1.5,
+                                            final_region_status this stage's status; this iteration
+                                            records nothing
+        OPTIMAL                          -> v_i = solver.value(V_i), an exact int (1.5); next stage
     record v = (v_1, …, v_d) and the stage-d witness, checked without the solver
     R_{k+1} = R_k ∧ OR_i (V_i ≥ v_i + 1)      # Booleans b_i, b_i ⇒ V_i ≥ v_i + 1, add_bool_or(b)
 ```
+
+The cause of an empty `P`, as CEILING's (2.3 steps 2 and 6): `β.model is None` gives
+`UNFIELDABLE` by construction (`final_region_status = INFEASIBLE_BY_CONSTRUCTION`, the kernel's
+reasons, no solve), `COMPLETE`. Otherwise, with no floor, `UNFIELDABLE` (reason
+`UNFIELDABLE_PROVED` when the kernel recorded none), `COMPLETE`; with floors, one solve of
+`β.model`: `INFEASIBLE` gives `UNFIELDABLE` and a witness `NOT_SATISFIABLE`, each `COMPLETE`, `MODEL_INVALID` gives `MODEL_INVALID`, and `UNKNOWN` or `NOT_RUN` gives
+`FLOORS_UNMET`, whose completeness is that solve's (1.5): the empty frontier is proved, its cause
+is not, and the reply is not stored. A point recorded before any stop, a `MODEL_INVALID`
+included, is kept.
 
 | Statement | Proof |
 |---|---|
@@ -658,11 +807,17 @@ loop k = 0, 1, …
 | points are distinct | a new point is not weakly below any earlier one |
 | complete when `R_k` is INFEASIBLE | every `x ∈ 𝒳_F` has `V(x)` weakly below some point; a nondominated vector weakly below a point equals it |
 | every feasible vector is weakly below a point | the same sentence |
-| termination | each iteration adds a distinct vector of the finite set `{V(x)}`; at most `|P| + 1` iterations of at most `d` solves |
+| termination | each iteration adds a distinct vector of the finite set `{V(x)}`; at most `|P| + 1` iterations, every one but the last of `d` solves, plus the one solve of `β.model` for an empty floored region: at most `d · |P| + 2` solves |
 | partial lists stay true | every point recorded before a limit or a deadline was proved nondominated when it was recorded; only completeness is lost |
+| a cut list is a prefix | the `k`-th recorded point is the `k`-th point of `P` in lexicographic-descending order of the declared dimensions (each iteration takes the lexicographic maximum over `R_k`, which holds every point not yet listed), so a list cut by `POINT_LIMIT` or a deadline is the lexicographic-largest prefix of `P` in the declared order |
 
-The dimension order decides which point is found first and nothing else: the set `P` does not
-depend on it. No summed or weighted objective exists anywhere (ADR-0020 rejected it).
+The dimension order decides the order in which the points are found and which XI is shown for
+each (the stage-`d` witness depends on which sums were fixed first). The complete set `P` does
+not depend on it. A list cut by `POINT_LIMIT` or a deadline does: it is a prefix in the declared
+order, so with `d = 2` the reversed declaration lists the other end of the frontier, not the same
+points reversed (one slot, players `(6 − i, i)` for `i = 1..5`, `max_points = 2`: `[(5,1),(4,2)]`
+both ways, each in its own coordinates). No summed or weighted objective exists anywhere
+(ADR-0020 rejected it).
 
 ### 4.3 Interface
 
@@ -671,7 +826,10 @@ FRONTIER_VERSION = "lexicographic-cut-frontier-v1"
 MAX_FRONTIER_POINTS = 64
 DIMENSION_COUNTS = (2, 3)
 POINT_ORDER = ("lexicographic, descending, in the order in which the requirements were "
-               "declared; reversing a two-requirement declaration reverses the list")
+               "declared; when the list is complete, reversing a two-requirement declaration "
+               "reverses it; when it is not complete, the points listed are the first ones in "
+               "that order, and declaring the requirements in another order can list other "
+               "points")   # one constant, true in every state (4.2, a cut list is a prefix)
 
 @dataclass(frozen=True)
 class FrontierPoint:
@@ -687,12 +845,16 @@ class FrontierCertificate:
     pairwise_nondominated: bool         # checked without a solver
     witnesses_verified: bool
     # INFEASIBLE: proof that no point is missing. INFEASIBLE_BY_CONSTRUCTION: a kernel reason.
-    # OPTIMAL: another point exists (limit). NOT_RUN, UNKNOWN, FEASIBLE, MODEL_INVALID: no proof.
+    # OPTIMAL or FEASIBLE with stopped_by POINT_LIMIT: another point exists. Otherwise the status
+    # of the stage that stopped the search (FEASIBLE, UNKNOWN, NOT_RUN, MODEL_INVALID), at any
+    # stage i: no proof.
     final_region_status: str
     solves: int
     statuses: tuple[str, ...]
-    completeness: str                   # COMPLETE (also for a proved empty set) | LIMIT_REACHED | DEADLINE | MODEL_INVALID
-    stopped_by: str | None              # POINT_LIMIT | DETERMINISTIC_LIMIT | WALL_CLOCK; None when complete
+    # COMPLETE (also for a proved empty set) | LIMIT_REACHED | DEADLINE | MODEL_INVALID (1.5);
+    # FLOORS_UNMET takes that of its undecided cause solve
+    completeness: str
+    stopped_by: str | None              # POINT_LIMIT | DETERMINISTIC_LIMIT | WALL_CLOCK; None when no call is undecided and no limit cut the list (1.5)
     quantization: int
     objective_policy: str
     hard_policy: str
@@ -704,7 +866,7 @@ class FrontierCertificate:
 class Frontier:
     formation: str
     dimensions: tuple[str, ...]         # as declared
-    status: str                         # FRONTIER | UNFIELDABLE | NOT_SATISFIABLE | INCOMPLETE | MODEL_INVALID
+    status: str                         # FRONTIER | UNFIELDABLE | NOT_SATISFIABLE | FLOORS_UNMET | INCOMPLETE | MODEL_INVALID
     points: tuple[FrontierPoint, ...]   # POINT_ORDER
     point_order: str
     floors: tuple[tuple[str, float], ...]
@@ -726,13 +888,22 @@ def nondominated_sums(
 ) -> Frontier
 ```
 
-`ValueError` (a 422 at the API) when `len(dimensions) ∉ DIMENSION_COUNTS`, a dimension repeats
-or is not an active requirement, or `max_points ∉ 1..64`. Status `FRONTIER` with completeness
-`COMPLETE`; `UNFIELDABLE` and `NOT_SATISFIABLE` with `COMPLETE` (the empty set is proved);
-`INCOMPLETE` with `LIMIT_REACHED` or `DEADLINE` and every listed point certified.
+`ValueError` (a 422 at the API), each with a sentence that names no value, when
+`len(dimensions) ∉ DIMENSION_COUNTS`, a dimension repeats or is not an active requirement,
+`max_points` is not an `int` in `1..64` (`type(max_points) is int`, so `True` is refused), a floor
+key or value fails CEILING's checks (2.2), a dimension's objective coefficients fail the
+magnitude checks of 2.3 step 4, or a requirement in force has `hard=True` (floors are the only
+hard constraints, and a hard flag would otherwise be ignored silently; CEILING refuses it too).
+Status `FRONTIER` with completeness `COMPLETE`; `UNFIELDABLE` and `NOT_SATISFIABLE` with
+`COMPLETE` (the empty set is proved); `FLOORS_UNMET` with the completeness of its undecided
+cause solve (4.2); `INCOMPLETE` with `LIMIT_REACHED` or `DEADLINE` and every listed point
+certified; `MODEL_INVALID` with the points recorded before the refusal. A point limit reached
+exactly is not a stop: a frontier of exactly `max_points` points is `COMPLETE` when the next
+stage-1 solve is INFEASIBLE.
 Witness check per point: admissible, floors in integers and `Fraction`, `V(lineup)` recomputed
-in Python equals the point. `pairwise_nondominated` is recomputed on the returned list without
-a solver; false is a `RuntimeError`.
+in Python equals the point, whose coordinates are `solver.value` of each stage's expression
+(1.5). `pairwise_nondominated` is recomputed on the returned list without a solver; false is a
+`RuntimeError`.
 
 ## 5. DECLARED-RISK: `galactico/optimization/xi/risk.py`
 
@@ -756,7 +927,9 @@ lexicographically (O8).
 
 Bounds, from the instance and never from an outcome: `L^w_r = Σ` over admissible keys `(p, s)`
 with `applies(r, s)` of `min(0, c^w_r(p))`; `U^w_r = max(0, t_r − L^w_r)` (the deficit bound of
-solver.py:270, 276); `T_bound = max_w Σ_r U^w_r`; `M_bound = max_w max_r U^w_r`.
+solver.py:270, 276); `T_bound = max_{w ∈ U} Σ_r U^w_r`; `M_bound = max_{w ∈ U} max_r U^w_r`.
+When `R` is empty, `M^w = T^w = 0` and `T_bound = M_bound = 0`, so `BIG = 1` (as `solve_xi`
+reads `deficits or [0]` and the kernel `default=0`).
 
 `E^w(x) = BIG · M^w(x) + T^w(x)` with
 
@@ -775,14 +948,35 @@ message or a served number; a test asserts each (section 9). O8 permits this enc
 risk modes; ADR-0020 rejected a weighted sum of the two stages as a search device for the
 kernel, and the kernel keeps its three-solve form. The request for ADR-0030 (section 12)
 records that O8 overrides that rejection for the risk modes only, and why: BIG is exact by
-5.1, never serialised, and tested. Overflow guard: with
-`E_max = BIG · M_bound + T_bound`, a request with `k · E_max ≥ 2**53` (TAIL) or
-`E_max ≥ 2**53` (REGRET) is refused with `ValueError(RISK_OVERFLOW)`, a sentence holding no
-number. Below `2**53` every objective value and bound CP-SAT reports is an exact float. At the
-shipped default minima `t_r = q` exactly (the normaliser is the default minimum), so with
-non-negative rates `T_bound = |R| · q`, and the guard admits a minimum up to about
-`(2**53 / (2 · k · B · |R| · q²))^½` times the club median: about 13.7 times at `B = 40`,
-`k = 20`, `|R| = 3`. This is arithmetic on the definitions, not a measurement.
+5.1, never serialised, and tested.
+
+Split variables. No integer variable of a risk model has a domain of size `E_max =
+BIG · M_bound + T_bound`. A variable that holds an encoding (`η`, `u_w`, `ρ` of 5.6) is written
+`BIG · a + b` with `a ∈ [0, M_bound]` and `b ∈ [0, BIG − 1]`. Over those domains `BIG · a + b`
+takes every integer of `[0, E_cap − 1]`, `E_cap = BIG · (M_bound + 1)`, which contains
+`[0, E_max]` because `T_bound ≤ BIG − 1`; so the optimum, the level set and the Python check of
+5.6 are exactly those of the unsplit model, and `E^w ≤ E_cap − 1` for every `w` and `x`.
+Measured on ortools 9.15.6755, the project's version: the unsplit TAIL model of the previous
+draft (`η, u_w ∈ [0, E_max]`) ignored its wall-clock limit and raised `MemoryError`
+(`std::bad_alloc`) during search on 2 of 144 seeded TAIL selections of oracle-sized instances
+(3 slots, 7 candidates, `q = 1000`, `k = 2`), its memory growing about 110 MB/s and
+`max_memory_in_mb` not stopping it; the split model matched the brute-force oracle (optimum,
+level set, membership) on all 144, with no crash and no overrun. Solver parameters are not the
+fix: `linearization_level=2` clears those two instances and fails a third.
+
+Overflow guard. A request is refused with `ValueError(RISK_OVERFLOW)`, a sentence holding no
+number, when `(k + |U| + 2) · E_cap ≥ 2**53` (TAIL) or `3 · E_cap ≥ 2**53` (REGRET). Each bounds
+the absolute value every linear expression of the model can take over its variables' domains
+(the objective, the epigraph constraints and the level-set constraint of 5.6), so CP-SAT works
+far inside int64 and every integer the tool reads with `solver.value` is exact. The float
+`objective_value` and `best_objective_bound` are never read as integers (1.5); an incumbent can
+reach `(k + |U|) · (E_cap − 1)`, so no claim of float exactness is made about it. At the shipped
+default minima `t_r = q` exactly (the normaliser is the default minimum), so with non-negative
+rates `T_bound = |R| · q` and `M_bound = q`; a minimum `μ` times the club median makes
+`E_cap ≈ 2 · |U| · |R| · μ² · q²`, and with `|U| = B` the TAIL guard admits `μ` up to about
+`(2**53 / (2 · (k + B + 2) · B · |R| · q²))^½`: about 7.8 at `B = 40`, `k = 20`, `|R| = 3`, and
+about 25 at `B = 12`, `k = 6`; REGRET admits about `(2**53 / (6 · B · |R| · q²))^½`, about 35 at
+`B = 40`. This is arithmetic on the definitions, not a measurement.
 
 ### 5.2 TAIL(k of B) and WORST_WORLD
 
@@ -808,7 +1002,8 @@ lowered.
 Reported for the XI shown (another XI of the level set can have other tail worlds; the page
 labels these tables "for the XI shown"): every used world's pair; the tail, the `k` worlds
 sorted by the key (`M^w` descending, `T^w` descending, `world_id` ascending) and cut at `k`;
-the boundary ties, the worlds outside the tail with the same pair as its last member; the
+the boundary ties, the worlds outside the tail with the same pair as its last member, in
+ascending world id; the
 tail sums `(Σ M, Σ T)`, which are the rule's optimum and so the same for every XI it
 selects.
 
@@ -818,17 +1013,20 @@ selects.
 `kernel.value(excluded=X, locked=L, values=V^w, deadline=…)` with status `CERTIFIED` (BALANCE
 on that world, ADR-0020; `_q` rounding). Objective: minimise `max_{w ∈ U} (E^w(x) − E*^w)`;
 every term is at least 0 (O8). Reported: for every used world, both pairs, the XI shown's
-and the world's least; the binding worlds of the XI shown, every `w` whose pair of
-differences `(M^w − M*^w, T^w − T*^w)` is the lexicographic maximum, found by comparing those
+and the world's least; the binding worlds of the XI shown, in ascending world id, every `w`
+whose pair of differences `(M^w − M*^w, T^w − T*^w)` is the lexicographic maximum, found by
+comparing those
 tuples in local Python variables that are never stored, logged or served (E stays inside 5.1's
 limits); the ledger and the page print each binding world with its two pairs and never a
 difference (O8). Another XI the rule selects has the same optimum and
 can have other binding worlds; the page says so. If a used world's least is `UNFIELDABLE`,
 the rule is `UNFIELDABLE` (by the lemma of 1.4 every used world shares `𝒳`, so all are), with
-completeness `EXACT`, no XI and the kernel's reasons; never `UNKNOWN`. If any other used
-world's least pair is not `CERTIFIED`, the rule returns `UNKNOWN` with those worlds in
-`undecided_world_ids` and no XI: unlike the shipped bootstrap, a world is not set aside for a
-wall-clock reason, because that would make the rule's objective depend on load.
+completeness `EXACT`, no XI and the kernel's reasons; never `UNKNOWN`. Otherwise, if any used
+world's least is `MODEL_INVALID` (`kernel.value` returns it with a reason, kernel.py:703-706),
+the rule is `MODEL_INVALID`, completeness `MODEL_INVALID`, no XI, no selection solve. Otherwise,
+if any used world's least pair is not `CERTIFIED` (`UNKNOWN`), the rule returns `UNKNOWN` with
+those worlds in `undecided_world_ids` and no XI: unlike the shipped bootstrap, a world is not
+set aside for a wall-clock reason, because that would make the rule's objective depend on load.
 
 ### 5.4 The single-world invariant
 
@@ -853,43 +1051,64 @@ the solve above, and the reply says that too (`MODEL_DIFFERS`, 1.3).
 1. Worlds: discard rule; `U`; `V^w` complete mappings. `|U| = 0` or `|U| < k`: `NOT_EVALUABLE`,
    no solve, completeness `EXACT`.
 2. Background `β = kernel._background(X, L, None, (), V^{u_0})` with `u_0 = min U`; for every
-   `w ∈ U`, `β_w = kernel._background(X, L, None, (), V^w)` and `assert β_w.variables.keys() ==
-   β.variables.keys()` (the lemma of 1.4); `G^w = kernel._tables(β_w, conservative=False)`.
+   `w ∈ U`, `β_w = kernel._background(X, L, None, (), V^w)`, and `β_w.variables.keys() ==
+   β.variables.keys()` is checked with an explicit `RuntimeError` on failure (the lemma of 1.4;
+   not an `assert`, which `python -O` removes); `G^w = kernel._tables(β_w, conservative=False)`.
+   Only `β`'s model and variables are solved; each `β_w` serves its keys and tables.
    `β.model is None`: `UNFIELDABLE` by construction (the deadline rule first, as the kernel),
    completeness `EXACT`.
-3. Per world and requirement: `d^w_r ∈ [0, U^w_r]` with `d^w_r + Σ c·x ≥ t_r`; `M^w ∈ [0,
-   M_bound]` with `M^w ≥ d^w_r`; `T^w = Σ_r d^w_r`; `E^w = BIG · M^w + T^w`. A linear epigraph,
-   no `add_max_equality` (ADR-0020). The objectives below are non-decreasing in every `M^w` and
+3. Per world and requirement, over `β`'s variables with world `w`'s coefficients
+   (`kernel._expression(β, G^w[r][0])`, target `G^w[r][1] = t_r`): `d^w_r ∈ [0, U^w_r]` with
+   `d^w_r + Σ c·x ≥ t_r`; `M^w ∈ [0, M_bound]` with `M^w ≥ d^w_r`; `T^w = Σ_r d^w_r`;
+   `E^w = BIG · M^w + T^w`, an expression, never a variable. A linear epigraph, no
+   `add_max_equality` (ADR-0020). The objectives below are non-decreasing in every `M^w` and
    `T^w`, so at the optimum the epigraph values can be taken exact.
-4. TAIL: `η ∈ [0, E_max]`, `u_w ∈ [0, E_max]`, `u_w ≥ E^w − η`; minimise `k · η + Σ_w u_w`.
-   For fixed `x` the minimum over integer `η` is the sum of the `k` largest `E^w(x)`, reached at
-   the `k`-th largest value.
+4. TAIL, with the split variables of 5.1: `η = BIG · η_M + η_T` and, per used world,
+   `u_w = BIG · u^M_w + u^T_w`, with `η_M, u^M_w ∈ [0, M_bound]` and `η_T, u^T_w ∈ [0, BIG − 1]`;
+   `BIG · u^M_w + u^T_w ≥ BIG · (M^w − η_M) + (T^w − η_T)`; minimise
+   `Φ = k · (BIG · η_M + η_T) + Σ_w (BIG · u^M_w + u^T_w)`. For fixed `x` the minimum over `η` is
+   the sum of the `k` largest `E^w(x)`, reached at the `k`-th largest value, which the split
+   domain holds (5.1).
 5. REGRET: per-world optima first (`|U|` calls of `kernel.value`, three bounded solves each);
-   then `ρ ∈ [0, E_max]`, `ρ ≥ E^w − E*^w` for every `w`; minimise `ρ`.
+   then `ρ = BIG · ρ_M + ρ_T` with `ρ_M ∈ [0, M_bound]`, `ρ_T ∈ [0, BIG − 1]`,
+   `ρ ≥ E^w − E*^w` for every `w`; minimise `ρ`. REGRET did not fail in the measured runs, but its
+   `ρ` had the same domain of size `E_max`, so it is split too.
 6. The selection solve uses `risk._solver` (deterministic limit `SELECTION_DETERMINISTIC_LIMIT =
    40.0`, recorded). Only `OPTIMAL` is a selection. `INFEASIBLE` is a proof that no XI exists
    (for example two locked goalkeepers: each lock has an admissible key, so the kernel records
    no reason, kernel.py:518-529, and CP-SAT proves the model empty): status `UNFIELDABLE`,
-   completeness `EXACT`, no lineup, the solve recorded. `UNKNOWN` / `FEASIBLE`: `UNKNOWN`, no
-   lineup, completeness by 1.5. The witness is checked without the solver:
+   completeness `EXACT`, no lineup, the solve recorded, the reason `UNFIELDABLE_PROVED` (7.7).
+   `UNKNOWN` / `FEASIBLE`: `UNKNOWN`, no lineup, completeness by 1.5. `MODEL_INVALID`: status
+   `MODEL_INVALID`, no lineup, completeness `MODEL_INVALID`. A solver exception is not a status
+   (1.5): it propagates and the API answers 500. The witness is checked without the solver:
    admissible; `(M^w, T^w)` recomputed per world with `kernel._shortfalls(G^w, lineup)`; the
-   objective recomputed from those integers in Python equals the solver's objective value.
+   objective recomputed from those integers in Python (the sum of the `k` largest `E^w`, or the
+   largest `E^w − E*^w`) equals `solver.value` of the objective expression, an exact int (1.5).
+   `Φ*` and `ρ*` are those Python-recomputed integers, never `objective_value`.
    The tail, the boundary ties and the binding worlds are then computed from pairs alone.
-7. Ties (R11). The rule's level set is the base model plus `k · η + Σ u_w ≤ Φ*` (TAIL) or
-   `ρ ≤ ρ*` (REGRET); with `η`, `u`, `ρ` free this admits exactly the XIs whose objective
-   equals the optimum. For each candidate in id order, the opposite solve of
+7. Ties (R11). The rule's level set is the base model plus `Φ ≤ Φ*` (TAIL, the split expression
+   of step 4) or `ρ ≤ ρ*` (REGRET); with the split variables free this admits exactly the XIs
+   whose objective equals the optimum. For each candidate in id order, the opposite solve of
    `kernel.membership` (kernel.py:876-912): in the selected XI, add `Σ_s x_{p,s} = 0`;
    otherwise add `= 1`. INFEASIBLE is the only source of `necessary = True` and of
    `possible = False`; an undecided solve leaves `None`. Excluded players and players with no
    admissible key are `(False, False)` by construction; locked players `(True, True)`. The
-   membership block has its own `completeness`; when no selection exists (`UNFIELDABLE`,
-   `NOT_EVALUABLE`) it is `EXACT` with no rows, since nothing is undecided. These solves use
+   membership block has its own `completeness`. When no selection exists because none can
+   (`UNFIELDABLE`, `NOT_EVALUABLE`) it is `EXACT` with no rows, since nothing is undecided. When
+   the selection itself is undecided (`UNKNOWN`) or refused (`MODEL_INVALID`) it has no rows and
+   the selection's completeness (1.5), so the reply is not stored. With `analyze_ties=False` no
+   membership solve is made: no rows, completeness `NOT_REQUESTED`, which `runtime.is_complete`
+   does not treat as complete; the router always passes `True`. These solves use
    `SELECTION_DETERMINISTIC_LIMIT` too and stop at the deadline. No CORE / FAVORED / CONTESTED /
    FRINGE label is formed here: those stay on the main solve (H10).
 
 The point-estimate requirement ledger is reported for every rule (E-13's "What no outcome
-changes"): the selected XI's pair at the point values (`_q` tables of the 0-world point
-vectors; `None` if the lineup uses a key the point vectors forbid) and its exact raw sums.
+changes"): `point_loss`, the selected XI's pair at the point values (`_q` tables of the 0-world
+point vectors; `None` if the lineup uses a key the point vectors forbid), and `point_sums`, for
+each requirement in force its exact raw sum `S_r` at the point values as the float nearest it,
+or `None` for a requirement whose metric is `None` at a key the lineup uses, as `point_loss` is.
+The snapshot never holds a world value where the point value is `None` (historical.py:210-215),
+but the module does not assume it, and the oracle instances draw holes independently.
 
 ### 5.7 Interface
 
@@ -939,7 +1158,9 @@ class MembershipRow:
 @dataclass(frozen=True)
 class MembershipBlock:
     rows: tuple[MembershipRow, ...]     # player_id ascending; () when no selection exists
-    completeness: str                   # EXACT (also when vacuous) | LIMIT_REACHED | DEADLINE (1.5)
+    # EXACT (also when vacuous) | LIMIT_REACHED | DEADLINE | MODEL_INVALID (1.5);
+    # NOT_REQUESTED with analyze_ties=False (never served, 5.6 step 7)
+    completeness: str
 
 @dataclass(frozen=True)
 class RiskCertificate:
@@ -971,15 +1192,15 @@ class RiskSelection:
     status: str                         # CERTIFIED | UNFIELDABLE | NOT_EVALUABLE | UNKNOWN | MODEL_INVALID
     lineup: Lineup                      # the XI shown; () unless CERTIFIED
     world_losses: tuple[WorldLoss, ...] # every used world, ascending id, for the XI shown; () unless CERTIFIED
-    tail_world_ids: tuple[int, ...]     # for the XI shown
-    tail_boundary_ties: tuple[int, ...] # for the XI shown
+    tail_world_ids: tuple[int, ...]     # for the XI shown, in the key order of 5.2
+    tail_boundary_ties: tuple[int, ...] # for the XI shown, ascending world id
     tail_sum: TailSums | None           # the rule's optimum (TAIL, WORST_WORLD)
-    binding_world_ids: tuple[int, ...]  # for the XI shown (MINIMAX_REGRET)
+    binding_world_ids: tuple[int, ...]  # for the XI shown (MINIMAX_REGRET), ascending world id
     point_loss: LossPair | None
-    point_sums: tuple[tuple[str, float], ...]   # never printed as floats: the router adds exact texts (7.5)
+    point_sums: tuple[tuple[str, float | None], ...]   # requirement_id ascending; None as 5.6; never printed as floats: the router adds exact texts (7.5)
     membership: MembershipBlock
     certificate: RiskCertificate
-    claim: str                          # the rule's 7.7 label, word for word
+    claim: str                          # the rule's 7.7 label formatted by risk.py with B and k (RISK_TAIL.format(B=…, k=…)); no "{" left
     non_claim: str                      # RISK_NON_CLAIM, word for word
     reasons: tuple[str, ...]
     provenance: dict
@@ -1008,9 +1229,14 @@ that the oracle tests can use one to five worlds and the single-world invariant 
 offers, `B = 12` until the 40-world timing of X5 (7.1), and `WORST_WORLD` for `k = 1`) is
 enforced by the API. `world_seed` and `bootstrap_version` are
 required keyword arguments with no default; the oracle tests pass constants of their own and
-a test asserts both reach the certificate unchanged. `world_losses` is pure Python and is the adapter the E-13 solver audit needs
-(section 13). Every integer pair is also served in normalised units by the router as text,
-exactly: `M / q` with `q = 100000` has at most five decimals.
+a test asserts both reach the certificate unchanged. `world_losses` is pure Python and is the
+adapter the E-13 solver audit needs (section 13). It applies the discard rule of 1.4 to
+`worlds` and returns one `WorldLoss` per used world, ascending, with `world_least` `None`; the
+`lineup` must be an XI of the used worlds under `locked` and `excluded` (every slot filled once,
+every pair an admissible key, every locked player in, no excluded player), and anything else is
+a `ValueError` with a fixed sentence that names no value. Every integer pair is also served in
+normalised units by the router as text, exactly: `M / q` with `q = 100000` has at most five
+decimals.
 
 Labels until E-13 runs. The rule's label says what it computes (`RISK_WORST`, `RISK_TAIL`,
 `RISK_REGRET`, section 7.7), and while `verdicts.verdict_for("E-13", subject).basis` is not
@@ -1021,6 +1247,26 @@ draft's: `risk_rule:WORST_WORLD`, `risk_rule:TAIL`, `risk_rule:MINIMAX_REGRET`, 
 this claim." The subject of a reply is fixed by its rule (5.2): a `WORST_WORLD` reply carries
 `risk_rule:WORST_WORLD`, a `TAIL` reply `risk_rule:TAIL`. Rules are never ordered or
 preselected by token.
+
+Scope of E-13's tokens. E-13 limits every token to its menu: "A request outside it (another
+world count, another tail count, another formation or club) carries the pending sentence,
+whatever the tokens say" (E-13 preregistration, Product consequence). Its config fixes formation
+`4-3-3`, `decision_tiers` 12 and 40, the `tail_counts` per tier and the two Madrid snapshots
+(config.json:116-119), while the risk requests accept `4-3-1-2` (7.2). The router holds those
+values as constants, `E13_SCOPE`, kept equal to the draft's config by a test, and a request
+outside them (today: formation `4-3-1-2`) is served, whatever the registry says: in
+`verdicts.risk_rule` the subject's pending form, `verdicts.as_payload(verdicts.derive(
+dataclasses.replace(verdicts.record("E-13", subject), token=verdicts.PENDING)))` when the
+subject is registered, and the `verdict_for` payload while it is not (already an untested form);
+the label ends with `RISK_OUTSIDE_E13` in place of `RISK_UNTESTED`.
+
+`risk_report`. E-13's own statistic for `risk_report:*` is the largest shortfall `M` of the
+worst world (WORST_WORLD) and the mean `M` over the `k` tail worlds (TAIL), in normalised units
+(E-13 preregistration, Fixed definitions; PIPELINE.md:96-101, `own_m_sum / own_divisor`). This
+file serves the tail sums `Σ M`, `k` times that mean, and no panel prints a figure note under
+them. Until section 13's reconciliation item is settled, `verdicts.risk_report` is `null` on
+every reply and no figure carries a `risk_report` payload, so E-13's sentence about its tail
+value is never set beside a number it did not test.
 
 ## 6. The oracle: `tests/xi_exact_oracle.py`
 
@@ -1043,16 +1289,28 @@ and its oracle part is settled from the text of this file, not from the other's 
 | `ceilings(...)` | C | per requirement, `min` and `max` of `O_r` over `𝒳_F` and every `S_r` |
 | `satisfiable(declarations, ...)`, `deletion_filter(order, ...)`, `restores_alone(c, ...)` | C | whether some assignment (1.1) meets the background and every declaration of the set, by depth-first backtracking over slots in formation order (each slot: an admissible unused player, or empty when its coverage declaration is absent), pruning when the slots left cannot hold the locked players still missing (counted by their admissible slots among those left) and when a floor cannot be met even if every applicable slot left takes the largest coefficient among its admissible players (and 0 when it may stay empty), a bound that ignores injectivity and so never prunes a witness; it stops at the first witness and counts nodes. The deletion filter of 3.3 run on it; the restore test of 3.3 on `all − {c}` |
 | `frontier(...)` | A | the vectors `V(x)` over `𝒳_F` and their nondominated subset |
+| `t_bound(instance, worlds)` | B | `T_bound` of 5.1 written from its text (`max` over used worlds of `Σ_r U^w_r`, 0 when `R` is empty), so the non-vacuity condition "some summed `T` over a tail exceeds `T_bound`" can be checked |
 | `world_pairs(x, vectors)`, `tail_optimum(k)`, `regret_optimum()`, `tail_of(x, k)`, `binding_of(x)` | B | `(M^w, T^w)` over `used_worlds`; the lexicographic minimum over XIs of (sum of the `k` largest `M`, sum of `T` over the `k` lexicographically largest worlds); the per-world least pairs and the lexicographic minimum over XIs of the lexicographic maximum over worlds of `(M − M*, T − T*)`, each returning the optimum and every XI attaining it; and, for a given XI, its tail and boundary ties by the key of 5.2 and its binding worlds, so the tool's per-world reports are compared for the lineup the tool returned, never with a witness of the oracle's choosing |
 
 Instances (`tests/xi_exact_oracle.instances(seed)`): 3 to 5 slots with mixed allowed
 positions, 5 to 8 candidates, some with `eligible_slots`, some with zero minutes, 1 to 3
 requirements with mixed `slot_ids`, some `None` values, 1 to 5 worlds with holes, locks and
 exclusions, `q ∈ {100, 1000, 100000}`. CEILING and FRONTIER instances draw decimal values of
-either sign. RISK and the `explain_solve` instances draw dyadic values (multiples of 1/64 in
-`[−2, 4]`) with normalisers in `{0.5, 1, 2, 4}`, for which `int(round(v / n * q))` (written out
-in the test, not imported) equals the exact half-even integer; the generator asserts it on every
-coefficient. A separate test identifies the policy on a non-dyadic value (section 9).
+either sign. RISK and the `explain_solve` instances draw dyadic values and dyadic minima
+(multiples of 1/64 in `[−2, 4]`, minima in `[0, 4]`) with normalisers in `{0.5, 1, 2, 4}`, for
+which `int(round(v / n * q))` (written out in the test, not imported) equals the exact half-even
+integer; the generator asserts it on every coefficient and on every target. A decimal minimum
+can round differently (`1.344465 / 1.0` at 100000 is 134446 by `_q`, 134447 exactly) and would
+make the oracle and the tool disagree for no defect. A separate test identifies the policy on a
+non-dyadic value (section 9).
+
+FRONTIER instances draw three requirements, so that `d = 2` and `d = 3` both exist on every
+seed, and the dimensions are a seeded ordered sample of `R` of size `d`. The FRONTIER
+oracle-equality tests assert, across the 120 seeds, that they are not vacuous: some `d = 3`
+frontier with at least two points; some frontier with at least three points; some point reached
+by XIs with different raw sums; some instance whose raw-nondominated set differs from its
+integer-nondominated set; some point whose witness uses a negative coefficient; some floor that
+binds; some `UNFIELDABLE` and some `NOT_SATISFIABLE`.
 
 ## 7. API: `galactico/api/xi_extensions.py`
 
@@ -1084,8 +1342,9 @@ first).
 at `q = 100000` on the Madrid worlds (X5; section 11, item 15; OPEN QUESTION 5): until then
 the risk routes accept, and the `GET` reply offers, 12 worlds only (7.2, 7.5), and 40 joins the
 menu in the change that records the times in ADR-0030. The measurement records wall time,
-deterministic time and status per solve and nothing else: no lineup, pair or selection is
-printed or kept, so it adds no prior exposure for E-13 (1.6).
+deterministic time and status per solve, and the peak memory (RSS) of the process, and nothing
+else: no lineup, pair or selection is printed or kept, so it adds no prior exposure for E-13
+(1.6).
 
 ### 7.2 Request models
 
@@ -1110,7 +1369,8 @@ class CeilingsRequest(XIDeclarations):
 class ConflictRequest(XIDeclarations):
     explains: Literal["solve", "floors"]              # required: which arithmetic (3.1, X2)
     mode: Literal["BALANCE", "SATISFY"] | None = None # required iff explains == "solve": the main solve's mode
-    minimums: dict[RequirementId, Minimum] = {}       # the minima in force, as decision_inputs reads them
+    minimums: dict[RequirementId, Minimum] = {}       # the minima in force, as decision_inputs reads them;
+                                                      # non-empty refused when explains == "floors" with a floors dict
     floors: dict[RequirementId, Minimum] | None = None  # explains == "floors" only. None: every requirement
                                                         # in force is a floor at its minimum; {}: no floor;
                                                         # refused when explains == "solve"
@@ -1121,22 +1381,25 @@ class FrontierRequest(XIDeclarations):
     max_points: int = Field(default=64, ge=1, le=64, strict=True)
 
 class RiskTailRequest(XIDeclarations):
-    bootstrap_worlds: Literal[12]                   # required: no default world count; Literal[12, 40]
-                                                    # once the 40-world solves are timed (X5, 7.1)
+    # required: no default world count; Literal[12, 40] once the 40-world solves are timed (X5,
+    # 7.1). INTEGER_ONLY because a Literal compares by equality and would read 12.0 as 12, and
+    # Field(strict=True) cannot be applied to a Literal (pydantic 2.14 raises)
+    bootstrap_worlds: Annotated[Literal[12], planning.INTEGER_ONLY]
     rule: Literal["WORST_WORLD", "TAIL"]            # required: no default rule
     tail_count: StrictInt | None = None             # TAIL: required, in TAIL_MENU[bootstrap_worlds]; WORST_WORLD: refused
     minimums: dict[RequirementId, Minimum] = {}
 
 class RiskRegretRequest(XIDeclarations):
-    bootstrap_worlds: Literal[12]                   # as RiskTailRequest (X5)
+    bootstrap_worlds: Annotated[Literal[12], planning.INTEGER_ONLY]   # as RiskTailRequest (X5)
     minimums: dict[RequirementId, Minimum] = {}
 ```
 
 A `model_validator(mode="after")` refuses, with its own sentence, a field that belongs to the
 other branch (`floors` with `explains: "solve"`, `mode` with `explains: "floors"`, a
-`tail_count` with `WORST_WORLD`: sent and not used would be ignored silently), `explains:
-"solve"` without `mode`, repeated
-dimensions, and a `tail_count` outside the menu (1 is not on the `TAIL` menu: that rule is
+`tail_count` with `WORST_WORLD`, and a non-empty `minimums` with `explains: "floors"` and a
+`floors` dict, because `explain_floors` then reads only the floors and the minima would change
+nothing: sent and not used would be ignored silently), `explains: "solve"` without `mode`,
+repeated dimensions, and a `tail_count` outside the menu (1 is not on the `TAIL` menu: that rule is
 `WORST_WORLD`). Then, at declaration time, `ValueError` (422), each with a fixed sentence that
 names no value: a side requirement named in `minimums`, `floors` or `dimensions` without the
 opt-in (`EXPERIMENTAL_OPT_IN_ERROR`); `explains: "solve"` without the opt-in
@@ -1172,10 +1435,16 @@ de-duplicated and every dict key-sorted; dimensions keep their declared order (i
 the answer). It includes every default, so a request that sends a default and one that omits
 it are one key; that is safe because nothing in a reply depends on which fields were sent
 (the declared rows of 7.6 are a function of the resolved request). `corpus_token()` is
-`planning.corpus_token(planning.FLAGSHIP)`: the names, sizes and modification times of Spain's
-public frames and the provider-wide `players` and `teams` files, the files `load_snapshot`
-reads, opened by nobody (ADR-0024); it raises `FileNotFoundError` (a 503) when one is absent,
-and the API tests patch it as `tests/test_squad_api.py` does.
+`planning.corpus_token(planning.FLAGSHIP)`: the names, sizes and modification times of the five
+public tables `planning._corpus_files` lists for Spain (`actions`, `matches`, `lineups`, and the
+provider-wide `players` and `teams`, storage/public.py:49), opened by nobody (ADR-0024); it
+raises `FileNotFoundError` (a 503) when one is absent, and the API tests patch it as
+`tests/test_squad_api.py` does. It is not exactly the set `load_snapshot` reads, and both
+differences are accepted, as planning accepts them: `load_snapshot` does not read
+`teams.parquet` (historical.py:281-287), so an absent teams file answers 503 on the new routes
+while `/api/xi/solve` still answers; and it reads `data/public/pappalardo/MANIFEST.json` into
+provenance (historical.py:229-233), which the token does not cover, so a manifest rewritten
+alone leaves a stored reply's manifest in provenance stale until a frame file changes.
 
 The snapshot loader is the router's own, behind the ADR-0024 build gate:
 
@@ -1208,15 +1477,20 @@ request.mode, minimums)` (the shipped function, unchanged), then the opt-in rule
 ceilings, frontier and `explains: "floors"` use `"BALANCE"` (no requirement is hard; floors
 are separate declarations); conflict uses `request.mode` for `explains="solve"`.
 For `explains: "floors"` with `floors` absent, the floors are `{r: r.minimum}` for every
-`r ∈ R`, read from the requirements `decision_inputs` built from `minimums`. The candidates are
+`r ∈ R`, read from the requirements `decision_inputs` built from `minimums`. `declare` also
+records each minimum's origin: entered (its id is in the request's `minimums`) or the snapshot's
+default (`snap.requirement_minima`, which `decision_inputs` takes for a missing id,
+decision_lab.py:293). The origin decides how a minimum, or a floor at it, is printed (7.5) and
+whether it is a declared or a computed ledger row (7.6). The candidates are
 the snapshot's gated players; the 900-minute gate and the omitted players are the snapshot's,
 and the response names the omitted players beside the result (`snap.omitted`, the full
 records, as `/api/xi/solve` serves them, decision_lab.py:429).
 
 ### 7.5 Response envelope
 
-Every POST reply has these keys; `result` is `dataclasses.asdict` of the tool's dataclass with
-the router's text fields added beside the numbers.
+Every POST reply has every one of these keys, `null` where a key does not apply to the tool;
+`result` is `dataclasses.asdict` of the tool's dataclass with the router's text fields added
+beside the numbers.
 
 | Key | Content |
 |---|---|
@@ -1226,45 +1500,96 @@ the router's text fields added beside the numbers.
 | `players` | `[{player_id, name, position}]` of the gated candidates; no rate is served here |
 | `omitted_candidates` | `snap.omitted`, as `/api/xi/solve` serves it |
 | `requirements_in_force` | `[{requirement_id, label, evidence_class, experimental}]`, `evidence_class` the domain name (O13) |
-| `model_note` | `MODEL_DIFFERS` formatted with the labels in force here and the labels the main XI Lab model holds (always the three of `decision_inputs`), or `null` when they are equal; CEILING and RISK replies (1.3) |
+| `model_note` | on every reply: `MODEL_DIFFERS` formatted with the labels in force here and the labels the main XI Lab model holds (always the three of `decision_inputs`) whenever they differ, `null` when they are equal. It differs for CEILING, FRONTIER and RISK without the opt-in, and for a CONFLICT reply with `explains: "floors"` and no opt-in; `explains: "solve"` requires the opt-in (1.3), so it never differs there |
 | `declared` | the declared rows (7.6) |
 | `result` | the tool's dataclass, plus text fields (below) |
 | `ledger` | the computed rows (7.6) |
 | `evidence` | `shell.evidence_payload` of the whole result |
-| `verdicts` | risk only: `{"risk_rule": verdict_payload(...), "risk_report": verdict_payload(...) or null}` |
-| `claim`, `non_claim`, `statements` | fixed sentences of 7.7, formatted by the router |
+| `verdicts` | on every reply: `{"risk_rule": …, "risk_report": null}` for RISK (5.7: the in-scope or pending payload of the rule's subject; `risk_report` stays `null` until section 13 settles it), `null` for CEILING, CONFLICT and FRONTIER |
+| `claim`, `non_claim` | the result's `claim` and `non_claim` (the constants the tool's status selects, 3.4 and 7.7; for RISK the formatted label); the router never substitutes a constant by name |
+| `statements` | the reply-level sentences of 7.7, formatted by the router, in the order of the table below |
 | `budget` | `budget.report(result completeness)` |
-| `provenance` | `{"providers": ["pappalardo"], "snapshot": scrub_lineage(snap.provenance), "tool": result.provenance}`; `tool` holds the version, `input_contract` (`kernel.input_contract` plus the declarations), `input_fingerprint`, `source_fingerprints`, and keys under the reserved prefixes `ceiling_`, `conflict_`, `frontier_`, `risk_` (kernel.py:115-127) |
+| `provenance` | `{"providers": ["pappalardo"], "snapshot": scrub_lineage(snap.provenance), "tool": result.provenance}`; `tool` holds the version, `input_contract` (`kernel.input_contract` plus the declarations), `input_fingerprint`, `source_fingerprints`, and keys under the reserved prefixes `ceiling_`, `conflict_`, `frontier_`, `risk_` (kernel.py:115-127), the solve-time lists of 1.5 among them |
+
+`statements`, per tool and state (a constant whose condition fails is absent; none is
+repeated):
+
+| Tool | Statements, in order |
+|---|---|
+| CEILING | `FLOORS_SCOPE` when `floors` is non-empty; `CEILING_EXACT_FACTS` when any range is reported; `NOT_SATISFIABLE`: `FLOORS_CONSERVATIVE`; `FLOORS_UNMET`: `FLOORS_CONSERVATIVE`, `FLOORS_CAUSE_UNDECIDED`; `MODEL_INVALID`: `CEILING_REFUSED` |
+| CONFLICT | the arithmetic sentence: `CONFLICT_HALF_EVEN` (`explains: "solve"`) or `CONFLICT_CONSERVATIVE` (`explains: "floors"`) when the reply holds a floor declaration, else `CONFLICT_NO_MINIMUM` |
+| FRONTIER | `FLOORS_SCOPE` when `floors` is non-empty; the status sentence `status_text` (below); `NOT_SATISFIABLE`: `FLOORS_CONSERVATIVE`; `FLOORS_UNMET`: `FLOORS_CONSERVATIVE`, `FLOORS_CAUSE_UNDECIDED`; `MODEL_INVALID`: `SOLVER_REFUSED` |
+| RISK | `RISK_BALANCE`; `RISK_WITNESS` when `CERTIFIED`; `RISK_GROWTH` for TAIL and WORST_WORLD; `RISK_DISCARDED` when a world was discarded; `RISK_SAME_DRAW` (`B = 12`) or `RISK_PREFIX` (`B = 40`, while the prefix test passes); `RISK_NOT_EVALUABLE` when `NOT_EVALUABLE`; `SOLVER_REFUSED` when `MODEL_INVALID` |
 
 Text fields the router adds (the page prints them and computes nothing; every number the page
-shows is one of these or an integer field printed as is):
+shows is one of these or an integer field printed as is). Every table the page prints is a row
+list the router serves in print order, so the page never picks entries out of other lists by
+id (8.3).
 
+- Printed minima, one rule for every tool: a minimum the reader entered is printed as entered
+  (`domain.precision.format_plain`); a minimum read off the record (the snapshot's default) is
+  printed as `planning._minimum_text` prints one, `_APPROXIMATE` (`"≈ "`) then
+  `_DERIVED_PLACES` (four) decimals. The origin is the one `declare` records (7.4).
 - CEILING, per range: `largest.attained_text` (the witness's exact sum rounded down,
   `planning._outward`, four decimals), `largest.bound_text` (rounded up), `least.attained_text`
-  (up), `least.bound_text` (down), `minimum_text`, the two minimum statements, and `evidence`
-  (7.6). The router recomputes `S_r(lineup)` in `Fraction` from the declared candidates' values
-  before calling `_outward`; it never floors the float `attained`, which can lie on the other
-  side of a four-decimal boundary.
+  (up), `least.bound_text` (down); a bound that is `None` (2.3 step 7) has `bound_text` `null`.
+  `minimum_text` by the rule above; the two minimum statements, a True fact printing the
+  deciding witness's sum (`minimum_reached_witness`: rounded down; `minimum_missed_witness`:
+  rounded up), and the bound-based sentences formatted with `{xi}` (7.7); and `evidence` (7.6).
+  The router recomputes `S_r(lineup)` in `Fraction` from the declared candidates' values before
+  calling `_outward`; it never floors the float `attained`, which can lie on the other side of a
+  four-decimal boundary.
 - CONFLICT: per declaration `label_text` ("Slot coverage: Left back", "Exclusion: {name}",
-  "Floor on {label}: {value as entered}", "Lock: {name}"); per member the member sentence and,
-  for a witness, per slot `player_text` (the name, or "empty") and `note_text` for an excluded
-  player the witness uses ("Excluded by you; that exclusion is set aside in this check"); per
-  restore test its sentence (7.7); the arithmetic sentence; the deletion order.
-- FRONTIER, per point: `point_texts`, the certified coordinates, each `V_i / q` printed exactly
-  with five decimals (`q = 100000`), labelled "rounded sum, in club medians" (the unit is the
-  requirement's normaliser, the club's median prior starting-XI sum); two distinct points
-  never print the same texts. `raw_sum_texts`, the witness's exact sums at four decimals
-  rounded down, labelled "one XI reaching it sums to"; `allowance_texts`, `e_r` rounded up.
-  When `d = 2`: `plot_x = (V_1 − min V_1) / (max V_1 − min V_1)` and `plot_y = 1 − (V_2 − min
-  V_2) / (max V_2 − min V_2)` over the listed points in `Fraction`, served as decimal strings
-  with six places, `0.5` when a range is zero; `plot_y` is already in SVG orientation (larger
-  sums higher on screen), for a fixed `viewBox="-0.05 -0.05 1.1 1.1"`.
+  "Floor on {label}: {minimum}" with the minimum printed by the rule above, entered, or "Floor on
+  {label}: its default minimum, the median prior starting-XI sum ({minimum})" for a default,
+  "Lock: {name}"). `member_rows`, in deletion order, one per member of `conflict`:
+  `{constraint_id, family, label_text, member_text, restore_text, assignment_rows,
+  missing_locked_text, restore_rows}`, where `member_text` is `CONFLICT_MEMBER_WITNESS` for
+  `KEPT_WITNESS` and `CONFLICT_MEMBER_UNDECIDED` otherwise; `restore_text` is the restore test's
+  sentence (7.7); `assignment_rows` is `[{slot_label, player_text, note_text}]` in formation
+  order, `player_text` the name or "empty", `note_text` "Excluded by you; that exclusion is set
+  aside in this check" for an excluded player the witness uses, else `null`;
+  `missing_locked_text` is `CONFLICT_LOCK_SET_ASIDE` with the names of the locked players the
+  witness leaves out, or `null`; `restore_rows` is the restore XI as `[{slot_label,
+  player_text}]`, or `[]`. Also the arithmetic sentence (in `statements`) and the deletion order.
+- FRONTIER, per point, three columns in one unit, club medians (the requirement's normaliser,
+  the club's median prior starting-XI sum): `point_texts`, the certified coordinates, each
+  `V_i / q` printed exactly with five decimals (`q = 100000`), labelled "rounded sum, in club
+  medians"; two distinct points never print the same texts. `raw_sum_texts`, for each dimension
+  `S_{r_i}(witness) / n_i`, computed in `Fraction` from the declared candidates' values and
+  `Fraction(n_i)` of the same float normaliser the tool used (never from the float `raw_sums`),
+  printed at five decimals rounded down, labelled "one XI reaching it sums to, before rounding,
+  in club medians". `allowance_texts`, `a_{r_i} / (2q)` computed in `Fraction` from `a_r` and `q`
+  and printed at five decimals rounded up (0.00005 for the ten outfield slots every formation of
+  `decision_inputs` has), labelled "allowance, in club medians"; never derived from the float
+  `raw_rounding_error_bounds`, which keep their per-90 meaning and are not printed, as
+  `quantized_sums` and `raw_sums` are not. On the printed texts, `|raw − point| ≤ allowance`
+  holds exactly: the point and the rounded-up allowance lie on the five-decimal grid, and
+  rounding down never crosses a grid point below the true value. `lineup_rows`,
+  `[{slot_label, player_text}]` in formation order. When `d = 2`: `plot_x = (V_1 − min V_1) /
+  (max V_1 − min V_1)` and `plot_y = 1 − (V_2 − min V_2) / (max V_2 − min V_2)` over the listed
+  points in `Fraction`, served as decimal strings with six places, rounded half-even from the
+  exact `Fraction`, `0.5` when a range is zero; `plot_y` is already in SVG orientation (larger
+  sums higher on screen), for a fixed `viewBox="-0.05 -0.05 1.1 1.1"`. Per reply, `status_text`:
+  `FRONTIER_COMPLETE` iff the status is `FRONTIER` and the completeness `COMPLETE`;
+  `FRONTIER_LIMIT` iff `stopped_by` is `POINT_LIMIT`, with `{n}` = `max_points`;
+  `FRONTIER_STOPPED` for `INCOMPLETE` otherwise (a deterministic limit or the wall clock), with
+  `{n}` = the number of points listed; `SOLVER_REFUSED` for `MODEL_INVALID`; `null` for
+  `UNFIELDABLE`, `NOT_SATISFIABLE` and `FLOORS_UNMET`. A `LIMIT_REACHED` from the deterministic
+  limit never serves `FRONTIER_LIMIT`, which would claim a point limit was reached and another
+  point proved.
 - RISK: every pair as `maximum_shortfall_text`, `total_shortfall_text` (exact decimals of
   `M / q`, `T / q`); the tail sums as `summed_maximum_shortfall_text`,
   `summed_total_shortfall_text`; `boundary_ties_text` ("Worlds outside the tail with the same
   pair as its last world: 3, 7." or "None."); `point_sum_texts` (exact sums rounded down at four
-  decimals) and the point pair's texts; the rule label; `world_count_text` ("12 worlds, 11
-  used"); the membership block as `membership.groups`, a list in the fixed order below, each
+  decimals, `null` for a `None` sum) and the point pair's texts; the rule label;
+  `world_count_text` ("12 worlds, 11 used"). Row lists: `lineup_rows` `[{slot_label,
+  player_text}]` in formation order; `tail_rows` `[{world_id, maximum_shortfall_text,
+  total_shortfall_text}]` in the tail's key order; `boundary_rows`, the same shape, ascending
+  world id; `binding_rows` `[{world_id, selected_texts, least_texts}]`, ascending world id, each
+  holding both pairs and never a difference (O8); `world_rows`, every used world in ascending id
+  with its pair and, for REGRET, the world's least pair. The membership block as
+  `membership.groups`, a list in the fixed order below, each
   `{heading, rows}` with the rows in `player_id` order and every `(possible, necessary)`
   combination that can occur in exactly one group: `(True, True)` "In every XI this rule
   selects"; `(True, False)` "In some XIs this rule selects, not in all"; `(True, None)` "In some
@@ -1284,13 +1609,18 @@ fixed order of `RULES`, each `{rule, tail_count, text}` with server text: one `W
 entry with `tail_count` 1 ("Worst world of 12: the extreme of the tail rule"), one `TAIL` entry
 per menu count ("Tail: 3 highest-loss worlds of 12"), one `MINIMAX_REGRET` entry ("Least
 largest regret over 12 worlds"); no `TAIL` entry has `tail_count` 1. `requirements`
-`[{requirement_id, label, experimental}]` for the three measured requirements, taken from the
-same constants `decision_inputs` uses (a test asserts equality with `decision_inputs` on a
-synthetic snapshot), the source of every requirement select and of the page's minima filter;
+`[{requirement_id, label, experimental}]` for the three measured requirements, the source of
+every requirement select and of the page's minima filter. No shared constant holds them: the
+labels are a dict local to `decision_inputs` and its evidence class is chosen inline
+(decision_lab.py:282-286, 304), and `decision_lab.py` is root-owned and unchanged, while a
+corpus-free `GET` cannot call `decision_inputs`. The router therefore holds its own copy of the
+three ids, labels and experimental flags, kept equal to `decision_inputs` by a test on a
+synthetic snapshot that compares id, label, metric and evidence class field by field.
 `experimental_requirements` `["left_pass_origins", "right_pass_origins"]` (a test asserts these
 are exactly the `RESEARCH` requirements of `decision_inputs`); `dimension_counts` `[2, 3]`;
-`max_frontier_points` 64; the opt-in label and sentence; `SIDE_MINIMA_SET_ASIDE` (7.7);
-`provenance.providers`.
+`max_frontier_points` 64; `opt_in_label` (`OPT_IN_LABEL`); `frontier_opt_in_text`
+(`FRONTIER_OPT_IN`, which the page prints before any POST); `side_minima_text`
+(`SIDE_MINIMA_SET_ASIDE`); `provenance.providers`.
 
 ### 7.6 The ledger (O12) and evidence (O13)
 
@@ -1299,23 +1629,38 @@ Declared rows, `shell.declared_row`, are a function of the resolved request (the
 ledger (the rule of `planning.declared_rows`, planning.py:1249-1263): always the decision
 point and the role-slot template; then each lock and exclusion (by name); each minimum and
 floor in the request's dicts, as entered (`domain.precision.format_plain`); the dimensions in
-order; the experimental opt-in only when true; the world count and the risk rule ("Tail 3 of
-12 worlds", "Worst world of 12"). A default minimum that is not in the request's `minimums` is
-not a declared row: it appears as a computed row ("Default minimum of {label}: median prior
-starting-XI sum", `HEURISTIC`).
+order and the point limit ("Point limit: 64", always, because `max_points` changes the answer
+and is in the cache key); for CONFLICT, the arithmetic ("Arithmetic: half-even, as the Satisfy
+solve" for `explains: "solve"`, "Arithmetic: conservative, as a hard-floor query" for
+`explains: "floors"`) and, for `explains: "solve"`, the decision rule explained ("Decision rule
+explained: Satisfy all minima" or "…: Balance shortfalls", from `mode`, which decides whether
+the minima are floors); the experimental opt-in only when true; the world count and the risk
+rule ("Tail 3 of 12 worlds", "Worst world of 12"). A default minimum that is not in the
+request's `minimums` is not a declared row: it appears as a computed row.
 
-Computed rows, `shell.ledger_row`, each conditional on the declared rows: CEILING two rows per
-requirement (largest, least: value text "at least {attained}; no XI above {bound}" and "at most
-{attained}; no XI below {bound}"); CONFLICT one row ("Declarations that cannot hold together",
-"{n} declarations"); FRONTIER one row ("Nondominated rounded sums of {labels}", "{n} points");
-RISK three rows: for TAIL and WORST_WORLD the rule's optimum ("Tail sums", value text "summed
-largest shortfall {ΣM}; summed shortfall {ΣT}"), for MINIMAX_REGRET the binding worlds of the
-XI shown ("Binding worlds of the XI shown", value text "world {id}: this XI ({M}, {T}); least
-any XI reaches there ({M*}, {T*})" per binding world, both pairs and never a difference, O8);
-then the world count and the discarded count. `solver` is
-`"{status} · {certification or completeness} · 1/100000"`. `verdict` is `None` for CEILING,
+Computed rows, `shell.ledger_row`, each conditional on the declared rows. `ledger_row` raises
+`TypeError` on an empty `row_id` or `sample` (shell.py:256-306), which `lab_errors` does not map,
+so every field is fixed here for every terminal state; `value_text` is `None` wherever no number
+exists, and the row then stays and is never drawn as zero. `POINT_SAMPLE` is the router's fixed
+sentence "Prior per-90 rates of the gated squad before the cutoff; one value per player." and
+`world_count_text` is the RISK text of 7.5.
+
+| Tool | `row_id` | `quantity` | `value_text` | `sample` | `verdict` |
+|---|---|---|---|---|---|
+| all | `default-minimum:{r}`, per requirement in force whose minimum was not entered | "Default minimum of {label}" | the minimum printed by the 7.5 rule ("≈ " and four decimals) | "Median of the club's prior starting-XI sums of this requirement." | `None` (class `HEURISTIC`) |
+| CEILING | `ceiling:{r}:largest` and `ceiling:{r}:least`, per range | "Largest sum of {label}", "Least sum of {label}" | "at least {attained}; no {xi} above {bound}" and "at most {attained}; no {xi} below {bound}"; with no finite bound, "at least {attained}" or "at most {attained}"; `None` for a `NO_SOLUTION` end. No row when no range is reported (`UNFIELDABLE`, `NOT_SATISFIABLE`, `FLOORS_UNMET`, `MODEL_INVALID`): the panel prints the state's sentence | `POINT_SAMPLE` | `None` |
+| CONFLICT | `conflict:set` | "Declarations that cannot hold together" | "{n} declarations" for `MINIMAL_CERTIFIED` and `NOT_PROVEN_MINIMAL`; "0 declarations" for `MODEL_FEASIBLE`; `None` for `UNDECIDED` and `MODEL_INVALID`, never 0 | `POINT_SAMPLE` | `None` |
+| FRONTIER | `frontier:points` | "Nondominated rounded sums of {labels}" | "{n} points" for `FRONTIER` and `INCOMPLETE` (the status sentence says which); "0 points" for `UNFIELDABLE` and `NOT_SATISFIABLE`, whose empty set is proved; `None` for `FLOORS_UNMET` and `MODEL_INVALID` with no point | `POINT_SAMPLE` | `None` |
+| RISK, TAIL and WORST_WORLD | `risk:tail-sums` | "Tail sums" | "summed largest shortfall {ΣM}; summed shortfall {ΣT}" when `CERTIFIED`, else `None` | `world_count_text` | the payload of `verdicts.risk_rule` (5.7) |
+| RISK, MINIMAX_REGRET | `risk:binding-worlds` | "Binding worlds of the XI shown" | "world {id}: this XI ({M}, {T}); least any XI reaches there ({M*}, {T*})" per binding world, both pairs and never a difference (O8), when `CERTIFIED`, else `None` | `world_count_text` | the payload of `verdicts.risk_rule` |
+| RISK, every rule | `risk:worlds` | "Resampled worlds" | `world_count_text` | `RISK_SAME_DRAW` or `RISK_PREFIX` as served, else "Drawn from the prior matches with the snapshot's seed." | the payload of `verdicts.risk_rule` |
+| RISK, every rule | `risk:discarded` | "Worlds set aside" | "{d} of {B}" | `RISK_DISCARDED` when `d > 0`, else "No world was set aside." | the payload of `verdicts.risk_rule` |
+
+`solver` is `"{status} · {certification or completeness} · 1/100000"` on every computed row but
+the default-minimum row, whose `solver` is `None` (a record). `verdict` is `None` for CEILING,
 CONFLICT and FRONTIER (exact computation, no empirical claim: the kit prints "Exact
-computation · no empirical claim") and the E-13 payload for RISK.
+computation · no empirical claim"). An API test builds every terminal state of every tool and
+passes each row through `shell.ledger_row`.
 
 Evidence: `shell.evidence_payload` of `[(label, evidence.from_xi(r.evidence_class)) for each
 requirement the quantity uses] + [("Eligibility rules declared by hand", HEURISTIC), ("Exact
@@ -1332,37 +1677,53 @@ progression alone and `EXPERIMENTAL` with the opt-in, with the side requirements
 Every sentence below is a module constant, served outside provenance, and passes
 `labels.scan_labels` under every format argument a test supplies. The sentences a tool returns
 or raises (`claim`, `non_claim`, `RISK_HARD`, `RISK_OVERFLOW`, `RISK_NOT_EVALUABLE`,
-`FLOORS_CONSERVATIVE`) are defined in that tool's module, because an optimisation module does
-not import the API layer; the router re-exports them and defines the rest. A tool's `claim` and
-`non_claim` fields hold the constants of this table word for word; the design notes in sections
+`FLOORS_CONSERVATIVE`, `CONFLICT_NOT_PROVEN_CLAIM`, `CONFLICT_NOT_DECIDED`,
+`CONFLICT_MODEL_INVALID`) are defined in that tool's module, because an optimisation module does
+not import the API layer (`FLOORS_CONSERVATIVE` once, in `ceilings.py`, re-exported by
+`frontier.py`; a test asserts both serve the same text); the router re-exports them and defines
+the rest. A tool's `claim` and `non_claim` fields hold the constant of this table that its status
+selects (3.4), word for word, formatted only where the constant has placeholders (the RISK
+labels, by `risk.py`, 5.7); the design notes in sections
 2 to 5 are never served (two of them name words the copy guard refuses, by design). A unit test
 per tool asserts `scan_labels(asdict(result))` is empty. No shipped warning of `solve_xi` or
 `maximize_requirement` is served outside provenance: several fail the guard.
 
 | Constant | Text |
 |---|---|
-| `CEILING_CLAIM` | For each requirement in force, the least and the largest sum any XI reaches under the eligibility rules, locks, exclusions and declared hard floors, each with one XI that reaches it. The search adds each prior per-90 rate rounded half-even to 1/100000 of the club median; each printed interval contains the exact least or largest sum. |
+| `CEILING_CLAIM` | For each requirement in force, two intervals over the XIs that the eligibility rules, locks, exclusions and declared hard floors allow, each floor compared conservatively: the largest sum any of these XIs reaches lies in the first, the least in the second. One end of each interval is the exact sum of one XI the search found, printed rounded outward to four decimals; that XI need not reach the largest or the least sum itself. The other end is a bound no such XI passes: the search adds each prior per-90 rate rounded half-even to 1/100000 of the club median, and the bound is the limit the search proved on that rounded sum, widened by its rounding allowance and printed rounded outward. |
 | `CEILING_NON_CLAIM` | Each range is taken over all XIs for one requirement alone: reaching two minima at once is a different question. A sum is arithmetic on prior rates, not a forecast of what an XI would produce. |
-| `CEILING_REACHED` / `_UNREACHABLE` | One XI reaches the minimum of {label} ({minimum}): it sums to at least {attained}. / No XI reaches the minimum of {label} ({minimum}): none sums to more than {bound}. |
-| `CEILING_MISSED` / `_EVERY` | One XI stays below the minimum of {label} ({minimum}): it sums to at most {attained}. / Every XI reaches the minimum of {label} ({minimum}): none sums to less than {bound}. |
-| `CEILING_REACHED_ALLOWANCE` / `_NOT_CERTIFIED` | Whether an XI reaches the minimum of {label} ({minimum}) is not settled: it lies inside the rounding allowance of the search. / Whether an XI reaches the minimum of {label} ({minimum}) is not settled: the largest end was not certified within the search limits. |
-| `CEILING_MISSED_ALLOWANCE` / `_NOT_CERTIFIED` | Whether every XI reaches the minimum of {label} ({minimum}) is not settled: it lies inside the rounding allowance of the search. / Whether every XI reaches the minimum of {label} ({minimum}) is not settled: the least end was not certified within the search limits. |
+| `CEILING_REACHED` / `_UNREACHABLE` | One XI reaches the minimum of {label} ({minimum}): it sums to at least {attained}. / No {xi} reaches the minimum of {label} ({minimum}): none sums to more than {bound}. |
+| `CEILING_MISSED` / `_EVERY` | One XI stays below the minimum of {label} ({minimum}): it sums to at most {attained}. / Every {xi} reaches the minimum of {label} ({minimum}): none sums to less than {bound}. |
+| `{xi}` (a format argument of `_UNREACHABLE`, `_EVERY`, `FRONTIER_COMPLETE` and the CEILING ledger rows, 7.6) | "XI" when `floors` is empty; "XI that meets your floors in the conservative comparison" when it is not (2.1) |
+| `CEILING_EXACT_FACTS` | These minimum statements compare exact sums with each minimum. The solve above first rounds each rate and each minimum half-even to 1/100000 of the club median, so when a minimum lies that close to a sum, the solve above can find a shortfall where these statements find none, or none where they find one. |
+| `CEILING_REACHED_ALLOWANCE` (the LARGEST end `QUANTIZED_OPTIMAL` only, 2.1) / `_NOT_CERTIFIED` (any other LARGEST end) | Whether an XI reaches the minimum of {label} ({minimum}) is not settled: it lies inside the rounding allowance of the search. / Whether an XI reaches the minimum of {label} ({minimum}) is not settled: the largest end was not certified within the search limits. |
+| `CEILING_MISSED_ALLOWANCE` (the LEAST end `QUANTIZED_OPTIMAL` only) / `_NOT_CERTIFIED` (any other LEAST end) | Whether every XI reaches the minimum of {label} ({minimum}) is not settled: it lies inside the rounding allowance of the search. / Whether every XI reaches the minimum of {label} ({minimum}) is not settled: the least end was not certified within the search limits. |
 | `CEILING_NOT_CERTIFIED` | This end of the range was not certified within the search limits. No value is implied. |
-| `FLOORS_CONSERVATIVE` | No XI meets the declared floors in the conservative comparison: each rate rounded down and each floor rounded up to 1/100000 of the club median, so an XI that meets a floor exactly on its boundary can be excluded. |
-| `CONFLICT_CLAIM` | These declarations of yours cannot all hold together. Leave out any one of them and the others in this set can hold together, with every declaration outside the set also set aside. That check leaves out your other declarations: dropping one of these alone may still leave no XI, and each one says whether it does. This is one such set: checking in another order can return another, and it is not the smallest by count. |
+| `CEILING_REFUSED` | The solver refused the model, so no range is reported. No value is implied. |
+| `UNFIELDABLE_PROVED` (a reason, CEILING, FRONTIER, RISK) | No XI satisfies the combined eligibility rules, missing measurements, locks and exclusions. |
+| `FLOORS_CONSERVATIVE` | No XI meets the declared floors in the conservative comparison: each rate rounded down and each floor rounded up to 1/100000 of the club median, so an XI that meets a floor with less than the rounding allowance to spare can be excluded. |
+| `FLOORS_SCOPE` | Your floors are compared conservatively: each rate rounded down and each floor rounded up to 1/100000 of the club median, so an XI that meets a floor with less than the rounding allowance to spare can be left out of every range and point here. |
+| `FLOORS_CAUSE_UNDECIDED` | Whether any XI exists without the floors was not decided within the search limits. |
+| `CONFLICT_CLAIM` (`MINIMAL_CERTIFIED`) | These declarations cannot all hold together. Leave out any one of them and the others in this set can hold together, with every declaration outside the set also set aside. That check leaves out the other declarations: dropping one of these alone may still leave no XI, and each one says whether it does. This is one such set: when more than one exists, checking in another order can return another, and this one was not chosen to be the smallest by count. |
+| `CONFLICT_NOT_PROVEN_CLAIM` (`NOT_PROVEN_MINIMAL`) | These declarations cannot all hold together. For a member shown with an assignment, leaving it out lets the others in this set hold together, with every declaration outside the set also set aside; for at least one member that was not decided within the search limits, so this set may not be minimal. Dropping one of these alone, with the other declarations kept, may still leave no XI, and each one says whether it does. |
+| `CONFLICT_NOT_DECIDED` (`UNDECIDED`) | Whether these declarations can all hold together was not decided within the search limits. No set is implied. |
+| `CONFLICT_MODEL_INVALID` (`MODEL_INVALID`) | The solver refused the model of these declarations, so whether they can all hold together was not decided. No set is implied. |
 | `CONFLICT_NON_CLAIM` | Eligibility rules, the minutes gate and missing measurements are part of the model and are never offered for removal. Nothing was relaxed in the solve this explains. |
 | `CONFLICT_HALF_EVEN` | Minima are compared as the Satisfy rule compares them: each rate and each minimum rounded half-even to 1/100000 of the club median. |
-| `CONFLICT_CONSERVATIVE` | Floors are compared conservatively: each rate rounded down and each floor rounded up to 1/100000 of the club median, so an XI that meets a floor exactly on its boundary can be excluded. |
-| `CONFLICT_MEMBER_WITNESS` | Leave this declaration out, set aside every declaration outside this set, and the others in this set can hold together. One assignment is shown; it meets only those, so a place can be empty and a player you excluded can appear. |
+| `CONFLICT_CONSERVATIVE` | Floors are compared conservatively: each rate rounded down and each floor rounded up to 1/100000 of the club median, so an XI that meets a floor with less than the rounding allowance to spare can be excluded. |
+| `CONFLICT_NO_MINIMUM` | No minimum is part of this question: under the decision rule of the solve above no minimum is a constraint, so only places, exclusions and locks are checked. |
+| `CONFLICT_MEMBER_WITNESS` | Leave this declaration out, set aside every declaration outside this set, and the others in this set can hold together. One assignment is shown; it is only required to meet those, so a place can be empty, a player you excluded can appear, a player you locked can be missing, and a floor outside this set can be unmet. |
+| `CONFLICT_LOCK_SET_ASIDE` | Locked by you and not in this assignment: {names}. That lock is set aside in this check. |
 | `CONFLICT_MEMBER_UNDECIDED` | Leaving this declaration out was not decided within the search limits. The set still cannot hold together, but it may not be minimal. |
-| `CONFLICT_RESTORES_YES` / `_NO` | Dropping only this declaration, with all your others kept, leaves at least one XI. One is shown. / Dropping only this declaration, with all your others kept, still leaves no XI: another conflict remains. |
+| `CONFLICT_RESTORES_YES` / `_NO` | Dropping only this declaration, with all the other declarations kept, leaves at least one XI. One is shown. / Dropping only this declaration, with all the other declarations kept, still leaves no XI: another conflict remains. |
 | `CONFLICT_RESTORES_UNDECIDED` / `_SLOT` | Whether dropping only this declaration leaves an XI was not decided within the search limits. / An XI fills every place, so leaving this one empty is not a way to field one. |
-| `CONFLICT_FEASIBLE` | Every declaration holds in at least one XI, so there is nothing to explain; one such XI is shown. |
+| `CONFLICT_FEASIBLE` (`MODEL_FEASIBLE`, as the claim) | Every declaration holds in at least one XI, so there is nothing to explain; one such XI is shown. |
 | `CONFLICT_SOLVE_NEEDS_OPT_IN` | The solve above holds the two EXPERIMENTAL side pass-origin requirements; explaining it needs the experimental opt-in. |
-| `FRONTIER_CLAIM` | Every combination of rounded sums of the declared requirements that no XI's rounded sums match or exceed on all of them while exceeding it on one, each with one XI that reaches it. A rounded sum adds each prior per-90 rate as a multiple of the club median, rounded half-even to 1/100000, and is printed exactly. Beside each point, the sums of one XI reaching it before rounding; they can differ from the point by the allowance shown. |
+| `FRONTIER_CLAIM` | Every combination of rounded sums of the declared requirements that some XI reaches and that no XI's rounded sums match or exceed on all of them while exceeding it on one, each with one XI that reaches it. The XIs are those the eligibility rules, locks, exclusions and declared hard floors allow, each floor compared conservatively. A rounded sum adds each prior per-90 rate as a multiple of the club median, rounded half-even to 1/100000, and is printed exactly. Beside each point, the sums of one XI reaching it before rounding, in the same unit and rounded down; they differ from the point by no more than the allowance shown. |
 | `FRONTIER_NON_CLAIM` | Not a ranking: no point is preferred, and the list follows the order in which you declared the requirements. A point says nothing about requirements you did not declare, and a sum is arithmetic on prior rates, not a forecast. |
-| `FRONTIER_COMPLETE` | Complete: a final solve proved that every XI's rounded sums are no more than one of these points on every declared requirement. |
-| `FRONTIER_LIMIT` / `_STOPPED` | The limit of {n} points was reached and another point exists. The list is not complete. / The search stopped after {n} points. Each listed point is certified; other points may exist. |
+| `FRONTIER_COMPLETE` | Complete: a final solve proved that the rounded sums of every {xi} are no more than one of these points on every declared requirement. |
+| `FRONTIER_LIMIT` / `_STOPPED` | The limit of {n} points was reached and another point exists. The list is not complete. The points listed come first in the declared order; another order can list others. / The search stopped after {n} points. Each listed point is certified; other points may exist. The points listed come first in the declared order; another order can list others. |
+| `SOLVER_REFUSED` (FRONTIER, RISK) | The solver refused the model at one step, so this answer is not complete. Anything shown was certified before that step; nothing else is implied. |
 | `FRONTIER_OPT_IN` | With the requirements this XI Lab model holds, two or more declared sums need the two EXPERIMENTAL side pass-origin requirements, which enter only through the experimental opt-in. |
 | `RISK_WORST` | Worst world of {B}, the extreme of the tail rule for these {B} worlds (a tail of one world): an XI whose single highest-loss resampled world is least, comparing the largest shortfall first and then the summed shortfall. |
 | `RISK_TAIL` | Tail {k} of {B}: an XI whose {k} highest-loss resampled worlds have the least summed loss, comparing summed largest shortfalls first and then summed shortfalls. |
@@ -1370,10 +1731,11 @@ per tool asserts `scan_labels(asdict(result))` is empty. No shipped warning of `
 | `RISK_WITNESS` | The worlds listed are those of the XI shown. Another XI this rule selects reaches the same value and can have other highest-loss or binding worlds. |
 | `RISK_BALANCE` | This rule compares shortfalls whatever the decision rule of the solve above: a Satisfy minimum is not a constraint here. |
 | `RISK_UNTESTED` | E-13 has not tested this rule. |
+| `RISK_OUTSIDE_E13` | E-13 does not test this rule on this request: its formation, world count, tail count or match lies outside what E-13 tests. |
 | `RISK_GROWTH` | A worst case over resampled worlds grows with their number. This one is over {B} worlds, of which {U} were used. |
 | `RISK_NON_CLAIM` | Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast. |
 | `RISK_DISCARDED` | {d} of {B} worlds were set aside: in each, a player who can be selected has no value in that world for a requirement in force here ({labels}) at a place he is eligible for: he has no recorded minutes in that world's resampled matches, or no value at all. The main solve's resampling sets worlds aside by this rule over its own requirements. |
-| `RISK_SAME_DRAW` (`B = 12`) | These are drawn as the main solve draws its {B} resampled worlds: the same seed and the same matches. Its selection frequencies use only the worlds it certified under its own decision rule and requirements, which can be fewer. |
+| `RISK_SAME_DRAW` (`B = 12`) | These are drawn by the main solve's rule for its {B} resampled worlds: the same seed and the same match-resampling procedure, from the corpus files as they are now. Its selection frequencies use only the worlds it certified under its own decision rule and requirements, which can be fewer. |
 | `RISK_PREFIX` (`B = 40`, while the prefix test holds) | The main solve's 12 resampled worlds are worlds 0 to 11 of these 40. Its selection frequencies use only the worlds it certified under its own decision rule and requirements. |
 | `RISK_HARD` | Declared-risk rules compare shortfalls; a hard minimum is a Satisfy question. |
 | `RISK_OVERFLOW` | The declared minima are too large for the exact integer model of this rule. |
@@ -1386,6 +1748,10 @@ per tool asserts `scan_labels(asdict(result))` is empty. No shipped warning of `
 `RISK_SAME_DRAW` and `RISK_PREFIX` state how the worlds are built, which the router knows
 without seeing the main reply; neither says that the main solve used these worlds, and the
 certificate prints the world fingerprint so a reader can compare it with the main solve's.
+`RISK_SAME_DRAW` names the procedure and the files as they are now, not "the same matches":
+after a corpus rewrite in a running server the main solve keeps worlds drawn from the files as
+they were (`decision_lab.snapshot`'s cache, KNOWN_LIMITATIONS.md:79-82), while the gated loader
+of 7.3 draws again from the new files, and the fingerprints then differ.
 The earlier sentence that the worlds "are the worlds the main solve's selection frequencies
 use" is withdrawn: the main solve sets aside, besides discarded worlds, every world it could
 not certify (solver.py:566-568), under its own mode and requirements. The sentence
@@ -1399,10 +1765,12 @@ A reply is stored when `runtime.is_complete` holds: every `completeness` in it `
 (1.5) and are stored: `UNFIELDABLE`, `NOT_SATISFIABLE`, `NOT_EVALUABLE` (with an `EXACT`, empty
 membership block) and `MODEL_FEASIBLE`. `DEADLINE`, `LIMIT_REACHED` and `MODEL_INVALID`
 replies are returned and computed again next time; a reply whose membership is undecided is
-one of them, and an identical request in flight is still computed once
+one of them, and so is a `FLOORS_UNMET` reply (its cause undecided) and a membership block
+`NOT_REQUESTED`; an identical request in flight is still computed once
 (`RESULTS.get_or_compute`). Status codes are the runtime's: 404 unknown
 scenario, 422 refusal (with the tool's sentence), 429 busy, 503 corpus absent, 500 for a
-`BoundaryViolation` or an internal fault (`KeyError`, `RuntimeError` from a witness check).
+`BoundaryViolation` or an internal fault (`KeyError`, `RuntimeError` from a witness check, or an
+exception raised by CP-SAT, such as `MemoryError`, which is never turned into a status, 1.5).
 
 ### 7.9 What does not change (R13)
 
@@ -1423,13 +1791,25 @@ ROOT 2.3 puts the three additions on the XI page; R13 asks for new capability in
 leaves shared files to the root. The page parts therefore live entirely in two new files and
 reach `web/xi.html` through five additive root edits (section 12), which change no existing
 element, id, text or handler: a stylesheet link, one mount `<div id="xi-extensions"></div>`
-after `#tradeoff-panel`, two script tags after the inline script (`labs-shared.js`, then
-`xi-extensions.js`), one call `XiExtensions.mount(document.getElementById('xi-extensions'))`
-in a script tag after them, and two `CustomEvent` dispatches inside `solve()`:
+after `#tradeoff-panel`, two script tags immediately before the inline script
+(`labs-shared.js`, then `xi-extensions.js`), one call
+`XiExtensions.mount(document.getElementById('xi-extensions'))` in a script tag after them and
+still before the inline script, and two `CustomEvent` dispatches inside `solve()`:
 `xi:invalidated` when a solve starts and when a main minimum is edited, `xi:solved` after
 `render()` with `detail = {input: solvedInput, status: d.solution_status}`. The root granted
 these edits (X4, ROOT-DECISIONS 2.7) on one condition: every shipped XI test and browser spec
 passes unchanged, and the new panels send nothing until their own button is pressed (8.2).
+
+The scripts and the mount precede the inline script so that the controller listens before the
+page's first solve can finish. Placed after it, as the granted text had them, they race the
+inline script's async start-up (xi.html:81: `await api('/api/xi/scenarios')`, then
+`await solve()`): the parser fetches the two external files while that chain runs, and an
+`xi:solved` dispatched before `mount` is lost, leaving every panel disabled until the next
+solve. Before the inline script nothing is lost: neither `labs-shared.js` nor
+`xi-extensions.js` declares a script-scope name or reads a page name when evaluated
+(labs-shared.js:13-15), the mount `<div>` (edit 2) is already parsed, and `mount` only builds
+markup inside it, registers its two listeners and sends the corpus-free `GET`. This placement
+differs from the text X4 granted and is listed for the root's confirmation (section 12).
 
 `xi-extensions.js` reads the page only through these events; it never reads `result`, `locks`
 or any page-scope name, and it declares nothing in script scope (one global,
@@ -1446,13 +1826,22 @@ and discards a response whose request version is not the latest (the page's own
 `requestVersion` rule). It is called only by the page.
 
 Ledger ids. `Shell.ledger` emits the fixed ids `ledger-declared` and `evidence-ledger`
-(labs-shared.js:185-198), and this section shows up to four ledgers on one page.
-`XiExtensions.render.ledger(prefix, declared, rows)` calls `Shell.ledger` and replaces exactly
-those two attributes, each of which must occur once in its output, with
-`id="{prefix}-ledger-declared" class="xi-ledger-declared"` (on the declared table) and
-`id="{prefix}-evidence-ledger"`; `xi-extensions.css` repeats the `#ledger-declared` rules of
-labs-shared.css:40-41 for `.xi-ledger-declared`. If either id is not found exactly once the
-function throws, so a change to the kit fails a test instead of producing duplicate ids.
+(labs-shared.js:185-198), each in one of two forms, and this section shows up to four ledgers
+on one page. `XiExtensions.render.ledger(prefix, declared, rows)` calls `Shell.ledger` and
+replaces whole attribute runs, never adds an attribute (an element with two `class` attributes
+keeps only the first, so an added class would be dropped by the parser):
+`class="ledger" id="ledger-declared"` becomes
+`class="ledger xi-ledger-declared" id="{prefix}-ledger-declared"`;
+`class="unavailable" id="ledger-declared"` becomes
+`class="unavailable xi-ledger-declared" id="{prefix}-ledger-declared"`;
+`class="ledger evidence-ledger" id="evidence-ledger"` becomes
+`class="ledger evidence-ledger" id="{prefix}-evidence-ledger"`; and
+`class="unavailable" id="evidence-ledger"` becomes
+`class="unavailable" id="{prefix}-evidence-ledger"`. Exactly one form of each must occur, once;
+otherwise the function throws, so a change to the kit fails a test instead of producing
+duplicate ids or a lost class. `xi-extensions.css` repeats the `#ledger-declared` rules of
+labs-shared.css:40-41 (among them `td{overflow-wrap:anywhere}`, which the 320 and 390 px checks
+need) for `.xi-ledger-declared`, scoped under `#xi-extensions` (8.3).
 The root declined an optional prefix argument to `Shell.ledger` as not needed (X11): this
 rewrite is the specification, and `labs-shared.js` is not edited.
 
@@ -1462,9 +1851,16 @@ One section, four panels in a fixed order. One checkbox above them, `#xi-experim
 unchecked on every load, labelled `OPT_IN_LABEL`; ticking it sends `experimental_opt_in: true`
 on the next request of every panel and prints the composed class beside every number. Before
 `xi:solved` every button is disabled and each panel reads "Re-solve the main XI first.";
-`xi:invalidated` disables them again and clears every panel. **No panel sends a request on its
+`xi:invalidated` disables them again and clears every panel. **No panel sends a POST on its
 own**: every POST follows a press of that panel's button, so a shipped flow that presses no
-new button sends no new POST, and the only new request on load is the corpus-free `GET`.
+new button sends no new POST. The only new request on load is the corpus-free `GET
+/api/xi/extensions`, sent once by `mount` through `finalize`: the frontier and risk selects
+need its `requirements` and `rule_options` before their buttons can be enabled, and a `GET`
+deferred to `xi:solved` would still not follow a button press. X4's condition reads "the new
+panels send nothing until their own button is pressed"; its purpose was no compute POST and no
+422 in a shipped flow, which this meets, but the words do not cover the `GET`, so the root is
+asked to confirm it (section 12). The e2e spec asserts that this `GET` is the only new request
+on load.
 
 Request body, every panel, built from `event.detail.input` (the main solve's `scenario_id`,
 `formation`, `mode`, `locks`, `excludes`, `minimums`) and the `GET` reply's `requirements`:
@@ -1478,10 +1874,10 @@ opt-in). When a key was left out the panel prints `SIDE_MINIMA_SET_ASIDE`.
 
 | Panel | Shown when | Request | Renders (server field) | States |
 |---|---|---|---|---|
-| `#conflict-panel` "Which declarations cannot hold together" | the last main solve is `INFEASIBLE` | button `#explain-conflict`, "Explain, including the two EXPERIMENTAL requirements the solve above used"; `POST /api/xi/conflict` with the common body, the opt-in sent as true whatever the checkbox (the main solve had them in force), all three minima, `explains: "solve"` and the main solve's `mode`; no `floors` key (X2) | status badge; `CONFLICT_CLAIM`; the arithmetic sentence `CONFLICT_HALF_EVEN`; one row per member of `result.conflict` in server order: family, `label_text`, the member sentence, the restore sentence; a `<details>` per member with its assignment (slot label, `player_text`, `note_text`) and, when the restore test found one, the XI without that member; certificate (solves, statuses, `final_set_proof_solve`, completeness, deletion order); ledger, prefix `conflict` | `MODEL_FEASIBLE`: `CONFLICT_FEASIBLE` and the XI; `UNDECIDED`: `Shell.notCertified`; 422, 503 through `Shell.errorText` |
-| `#ceilings-panel` "Attainable range of each requirement sum" | after `xi:solved` | button `#solve-ceilings`; `POST /api/xi/ceilings` with the common body; no floors from the page | claim, non-claim and `model_note`; a table, one row per range in server order: label and evidence badge (`evidence`, the domain class); least `attained_text`/`bound_text`; largest `attained_text`/`bound_text`; the two minimum statements; certificate details; ledger, prefix `ceilings` | an end not certified: `CEILING_NOT_CERTIFIED` in its cell, no number; `UNFIELDABLE`: `Shell.infeasible(reasons)` |
-| `#frontier-panel` "Nondominated requirement sums" | after `xi:solved` | selects `#frontier-dim-1..3`, each starting empty with the placeholder "Choose a requirement", options the `GET` reply's `requirements` (only those with `experimental` false while the opt-in is unticked, labels as served); the button `#solve-frontier` is enabled only with two or three distinct choices; `POST /api/xi/frontier` with `scenario_id`, `formation`, `locks`, `excludes`, the opt-in and `dimensions` in the chosen order; no minima (sums, not shortfalls) and no floors | the claim and non-claim; a table, one row per point in server order, one column per declared dimension (`point_texts`), a column "one XI reaching it sums to" (`raw_sum_texts`), the allowances (`allowance_texts`), a "One XI" toggle showing the lineup; for `d = 2` an SVG with `viewBox="-0.05 -0.05 1.1 1.1"` and one circle per point at (`plot_x`, `plot_y`), every circle the same size, colour and stroke; the `point_order` sentence; certificate (points, solves, completeness, `stopped_by`, final region status) | without the opt-in, `FRONTIER_OPT_IN` and the button disabled; `LIMIT_REACHED`, `DEADLINE`: the sentence above the table; `UNFIELDABLE`: `Shell.infeasible(reasons)`; `NOT_SATISFIABLE`: `Shell.infeasible([FLOORS_CONSERVATIVE, ...reasons])`; one point: the same table with one row |
-| `#risk-panel` "Declared risk preference over resampled matches" | after `xi:solved` | `#risk-worlds` (the `GET` reply's `world_counts`: 12 alone until the 40-world timing, X5) and `#risk-rule` (the `GET` reply's `rule_options[B]` texts, fixed order), both starting on an empty placeholder; the button `#solve-risk` is enabled only when both are chosen; `POST /api/xi/risk/tail` with the common body, `bootstrap_worlds`, `rule` and, for `TAIL`, `tail_count`; or `POST /api/xi/risk/regret` with the common body and `bootstrap_worlds` | the rule label and `RISK_UNTESTED` while not executed; `Shell.verdictBadge` and `verdictLines` of `verdicts.risk_rule`; the non-claim, `model_note` and `RISK_BALANCE`; roster (slot, player) of `result.lineup`; TAIL and WORST_WORLD: the tail sums' texts, a table "For the XI shown" of the tail worlds (world id, `maximum_shortfall_text`, `total_shortfall_text`), `boundary_ties_text`, `RISK_GROWTH`; REGRET: a table "For the XI shown" of the binding worlds with both pairs, and every world's two pairs in `<details>`; `RISK_WITNESS` under each such table; the point-estimate pair's texts and `point_sum_texts`; the membership groups (server headings, server order); certificate: B, used, discarded count and list, world seed, fingerprint, `RISK_SAME_DRAW` or `RISK_PREFIX` when served, solves, statuses, completeness, both deterministic limits; ledger, prefix `risk` | `NOT_EVALUABLE`: `RISK_NOT_EVALUABLE`; `UNKNOWN`: `Shell.notCertified`, no XI; `UNFIELDABLE`: `Shell.infeasible(reasons)`; 422 overflow sentence as sent |
+| `#conflict-panel` "Which declarations cannot hold together" | the last main solve is `INFEASIBLE` | button `#explain-conflict`, "Explain, including the two EXPERIMENTAL requirements the solve above used"; `POST /api/xi/conflict` with the common body, the opt-in sent as true whatever the checkbox (the main solve had them in force), all three minima, `explains: "solve"` and the main solve's `mode`; no `floors` key (X2) | status badge; the served `claim` (the constant the status selects, 3.4; never `CONFLICT_CLAIM` by name); the served arithmetic sentence (`statements`: `CONFLICT_HALF_EVEN`, or `CONFLICT_NO_MINIMUM` when the set holds no floor, as for a `BALANCE` solve made infeasible by locks); one row per entry of `result.member_rows` in server order: family, `label_text`, `member_text`, `restore_text`; a `<details>` per member with its `assignment_rows` (slot label, `player_text`, `note_text`), its `missing_locked_text` when not `null`, and, when the restore test found one, its `restore_rows`; certificate (solves, statuses, `final_set_proof_solve`, completeness, deletion order); ledger, prefix `conflict` | `NOT_PROVEN_MINIMAL`: the status badge, the served claim, the member rows as normal, each undecided or `NOT_RUN` member with `CONFLICT_MEMBER_UNDECIDED`, completeness in the certificate; `MODEL_FEASIBLE`: the served claim (`CONFLICT_FEASIBLE`) and the XI; `UNDECIDED` and `MODEL_INVALID`: `Shell.notCertified` and the served claim; 422, 503 through `Shell.errorText` |
+| `#ceilings-panel` "Attainable range of each requirement sum" | after `xi:solved` | button `#solve-ceilings`; `POST /api/xi/ceilings` with the common body; no floors from the page | claim, non-claim, `model_note` and the served `statements` (`CEILING_EXACT_FACTS`, and `FLOORS_SCOPE` for an API reply with floors); a table, one row per range in server order: label and evidence badge (`evidence`, the domain class); least `attained_text`/`bound_text`; largest `attained_text`/`bound_text`; the two minimum statements; certificate details; ledger, prefix `ceilings` | an end not certified: `CEILING_NOT_CERTIFIED` in its cell, no number; an end with a witness and no bound (`bound_text` `null`): its `attained_text` in its own cell and `CEILING_NOT_CERTIFIED` in the bound cell only; `UNFIELDABLE`: `Shell.infeasible(reasons)`; `MODEL_INVALID`: `Shell.notCertified` and `CEILING_REFUSED`. `NOT_SATISFIABLE` and `FLOORS_UNMET` need floors, which the page never sends; an API reply in those states renders `Shell.infeasible` of its served statements |
+| `#frontier-panel` "Nondominated requirement sums" | after `xi:solved` | selects `#frontier-dim-1..3`, each starting empty with the placeholder "Choose a requirement", options the `GET` reply's `requirements` (only those with `experimental` false while the opt-in is unticked, labels as served); the button `#solve-frontier` is enabled only with two or three distinct choices; `POST /api/xi/frontier` with `scenario_id`, `formation`, `locks`, `excludes`, the opt-in and `dimensions` in the chosen order; no minima (sums, not shortfalls) and no floors | the claim and non-claim; the served `status_text` above the table; a table, one row per point in server order, one column per declared dimension (`point_texts`, header "rounded sum, in club medians"), a column `raw_sum_texts` (header "one XI reaching it sums to, before rounding, in club medians"), a column `allowance_texts` (header "allowance, in club medians"), a "One XI" toggle showing the point's `lineup_rows`; for `d = 2` an SVG with `viewBox="-0.05 -0.05 1.1 1.1"` and one circle per point at (`plot_x`, `plot_y`), every circle the same size, colour and stroke; the `point_order` sentence; certificate (points, solves, completeness, `stopped_by`, final region status) | without the opt-in, `GET`'s `frontier_opt_in_text` and the button disabled; `LIMIT_REACHED`, `DEADLINE`, `MODEL_INVALID`: the served `status_text` above the table; `UNFIELDABLE`: `Shell.infeasible(reasons)`; `NOT_SATISFIABLE` and `FLOORS_UNMET` (API replies with floors only): `Shell.infeasible` of the served statements and reasons; one point: the same table with one row |
+| `#risk-panel` "Declared risk preference over resampled matches" | after `xi:solved` | `#risk-worlds` (the `GET` reply's `world_counts`: 12 alone until the 40-world timing, X5) and `#risk-rule` (the `GET` reply's `rule_options[B]` texts, fixed order), both starting on an empty placeholder; the button `#solve-risk` is enabled only when both are chosen; `POST /api/xi/risk/tail` with the common body, `bootstrap_worlds`, `rule` and, for `TAIL`, `tail_count`; or `POST /api/xi/risk/regret` with the common body and `bootstrap_worlds` | the served `claim` (the rule label, ending with `RISK_UNTESTED` while not executed, or `RISK_OUTSIDE_E13` for a request outside E-13's scope, 5.7); `Shell.verdictBadge` and `verdictLines` of `verdicts.risk_rule`; no `risk_report` line (it is `null` until section 13 settles it); the non-claim, `model_note` and the served `statements`; roster of `result.lineup_rows`; TAIL and WORST_WORLD: the tail sums' texts, a table "For the XI shown" of `tail_rows`, `boundary_ties_text`; REGRET: a table "For the XI shown" of `binding_rows` with both pairs, and `world_rows` in `<details>`; `RISK_WITNESS` under each such table; the point-estimate pair's texts and `point_sum_texts`; the membership groups (server headings, server order); certificate: B, used, discarded count and list, world seed, fingerprint, `RISK_SAME_DRAW` or `RISK_PREFIX` when served, solves, statuses, completeness, both deterministic limits; ledger, prefix `risk` | `NOT_EVALUABLE`: `RISK_NOT_EVALUABLE`; `UNKNOWN`: `Shell.notCertified`, no XI; `MODEL_INVALID`: `Shell.notCertified` and `SOLVER_REFUSED`, no XI; `UNFIELDABLE`: `Shell.infeasible(reasons)`; 422 overflow sentence as sent |
 
 ### 8.3 Rules of the page
 
@@ -1490,22 +1886,36 @@ opt-in). When a key was left out the panel prints `SIDE_MINIMA_SET_ASIDE`.
   server-formatted counts) or a server integer field printed as is (world ids, `solves`,
   `final_set_proof_solve`, point counts); `plot_x` and `plot_y` are server strings placed as
   SVG coordinates in the fixed `viewBox`, never transformed. JS never sorts, filters or groups
-  rows; it prints them in the order received, and the membership groups arrive grouped. The
-  one selection it makes is by the server's `experimental` flag (8.2).
+  rows, and never looks an entry up in one list by an id from another: every table is a served
+  row list (`ranges`, `member_rows`, `assignment_rows`, `restore_rows`, `lineup_rows`,
+  `tail_rows`, `boundary_rows`, `binding_rows`, `world_rows`, `membership.groups`, 7.5) printed
+  in the order received. The one selection it makes is by the server's `experimental` flag
+  (8.2).
 - No ranking or highlighting of a frontier point: every row and every circle has the same
   classes and computed style; nothing is selected on arrival; the detail area reads "Choose a
   point to see one XI that reaches it." A point the reader opens gets the outline every opened
-  row gets, and nothing else changes. None of the words O7 forbids, nor "dominant" or
-  "recommended", appears; the page prints the server's `point_order` sentence under the table.
+  row gets, and nothing else changes. None of the words O7 forbids ("best", "optimal",
+  "trade-off" in any spelling, "knee", section 4; the solver status token `OPTIMAL` in a status
+  field excepted), nor "dominant" or "recommended", appears; the page prints the server's
+  `point_order` sentence under the table.
 - No rule is preselected, and the order of rules never depends on a verdict token (E-13).
 - No `%` sign and no word of chance appears in the risk panel.
 - Every per-world table of the risk panel is titled "For the XI shown" and followed by
   `RISK_WITNESS`.
 - Ids are unique on the page (8.1).
-- Mobile: the tables use the kit's `data-label` cells and stack at 600 px and below; the SVG has
-  its fixed `viewBox` and `width: 100%`; at 390 and 320 px `#xi-extensions` itself has
-  `scrollWidth ≤ clientWidth` (the shipped parts of `/xi` are not measured at 320 px by this
-  work).
+- Mobile: the kit's `cell` helper is private (it is not on `window.Shell`) and its stacking rule
+  applies to `.evidence-ledger` only, at 650 px (labs-shared.css:44), so `xi-extensions.js`
+  writes its own `data-label` attribute on every cell of its tables, and `xi-extensions.css`
+  stacks those tables at 600 px and below by the same pattern (`td::before{content:
+  attr(data-label)}`). The SVG has its fixed `viewBox` and `width: 100%`; at 390 and 320 px
+  `#xi-extensions` itself has `scrollWidth ≤ clientWidth` (the shipped parts of `/xi` are not
+  measured at 320 px by this work).
+- Stylesheet scope (X4, R13): `xi-extensions.css` is linked after `labs-shared.css` on `/xi`, so
+  an unscoped rule would restyle shipped elements no shipped spec measures (`.panel h2`, `.ledger
+  td` on the tradeoff and alternatives panels). Every selector in it starts with
+  `#xi-extensions` or names only `xi-`-prefixed classes or ids; no element-only selector and no
+  kit class (`.panel`, `.ledger`, `.badge`, `.evidence-ledger`) appears outside that scope. A
+  unit test parses the sheet and asserts it (section 9).
 - Colour: gold (`rgb(201, 162, 39)`) is not used on any number of the new panels, as the
   tradeoff test already checks on its own panel.
 
@@ -1530,21 +1940,44 @@ one of 1.5 and `runtime.is_complete` holds exactly on `EXACT` / `COMPLETE` repli
 every proved terminal outcome. Each tool file also pins, by name and call signature, the private
 `kernel.py` members its module uses (X9).
 
+Comparing two results. A result's provenance holds the wall times of its solves (1.5), which
+differ on every run. Every comparison of two results by `asdict` (determinism, shuffled inputs,
+WORST_WORLD against TAIL(1)) is of `stable(asdict(result))`: `asdict(result)` with
+`provenance["<tool>_solve_wall_times"]` deleted from both sides, and nothing else compared less
+strictly; the `<tool>_solve_deterministic_times` lists stay in the comparison and must be equal.
+Each tool file also asserts that the wall-time list holds one finite float `≥ 0` per call that
+is not `NOT_RUN`. Wall times are not moved to `budget.report`, whose keys
+`tests/test_lab_runtime.py:147` pins.
+
+Integers from the solver. Each tool file wraps the solver, as `tests/test_xi_tradeoffs.py:156`
+does, so that `objective_value` and `best_objective_bound` return the exact value minus `2**-20`
+on an `OPTIMAL` solve, and asserts that no `RuntimeError` is raised, that `stable(asdict(...))`
+equals the unwrapped run's, and that a tampered witness still raises (1.5, 2.3). The test does
+not rely on a seeded instance on which one OR-Tools version happens to report a non-integral
+optimum; such an instance may be added beside it, with the OR-Tools version recorded.
+
+Classification of stops (1.5). Each tool file plants a mixed sequence: one call stopped at its
+deterministic limit and a later call `NOT_RUN` gives `DEADLINE` and `WALL_CLOCK`; deterministic
+stops alone give `LIMIT_REACHED` and `DETERMINISTIC_LIMIT`; a monkeypatched `UNKNOWN` that
+reached neither limit gives `DEADLINE` and `WALL_CLOCK`.
+
 | File | Tests |
 |---|---|
-| `test_xi_ceilings.py` | integer ends equal the oracle's `min`/`max` of `O_r` over `𝒳_F`, with and without floors, locks, exclusions, `None` values, zero minutes and negative rates; every feasible oracle `S_r` lies in the bracket, in `Fraction`; witnesses admissible, floors met in integers and `Fraction`, `O_r` recomputed equal; the two minimum facts equal the oracle's truth whenever not `None`, and `None` occurs only with reason `ALLOWANCE` (the minimum between witness and bound) or `NOT_CERTIFIED` (a planted case of each of the four decided outcomes and of each reason); a `FEASIBLE_NOT_PROVEN` end decides a fact by its witness or its bound; with `φ_r ≠ m_r` the facts use `m_r`; `UNFIELDABLE` by construction and by proof, `NOT_SATISFIABLE` with floors, each `EXACT`; parity, on instances whose oracle feasible set is not empty: with floors equal to every active minimum the LARGEST end equals `maximize_requirement`'s `integer_value`, `integer_upper_bound` and certification, and each witness's raw sum lies in the other's bracket (witnesses are not compared); a passed deadline gives `NOT_RUN` everywhere, no number, `DEADLINE`; a monkeypatched `FEASIBLE` status gives `FEASIBLE_NOT_PROVEN` with a bracket that still contains every oracle sum; a monkeypatched response whose deterministic time reached the limit gives `LIMIT_REACHED` and `stopped_by = DETERMINISTIC_LIMIT`, one whose wall time ran out `DEADLINE` and `WALL_CLOCK`; a tampered witness raises `RuntimeError`; the objective coefficients equal `round(_scaled(...))` and differ from `_q` on `1.344465 / 1.0` at 100000; determinism; shuffled candidates and requirements give an identical `asdict` |
-| `test_xi_conflict.py` | `explain_floors`: the returned set equals the oracle's deletion filter in the declared order (equality, not just minimality); the oracle finds the set not satisfiable and every set with one member removed satisfiable; each restore test equals the oracle's `restores_alone` (`NOT_APPLICABLE` for slot coverage); `MODEL_FEASIBLE` iff the oracle finds an XI, `EXACT`; parity: `explain_floors()` is `MODEL_FEASIBLE` iff `kernel.satisfiable` is `SATISFIABLE`; the instance of 3.3 (`exclusion:A`, an unreachable floor, `lock:A`) returns `{floor:progression}` with a witness that has empty slots, and its restore test is `False`; two planted independent conflicts give one set whose members all have `restores_alone = False`, and no served sentence of the reply states that dropping a member leaves an XI; a witness that uses an excluded player lists him in `witness_excluded_players`; a locked-and-excluded player gives exactly `{exclusion:p, lock:p}`; a slot no admissible player can fill gives `{slot:s}`; a monkeypatched `UNKNOWN` on one filter test gives `NOT_PROVEN_MINIMAL`, that member `KEPT_UNDECIDED`, never `MINIMAL_CERTIFIED`; one on a restore test leaves the status and gives that member `None` and completeness `DEADLINE`; `final_set_proof_solve` points at an INFEASIBLE status of a test of exactly the final set; tables equal `kernel._tables` on shared keys; a tampered witness raises; reordered inputs give the same set. A planted boundary instance feasible under half-even and not conservatively returns a set holding the floor from `explain_floors`. `explain_solve`: against the oracle in half-even, `MODEL_FEASIBLE` iff `solve_xi(mode="SATISFY")` is `OPTIMAL` or `FEASIBLE`, its requirements in force equal `solve_xi`'s active set, and the boundary instance gives `MODEL_FEASIBLE` |
-| `test_xi_frontier.py` | the set of `integer_sums` equals the oracle's nondominated set, `d = 2` and `d = 3`, with floors, locks and exclusions; every oracle feasible vector is weakly below a point; points pairwise nondominated; witnesses verified; the planted instance of 4.1 (two XIs sharing an integer vector with different raw sums) gives one point whose served texts are the integer coordinates, and the oracle's XI with larger raw sums is weakly below it in the integers; `max_points=1` on an instance with at least two points gives one point of the oracle set, `LIMIT_REACHED`, `stopped_by = POINT_LIMIT`, `final_region_status = OPTIMAL`; a monkeypatched `UNKNOWN` at stage 2 of the third iteration gives exactly the two earlier points, `DEADLINE`; reversing a two-dimension declaration reverses the list and swaps every pair; the list follows `POINT_ORDER`; no default dimension (calling without `dimensions` is a `TypeError`), `d ∉ {2, 3}`, a repeat or an inactive requirement is a `ValueError`; empty feasible set as `UNFIELDABLE` and `NOT_SATISFIABLE`, each `COMPLETE`; claim and non-claim equal the 7.7 constants and hold none of the words O7 forbids; determinism; shuffled inputs give an identical `asdict` |
-| `test_xi_risk_oracle.py` | (the E-13-pinned file) on every seeded instance, with `U` from the oracle's `used_worlds`, and every `k ∈ 1..|U|`: TAIL's `tail_sum` equals the oracle's optimum and the selected player set is in the oracle's level set; the tail ids and boundary ties equal the oracle's `tail_of(lineup, k)` for the returned lineup; REGRET's per-world least pairs and optimum equal the oracle's, the selected set is in its level set, and the binding worlds equal `binding_of(lineup)`; `world_losses` equals the oracle's pairs; membership equals the oracle's level-set membership; the instances are not vacuous: across the 120, some level set has more than one XI and some exactly one, some TAIL selection differs from BALANCE's and some equals it, some tail is decided by `T` at equal `M`, some instance discards a world, and some summed `T` over a tail exceeds `T_bound` |
-| `test_xi_risk.py` | single-world invariant: TAIL(1) and REGRET equal `kernel.value(values=…)` in integers, `solve_xi` on world-replaced candidates by `round(v * q)` of its `objective_vector`, and the oracle; WORST_WORLD equals TAIL(1) in everything but `rule`, `certificate.rule`, `claim` and the provenance fingerprints; TAIL(`|U|`) is the lexicographic minimum of (`Σ M`, `Σ T`); the discarded list equals `bootstrap_selection`'s `bootstrap_discarded_worlds` and the fingerprint its `bootstrap_world_fingerprint` on the same inputs; a world dict missing a player discards the world, as the bootstrap does; doubling BIG (monkeypatched `_encoding_base`) leaves status, optimum (`tail_sum` or the regret optimum) and membership unchanged; two planted deterministic instances, one TAIL with `k = 2` and one REGRET, on which `BIG = T_bound + 1` provably selects a different set (the carry of 5.1), give the oracle's selection with the shipped BIG and another with the monkeypatched small one; no encoding leaves: the test recomputes BIG, the selection optimum `Φ*` or `ρ*`, every `E^w` of the returned lineup with `M^w ≥ 1` and every `E*^w` with `M*^w ≥ 1`, and asserts that none appears in `asdict(result)` as an integer or as a whole digit token (`\b...\b`) of a string, except where it equals a value served under an allow-listed path (ids, counts, seeds, `quantization`, `LossPair` and `TailSums` fields); no key contains `encod`, `big`, `base` or `objective`; none of those integers appears as a token in `caplog`; the overflow guard refuses above `2**53` with a sentence holding no digit; a hard requirement is a `ValueError`; `|U| < k` gives `NOT_EVALUABLE` with no solve, `EXACT`, an `EXACT` empty membership block; two locked goalkeepers give `UNFIELDABLE` (not `UNKNOWN`) for TAIL, WORST_WORLD and REGRET, `EXACT`, no lineup; a passed deadline gives `UNKNOWN`, no lineup; one per-world optimum `UNKNOWN` gives `UNKNOWN` with that world in `undecided_world_ids`; shortfalls use `_q`: a planted `1.344465 / 1.0` coefficient at 100000 gives `_q`'s integer; `world_seed` and `bootstrap_version` reach the certificate unchanged; `TAIL_MENU` plus `WORST_WORLD` at 1 equals the E-13 draft config's `tail_counts` for `B ∈ WORLD_MENU`; the prefix property of 1.4 (`shared_match_weights(games, 12, SEED)` equals the first 12 rows at 40), with the numpy version it was checked on recorded in the test; determinism; shuffled candidates, requirements and world order give an identical `asdict` |
-| `test_xi_extensions_api.py` | with a synthetic snapshot patched into the router's loader: each route answers 200 with the envelope of 7.5 and passes `runtime.finalize` (providers, `banned_key_paths` with `BANNED_KEY_PARTS`, `scan_labels`); every constant of 7.7 passes `scan_labels` under the format arguments the router uses; an extra field, a non-strict integer, a branch field of the other `explains`, `explains: "solve"` without `mode`, `explains: "solve"` without the opt-in (`CONFLICT_SOLVE_NEEDS_OPT_IN`), a repeated dimension, `tail_count` 1 or an off-menu count with `TAIL`, any `tail_count` with `WORST_WORLD`, `bootstrap_worlds` 0, 40 (until the 40-world timing, X5) or 80, a side requirement without the opt-in, an unknown player id are each 422 with a body holding no input value; unknown scenario 404; a missing corpus file 503; the risk overflow is 422; identical requests are one computation (cache `hit`); reordered and repeated locks are one key; a request that sends a default and one that omits it share one key and receive identical declared rows, which hold the decision point and template rows and the opt-in row only when true; a `DEADLINE` reply is not stored; proved terminal replies are stored; `budget` holds the route's seconds; `model_note` is present exactly when the in-force set differs from the main model's; the default minima are computed rows, not declared rows; evidence composes to `HEURISTIC` without the opt-in and `EXPERIMENTAL` with it on every tool, the progression range included; RISK carries the E-13 `NOT_REGISTERED` payloads, `RISK_UNTESTED`, and the subject of its rule; a REGRET reply's ledger row holds two pairs per binding world, and no served number equals a component of `(M − M*, T − T*)` for any world unless it also equals a served pair component; the encoding check of `test_xi_risk.py` repeated on the served reply; `GET /api/xi/extensions` is corpus-free and finalized, its `requirements` equal `decision_inputs`'s measured requirements and no `TAIL` option has `tail_count` 1; snapshot immutability: the router loader's snapshot, and a snapshot patched into `decision_lab.snapshot`, deep-copied before and compared after each new route, are unchanged; with all sixteen in-flight places held each new POST answers 429 with `Retry-After`, and REGRET holds a long-job place; two concurrent requests of different routes on one `(scenario, worlds)` build the snapshot once (the gate); `corpus_token()` equals `planning.corpus_token(planning.FLAGSHIP)`, with the tmp-corpus pattern of `tests/test_planning_api.py:437`; R13: the five shipped `/api/xi/*` paths, their methods and their replies on the synthetic snapshot are byte-identical in an app with and without this router; no path is served twice |
-| `test_xi_extensions_render.py` | under node, the harness of `test_shell_render.py` (the page-scope names first, then `labs-shared.js`, then `xi-extensions.js`, which loads without touching `document`; `mount` is never called), the render functions on replies built by the real router on the synthetic snapshot: no `undefined`, `NaN` or `[object`; hostile strings escaped; every digit run in the visible text (`shell.visible_text`) equals a server string of the reply or the decimal form of a server integer at the path the renderer reads; rows in reply order; membership groups printed in server order under server headings; two distinct frontier points never print identical coordinate texts; every frontier row and circle has the same class list and `plot_x`/`plot_y` appear unchanged as coordinates; no element is marked selected on arrival; the markup of all four panels together has unique ids, and the ledger rewrite throws when either kit id is absent; `scan_labels` of the visible text is empty; no `%` in the risk markup; empty, `DEADLINE`, `LIMIT_REACHED`, `NOT_EVALUABLE`, `UNDECIDED`, `MODEL_FEASIBLE`, `UNFIELDABLE`, `NOT_SATISFIABLE` (with `FLOORS_CONSERVATIVE`) and opt-in-missing states each render their sentence; `xi-extensions.js` declares nothing in script scope. A unit test (Python) asserts that `web/xi.html` with the five insertions of section 12 removed has the sha256 of the shipped file |
-| `e2e/xi-extensions.spec.js` | `/xi` solves and the four panels mount with buttons disabled until `xi:solved`; no `pageerror` and no console error anywhere in this spec; the shipped flows (apply minima, a lock, a preset, a mode change, as `repairs.spec.js` drives them) with the panels mounted send no new POST and log no console error; after applying minima with the opt-in unticked, pressing `#solve-ceilings` sends only the progression minimum, answers 200 and shows `SIDE_MINIMA_SET_ASIDE`; ceilings: the request carries the main locks and exclusions, and each cell's text equals the reply's `*_text` exactly; frontier: the selects start empty, the opt-in starts unchecked and the opt-in sentence shows; after ticking it and choosing two dimensions the request carries them in order with the opt-in, the main locks and exclusions and no minima; rows equal the reply's points in order and print `point_texts`; every row and circle has equal computed style; after opening a point only that row's outline changes; risk: the selects start empty and the button is disabled; options equal the server's `rule_options` in order; a TAIL request carries the main locks, exclusions and filtered minima, `rule` and `tail_count`, and the tail world ids equal the reply's; a REGRET request at `B = 12` renders the binding worlds with two pairs each; the certificate shows B, seed, fingerprint and discarded count; the panel text holds no `%`; the badge reads RECORD ONLY · NOT TESTED; conflict: with mode Satisfy and the progression minimum at 1000 the main solve is INFEASIBLE, the conflict panel appears, the explain request carries the opt-in, `explains: "solve"`, `mode: "SATISFY"` and no `floors` key, the panel prints `CONFLICT_HALF_EVEN`, and the rows equal the reply's `conflict` in order, holding `floor:progression`, each with its restore sentence; a frontier reply fulfilled from a recorded `DEADLINE` body renders the deadline sentence; the page has no duplicate id; at 390 and 320 px `#xi-extensions` has `scrollWidth ≤ clientWidth`; the shipped panels behave as before (the tradeoff, alternatives and repairs specs are unchanged and still pass) |
+| `test_xi_ceilings.py` | integer ends equal the oracle's `min`/`max` of `O_r` over `𝒳_F`, with and without floors, locks, exclusions, `None` values, zero minutes and negative rates; every feasible oracle `S_r` lies in the bracket, in `Fraction`; witnesses admissible, floors met in integers and `Fraction`, `O_r` recomputed equal; the two minimum facts equal the oracle's truth whenever not `None`, and `None` occurs only when no returned witness and no bound decides it, with reason `ALLOWANCE` only on a `QUANTIZED_OPTIMAL` end (and there `raw_bound − attained ≤ 2e_r`, up to the outward `nextafter` steps) and `NOT_CERTIFIED` on any other (a planted case of each of the four decided outcomes and of each reason); both witnesses decide: on the planted instance `q = 1`, `n = 1`, slots `a`, `b`, players A1 (`a`; r 0.6, f 1, g 1), A2 (`a`; r 1.4, f 2, g 0), B1 (`b`; r 0.6, f 1, g 0), B2 (`b`; r 0.4, f 0, g 1), floors f ≥ 2 and g ≥ 1, `m_r = 1.5`, reached is True by the LEAST witness (1.8) and missed True by the LARGEST witness (1.2), and a case with one end `NO_SOLUTION` (monkeypatched) is decided by the other end's witness; a monkeypatched `FEASIBLE` LARGEST end with `m_r` strictly between the witness's sum and a finite bound more than `2e_r` above it gives `None` with `NOT_CERTIFIED`, never `ALLOWANCE`, and the router serves `CEILING_REACHED_NOT_CERTIFIED` (and the LEAST mirror `CEILING_MISSED_NOT_CERTIFIED`); a monkeypatched `FEASIBLE` end whose `best_objective_bound` is `inf` or `-inf` keeps its witness and `attained_text`, with `integer_bound`, `raw_bound` and `bound_text` `None`, and its fact decided by the witness or `None` with `NOT_CERTIFIED`; a `QUANTIZED_OPTIMAL` end with `m_r` inside its band gives `ALLOWANCE`; a `FEASIBLE_NOT_PROVEN` end decides a fact by its witness or its finite bound; the top-tie instance (`q = 10`, `n = 1`, every slot applicable; slots s0 {A,B}, s1 {A,B}, s2 {A}; seven A players with rates 0.85, 0.63, 1.67, 0.2, 0.76, 1.26, 0.22, where {1,3,6} and {3,5,6} tie at `O = 38` with sums 3.78 and 3.69): the oracle's `R⁺` and `R⁻` each lie in the served interval (`[attained_text, bound_text]` for LARGEST, `[bound_text, attained_text]` for LEAST, compared as `Fraction`), the witness's `O_r` equals `I⁺`, and its sum is not asserted to equal `R⁺`; the same containment at `q = 100000` on an instance whose witness misses the raw extreme (two players for one applicable slot at 0.000015 and 0.0000155, both coefficient 2); `claim == CEILING_CLAIM` and `scan_labels` of it is empty; declared floors (instance A: `q = 100000`, slots `a`, `b`, p1 (`a`) and p2 (`b`) with r1 0.15 and r2 5.0, p3 (`a`) and p4 (`b`) with r1 1.0 and r2 0, `m_r2 = 8`, floor r1 ≥ 0.3): the served r2 statement is `CEILING_UNREACHABLE` with the floor scope of `{xi}` and the reply carries `FLOORS_SCOPE`, while the oracle confirms that (p1, p2) meets the raw floor and sums to 10; with `m_r1 = 1.0` the same instance serves `CEILING_EVERY` and a least-end ledger row, both scoped; without floors neither the scope nor `FLOORS_SCOPE` appears; instance B (`q = 100000`, `n = 1`, slots `a`, `b`, p1 and p2 at 0.500004, minimum 1.000006): reached is True here while `solve_xi(mode="SATISFY")` is INFEASIBLE, and the API reply carries `CEILING_EXACT_FACTS`; a monkeypatched run in which every solve is `UNKNOWN` gives `feasible_set = UNKNOWN`; an empty `R` and a requirement with `hard=True` are each a `ValueError`; a reordered `floors` mapping gives an identical `stable(asdict)`; with `φ_r ≠ m_r` the facts use `m_r`; `UNFIELDABLE` by construction and by proof (the proved one with the reason `UNFIELDABLE_PROVED`), `NOT_SATISFIABLE` with floors, each `EXACT`; with floors and an `UNKNOWN` (monkeypatched) cause solve, `FLOORS_UNMET`, not stored; a `MODEL_INVALID` solve (monkeypatched) ends the tool with no range, `CEILING_REFUSED` and completeness `MODEL_INVALID`; parity, on instances whose oracle feasible set is not empty: with floors equal to every active minimum the LARGEST end equals `maximize_requirement`'s `integer_value`, `integer_upper_bound` and certification, and each witness's exact sum lies in `[(n_r / q) · I⁺_r − e_r, (n_r / q) · I⁺_r + e_r]` (2.4; witnesses are not compared); a passed deadline gives `NOT_RUN` everywhere, no number, `DEADLINE`; a monkeypatched `FEASIBLE` status gives `FEASIBLE_NOT_PROVEN` with a bracket that still contains every oracle sum; a monkeypatched response whose deterministic time reached the limit gives `LIMIT_REACHED` and `stopped_by = DETERMINISTIC_LIMIT`, one whose wall time ran out `DEADLINE` and `WALL_CLOCK`; a tampered witness raises `RuntimeError`; the objective coefficients equal `round(_scaled(...))` and differ from `_q` on `1.344465 / 1.0` at 100000; determinism; shuffled candidates and requirements give an identical `stable(asdict)` |
+| `test_xi_conflict.py` | `explain_floors`: the returned set equals the oracle's deletion filter in the declared order (equality, not just minimality); the oracle finds the set not satisfiable and every set with one member removed satisfiable; each restore test equals the oracle's `restores_alone` (`NOT_APPLICABLE` for slot coverage); `MODEL_FEASIBLE` iff the oracle finds an XI, `EXACT`; parity: `explain_floors()` is `MODEL_FEASIBLE` iff `kernel.satisfiable` is `SATISFIABLE`; the instance of 3.3 (`exclusion:A`, a floor above every assignment's sum, `lock:A` with an admissible key) returns `{floor:progression}` with a witness that is checked against `{lock:A}` (which XI or assignment comes back is the solver's choice and is not asserted), and its restore test is `False`; on that instance and on the one-slot instance below, the oracle finds the returned set to be the only minimal conflicting set, and `claim` equals the 7.7 `CONFLICT_CLAIM`, whose wording is conditional; two planted independent conflicts give one set whose members all have `restores_alone = False`, and no served sentence of the reply states that dropping a member leaves an XI; a witness that uses an excluded player lists him in `witness_excluded_players`; a locked-and-excluded player `p` with an admissible key, in an instance with no other conflict, gives exactly `{exclusion:p, lock:p}`; a witness that leaves out a locked player lists him in `witness_missing_locked_players`; a slot no admissible player can fill gives `{slot:s}`; a monkeypatched `UNKNOWN` on one filter test gives `NOT_PROVEN_MINIMAL`, that member `KEPT_UNDECIDED`, never `MINIMAL_CERTIFIED`; the claim per status, on the instance slots s1 {DF}, s2 {DF, MF}, s3 {MF}, players 1 and 2 DF and 3 and 4 MF each with progression 1.0, a progression floor no XI reaches and `exclusion:2`: a monkeypatched `UNKNOWN` on the filter test of `{floor:progression}` gives `NOT_PROVEN_MINIMAL`, conflict `(exclusion:2, floor:progression)`, `exclusion:2` `KEPT_UNDECIDED` and `claim == CONFLICT_NOT_PROVEN_CLAIM`, with the oracle finding `{floor:progression}` unsatisfiable (so `CONFLICT_CLAIM` would be false); a deadline that passes after the three slot tests gives the same set, both members `NOT_RUN`, the same claim, `DEADLINE`; `MODEL_FEASIBLE` has `claim == CONFLICT_FEASIBLE` and `tests == restore_tests == conflict == ()`, completeness `EXACT`; a deadline passed at entry gives `s0` `NOT_RUN`, `UNDECIDED`, `claim == CONFLICT_NOT_DECIDED`, `tests == ()`, `DEADLINE`, nothing stored; a deadline passing mid-filter keeps the `NOT_RUN` members, gives `NOT_PROVEN_MINIMAL` with `CONFLICT_MEMBER_UNDECIDED` on each and its restore tests `NOT_RUN`; `MODEL_INVALID` (monkeypatched) at `s0`, mid-filter (rows so far, later rows `NOT_RUN`, `conflict == ()`, `claim == CONFLICT_MODEL_INVALID`) and in a restore test (the set and its claim stand, that member `None`, the later restore tests run, completeness `MODEL_INVALID`); `LIMIT_REACHED` with `DETERMINISTIC_LIMIT`, and `DEADLINE` with `WALL_CLOCK`, each planted (1.5); one on a restore test leaves the status and gives that member `None` and completeness `DEADLINE`; `final_set_proof_solve` points at an INFEASIBLE status of a test of exactly the final set; tables equal `kernel._tables` on shared keys; a tampered filter witness and a tampered restore witness each raise; reordered inputs give the same set; `explain_solve` with a `mode` other than `BALANCE` or `SATISFY`, and `explain_floors` with an unknown floor key or a non-finite floor, are each a `ValueError`. A planted boundary instance feasible under half-even and not conservatively returns a set holding the floor from `explain_floors`. `explain_floors` with explicit floors where `φ ≠ m`, and with `floors={}`, against the oracle. `explain_solve`: against the oracle in half-even, `MODEL_FEASIBLE` iff `solve_xi(mode="SATISFY")` is `OPTIMAL` or `FEASIBLE`; `explain_solve(mode="BALANCE")` is `MODEL_FEASIBLE` iff `solve_xi(mode="BALANCE")` is `OPTIMAL` or `FEASIBLE`, on instances with and without a hard requirement, a locked-and-excluded player and two locked goalkeepers, and a `BALANCE` explanation with no hard requirement declares no floor; `requirements_in_force` equals `solve_xi`'s active set; and the boundary instance gives `MODEL_FEASIBLE` |
+| `test_xi_frontier.py` | the set of `integer_sums` equals the oracle's nondominated set, `d = 2` and `d = 3`, with floors, locks and exclusions; every oracle feasible vector is weakly below a point; points pairwise nondominated; witnesses verified; the planted instance of 4.1 (two XIs sharing an integer vector with different raw sums) gives one point, and the oracle's XI with larger raw sums is weakly below it in the integers (its served texts are asserted in the API tests); `max_points=1` on an instance with at least two points gives the lexicographic-maximum oracle point, `LIMIT_REACHED`, `stopped_by = POINT_LIMIT`, `final_region_status = OPTIMAL`; a frontier of exactly `max_points` points is `COMPLETE`; on an instance with at least three points, a monkeypatched `UNKNOWN` at stage 2 of the third iteration gives exactly the two earlier points, `INCOMPLETE`, `DEADLINE`, `WALL_CLOCK`, `final_region_status = UNKNOWN`; for `d = 2` and `d = 3`, with `max_points < |P|` and with that monkeypatched stop, the listed points are the first points of the oracle frontier sorted lexicographic-descending in the declared order; on a `COMPLETE` instance, reversing a two-dimension declaration reverses the list and swaps every pair; on the instance one slot, players `(6 − i, i)` for `i = 1..5`, `max_points = 2`, both declarations list `[(5,1),(4,2)]` in their own coordinates, which is not the reversed forward list, and `point_order` is the one 4.3 constant; a deadline passed before any solve gives `INCOMPLETE`, no point, `final_region_status = NOT_RUN`, `DEADLINE`; `UNFIELDABLE` by proof (`final_region_status = INFEASIBLE`, two locked players whose only admissible slot is the same one, so the kernel records no reason; the reason `UNFIELDABLE_PROVED`) and by construction (`INFEASIBLE_BY_CONSTRUCTION`, the kernel's reasons); with floors and a monkeypatched `UNKNOWN` cause solve, `FLOORS_UNMET`, no point, not stored; `LIMIT_REACHED` with `DETERMINISTIC_LIMIT`, and `MODEL_INVALID` with the earlier points kept, each planted; a tampered witness, a list that is not pairwise nondominated and an `INFEASIBLE` stage `i > 1` (each monkeypatched) each raise `RuntimeError`; the objective coefficient is `round(_scaled(...))` and not `_q` (`1.344465 / 1.0` at 100000 gives 134447); declared floors (instance A of the ceilings tests, dimensions (r1, r2), floor r1 ≥ 0.3): the reply carries `FLOORS_SCOPE` and its completeness sentence is scoped, and the oracle confirms that (p1, p2), vector (30000, 1000000), meets the raw floor and is absent from the list; the list follows `POINT_ORDER`; no default dimension (calling without `dimensions` is a `TypeError`), `d ∉ {2, 3}`, a repeat, an inactive requirement, `max_points` 0, 65 or `True`, a bad floor key or value, and a requirement with `hard=True` are each a `ValueError`; empty feasible set as `UNFIELDABLE` and `NOT_SATISFIABLE`, each `COMPLETE`; claim and non-claim equal the 7.7 constants, and no served frontier string outside provenance holds a word O7 forbids (section 4: "best", "optimal", "trade-off" in any spelling, "knee"; the status token `OPTIMAL` in a status field excepted); determinism; shuffled inputs give an identical `stable(asdict)` |
+| `test_xi_risk_oracle.py` | (the E-13-pinned file) on every seeded instance, with `U` from the oracle's `used_worlds`, and every `k ∈ 1..B`: the status equals the oracle's (`UNFIELDABLE` iff the oracle's `𝒳` is empty; `NOT_EVALUABLE` iff `|U| = 0`, or `|U| < k` for TAIL; REGRET with `|U| = 0` included), each terminal outcome has completeness `EXACT` and an `EXACT` empty membership block, and `certificate.used_world_ids` and the discarded world ids equal the oracle's `used_worlds`; where `CERTIFIED`: TAIL's `tail_sum` equals the oracle's optimum and the selected player set is in the oracle's level set; the tail ids and boundary ties equal the oracle's `tail_of(lineup, k)` for the returned lineup; REGRET's per-world least pairs and optimum equal the oracle's, the selected set is in its level set, and the binding worlds equal `binding_of(lineup)`; `world_losses` equals the oracle's pairs, and raises `ValueError` on a lineup that is not an XI of the used worlds; membership equals the oracle's level-set membership; `point_loss` equals the oracle's pair for the returned lineup under the candidates' own vectors (half-even tables) and `point_sums` the exact `Fraction` sums, with a planted `None` case for each field; every seeded instance's TAIL, WORST_WORLD and REGRET selection and membership calls finish within their wall-clock limit, run in a subprocess capped in memory and time (1.5, 5.1), so a regression fails the test instead of exhausting the machine; the instances are not vacuous: across the 120, some level set has more than one XI and some exactly one, some TAIL selection differs from BALANCE's and some equals it, some tail is decided by `T` at equal `M`, some instance discards a world, and some summed `T` over a tail exceeds `T_bound` (the oracle's `t_bound`) |
+| `test_xi_risk.py` | single-world invariant: TAIL(1) and REGRET equal `kernel.value(values=…)` in integers, `solve_xi` on world-replaced candidates by `round(v * q)` of its `objective_vector`, and the oracle; WORST_WORLD equals TAIL(1) in `stable(asdict)` (section 9) except `rule`, `certificate.rule`, `claim` and the provenance fingerprints; TAIL(`|U|`) is the lexicographic minimum of (`Σ M`, `Σ T`); the discarded list equals `bootstrap_selection`'s `bootstrap_discarded_worlds` and the fingerprint its `bootstrap_world_fingerprint` on the same inputs, calling `bootstrap_selection` directly with a base `XIResult`, because `solve_xi(worlds=...)` returns before the bootstrap when its point-estimate solve is infeasible (solver.py:321-351) and its provenance then holds no bootstrap key (called directly, the discard loop runs on every seed, solver.py:545-564); a world dict missing a player discards the world, as the bootstrap does; doubling BIG (monkeypatched `_encoding_base`) leaves status, optimum (`tail_sum` or the regret optimum) and membership unchanged; two planted deterministic instances, one TAIL with `k = 2` and one REGRET, on which `BIG = T_bound + 1` provably selects a different set (the carry of 5.1), give the oracle's selection with the shipped BIG and another with the monkeypatched small one; no encoding leaves: the test recomputes BIG, the selection optimum `Φ*` or `ρ*`, every `E^w` of the returned lineup with `M^w ≥ 1` and every `E*^w` with `M*^w ≥ 1`, and asserts that none appears in `asdict(result)` as an integer or as a whole digit token (`\b...\b`) of a string, except where it equals a value served under an allow-listed path (ids, counts, seeds, `quantization`, `LossPair` and `TailSums` fields); no key contains `encod`, `big`, `base` or `objective`; none of those integers appears as a token in `caplog`; the overflow guard refuses at `(k + |U| + 2) · E_cap ≥ 2**53` (TAIL) and `3 · E_cap ≥ 2**53` (REGRET) with a sentence holding no digit; the split encoding (5.1): no integer variable of a built model has a domain wider than `BIG`, and three planted regression instances (the data of the seeds the audit measured, 66 and 108 with `k = 2`, and 54 with `k = 2`) solve within their wall-clock limit in a subprocess capped in memory; a hard requirement is a `ValueError`; `|U| < k` gives `NOT_EVALUABLE` with no solve, `EXACT`, an `EXACT` empty membership block; two locked goalkeepers give `UNFIELDABLE` (not `UNKNOWN`) for TAIL, WORST_WORLD and REGRET, `EXACT`, no lineup; a passed deadline gives `UNKNOWN`, no lineup; one per-world optimum `UNKNOWN` gives `UNKNOWN` with that world in `undecided_world_ids`; one per-world optimum `MODEL_INVALID` (monkeypatched) gives `MODEL_INVALID`, completeness `MODEL_INVALID`; an `UNKNOWN` or `MODEL_INVALID` selection (monkeypatched) carries a membership block with no rows and that completeness; `analyze_ties=False` gives a block with no rows and `NOT_REQUESTED`, for which `runtime.is_complete` is false; `claim` is the rule's label formatted with `B` and `k` (`RISK_TAIL.format(B=…, k=…)`) and no served string holds `{`; `tail_boundary_ties` and `binding_world_ids` are ascending; shortfalls use `_q`: a planted `1.344465 / 1.0` coefficient at 100000 gives `_q`'s integer; `world_seed` and `bootstrap_version` reach the certificate unchanged; `TAIL_MENU` plus `WORST_WORLD` at 1 equals the E-13 draft config's `tail_counts` for `B ∈ WORLD_MENU`; the prefix property of 1.4 (`shared_match_weights(games, 12, SEED)` equals the first 12 rows at 40), checked under the installed numpy, whose version the test records as information and does not assert; determinism; shuffled candidates, requirements and world order give an identical `stable(asdict)` |
+| `test_xi_extensions_api.py` | with a synthetic snapshot patched into the router's loader: each route answers 200 with the envelope of 7.5 and passes `runtime.finalize` (providers, `banned_key_paths` with `BANNED_KEY_PARTS`, `scan_labels`); every constant of 7.7 passes `scan_labels` under the format arguments the router uses; an extra field, a non-strict integer (`bootstrap_worlds` 12.0, "12" and `true` included), a branch field of the other `explains`, `explains: "solve"` without `mode`, a non-empty `minimums` with `explains: "floors"` and a `floors` dict, `explains: "solve"` without the opt-in (`CONFLICT_SOLVE_NEEDS_OPT_IN`), a repeated dimension, `tail_count` 1 or an off-menu count with `TAIL`, any `tail_count` with `WORST_WORLD`, `bootstrap_worlds` 0, 40 (until the 40-world timing, X5) or 80, a side requirement without the opt-in, an unknown player id are each 422 with a body holding no input value; unknown scenario 404; a missing corpus file 503; the risk overflow is 422; identical requests are one computation (cache `hit`); reordered and repeated locks are one key; a request that sends a default and one that omits it share one key and receive identical declared rows, which hold the decision point and template rows and the opt-in row only when true; a `DEADLINE` reply is not stored; proved terminal replies are stored; `budget` holds the route's seconds; every reply carries every key of 7.5, `model_note` non-null exactly when the in-force set differs from the main model's (a CONFLICT reply with `explains: "floors"` and no opt-in included) and `verdicts` `null` except for RISK; `claim` equals `result.claim` on every tool and status, and `statements` holds exactly the 7.5 table's constants for the state; the default minima are computed rows, not declared rows, and the declared rows hold the point limit, the conflict arithmetic and the decision rule explained; every terminal state of every tool (each status, `FLOORS_UNMET`, `MODEL_INVALID`, a `NO_SOLUTION` end, a bound that is not finite) builds its computed rows through `shell.ledger_row` without a `TypeError`, and the CONFLICT row's `value_text` is `None` on `UNDECIDED` and `MODEL_INVALID`; printed minima: with `minimums={}` in Satisfy mode, a conflict holding a default floor labels it "Floor on {label}: its default minimum, the median prior starting-XI sum (≈ …)" and a CEILING `minimum_text` of a default is "≈ " and four decimals, while an entered minimum prints as entered; evidence composes to `HEURISTIC` without the opt-in and `EXPERIMENTAL` with it on every tool, the progression range included; RISK carries the E-13 `NOT_REGISTERED` payload of its rule's subject, `RISK_UNTESTED`, and `verdicts.risk_report` `null`; with a registry stub that reports E-13 `EXECUTED`, a `4-3-1-2` request carries the subject's pending payload and `RISK_OUTSIDE_E13`, and `E13_SCOPE` equals the E-13 draft config's formation, `decision_tiers`, `tail_counts` and scenarios; a REGRET reply's ledger row holds two pairs per binding world, and no served number equals a component of `(M − M*, T − T*)` for any world unless it also equals a served pair component or sits under a path of the same allow-list as the encoding check (ids, counts, seeds, `quantization`, `LossPair` and `TailSums` fields), so a small difference that coincides with a world id or a count does not fail the test; the encoding check of `test_xi_risk.py` repeated on the served reply; `GET /api/xi/extensions` is corpus-free and finalized, its `requirements` equal `decision_inputs`'s measured requirements field by field (id, label, metric, evidence class), it carries `frontier_opt_in_text`, and no `TAIL` option has `tail_count` 1; FRONTIER texts, on a 1-point and a 3-point `d = 2` reply: `point_texts` equal `V_i / q` exactly, `plot_x` and `plot_y` equal their definition recomputed in `Fraction` and rounded half-even at six places (`0.5` on a zero range); in club medians on an instance with `n_r ≠ 1` (`n = (20, 18)`, two slots, players a (9.1, 8.2), b (10.3, 7.7), c (8.0, 9.9)): for {a, b} `raw_sum_texts` are `0.97000` and `0.88333`, not `19.4000` and `15.8999`, `allowance_texts` equal `a_r / (2q)` rounded up at five decimals, and on every served point and dimension `|S_r / n_r − V_r / q| ≤ a_r / (2q)` in `Fraction` and `|Decimal(raw_text) − Decimal(point_text)| ≤ Decimal(allowance_text)` on the texts; a case with `a_r = 1` pins rounding down against outward rounding; the 4.1 planted instance's single point prints the integer coordinates; `status_text` per branch: `FRONTIER_COMPLETE`, `FRONTIER_LIMIT` with `{n} = max_points` for `POINT_LIMIT`, `FRONTIER_STOPPED` with `{n}` the listed count for a `DETERMINISTIC_LIMIT` and for a `WALL_CLOCK` stop, `SOLVER_REFUSED` for `MODEL_INVALID`, `null` for the empty states; the call signatures of `planning._built_once` and `planning._outward` are pinned, as X9 pins the kernel's; snapshot immutability: the router loader's snapshot, and a snapshot patched into `decision_lab.snapshot`, deep-copied before and compared after each new route, are unchanged; with all sixteen in-flight places held each new POST answers 429 with `Retry-After`, and REGRET holds a long-job place; two concurrent requests of different routes on one `(scenario, worlds)` build the snapshot once (the gate); `corpus_token()` equals `planning.corpus_token(planning.FLAGSHIP)`, with the tmp-corpus pattern of `tests/test_planning_api.py:437`; R13: the five shipped `/api/xi/*` paths, their methods and their replies on the synthetic snapshot are byte-identical in an app with and without this router; no path is served twice |
+| `test_xi_extensions_render.py` | under node, the harness of `test_shell_render.py` (the page-scope names first, then `labs-shared.js`, then `xi-extensions.js`, which loads without touching `document`; `mount` is never called), the render functions on replies built by the real router on the synthetic snapshot: no `undefined`, `NaN` or `[object`; hostile strings escaped; every digit run in the visible text (`shell.visible_text`) equals a server string of the reply or the decimal form of a server integer at the path the renderer reads, after removing the `aria-label` and `title` the kit's `Shell.evidenceBadge` and `verdictBadge` write ("rung 6 of 7; 1 is observed, 7 is experimental": `LADDER.length` and the literal 1 of the kit's ladder sentence are kit constants, not reply numbers) and any other fixed kit text, an exemption the test states; rows in reply order, every table built from a served row list (7.5) and none by looking an entry up by id; membership groups printed in server order under server headings; two distinct frontier points never print identical coordinate texts; every frontier row and circle has the same class list and `plot_x`/`plot_y` appear unchanged as coordinates; no element is marked selected on arrival; the markup of all four panels together has unique ids, and the ledger rewrite throws when either kit id is absent or appears in a form it does not know; the declared table, in both kit forms, has a single `class` attribute that contains `xi-ledger-declared`; every selector of `xi-extensions.css` starts with `#xi-extensions` or names only `xi-` classes or ids (a Python parse of the sheet); `scan_labels` of the visible text is empty; no `%` in the risk markup; empty, `DEADLINE`, `LIMIT_REACHED`, `NOT_EVALUABLE`, `UNDECIDED`, `NOT_PROVEN_MINIMAL`, `MODEL_FEASIBLE`, `MODEL_INVALID`, `UNFIELDABLE`, `NOT_SATISFIABLE` and `FLOORS_UNMET` (with `FLOORS_CONSERVATIVE`), a CEILING end with no bound, and opt-in-missing states each render their sentence, the conflict panel printing the served `claim` and never `CONFLICT_CLAIM` by name; `xi-extensions.js` declares nothing in script scope. A unit test (Python) asserts that `web/xi.html` with the five insertions of section 12 removed has the sha256 of the shipped file, and that the two script tags and the mount call stand before the inline script (8.1) |
+| `e2e/xi-extensions.spec.js` | `/xi` solves and the four panels mount with buttons disabled until `xi:solved`, and are enabled after the page's first solve; the corpus-free `GET` is the only new request on load; no `pageerror` and no console error anywhere in this spec; the shipped flows (apply minima, a lock, a preset, a mode change, as `repairs.spec.js` drives them) with the panels mounted send no new POST and log no console error; after applying minima with the opt-in unticked, pressing `#solve-ceilings` sends only the progression minimum, answers 200 and shows `SIDE_MINIMA_SET_ASIDE`; ceilings: the request carries the main locks and exclusions, and each cell's text equals the reply's `*_text` exactly; frontier: the selects start empty, the opt-in starts unchecked and the opt-in sentence shows; after ticking it and choosing two dimensions the request carries them in order with the opt-in, the main locks and exclusions and no minima; rows equal the reply's points in order and print `point_texts`; every row and circle has equal computed style; after opening a point only that row's outline changes; risk: the selects start empty and the button is disabled; options equal the server's `rule_options` in order; a TAIL request carries the main locks, exclusions and filtered minima, `rule` and `tail_count`, and the tail world ids equal the reply's; a REGRET request at `B = 12` renders the binding worlds with two pairs each; the certificate shows B, seed, fingerprint and discarded count; the panel text holds no `%`; the badge reads RECORD ONLY · NOT TESTED; conflict: with mode Satisfy and the progression minimum at 1000 the main solve is INFEASIBLE, the conflict panel appears, the explain request carries the opt-in, `explains: "solve"`, `mode: "SATISFY"` and no `floors` key, the panel prints the served claim and the served arithmetic sentence (`CONFLICT_HALF_EVEN`), and the rows equal the reply's `member_rows` in order, holding `floor:progression`, each with its restore sentence; a frontier reply fulfilled from a recorded `DEADLINE` body renders the deadline sentence; the page has no duplicate id; the computed `overflow-wrap` of a declared-ledger cell in the new panels is `anywhere`; at 390 and 320 px `#xi-extensions` has `scrollWidth ≤ clientWidth`; the shipped panels behave as before (the tradeoff, alternatives and repairs specs are unchanged and still pass) |
 
 **Slow tests** (`@pytest.mark.slow`, skip without the corpus), one per tool file, on the
 6 May Madrid snapshot: CEILING ends equal a brute-force enumeration of the real snapshot's XIs;
 the three-dimensional FRONTIER under the opt-in equals the brute-force nondominated set (the
-count is compared with the brute force, not with a pinned number, section 1.6); CONFLICT
+count is compared with the brute force, not with a pinned number, section 1.6), and if the brute
+force finds more than `max_points` points the test asserts `LIMIT_REACHED` and the
+lexicographic-descending prefix instead; CONFLICT
 (`explain_floors`, opt-in) with the BBC preset's locks and a raised progression floor equals
 the oracle's deletion filter and restore tests; the oracle's backtracking records its node
 count per test, and the test fails, rather than skips, above `10^7` nodes in one test, a guard
@@ -1556,7 +1989,7 @@ exclusions (1.4) and only then are they the main solve's; on world 0 alone the s
 invariant holds against `solve_xi`; without the opt-in, the router's requirements equal
 `snapshots.snapshot_inputs` on the parity-tested Madrid match snapshot. The `planning.attained`
 parity of section 13 compares integer value, integer bound and certification, and each
-witness's raw sum inside the other's bracket.
+witness's exact sum inside the band `[(n_r / q) · I⁺_r − e_r, (n_r / q) · I⁺_r + e_r]` (2.4).
 
 **Not changed:** every existing test file. `test_xi_solver.py`, `test_xi_tradeoffs.py`,
 `test_xi_alternatives.py`, `test_tradeoff_oracle.py`, `test_decision_api.py`,
@@ -1571,8 +2004,8 @@ edit it.
 
 | Object | Rule |
 |---|---|
-| source fingerprints | `kernel.source_fingerprints(*paths)` (LF-normalised sha256, keys relative to the repository root). CEILING and FRONTIER: their module, `squad/kernel.py`, `xi/solver.py`, `xi/tradeoffs.py`, `xi/domain.py`; CONFLICT and RISK: the same five, with their own module first. `optimization/historical.py` is not listed: no tool imports it, and the snapshot's own provenance carries its lineage |
-| input contract | `kernel.input_contract` (canonical model, seed, both kernel policies, the deterministic limit, sources, OR-Tools version) plus the tool's declarations: floors, the compared minima `{requirement_id: m_r}` (CEILING: for a floored requirement the kernel model holds `φ_r`, so `m_r` would otherwise be in no hashed input), dimensions, `max_points`, rule, `k`, `B`, `world_seed`, `bootstrap_version`, the world fingerprint, the arithmetic; never the deadline |
+| source fingerprints | `kernel.source_fingerprints(*paths)` (LF-normalised sha256, keys relative to the repository root, returned as a dict sorted by key, kernel.py:225-238, so the order of the paths means nothing). Every tool: its own module plus `squad/kernel.py`, `xi/solver.py`, `xi/tradeoffs.py` and `xi/domain.py`. `optimization/historical.py` is not listed: no tool imports it, and the snapshot's own provenance carries its lineage |
+| input contract | `kernel.input_contract` (canonical model, seed, both kernel policies, the deterministic limit, sources, OR-Tools version) plus the tool's declarations: floors, the compared minima `{requirement_id: m_r}` (CEILING: for a floored requirement the kernel model holds `φ_r`, so `m_r` would otherwise be in no hashed input), dimensions, `max_points`, rule, `k`, `B`, `world_seed`, `bootstrap_version`, the world fingerprint, the arithmetic, and for CONFLICT `mode` and the floor set it implies (two `explain_solve` calls that differ only in `mode`, with `hard=False` requirements, floor different sets); never the deadline, and never a solve time (1.5) |
 | input fingerprint | `kernel.fingerprint({"version": TOOL_VERSION, "contract": input_contract})`; order-free because the kernel canonicalises its inputs |
 | lineage | `scrub_lineage(snap.provenance)`: a new result never inherits a prior certification; the tools' own keys use the prefixes the kernel already reserves |
 | frozen files | unchanged bytes; existing tests already pin `historical.py` (E-08), and the four kernel sources |
@@ -1617,26 +2050,53 @@ The reviewer signs each line before the root registers the router.
     pinned set of `tests/test_lab_runtime.py` (the root's edit, section 12). The risk routes
     accept, and the `GET` reply offers, 12 worlds only until the TAIL and REGRET selection and
     membership solves have been timed at `q = 100000` on the Madrid worlds at `B = 12` and
-    `B = 40` (times and statuses only, 7.1), with the numbers in ADR-0030; 40 joins the menu only
+    `B = 40` (times, statuses and peak memory only, 7.1), with the numbers in ADR-0030; 40 joins the menu only
     in that change.
 16. The snapshot is loaded only through the gated loader of 7.3; `decision_lab.snapshot` and
     `runtime.match_snapshot` are not called by the new router.
+17. No `objective_value` is compared, stored or served as an integer; every integer comes from
+    `solver.value` or a Python recomputation (1.5). No risk variable has a domain wider than
+    `BIG` (5.1, split encoding).
+18. Every served claim is the constant its status selects (3.4, 7.7); no sentence served on an
+    unproved end, an undecided set or a cut list states what only a proved one would.
+19. Every selector of `xi-extensions.css` is scoped to `#xi-extensions` or an `xi-` name (8.3);
+    the ledger rewrite replaces whole attribute runs (8.1).
 
 ## 12. Requests to the root
 
 | File | Change |
 |---|---|
 | `galactico/api/player_lab.py` | after `app.include_router(transfer_router)` (player_lab.py:59): `from .xi_extensions import router as xi_extensions_router` with the other router imports, and `app.include_router(xi_extensions_router)`. The module imports no solver and reads no data at import, like the others |
-| `web/xi.html` (granted, X4; item 14) | five additive edits, nothing else: (1) in `<head>`, after the `labs-shared.css` link: `<link rel="stylesheet" href="/static/xi-extensions.css">`; (2) between the closing `</section>` of `#tradeoff-panel` and the `<details>` that holds `#provenance`: `<div id="xi-extensions"></div>`; (3) after the inline `</script>`: `<script src="/static/labs-shared.js"></script><script src="/static/xi-extensions.js"></script>`; (4) after those: `<script>XiExtensions.mount(document.getElementById('xi-extensions'))</script>`; (5) in `solve()`, `document.dispatchEvent(new Event('xi:invalidated'))` as its first statement after `busy=true`, and `document.dispatchEvent(new CustomEvent('xi:solved',{detail:{input:solvedInput,status:d.solution_status}}))` immediately after `render();`; in the `#minimum-inputs` input listener, the same `xi:invalidated` dispatch. `tests/test_web_shell.py` (nav and shared stylesheet) and `tests/test_shell_render.py` (page-scope names) are unaffected |
+| `web/xi.html` (granted, X4; item 14) | five additive edits, nothing else: (1) in `<head>`, after the `labs-shared.css` link: `<link rel="stylesheet" href="/static/xi-extensions.css">`; (2) between the closing `</section>` of `#tradeoff-panel` and the `<details>` that holds `#provenance`: `<div id="xi-extensions"></div>`; (3) immediately before the inline `<script>` (it was "after the inline `</script>`" in the granted text; ruling requested, R-B below): `<script src="/static/labs-shared.js"></script><script src="/static/xi-extensions.js"></script>`; (4) after those, still before the inline `<script>`: `<script>XiExtensions.mount(document.getElementById('xi-extensions'))</script>`; (5) in `solve()`, `document.dispatchEvent(new Event('xi:invalidated'))` as its first statement after `busy=true`, and `document.dispatchEvent(new CustomEvent('xi:solved',{detail:{input:solvedInput,status:d.solution_status}}))` immediately after `render();`; in the `#minimum-inputs` input listener, the same `xi:invalidated` dispatch. `tests/test_web_shell.py` (nav and shared stylesheet) and `tests/test_shell_render.py` (page-scope names) are unaffected. Running the shipped `e2e/labs.spec.js` after these edits rewrites the tracked `docs/screenshots/11-xi-lab.png` and `12-xi-mobile.png` (labs.spec.js:148, 153) full-page, now showing the new panels, and `README.md:26` embeds the first: ruling requested, R-C below |
 | `galactico/api/runtime.py`, `tests/test_lab_runtime.py:123` (granted, X5; item 15) | add `"xi.risk.tail"` to `LONG_ROUTES` (it enumerates every candidate for membership, the case the set's docstring names) and to the pinned set in the test |
 | `web/labs-shared.js` | no change: the optional `prefix` argument to `Shell.ledger` was declined as not needed (X11); 8.1 rewrites the ids |
-| `KNOWN_LIMITATIONS.md` | add now: `decision_lab.snapshot` is an `lru_cache` keyed on `(match_id, worlds)` only, so the shipped XI routes keep a snapshot built before a corpus rewrite until the process restarts (the new routes use the gated loader and do not). When the tools ship: replace the minimal-conflict line (:77-78) by what CONFLICT certifies and in which arithmetic; the Pareto line (:86-89) by "a maximum is not a frontier; the frontier explorer lists the nondominated sums of declared requirements at the shipped quantisation, never a ranking"; the risk line (:120-124) by the declared-risk modes, their claim, and that E-13 has not tested them; to the reached/ceiling paragraph (:190-200) add that XI Lab's CEILING brackets the largest sum and Transfer Lab's numbers are unchanged; the scope list (:393-397) drops the three items. Add: the experimental opt-in is needed for any frontier with the shipped requirements; the risk overflow refusal; WORST_WORLD grows with B; the risk menu offers 12 worlds until the 40-world solves are timed (X5) |
+| `KNOWN_LIMITATIONS.md` | Line numbers at `fda88c2`. The `decision_lab.snapshot` limitation this row once asked to add now is already in the file (:79-82, commit `1e200f4`), so nothing is added now. When the tools ship: replace the minimal-conflict bullet (:77-78, "Infeasibility diagnostics do not yet certify a minimal conflicting constraint set. No constraint is silently relaxed.") by what CONFLICT certifies and in which arithmetic; in the hard-floor bullet (:90-93) replace "A maximum is not a Pareto-frontier certificate" by "a maximum is not a frontier; the frontier explorer lists the nondominated sums of declared requirements at the shipped quantisation, never a ranking"; in the selection-bias bullet (:124-128) replace "no football-calibrated correction, robust/CVaR objective or minimax-regret mode ships" by the declared-risk modes, their claim, and that E-13 has not tested them; to the reached/ceiling bullet (:194-206) add that XI Lab's CEILING brackets the largest sum and Transfer Lab's numbers are unchanged; the scope paragraph (:397-401) drops "certified Pareto frontiers, declared-risk XI modes, minimal conflict sets". Add: the experimental opt-in is needed for any frontier with the shipped requirements; with declared floors, XI Lab's ranges and frontier are taken over the conservative integer model, and an XI that meets a raw floor with less than the rounding allowance to spare can be left out; the risk overflow refusal; WORST_WORLD grows with B; the risk menu offers 12 worlds until the 40-world solves are timed (X5) |
 | `README.md`, `ARCHITECTURE.md` | the four modules, the router and the two web files in the module tables; the XI Lab section names the three additions and the opt-in |
-| `DECISIONS.md` | ADR-0030 "XI exact additions: ranges, minimal conflict, frontier, declared-risk modes": Problem (the four limitations), Decision (sections 1.2, 3.3, 4.2, 5.1 of this file), Evidence (the oracle and parity tests, filled in by the builders), Numerical boundary (the three policies, the allowance, the overflow guard), Alternatives rejected (calling `maximize_requirement` per requirement; QuickXplain; a weighted sum for the frontier; a probability for a tail; a default dimension; editing `kernel.py`; the literal O8 BIG, which a sum of `k` encodings can carry past; a stand-alone page beside `/xi`, X4), Relation to ADR-0020 (its rejection of a weighted sum of the two stages as a search device stands for the kernel; O8 overrides it for the risk modes only, because BIG is exact by construction, never serialised, and tested for both the carry and the leak), Relation to ADR-0024 (the router's snapshot loader is behind the build gate; `xi.risk.tail` is a long route, X5), the run times of item 15 (recorded in the change that adds 40 worlds to the menu), Confidence, Reversal (E-13's verdict relabels the risk modes) |
-| `ROOT-DECISIONS.md` | no change requested: section 2.7 rules this file's DISSENT, gates and open questions (X1 to X11), and the 2.6 opening paragraph records that an OR-XI spec exists |
-| `docs/research/north-star/README.md` | no change requested: its row for this file reads draft, attacked once by three lenses, gates ruled in ROOT-DECISIONS 2.7, not audited, nothing built |
+| `DECISIONS.md` | ADR-0030 "XI exact additions: ranges, minimal conflict, frontier, declared-risk modes": Problem (the four limitations), Decision (sections 1.2, 3.3, 4.2, 5.1 of this file), Evidence (the oracle and parity tests, filled in by the builders), Numerical boundary (the three policies, the allowance, the split encoding and the overflow guard of 5.1, integers read with `solver.value` and never from `objective_value`, 1.5), Alternatives rejected (calling `maximize_requirement` per requirement; QuickXplain; a weighted sum for the frontier; a probability for a tail; a default dimension; editing `kernel.py`; the literal O8 BIG, which a sum of `k` encodings can carry past; encoding variables with a domain of size `E_max`, which crashed CP-SAT on 2 of 144 seeded TAIL selections (5.1); CP-SAT parameters as that fix; a stand-alone page beside `/xi`, X4), Relation to ADR-0020 (its rejection of a weighted sum of the two stages as a search device stands for the kernel; O8 overrides it for the risk modes only, because BIG is exact by construction, never serialised, and tested for both the carry and the leak), Relation to ADR-0024 (the router's snapshot loader is behind the build gate; `xi.risk.tail` is a long route, X5), the run times and peak memory of item 15 (recorded in the change that adds 40 worlds to the menu), Confidence, Reversal (E-13's verdict relabels the risk modes) |
+| `ROOT-DECISIONS.md` | section 2.7 rules this file's DISSENT, gates and open questions (X1 to X11), and the 2.6 opening paragraph records that an OR-XI spec exists. The audit of 14 October 2026 raised three points only the root can rule, each under X4, listed below (R-A to R-C); the spec specifies the requested state and the builders do not ship the page parts before the ruling |
+| `docs/research/north-star/README.md` | its row for this file should read: draft, attacked once by three lenses, gates ruled in ROOT-DECISIONS 2.7, audited once in five scopes with every confirmed blocker applied, three points awaiting a root ruling, nothing built |
 | `galactico/optimization/xi/__init__.py` | no change: the router imports the four modules by path |
 | `pyproject.toml`, `playwright.config.js`, `.github/` | no change: `e2e/` is discovered as it is |
+
+Rulings requested by the audit of 14 October 2026 (all under X4; the root rules, the designer
+does not):
+
+- **R-A, the `GET` on mount** (S5-api-page-tests-4). X4's condition says the new panels "send
+  nothing until their own button is pressed"; `mount` sends one corpus-free `GET
+  /api/xi/extensions` through `finalize` on load, because the frontier and risk selects need its
+  lists before their buttons can be enabled (8.2). It sends no compute POST and cannot answer 422
+  in a shipped flow, which was X4's purpose. Requested: confirm that this `GET` meets X4, or rule
+  how the page obtains its lists.
+- **R-B, where edits (3) and (4) go** (S5-api-page-tests-22). Placed after the inline script, as
+  granted, the mount can miss the first `xi:solved` (8.1); placed immediately before it, nothing
+  is missed and no page state is added. Requested: confirm the new placement (an additive edit,
+  as before), or accept the race.
+- **R-C, the committed screenshots** (S5-api-page-tests-26). The shipped `labs.spec.js` writes the
+  tracked `docs/screenshots/11-xi-lab.png` and `12-xi-mobile.png` full-page on `/xi`; after the
+  edits they show the new panels, and `README.md:26` embeds the first. X4 requires the shipped
+  specs to pass unchanged, which they do, but they change tracked files. Requested: whether the
+  regenerated images are committed in the root's `xi.html` change (with the README image), or
+  restored after each run.
 
 ## 13. Reconciliation
 
@@ -1653,16 +2113,33 @@ in which a non-excluded player lacks a needed metric at a slot he is eligible fo
 "exactly as the shipped bootstrap does"). The two differ for a candidate with no exposure in
 a world who is eligible at no slot a requirement in force applies to: the requirements apply to
 outfield slots only, so a goalkeeper with no minutes in a world discards it under the draft's
-rule and not under the shipped one. The reconciler checks by structure whether that case occurs
-in the Madrid worlds, and E-13 adopts the shipped rule or records the difference. Interface 3
-(file name, menu) is met, with two reconciliation items for the E-13 draft's owner: its
+rule and not under the shipped one. They also differ for an excluded candidate with no
+exposure in a world: the shipped rule ignores him, because his set of needed metrics is empty
+(solver.py:551-559), while the draft's discards the world (E-13 preregistration.md:81). The
+reconciler checks by structure whether either case occurs in the Madrid worlds, and E-13 adopts
+the shipped rule or records both differences. Interface 3
+(file name, menu) is met, with four reconciliation items for the E-13 draft's owner: its
 `risk_solver_oracle_tests` (and so the `lf_sha256` list of PIPELINE.md:580, "which oracle
 vouched for the solver") must hold `tests/xi_exact_oracle.py` beside
 `tests/test_xi_risk_oracle.py`, because the brute-force logic lives in the first and could
-change without moving the second's hash; and the product's menu is the draft's
-`tail_counts` exactly (config.json:13-16): `WORST_WORLD` at 1 and `TAIL` at 2, 3, 6 and 4, 10,
-20, so `risk_rule:WORST_WORLD` and `risk_rule:TAIL` never name the same computation. The
-split-sample tool of row 7 is not in this file (OPEN QUESTION 2; deferred to E-13 by X8).
+change without moving the second's hash; by the same reasoning its `source_paths`
+(config.json:239-253) must also list `galactico/optimization/squad/kernel.py` and
+`galactico/optimization/xi/tradeoffs.py`, because `risk.py`'s behaviour runs through
+`kernel._background`, `_tables`, `_expression` and `value` and through `tradeoffs._scaled` and
+`_finite`, and `kernel.py` is not frozen; the product's menu is the draft's `tail_counts` exactly
+(config.json:13-16): `WORST_WORLD` at 1 and `TAIL` at 2, 3, 6 and 4, 10, 20, so
+`risk_rule:WORST_WORLD` and `risk_rule:TAIL` never name the same computation; and the
+`risk_report` statistic (5.7). E-13's own statistic is `M` of the worst world and the mean `M`
+over the `k` tail worlds, in normalised units, and interface 6 expects its sentence "printed as a
+figure note under the objective lines"; this file serves the tail sums `Σ M`, `k` times the
+mean, and prints no figure note. Either the product serves E-13's statistic (`Σ M / k` as an
+exact server text, labelled as the mean largest shortfall over the `k` tail worlds) with the
+`risk_report` payload attached to that figure and a figure note on the risk panel, or E-13
+changes its own statistic to the sum before commit P. Until one is chosen,
+`verdicts.risk_report` is `null` and no figure carries it (5.7). The token scope of E-13 (its
+formation, tiers, tail counts and snapshots) is honoured by the router as 5.7 states, so the
+draft needs no change for it. The split-sample tool of row 7 is not in this file (OPEN
+QUESTION 2; deferred to E-13 by X8).
 
 **With `planning.attained`.** Transfer Lab's reached and ceiling numbers come from the shipped
 maximiser with minima set to zero (planning.py:1119-1208) and are pinned by
@@ -1670,7 +2147,8 @@ maximiser with minima set to zero (planning.py:1119-1208) and are pinned by
 move served text (R13). A slow test asserts that on the planning problem `attained` solves,
 with non-negative rates, CEILING's LARGEST end has the integer value, the integer bound and the
 certification of the `maximize_requirement` call `attained` makes, and that each witness's
-exact raw sum lies in the other's bracket, so the two cannot drift silently. The witnesses
+exact sum lies in the band `[(n_r / q) · I⁺_r − e_r, (n_r / q) · I⁺_r + e_r]` of 2.4, so the two
+cannot drift silently. The witnesses
 themselves are not compared: two exact solvers with different models (the kernel's symmetry
 breaking, different limits) can return different XIs with one integer value (4.1).
 
@@ -1770,7 +2248,7 @@ ruling.
    frozen.
 4. Settled, no longer open: the 12 worlds are the first 12 of the 40 (1.4, prefix property),
    because `Generator.multinomial(..., size=B)` draws rows in sequence; checked under numpy
-   2.5.3 and pinned by a structure test. While it holds, the 40-world certificate prints
+   2.5.3 and 2.5.4, and checked again by a structure test under whatever numpy is installed. While it holds, the 40-world certificate prints
    `RISK_PREFIX`; `RISK_GROWTH` stays the general statement and no comparison of the two menus'
    values is printed.
 5. Run time of the TAIL and REGRET selection and membership solves at `q = 100000` with 40
@@ -1893,3 +2371,123 @@ multinomial prefix property under numpy 2.5.3; E-13 `config.json` `tail_counts` 
 | P19 | minor | Digit-run render test contradicts 8.3 | applied: as C23 |
 | P20 | minor | 422 bodies can echo ids; omitted shape inconsistent | applied: `UNKNOWN_PLAYER` checked in `declare`; one omitted shape |
 | P21 | minor | Ceiling parity on empty instances; float invariant | applied: parity restricted to non-empty feasible sets; as E14 |
+
+### Audit of 14 October 2026
+
+One audit in five scopes: S1 the CEILING model and the shared rules of section 1, S2
+CONFLICT, S3 FRONTIER, S4 RISK and its oracle, S5 the API, the page parts and the tests. 78
+findings: 14 blockers, 26 majors, 38 minors. Every blocker survived an independent refuter,
+none was refuted, and each is applied, with the refuter's corrected proposal where it gave one.
+Four blockers duplicate another scope's and are applied once (S3-frontier-3 as
+S1-model-ceiling-5, S5-api-page-tests-1 as S3-frontier-1, S5-api-page-tests-2 as
+S1-model-ceiling-4, S5-api-page-tests-3 as S1-model-ceiling-2); where two refuters proposed
+different fixes for one defect, the line says which was taken and why. Each major and minor was
+checked against this file and the code at `fda88c2` before its disposition; every one holds and
+is applied, five with a correction (S1-model-ceiling-13, S2-conflict-6, S3-frontier-4,
+S3-frontier-12, S5-api-page-tests-22). None is rejected. Three points need a root ruling under
+X4 and are listed in section 12 (R-A, R-B, R-C); one needs the E-13 draft's owner
+(S4-risk-oracle-6, section 13).
+
+| # | Severity | Finding | Disposition |
+|---|---|---|---|
+| S1-model-ceiling-1 | blocker | Witness check compared `O_r` with CP-SAT's float `objective_value`, which ortools 9.15.6755 reports one or two ulp off an `OPTIMAL` integer: a correct optimum raised `RuntimeError` and served a 500 | applied with the refuter's correction: compare with `solver.value(Σ c·x)`; no `|objective_value − O_r| < 1/2` check (it can fail at `2**50`); bound rounding stated sound (2.3); "integers from the solver" row (1.5); the 5.1 exactness sentence removed; 4.2 stage values and 5.6 `Φ*`, `ρ*` from `solver.value` or recomputation; wrapped-solver test (9) |
+| S1-model-ceiling-2 | blocker | `CEILING_CLAIM` said one XI reaches the least and largest sum; it reaches only the extreme rounded sum, and XIs tied at `I⁺` differ in `S` | applied with the refuter's correction, merged with S5-api-page-tests-3: `CEILING_CLAIM` makes no reach claim, holds for `FEASIBLE_NOT_PROVEN` ends and names no XI shown (the panel shows none); section 2 design note and 2.1 row; top-tie and `q = 100000` tests |
+| S1-model-ceiling-3 | blocker | With declared floors, bound-based sentences spoke of every XI while `𝒳_F` is the conservative inner set; a CEILING `NOT_SATISFIABLE` reply had no outcome sentence | applied, the refuter's option (b), extended to FRONTIER: `{xi}` scope argument, `FLOORS_SCOPE`, `FLOORS_CONSERVATIVE` defined once in `ceilings.py` and served for CEILING `NOT_SATISFIABLE`; KNOWN_LIMITATIONS request; instance-A tests for both tools |
+| S1-model-ceiling-4 | blocker | Reason `ALLOWANCE` was served on `FEASIBLE_NOT_PROVEN` ends, where the undecided band holds the optimality gap; an end with a witness and no finite bound was undefined | applied with the refuter's correction: `ALLOWANCE` only on a `QUANTIZED_OPTIMAL` end, `NOT_CERTIFIED` on any other (its sentences are true there); the non-finite bound defined in 2.3 step 7, 7.5 and 8.2; planted tests |
+| S1-model-ceiling-5 | blocker | Wall times in the tool's provenance made every "identical `asdict`" determinism test fail | applied with the refuter's correction: two keys per tool (`<tool>_solve_deterministic_times`, `<tool>_solve_wall_times`), `stable(asdict)` deletes only the wall-time key (9); `budget.report` untouched, its keys being pinned |
+| S2-conflict-1 | blocker | `CONFLICT_CLAIM` was served whatever the status: false on `NOT_PROVEN_MINIMAL` and `MODEL_FEASIBLE`, uncertified on `UNDECIDED` and `MODEL_INVALID` | applied with the refuter's correction: the claim chosen by status (3.4 table), `CONFLICT_NOT_PROVEN_CLAIM`, `CONFLICT_NOT_DECIDED`, and `CONFLICT_MODEL_INVALID` for `MODEL_INVALID` (the refuter's `CONFLICT_NOT_DECIDED` says "within the search limits", which misstates a refusal); ledger value `None`; 8.2 states; tests |
+| S2-conflict-2 | blocker | "Another order can return another, and it is not the smallest by count" is false for a unique or one-member set, the usual case and the e2e one | applied, the refuter's conditional wording in `CONFLICT_CLAIM`, the section 3 design note and 3.3; tests on unique-set instances |
+| S3-frontier-1 | blocker | The point was printed in club medians, the raw sums and the allowance in per-90 units, so the claim about them was false | applied, merged with S5-api-page-tests-1, with that refuter's correction: three columns in club medians, `S / n` rounded down and `a_r / (2q)` rounded up at five decimals, the text-level inequality proved (7.5); this refuter's toward-the-point rounding with a six-decimal allowance is also exact and was not taken, so the column rounds one way as the rest of the page does |
+| S3-frontier-2 | blocker | `POINT_ORDER`'s reversal clause is false under every cut list | applied, the refuter's single constant; 4.2 "a cut list is a prefix" row and order paragraph; the optional sentence added to `FRONTIER_LIMIT` and `_STOPPED`; prefix tests |
+| S3-frontier-3 | blocker | Same wall-time defect for FRONTIER | applied as S1-model-ceiling-5; the two-key form was taken over this refuter's single key with a per-entry deletion, because deleting one key is simpler to state and test |
+| S4-risk-oracle-1 | blocker | The TAIL model as written ignored its wall-clock limit and crashed CP-SAT (`MemoryError`) on 2 of 144 oracle-sized instances | applied with the refuter's correction: split variables for `η`, `u_w` and `ρ` with the equivalence proof (5.1, 5.6); guard rechecked to `(k + |U| + 2) · E_cap` and `3 · E_cap` and the example recomputed (7.8 at `B = 40`, `k = 20`); solver exceptions are a 500, not a status (1.5, 7.8); capped-subprocess tests and three planted regression instances; peak memory in the X5 timing; ADR-0030 alternatives |
+| S5-api-page-tests-1 | blocker | Same mixed units, seen from the API | applied as S3-frontier-1, with this refuter's rounding |
+| S5-api-page-tests-2 | blocker | Same `ALLOWANCE` defect | applied as S1-model-ceiling-4; this refuter's two `SEARCH_GAP` sentences were not added: the `NOT_CERTIFIED` sentences are true in that case and the interval is printed beside them |
+| S5-api-page-tests-3 | blocker | Same `CEILING_CLAIM` reach claim | applied as S1-model-ceiling-2; this refuter's "the XI shown … by up to the width of its interval" was not taken: no XI is shown, and an unproved end's width is not rounding |
+| S1-model-ceiling-6 | major | Each fact consulted one witness; the other end's witness can decide it | applied: both witnesses, `minimum_*_witness` fields, the sentence prints the deciding sum (2.1, 2.2, 7.5); planted tests |
+| S1-model-ceiling-7 | major | Exact-sum facts beside the half-even main solve, unsaid | applied: `CEILING_EXACT_FACTS` and instance B (2.1, 7.7, 9) |
+| S1-model-ceiling-8 | major | `FIELDABLE` undefined; `R` empty unhandled | applied: rule in 2.3 step 6; `R` empty is a `ValueError` (2.2); tests |
+| S1-model-ceiling-9 | major | No aggregation of per-call stops into one `completeness` and `stopped_by` | applied: per-call rule with `time.monotonic() < deadline` and the "one certificate, one token" row (1.5); planted mixed test |
+| S1-model-ceiling-10 | minor | Prefix property "checked under numpy 2.5.3"; `.venv` has 2.5.4 | applied: the test checks the property and records the version only (1.4, OPEN QUESTION 4, 9); checked here under 2.5.4 for 8, 19, 30 and 37 games |
+| S1-model-ceiling-11 | minor | `_q`'s float error bound needs a magnitude limit | applied: within `MAX_MAGNITUDE`, enforced by `kernel._tables` (1.2) |
+| S1-model-ceiling-12 | minor | Minima still validated; floor order; `hard=True` | applied: 2.3 step 1, ascending floor order, `hard=True` refused (2.2) |
+| S1-model-ceiling-13 | minor | Parity "the other's bracket" undefined | applied with correction: each witness's sum in the band `[(n/q)·I⁺ − e, (n/q)·I⁺ + e]` of every XI at `I⁺` (2.4, 9, 13), tighter than the proposed bracket and bound check and true for both witnesses |
+| S1-model-ceiling-14 | minor | Proved `UNFIELDABLE` had no reason; a `MODEL_INVALID` end blamed the search limits | applied: `UNFIELDABLE_PROVED`; a `MODEL_INVALID` solve ends the tool with `CEILING_REFUSED` (2.3, 2.4) |
+| S2-conflict-3 | major | Same aggregation gap for CONFLICT | applied as S1-model-ceiling-9 |
+| S2-conflict-4 | major | Untested CONFLICT branches (a) to (h) | applied: each in section 9; `requirements_in_force` added (3.4) |
+| S2-conflict-5 | major | `tests`, `restore_tests`, `conflict` undefined per status; restore-time `MODEL_INVALID` contradicted | applied: the 3.4 status table; a restore-time `MODEL_INVALID` keeps the set's status (3.3) |
+| S2-conflict-6 | major | A floor at a default minimum had no text and was called "of yours" | applied with correction: the router prints it as a default (7.4 origin, 7.5 rule) instead of a `Declaration.default` field, which the module cannot fill; "of yours" dropped |
+| S2-conflict-7 | minor | `explain_solve` minima not dyadic | applied: dyadic minima, asserted on targets (6) |
+| S2-conflict-8 | minor | `minimums` silently unused with explicit floors | applied: refused (7.2) |
+| S2-conflict-9 | minor | "It meets only those" literally false; a missing locked player unflagged | applied: `CONFLICT_MEMBER_WITNESS` reworded, `witness_missing_locked_players`, `CONFLICT_LOCK_SET_ASIDE` |
+| S2-conflict-10 | minor | Planted instances under-specified | applied (3.3, 9) |
+| S2-conflict-11 | minor | `mode`, floors unvalidated; `mode` not in the contract; BALANCE labelled Satisfy | applied: 3.1, section 10, `CONFLICT_NO_MINIMUM` |
+| S3-frontier-4 | major | Empty floored region with an undecided cause solve had no status | applied with correction: `FLOORS_UNMET`, whose completeness is the undecided solve's so the reply is not stored, rather than `COMPLETE`, which would cache "not decided"; CEILING given the same `feasible_set` |
+| S3-frontier-5 | major | No rule for which status sentence a frontier reply carries | applied: `status_text` (7.5); a stage-1 `FEASIBLE` at the limit is `POINT_LIMIT` |
+| S3-frontier-6 | major | Frontier branches and served computations untested | applied: (a) to (h) and the API text tests (9) |
+| S3-frontier-7 | major | Seeded frontier oracle tests could be vacuous | applied: three requirements per instance, seeded ordered dimensions, a non-vacuity list (6) |
+| S3-frontier-8 | major | Expected `DEADLINE` underivable; `final_region_status` undefined | applied: any other undecided call is `DEADLINE`/`WALL_CLOCK` (1.5); a three-point instance; the failing stage's status (4.3) |
+| S3-frontier-9 | major | O7's three words never named | applied: the union "best", "optimal", "trade-off" in any spelling and "knee", the status token `OPTIMAL` excepted (4, 8.3, 9) |
+| S3-frontier-10 | minor | Pseudocode dispatch loose | applied: one dispatch per stage, points kept under every stop, `d · |P| + 2` solves (4.2) |
+| S3-frontier-11 | minor | Claim's first sentence and the order sentence | applied (4, 4.2, `FRONTIER_CLAIM`) |
+| S3-frontier-12 | minor | Validation list incomplete; `True` accepted as `max_points` | applied with correction: a `hard=True` requirement is refused, not ignored, as CEILING refuses it and 7.2 refuses silently ignored fields (4.3) |
+| S3-frontier-13 | minor | Small test and ledger gaps | applied: served-text check moved to the API tests, lexicographic-maximum point, slow-test prefix branch, point-limit declared row, half-even plot rounding |
+| S4-risk-oracle-2 | major | The risk oracle test compared only `CERTIFIED` outcomes | applied: statuses, `k ∈ 1..B`, used and discarded ids, `EXACT` terminal blocks (9) |
+| S4-risk-oracle-3 | major | `point_loss`, `point_sums` untested; `point_sums` with `None` undefined | applied (5.6, 5.7, 9) |
+| S4-risk-oracle-4 | major | `analyze_ties=False`, an undecided selection's block, a world-least `MODEL_INVALID` | applied: `NOT_REQUESTED` (1.5), blocks per state (5.6), the `MODEL_INVALID` rule (5.3); tests |
+| S4-risk-oracle-5 | major | E-13's token scope excludes `4-3-1-2`, which the risk routes accept | applied: `E13_SCOPE`, the pending payload, `RISK_OUTSIDE_E13` (5.7); API test with a registry stub |
+| S4-risk-oracle-6 | major | `risk_report` attached to `Σ M` while E-13 tests the mean | applied as a reconciliation item for E-13's owner (13); until it is settled `verdicts.risk_report` is `null` (5.7) |
+| S4-risk-oracle-7 | minor | Discard parity vacuous on point-infeasible instances | applied: `bootstrap_selection` called directly (9) |
+| S4-risk-oracle-8 | minor | Targets not dyadic in RISK instances | applied (6) |
+| S4-risk-oracle-9 | minor | Loose definitions (empty `R`, `w ∈ U`, expressions, `assert`, exactness) | applied (5.1, 5.6) |
+| S4-risk-oracle-10 | minor | Discard-rule difference with E-13 incomplete | applied: the excluded-candidate case added (13) |
+| S4-risk-oracle-11 | minor | E-13's `source_paths` omit `kernel.py` and `tradeoffs.py` | applied (13) |
+| S4-risk-oracle-12 | minor | `world_losses` on a non-XI, tie order, `t_bound` | applied (5.2, 5.3, 5.7, 6) |
+| S5-api-page-tests-4 | major | The `GET` on mount against X4's words | applied: 8.2 reworded, ruling R-A requested (12); e2e asserts it is the only new request |
+| S5-api-page-tests-5 | major | The ledger rewrite produced two `class` attributes | applied: whole attribute runs in both kit forms (8.1); render and e2e tests |
+| S5-api-page-tests-6 | major | Rows had to be assembled in JS by id | applied: served row lists (7.5, 8.2, 8.3) |
+| S5-api-page-tests-7 | major | No text for a minimum the reader did not enter | applied: one printing rule (7.5); conflict copy reworded |
+| S5-api-page-tests-8 | major | Computed ledger rows undefined; `ledger_row` raises on them | applied: the 7.6 table; every terminal state through `ledger_row` (9) |
+| S5-api-page-tests-9 | major | Digit-run render test fails on kit badges | applied: kit `aria-label`, `title` and constants exempted, stated in the test |
+| S5-api-page-tests-10 | major | Nothing scoped `xi-extensions.css` | applied: 8.3 rule, unit test, checklist item 19 |
+| S5-api-page-tests-11 | minor | The "same constants" do not exist | applied: the router's copy and a field-by-field test (7.5) |
+| S5-api-page-tests-12 | minor | `Literal[12]` accepts 12.0 | applied: `planning.INTEGER_ONLY` (7.2); 422 test |
+| S5-api-page-tests-13 | minor | Claim placeholders in a "word for word" field | applied: `risk.py` formats; no `{` served (5.7, 9) |
+| S5-api-page-tests-14 | minor | KNOWN_LIMITATIONS request stale | applied: lines at `fda88c2`, the add-now item dropped, sentences quoted (12) |
+| S5-api-page-tests-15 | minor | `RISK_SAME_DRAW` false after a corpus rewrite | applied: reworded, with the reason (7.7) |
+| S5-api-page-tests-16 | minor | Conservative floors understated | applied: `FLOORS_CONSERVATIVE`, `CONFLICT_CONSERVATIVE`, `FLOORS_SCOPE` |
+| S5-api-page-tests-17 | minor | `corpus_token` covers teams, not the manifest | applied: stated and accepted (7.3) |
+| S5-api-page-tests-18 | minor | Envelope keys inconsistent | applied: every key on every reply, the `statements` table, GET field names (7.5) |
+| S5-api-page-tests-19 | minor | The kit's `data-label` cells are private | applied: own cells and stacking (8.3) |
+| S5-api-page-tests-20 | minor | Same as S2-conflict-8 | applied as S2-conflict-8 |
+| S5-api-page-tests-21 | minor | No declared row for `mode`, `explains`, `max_points` | applied (7.6) |
+| S5-api-page-tests-22 | minor | An `xi:solved` before `mount` is lost | applied with correction: scripts and mount placed before the inline script, adding no page state (8.1); ruling R-B requested |
+| S5-api-page-tests-23 | minor | Same as S1-model-ceiling-10 | applied as S1-model-ceiling-10 |
+| S5-api-page-tests-24 | minor | REGRET difference check has no allow-list | applied (9) |
+| S5-api-page-tests-25 | minor | Private `planning` members unpinned | applied (0, 9) |
+| S5-api-page-tests-26 | minor | Shipped specs rewrite committed screenshots | applied: stated (12); ruling R-C requested |
+| S5-api-page-tests-27 | minor | `CONFLICT_HALF_EVEN` printed for a BALANCE explanation | applied as S2-conflict-11 |
+| S5-api-page-tests-28 | minor | Two fingerprint rows say one thing | applied: one rule (10) |
+
+Code checks made for this record, at `fda88c2`: `kernel._tables` bounds coefficients and targets
+by `MAX_MAGNITUDE` (kernel.py:602-612) and validates every active minimum; `kernel.value`
+refuses a hard requirement (kernel.py:670-674) and adds a reason on a proved-empty model
+(kernel.py:739-743), as the maximiser does (tradeoffs.py:453-457); the conservative slack bound
+(tradeoffs.py:215-230); `kernel.source_fingerprints` returns a sorted dict; `_Run.solve` returns
+a solver object, so `deterministic_time` and `wall_time` can be read; `decision_inputs` keeps its
+labels in a local dict and takes the default minimum at decision_lab.py:293 with the normaliser
+at :302; `shell.ledger_row` raises `TypeError` on an empty `row_id` or `sample`; the kit's
+ledger markup, its private `cell`, its badge `aria-label` and its 650 px stacking rule
+(labs-shared.js:105-109, 179-198; labs-shared.css:40-44); `planning.INTEGER_ONLY`,
+`_minimum_text`, `_corpus_files` over the five public tables, and `_outward` at four places;
+`load_snapshot`'s four frames and the manifest it reads; `solve_xi` returns before the bootstrap
+on an infeasible point solve and the discard rule ignores excluded players (solver.py:321-351,
+545-564); the snapshot sets a world value to `None` wherever the point value is
+(historical.py:210-215); the E-13 draft's formation, scenarios, `source_paths`, own statistics
+and token scope; `verdicts.record`, `derive` and `PENDING`; the screenshots `labs.spec.js`
+writes and `README.md:26`; numpy 2.5.4, ortools 9.15.6755 and pydantic 2.14.1 in `.venv`; the
+prefix property under numpy 2.5.4; the frontier example of 7.5 in `Fraction` (0.97000 and
+0.88333 against the point 0.97000 and 0.88334); the overflow-guard examples by arithmetic; and
+every 7.7 constant, new or changed, together with the new labels, ledger texts and `{xi}`
+scope, through `labels.scan_labels` (none flagged), and the frontier constants against O7's
+words (none present).

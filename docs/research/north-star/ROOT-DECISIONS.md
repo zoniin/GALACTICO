@@ -361,6 +361,16 @@ ruled here.
   in the shipped tradeoff panel.
 - X11 Declined, not needed: the optional id prefix for `Shell.ledger`; the page parts rewrite
   their ids (spec 8.1).
+- X12 RULED (audit R-A, 16 October 2026). X4's "send nothing until their own button is
+  pressed" forbids a solve or any request that reads the corpus. One corpus-free
+  `GET /api/xi/extensions` on load, for the panels' fixed sentences and menus, is allowed.
+- X13 ACCEPTED (audit R-B). Edits (3) and (4) to `web/xi.html` go just before the inline
+  script, so the panels are mounted before the first `xi:solved` event can fire. They remain
+  additive; X4's condition stands.
+- X14 RULED (audit R-C). The tracked XI Lab screenshots (`docs/screenshots/11-xi-lab.png`,
+  `12-xi-mobile.png`) are regenerated and inspected only where the corpus is present; a commit
+  made without it restores them (`git restore docs/screenshots`) and never commits a capture it
+  could not look at.
 
 ### 2.8 Root ruling on E-11's role and E-12's origin cells (16 October 2026; binding on E-12)
 
