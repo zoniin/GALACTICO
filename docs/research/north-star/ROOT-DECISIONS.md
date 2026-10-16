@@ -362,6 +362,25 @@ ruled here.
 - X11 Declined, not needed: the optional id prefix for `Shell.ledger`; the page parts rewrite
   their ids (spec 8.1).
 
+### 2.8 Root ruling on E-11's role and E-12's origin cells (16 October 2026; binding on E-12)
+
+E-11 grades the ordering of each quantity within the Wyscout role code, on both providers'
+values (its PIPELINE section 14, item 10). The E-12 draft forms its origin cells within the
+licensed provider's modal broad position, because the reference population of a cell holds
+unlinked players who have no Wyscout role.
+
+- Y1 RULED. An E-11 admission covers an E-12 origin cell only for a linked unit whose modal
+  broad position on the licensed provider equals its Wyscout role code (E-12's `ROLE_SAME`).
+  For such a unit the cell's label is the label within which the ordering was graded.
+- Y2 RULED. E-12's confirmatory contrasts that rely on an E-11 admission are computed on
+  `ROLE_SAME` units. `ROLE_CHANGED` units are reported beside them as a descriptive stratum
+  labelled as outside the graded ordering, and never enter a verdict. The draft's present
+  design, with both kept in the primary analysis and `role_same` as a sensitivity, is
+  reversed for those contrasts; the reference population of a cell is unchanged.
+- Y3 E-12 states beside each contrast the share of linked units that are `ROLE_CHANGED`
+  (E-11 section 14, item 10), and its sample gates and power statements are recomputed for
+  the `ROLE_SAME` units before it is frozen.
+
 ## 3. Scenario decisions
 
 - Real Madrid stays the laboratory subject. Add a third snapshot kind: a PLANNING snapshot

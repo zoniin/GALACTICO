@@ -244,8 +244,9 @@ The owner decided to register, and E-11 was registered on 14 October 2026 in one
 that holds the three files and the edits PIPELINE section 13 lists, and nothing else
 ([ADR-0029](../../../DECISIONS.md)). The draft folder holds one-line pointers. What is left
 is the order section 13 gives: the pipeline, built and tested on synthetic data; the
-acceptance stamp in a commit of its own; then the run. Before E-12 is frozen, the root
-ruling on the role named above. The third audit's own consistency items are not in this
+acceptance stamp in a commit of its own; then the run. The root ruled on the role named
+above on 16 October 2026 (ROOT-DECISIONS 2.8): an admission covers an E-12 origin cell
+only for a linked unit whose two position labels agree. The third audit's own consistency items are not in this
 repository and were never applied.
 
 ## Three things to settle before another draft is registered

@@ -1177,9 +1177,11 @@ then be written after the outcome is known, and the page would keep a false sent
 about E-11's subjects). Serving E-11 records on the local server only (ADR-0018 already
 permits a LOCAL label on a hosted page; the records carry no digit and claim nothing).
 
-**Open.** E-11 grades ordering within the Wyscout role code; the E-12 draft forms its
-origin cells within the licensed provider's position label. Whether an E-11 admission
-covers that design is a root ruling to make before E-12 is frozen (PIPELINE section 14).
+**Ruled since.** E-11 grades ordering within the Wyscout role code; the E-12 draft forms
+its origin cells within the licensed provider's position label. On 16 October 2026 the root
+ruled (ROOT-DECISIONS 2.8) that an admission covers an origin cell only for a linked unit
+whose two labels agree, so E-12's confirmatory contrasts that rely on one are computed on
+those units and the others are reported beside them, outside any verdict.
 
 **Confidence.** High that the registered text is the text found ready. The pipeline is
 not built; a defect found while building it is reported in the analysis, never repaired
