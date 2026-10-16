@@ -1,6 +1,6 @@
 # E-10 — is where a team concedes a property of the defending team?
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. Neither the audit's revision nor those edits has itself been audited, and ROOT 2.9 Z4 requires that audit before E-10 is called READY. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. As ROOT 2.9 Z4 requires, a second audit read that revision on 16 October 2026 in the same four scopes; its one claimed blocker (the synthetic generator's draw order) was confirmed by a refuter, and every finding was applied, or applied with a stated variant, in a third revision the same day; one question waits for a root ruling (REVIEW-RECORD.md, Second audit). That third revision has not itself been audited; as with E-11, E-10 is called READY only after an audit of a revision confirms no blocker. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 **Commit this plan, `config.json`, `PIPELINE.md` and `descriptor_test_vectors.json` before
 any E-10 outcome is computed. Nothing in the four may change once the first outcome is
@@ -579,8 +579,9 @@ competition is its folder. Status (`status_rule`), the first that holds:
 
 Entries are keyed by descriptor; the level subject has no replication entry. An exception
 inside the replication stage gives `FAILED_RUN` to every descriptor whose status reached
-step 3; `NOT_COMPARABLE` and `NOT_RUN` stand. The local artifact also records each folder's
-`folder_manifest` digest, so a later fetch of re-versioned files can be told apart; it is never
+step 3; `NOT_COMPARABLE` and `NOT_RUN` stand. The local artifact exists only when a comparable
+descriptor reached step 3, and also records the `folder_manifest` digest of each folder whose
+match index exists, so a later fetch of re-versioned files can be told apart; it is never
 committed. The Pappalardo results are written whatever the replication returns. Ligue 1 has 377 matches
 in the provider's index. The replication status sits in `results.json` as a token and reason
 only, with no number and no digest of a LOCAL file; its numbers stay in the local artifact
@@ -729,18 +730,20 @@ gate.
 the local artifact under `output_root`, one directory for both arms' files, which git ignores as
 it does E-11's (ROOT 2.9 Z1); nothing under it is committed, and its clean-tree check stays
 satisfiable; the results commit copies `results.json` unchanged into the experiment directory.
-A failed execution (an exception after the refusal checks, outside the replication stage)
-appends the exception type, stage, file and line and source hashes, never the message, to
-`failed_run_log`, writes no `results.json`, and exits; no value from it may be read; the
+Every output is written in the last stage, after the checks on the payload. A failed execution
+(an exception after the refusal checks, outside the replication stage) appends the exception
+type, stage, file and line and source hashes, never the message, to `failed_run_log`, leaves no
+other file (one it was writing is removed), and exits; no value from it may be read; the
 repair may touch only the failing stage, the gate stamp is regenerated, and the next
 execution starts only when the committed `analysis.md` holds the sha256 of the log's bytes
 (an `analysis.md` that records only the failures may be committed before the next execution
 and completed in the results commit). The determinism re-run (`real --verify`) recomputes
 everything and compares the bytes of `results.json` and, when a replication ran, of the local
-artifact; it writes only `determinism_record`. A difference in any byte is a failed execution
-of stage `serialise`: the first execution's outputs are removed and never committed, and the
-failure goes on the record as any other. An exception inside the replication stage is not a
-failed execution: the Pappalardo results stand, every descriptor whose replication status
+artifact; it writes only `determinism_record`. A difference in any byte, or an exception in the
+re-run outside the replication stage, is a failed execution (stage `serialise` for a byte
+difference): the first execution's outputs are removed and never committed, the failure goes on
+the record as any other, and there is no second re-run; the next step is a new execution.
+An exception inside the replication stage is not a failed execution: the Pappalardo results stand, every descriptor whose replication status
 reached step 3 is `REPLICATION_INCONCLUSIVE (FAILED_RUN)`, the exception's type, stage, file and
 line go to `replication_failure_log`, not to `failed_run_log`, and nothing attempts that
 replication again, the determinism re-run included.

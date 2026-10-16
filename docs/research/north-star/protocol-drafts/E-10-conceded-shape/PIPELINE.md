@@ -104,7 +104,7 @@ strata.
 | I6 | `sidecar.provenance(league)`, `SIDECAR_SCHEMA_VERSION`, `TAG_MAPPING_VERSION` | `results.json` provenance | as I2 |
 | I7 | `lf_sha256(path)`, `lf_sha256_text(text)` | every text hash | |
 | I8 | `discriminant_validity(y, X, key=..., confound_names=strength_covariates, top_k=strength_top_k, ties=strength_tie_policy, max_variance_explained=strength_variance_explained_ceiling, min_rank_correlation=strength_spearman_floor, min_top_k_survival=strength_top_k_survival_floor)`, called twice per coordinate (`strength_survival_tails`): `upper` on `y`, `lower` on `-y`, the same `X` | criterion (g): `upper.passed and lower.passed` for every coordinate, never the defaults. The audit counts survivors among the `k` largest values only (`np.argsort(...)[-k:]`) and checks a tie at the `k`-th largest place only, so the second call is what reads the other tail | |
-| I9 | `AxisReliability(key, R, n, 0, season_label, confidence=house_reliability_confidence).interval` | the house bound, reported only. A test asserts `galactico.reliability.core._CRITICAL_VALUES[house_reliability_confidence] == house_reliability_critical_value` (a private member read by the test only, the form of ROOT 2.7 X9) | |
+| I9 | `AxisReliability(key, R, n, 0, period, confidence=house_reliability_confidence).interval`, `period` the `season_label` that `split_half` and `level_split_half` receive | the house bound, reported only. A test asserts `galactico.reliability.core._CRITICAL_VALUES[house_reliability_confidence] == house_reliability_critical_value` (a private member read by the test only, the form of ROOT 2.7 X9) | |
 | I10 | `VerdictRecord`, `Outcome`, `Figure`, `derive`, `badge_text` | registry records (section 12) | constructor rules V1 to V7 |
 | I11 | `sb_reader.read_matches(root, folder)`, `read_team_sheets(root, folder, ids, cap=..., regulation_periods=sb_regulation_periods, goalkeeper_position=..., dismissal_card_types_exclude=sb_sheet_card_types_not_dismissal, spell_end_reason_contains=...)`, `read_events(root, folder, ids, scale=sb_location_scale)`, `iter_events(root, folder, ids)`, `folder_vocabulary(root, folder)`, `folder_manifest(root, folder)` | the replication's frames (section 6); the folder digests the local artifact records | per its docstrings (`read_events` raises `ValueError` on a timestamp that is not `HH:MM:SS.mmm`); any exception there is `FAILED_RUN` |
 | I12 | `league_world_weights(game_ids, worlds, seed, scheme="LEAGUE_MATCHES")` | the served panel's interval (section 12.3) | |
@@ -811,8 +811,9 @@ Details not already in the protocol:
 
 - Leagues. Every per-league subset, G1 to G3, (b), (Lb) and the world's strata iterate the
   `leagues` the caller passes (`config["leagues"]` for the real run and the gate,
-  `config["replication"]["leagues"]` for the replication); (f) and `p1.unexposed` read
-  `unexposed_leagues`. A listed league with no rows fails its gates; it is never skipped.
+  `config["replication"]["leagues"]` for the replication); (f), `p1.unexposed` and the level's
+  `l1.unexposed` (reported only) read `unexposed_leagues`. A listed league with no rows fails
+  its gates; it is never skipped.
 - `split_half`: per team, the opponents ordered by the date of the first valid meeting, then
   team id; for an opponent at an even position (0-based) half A takes the meeting at which the
   team was at home, for an odd position the away meeting; half B the other; a missing meeting
@@ -919,9 +920,10 @@ Details not already in the protocol:
 - `evaluate_level`: G1 to G4 from the primary's counts (the level's `N` is the primary's
   total), then `kA'` (B1 deviance over the grid), then `kD'` (B2 deviance over the grid and
   `context_only`), LG6 (false when `select_k` returns `None` as its index, never for a
-  `context_only` selection), estimands, criteria, verdict. It
-  runs whenever its own gates pass, whatever G5 or G6 returned for the primary. It has no
-  replication entry.
+  `context_only` selection), estimands (L1 pooled, by league and over `unexposed_leagues`, the
+  last reported only), `level_split_half`, `level_strength_validity` (reported only), criteria,
+  verdict. It runs whenever its own gates pass, whatever G5 or G6 returned for the primary. It
+  has no replication entry.
 - Worlds. One `SeasonWorld` per real run (`seed + seed_streams.season_world`,
   `bootstrap_replicates`, `leagues`), one per synthetic season (the same formula, with the
   season's seed as `seed`, section 5), and one for the replication (`seed +
@@ -1233,7 +1235,8 @@ recomputed bytes (the local artifact's existence included). It writes only
 `determinism_record` (`{results_sha256, recomputed_sha256, local_artifact_equal, equal}`, no
 number from the run). On any byte difference, or on an exception in any stage of the re-run
 other than a replication exception (which sets `FAILED_RUN` as above, writes no log under
-`--verify`, and then shows as a byte difference), it removes `output_results` and `replication.local_artifact` (they are never
+`--verify`, and then shows as a byte difference), it removes the first execution's outputs,
+`output_results`, `replication.local_artifact` and `replication_failure_log` (they are never
 committed, and nothing from them may be read), appends one failed-run record (stage
 `serialise` for a byte difference, the raising stage for an exception) and exits 1. There is
 no second determinism re-run (`determinism_reruns`): the next execution is a new `real` under
@@ -1264,7 +1267,7 @@ is read by its consumer, and no consumer reads a number from anywhere else.
 | selection | `evaluation_start`, `selection_tie_tolerance` |
 | gates | `minimum_valid_match_share_per_league`, `minimum_development_rows_per_league`, `minimum_development_weeks_per_league`, `minimum_evaluation_rows_per_league`, `minimum_evaluation_weeks_per_league`, `minimum_evaluation_events_per_league`, `minimum_reliability_teams`, `minimum_half_matches_per_team`, `minimum_permutation_changed_share`, `shape_gates`, `level_gates` |
 | resampling | `leagues` (strata order), `bootstrap_replicates`, `interval_quantiles`, `interval_quantile_method`, `seed_streams`, `calendar_week_rule`, `zero_tolerance` |
-| criteria | `leagues` ((b), (Lb), the per-league subsets), `unexposed_leagues` ((f), `p1.unexposed`), `criterion_alpha_one_sided`, `minimum_leagues_with_negative_estimate`, `level_minimum_leagues_with_negative_estimate`, `holm_family_alpha_one_sided`, `holm_family_size`, `reliability_critical_value`, `reliability_band`, `reliability_number`, `house_reliability_critical_value`, `house_reliability_confidence`, `season_label` (the house bound's period, passed to `split_half` and `level_split_half` as `period`), `strength_covariates`, `strength_variance_explained_ceiling`, `strength_spearman_floor`, `strength_top_k`, `strength_top_k_survival_floor`, `strength_tie_policy`, `strength_permutations`, `interaction_minimum_events_per_meeting`, `calibration_minimum_events_per_row` |
+| criteria | `leagues` ((b), (Lb), the per-league subsets), `unexposed_leagues` ((f), `p1.unexposed`, `l1.unexposed`), `criterion_alpha_one_sided`, `minimum_leagues_with_negative_estimate`, `level_minimum_leagues_with_negative_estimate`, `holm_family_alpha_one_sided`, `holm_family_size`, `reliability_critical_value`, `reliability_band`, `reliability_number`, `house_reliability_critical_value`, `house_reliability_confidence`, `season_label` (the house bound's period, passed to `split_half` and `level_split_half` as `period`), `strength_covariates`, `strength_variance_explained_ceiling`, `strength_spearman_floor`, `strength_top_k`, `strength_top_k_survival_floor`, `strength_tie_policy`, `strength_permutations`, `interaction_minimum_events_per_meeting`, `calibration_minimum_events_per_row` |
 | verdicts and registry | `verdict_vocabulary`, `verdict_precedence`, `registry_*`, `lifecycle_status`, `subject_groups` |
 | study layout | `primary_descriptor`, `secondary_descriptors`, `level_subject`, `committed_experiment_dir`, `version`, `experiment_id`, `registry_experiment_id`, `tier` |
 | runner | `pipeline_spec_sha256`, `output_root`, `output_results`, `failed_run_log`, `replication_failure_log`, `determinism_record`, `results_maximum_bytes`, `results_strings` (copied verbatim, asserted), `forbidden_result_substrings`, `forbidden_result_substrings_scope` (the scan of section 8 follows it; the runner applies it before writing, 7.4), `forbidden_result_key_names`, `determinism_reruns` |
@@ -1434,8 +1437,8 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | | `test_pair_interaction_recovers_a_planted_pair_term_and_zero` | |
 | | `test_every_registry_sentence_is_served_under_every_token` | the seven records built from the config pass `finalize` under `PENDING` and every token, with figures under the established ones; a planted `line height` in a non-claim is refused; the proposal sentences, `planning_research_sentence` and `s5_ratio_name` pass the copy guard |
 | `test_conceded_shape_synthetic.py` | `test_berger_tables_shape` | every directed pair once, every unordered pair twice with venues swapped, for 18 and 20 teams; the rule of `schedule_rule` |
-| | `test_generator_is_seeded_and_emits_the_table_schema` | with and without the secondaries; a two-part secondary draws one-dimensional terms |
-| | `test_synthetic_season_feeds_every_league_subset` | one seeded `EFFECT_STRONG` season at overdispersion 0.1: its keys equal `leagues`, in order, each with `expected_teams_per_league` teams; every per-league subset of P1 and L1 has rows; the `unexposed` estimate has rows and a non-`None` estimate; criteria (b), (f) and (Lb) are not `None`; G1 to G3 read non-empty league counts; the world's strata follow `leagues` |
+| | `test_generator_is_seeded_and_emits_the_table_schema` | with and without the secondaries; a two-part secondary draws one-dimensional terms; two scenarios run with one seed emit the same `goals_for` and `goals_against` (strength and goals come first in every scenario); under `STRENGTH_MEASURED_0_15` the season builds, and its `f` is the within-league standardised points per match (three for a win, one for a draw) of the goals it emits |
+| | `test_synthetic_season_feeds_every_league_subset` | one seeded `EFFECT_STRONG` season at overdispersion 0.1: its keys equal `leagues`, in order, each with `expected_teams_per_league` teams; every per-league subset of P1 and L1 has rows; the `unexposed` estimates of P1 and L1 have rows and non-`None` estimates; criteria (b), (f) and (Lb) are not `None`; G1 to G3 read non-empty league counts; the world's strata follow `leagues` |
 | | `test_season_configuration_differs_in_two_keys_only` | the configuration a season's evaluation reads differs from `config.json` in `seed` and `bootstrap_replicates` only |
 | | `test_season_seeds_and_streams_never_collide` | over every scenario, overdispersion and season of the gate, the season seeds and their `seed + seed_streams` values are distinct, and neither `design_effect.seed` nor `frame_negative_control.seed` is among them |
 | | `test_design_effect_increases_with_overdispersion` | |
@@ -1450,8 +1453,8 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | | `test_failed_run_writes_no_results_and_no_message` | a planted exception whose message holds an invented id is absent from the log; no `output_results` |
 | | `test_failed_run_on_the_record_lets_the_next_real_start` | a planted exception in a stage other than `replication`; once a committed `analysis.md` holds the log's sha256 the next `real` starts, and before that it is refused |
 | | `test_replication_failure_keeps_the_public_results` | a planted exception in `replication`: `output_results` written, `FAILED_RUN` only for descriptors past step 2, `replication_failure_log` written, `failed_run_log` untouched; `real --verify` then passes and does not call `run_replication` (monkeypatched to raise) |
-| | `test_verify_mismatch_is_one_serialise_failure` | a planted byte difference: exit 1, exactly one record of stage `serialise` appended, `output_results` and the local artifact removed |
-| | `test_verify_exception_is_one_failed_run_and_writes_no_output` | a planted exception in stage `descriptors` of `real --verify`: exit 1, one record of that stage appended, `output_results` and the local artifact removed, no other file written; `run_replication` writes no file in either mode (the local artifact's bytes are compared in memory) |
+| | `test_verify_mismatch_is_one_serialise_failure` | a planted byte difference: exit 1, exactly one record of stage `serialise` appended, `output_results`, the local artifact and the replication failure log removed |
+| | `test_verify_exception_is_one_failed_run_and_writes_no_output` | a planted exception in stage `descriptors` of `real --verify`: exit 1, one record of that stage appended, `output_results`, the local artifact and the replication failure log removed, no other file written; `run_replication` writes no file in either mode (the local artifact's bytes are compared in memory) |
 | | `test_a_serialise_failure_leaves_no_output` | with a replication that returned an artifact and one that raised: a planted failure of a "Before writing" check, and a planted exception while writing the local artifact, each leave under `output_root` only the appended `failed_run_log` record |
 | | `test_hashes_are_line_ending_invariant`, `test_rerun_is_byte_identical` | |
 | | `test_research_modules_are_not_imported_by_product_code` | AST import scan; `galactico/features/team/estimator.py` imports nothing from `galactico.validation` or `experiments` (the firewall's one direction, ROOT 2.9 Z3) |
@@ -1679,7 +1682,7 @@ pipeline, the gate stamp in a commit of its own, the run, the results.
 
 | Step | Detail |
 |---|---|
-| Audit | an independent audit that walks every branch of both verdict rules |
+| Audit | an independent audit that walks every branch of both verdict rules, and (ROOT 2.9 Z4, the E-11 precedent) an audit of the latest revision that confirms no blocker |
 | Pipeline hash | `pipeline_spec_sha256` is `lf_sha256` of this file as it stands; an edit to this file before registration means recomputing it |
 | Fingerprints | recomputed from the vectors' payloads |
 | Dismissal rule (ROOT 2.9 Z2) | the structure-only counts of `verified_by_root_before_registration`, run by the root on the corpus before registration; counts only, they compute no outcome. The assumption test: per league, the share of players with a `second_yellow` event card whose sheet `red_minute` in that match is not null, its counts and share per league recorded in the registration commit; if it is below `dismissal_assumption_minimum_share` in any league, `dismissal_check_fallback` replaces `dismissal_check` and the draft is audited again before registration. The residuals: per league, players with a dismissal card in the event record and a null sheet `red_minute`, and the reverse, stated in the registration commit; they are the matches `dismissals_mismatch` is built to invalidate, bounded by G1 only, and they never stop registration. The audit counts pinned in `tests/test_sidecar.py` (red and second-yellow tags against sheet red-card entries) are already disclosed in the protocol's prior-exposure table |

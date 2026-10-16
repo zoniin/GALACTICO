@@ -406,6 +406,11 @@ unlinked players who have no Wyscout role.
   visible to the protocol.
 - Z4 RULED. The audited revision is audited again before E-10 is called READY, as every E-11
   revision was.
+- Z5 RULED (second audit, finding 3-10). O1's "a second-provider replication status sits beside
+  them as a label" is ADR-0018's permission, not a duty. E-10 creates no registry record for its
+  LOCAL replication arm: the arm's result is reported in `analysis.md` only, with the attribution
+  of LICENSING.md, and no hosted page carries a label from it. A later protocol may add such a
+  label only through its own LOCAL record.
 
 ## 3. Scenario decisions
 

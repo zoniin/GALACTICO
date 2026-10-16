@@ -7,7 +7,7 @@
   "provider": "pappalardo",
   "season_label": "2017/18",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider; no key at any depth of this file, of descriptor_test_vectors.json, of synthetic_gate.json or of results.json contains statsbomb, pappalardo or wyscout in any letter case or starts with SB_ (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first and the prefix; the runner test of PIPELINE section 9 for all three)",
-  "pipeline_spec_sha256": "75e59037f05d028d33c4533af4bb8cab3a03259a835206e68714797c3025726c",
+  "pipeline_spec_sha256": "429256e399c29a8df6142a34d4c2b3d6951e6910131a5e96d85151fede919915",
   "verified_by_root_before_registration": [
     "pipeline_spec_sha256: lf_sha256 of PIPELINE.md as registered",
     "descriptor_fingerprints and descriptor_fingerprints_sb: recomputed from the payloads of descriptor_test_vectors.json",
