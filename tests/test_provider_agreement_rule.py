@@ -450,19 +450,30 @@ CLUB = with_config(
                                     "aggregated_player": {POOLED: 5, WC: 5, LL: 5}})
 
 
-def headline_cell(sb, wy, quantity, config=CLUB, verdict="COMPARABLE"):
+def club_cell(sb, wy, quantity, config=CLUB, *, graded=False) -> CellResult:
+    """The quantity's cell at ``registry_headline_cell`` on the club panels."""
     teams = np.array(TEAMS, dtype=np.int64)
     weights = {"match": match_weights(sb.subset_of_match, config), "matches": sb.matches,
                "player": player_weights(len(sb.players), config), "players": sb.players,
                "team": team_weights(teams, np.array([WC] * 4, dtype=object), config),
                "teams": teams}
-    cell = cell_agreement(sb, wy, quantity, config, level=HEADLINE["level"],
+    return cell_agreement(sb, wy, quantity, config, level=HEADLINE["level"],
                           pool=HEADLINE["pool"], reader=HEADLINE["reader"],
                           valuation=HEADLINE["valuation"],
                           scheme=config["bootstrap_scheme"][HEADLINE["level"]], weights=weights,
                           exposure=config["exposure_minimum_minutes"][HEADLINE["pool"]],
-                          graded=False)
-    return dataclasses.replace(cell, verdict=verdict)
+                          graded=graded)
+
+
+def headline_cell(sb, wy, quantity, config=CLUB, verdict="COMPARABLE"):
+    return dataclasses.replace(club_cell(sb, wy, quantity, config), verdict=verdict)
+
+
+def stratum_minimum(minimum: int, **changes: object) -> dict:
+    """``CLUB`` with the aggregated stratum minimum of every pool set to ``minimum``."""
+    return {**CLUB, **changes, "minimum_units_per_rank_stratum": {
+        **CONFIG["minimum_units_per_rank_stratum"],
+        HEADLINE["level"]: dict.fromkeys(CONFIG["pools"], minimum)}}
 
 
 def oracle_order(x, y, strata, minimum) -> float:
@@ -626,6 +637,57 @@ def test_the_permuted_link_cell_keys_are_asserted_against_the_headline_cell() ->
         permuted_link_control(sb, wy, QUANTITIES["width"], headline, CLUB)
     with pytest.raises(ValueError, match="headline"):
         permuted_link_control(sb, wy, quantity, dataclasses.replace(headline, pool=WC), CLUB)
+    # An ungraded cell (a sensitivity row) is not a headline.
+    with pytest.raises(ValueError, match="the headline cell is not graded"):
+        permuted_link_control(sb, wy, quantity, dataclasses.replace(headline, verdict=None),
+                              CLUB)
+
+
+def test_the_permuted_control_keeps_the_retained_rank_strata_of_the_point_estimate() -> None:
+    quantity = QUANTITIES["completed_passes_per_90"]
+    # Three of the sixteen forwards play under the exposure gate. Under a stratum minimum
+    # of fourteen the point estimate keeps DF and MD and drops FW; every permuted value
+    # is computed on those two strata, the forwards still exchanging values among
+    # themselves inside their (team, role) strata.
+    sb, wy = club_panels(1, under_gate=(40102, 40205, 40308))
+    config = stratum_minimum(14)
+    headline = headline_cell(sb, wy, quantity, config)
+    assert (headline.point.strata_retained, headline.point.strata_dropped) == (
+        ("DF", "MD"), ("FW",))
+    result = permuted_link_control(sb, wy, quantity, headline, config)
+    expected = oracle_control(sb, wy, quantity, config)
+    assert result["point"] == pytest.approx(expected["point"], abs=1e-12)
+    assert result["values"] == pytest.approx(expected["values"], abs=1e-12)
+    # The opposite: under CLUB's minimum of five the forwards are retained, and the
+    # permuted values are those of all three strata.
+    kept = headline_cell(sb, wy, quantity)
+    assert kept.point.strata_retained == ("DF", "FW", "MD")
+    every = permuted_link_control(sb, wy, quantity, kept, CLUB)
+    assert every["values"] == pytest.approx(oracle_control(sb, wy, quantity)["values"],
+                                            abs=1e-12)
+    assert every["values"] != pytest.approx(result["values"], abs=1e-6)
+
+
+def test_a_graded_cell_left_with_one_rank_stratum_is_inconclusive_for_units() -> None:
+    quantity = QUANTITIES["completed_passes_per_90"]
+    # Sixteen invented players per role and a stratum minimum of fourteen. Four
+    # midfielders and four forwards under the exposure gate leave DF alone, fewer than
+    # minimum_rank_strata where strata are defined: row 1, UNITS, although the forty
+    # units reach minimum_units.
+    config = stratum_minimum(14, minimum_units={
+        **CONFIG["minimum_units"], HEADLINE["level"]: dict.fromkeys(CONFIG["pools"], 30)})
+    assert CONFIG["minimum_rank_strata"] == 2
+    midfielders, forwards = (40101, 40104, 40201, 40204), (40102, 40105, 40202, 40205)
+    sb, wy = club_panels(6, under_gate=midfielders + forwards)
+    cell = club_cell(sb, wy, quantity, config, graded=True)
+    assert cell.point.units == 40 and cell.point.strata_retained == ("DF",)
+    assert (cell.verdict, cell.reason) == ("INCONCLUSIVE", "UNITS")
+    # The opposite: with the midfielders back, DF and MD remain and the cell is graded.
+    sb, wy = club_panels(6, under_gate=forwards)
+    cell = club_cell(sb, wy, quantity, config, graded=True)
+    assert cell.point.units == 44 and cell.point.strata_retained == ("DF", "MD")
+    assert cell.verdict in TOKENS and cell.verdict != "INCONCLUSIVE"
+    assert cell.reason is None
 
 
 # --- admission and the registry ---------------------------------------------------------
@@ -943,8 +1005,11 @@ def test_a_reduced_acceptance_run_for_the_comparable_boundary_and_null_scenarios
         scenario = SCENARIOS[key]
         for record in structures.values():
             assert record["corpora"] == REDUCED["acceptance_corpora"]
-            assert list(record["tokens"]) == TOKENS
-            assert sum(record["tokens"].values()) == pytest.approx(1.0)
+            assert list(record["tokens"]) == list(record["token_counts"]) == TOKENS
+            assert all(type(count) is int for count in record["token_counts"].values())
+            assert sum(record["token_counts"].values()) == record["corpora"]
+            assert record["tokens"] == {token: count / record["corpora"]
+                                        for token, count in record["token_counts"].items()}
             assert set(record["requirements"]) == expected[key]
             assert record["passed"] is True and all(record["requirements"].values())
             assert abs(record["population_value"] - scenario["target"]) <= tolerance
@@ -963,24 +1028,36 @@ def test_a_reduced_acceptance_run_for_the_comparable_boundary_and_null_scenarios
     assert reduced_run["passed"] is True
 
 
-def hand_record(tokens: dict[str, float], *, inside: float | None = 1.0,
+CORPORA = CONFIG["acceptance_corpora"]
+
+
+def hand_record(counts: dict[str, int], *, inside: float | None = 1.0,
                 population: float | None = None, held: float | None = None) -> dict:
-    return {"tokens": {token: tokens.get(token, 0.0) for token in TOKENS},
+    """A record as ``run_acceptance`` writes it: the count of corpora per token and its
+    share, one division each, over the frozen ``acceptance_corpora``."""
+    counts = {token: counts.get(token, 0) for token in TOKENS}
+    assert sum(counts.values()) == CORPORA
+    return {"corpora": CORPORA, "token_counts": counts,
+            "tokens": {token: count / CORPORA for token, count in counts.items()},
             "point_inside_interval_share": inside, "population_value": population,
             "permuted_link_holds_share": held}
 
 
-def test_each_requirement_is_met_and_missed_on_hand_numbers() -> None:
-    def met(key, structure, record):
-        return scenario_requirements(SCENARIOS[key], structure, record, CONFIG)
+def met(key: str, structure: str, record: dict) -> dict:
+    return scenario_requirements(SCENARIOS[key], structure, record, CONFIG)
 
+
+def test_each_requirement_is_met_and_missed_on_hand_numbers() -> None:
+    assert CORPORA == 200
     target = SCENARIOS["planted_comparable"]["target"]
-    good = hand_record({"COMPARABLE": 0.95, "NOT_ESTABLISHED": 0.05}, inside=0.95,
+    good = hand_record({"COMPARABLE": 190, "NOT_ESTABLISHED": 10}, inside=0.95,
                        population=target + 0.01, held=0.99)
     assert met("planted_comparable", "independent", good) == dict.fromkeys(
         ("required_tokens", "point_inside_interval", "population", "permuted_link"), True)
+    short = hand_record({"COMPARABLE": 188, "NOT_ESTABLISHED": 12})
     for change, failing in (
-            (dict(tokens={**good["tokens"], "COMPARABLE": 0.94}), "required_tokens"),
+            (dict(token_counts=short["token_counts"], tokens=short["tokens"]),
+             "required_tokens"),
             (dict(point_inside_interval_share=0.94), "point_inside_interval"),
             (dict(point_inside_interval_share=None), "point_inside_interval"),
             (dict(population_value=target + 0.02), "population"),
@@ -990,32 +1067,63 @@ def test_each_requirement_is_met_and_missed_on_hand_numbers() -> None:
         found = met("planted_comparable", "independent", {**good, **change})
         assert [name for name, value in found.items() if not value] == [failing]
     # A share requirement mapped by structure is read for its structure.
-    power = hand_record({"COMPARABLE_IN_RANK_ONLY": 0.7, "NOT_ESTABLISHED": 0.3},
+    power = hand_record({"COMPARABLE_IN_RANK_ONLY": 140, "NOT_ESTABLISHED": 60},
                         population=SCENARIOS["planted_power_090"]["target"], held=1.0)
     assert met("planted_power_090", "team_match", power)["required_tokens"] is True
     assert met("planted_power_090", "independent", power)["required_tokens"] is False
     # A forbidden token never occurs; a limited share is inclusive at its maximum.
-    null = hand_record({"NOT_COMPARABLE": 0.95, "COMPARABLE": 0.0, "NOT_ESTABLISHED": 0.05},
-                       population=0.0)
+    null = hand_record({"NOT_COMPARABLE": 190, "NOT_ESTABLISHED": 10}, population=0.0)
     assert met("planted_null", "independent", null)["forbidden_tokens"] is True
-    null["tokens"].update(COMPARABLE=0.05, NOT_ESTABLISHED=0.0)
+    null = hand_record({"NOT_COMPARABLE": 199, "COMPARABLE": 1}, population=0.0)
     assert met("planted_null", "independent", null)["forbidden_tokens"] is False
-    boundary = hand_record({"COMPARABLE": 0.1, "NOT_COMPARABLE": 0.15, "NOT_ESTABLISHED": 0.75},
+    boundary = hand_record({"COMPARABLE": 20, "NOT_COMPARABLE": 30, "NOT_ESTABLISHED": 150},
                            population=SCENARIOS["planted_boundary"]["target"])
     assert all(met("planted_boundary", "independent", boundary).values())
-    boundary["tokens"].update(COMPARABLE=0.11, NOT_ESTABLISHED=0.74)
+    boundary = hand_record({"COMPARABLE": 22, "NOT_COMPARABLE": 30, "NOT_ESTABLISHED": 148},
+                           population=SCENARIOS["planted_boundary"]["target"])
     assert met("planted_boundary", "independent", boundary)["limited_tokens"] is False
-    boundary["tokens"].update(COMPARABLE=0.1, NOT_COMPARABLE=0.16, NOT_ESTABLISHED=0.74)
+    boundary = hand_record({"COMPARABLE": 20, "NOT_COMPARABLE": 32, "NOT_ESTABLISHED": 148},
+                           population=SCENARIOS["planted_boundary"]["target"])
     assert met("planted_boundary", "independent", boundary)["second_limited_tokens"] is False
     # A report-only scenario requires only its population value; a scenario without the
     # population check requires none.
-    report = hand_record({"NOT_COMPARABLE": 1.0},
+    report = hand_record({"NOT_COMPARABLE": 200},
                          population=SCENARIOS["planted_power_085"]["target"])
     assert met("planted_power_085", "independent", report) == {"population": True}
-    gate = hand_record({"COMPARABLE": 1.0}, population=None)
+    gate = hand_record({"COMPARABLE": 200}, population=None)
     assert met("planted_gate", "independent", gate) == {"required_tokens": False}
-    gate["tokens"] = {token: float(token == "INCONCLUSIVE") for token in TOKENS}
+    gate = hand_record({"INCONCLUSIVE": 200}, population=None)
     assert met("planted_gate", "independent", gate) == {"required_tokens": True}
+
+
+def test_two_tokens_exactly_at_their_threshold_meet_it_however_the_count_splits() -> None:
+    # planted_power_090: COMPARABLE and COMPARABLE_IN_RANK_ONLY must reach 0.8, which is
+    # 160 of 200 corpora; 159 misses it. planted_boundary, team_match: the two may hold
+    # 0.12, which is 24 of 200; 25 exceeds it. Every split of the count between the two
+    # tokens is judged alike: the shares are not summed after rounding.
+    assert CORPORA == 200
+    assert SCENARIOS["planted_power_090"]["minimum_share"]["independent"] == 0.8
+    assert SCENARIOS["planted_boundary"]["maximum_share"]["team_match"] == 0.12
+    power = SCENARIOS["planted_power_090"]
+    for total, expected in ((160, True), (159, False)):
+        for comparable in range(total + 1):
+            record = hand_record({"COMPARABLE": comparable,
+                                  "COMPARABLE_IN_RANK_ONLY": total - comparable,
+                                  "NOT_ESTABLISHED": CORPORA - total},
+                                 population=power["target"], held=1.0)
+            for structure in ("independent", "systematic"):
+                assert met("planted_power_090", structure, record)["required_tokens"] is (
+                    expected), (total, comparable, structure)
+    boundary = SCENARIOS["planted_boundary"]
+    for total, expected in ((24, True), (25, False)):
+        for comparable in range(total + 1):
+            record = hand_record({"COMPARABLE": comparable,
+                                  "COMPARABLE_IN_RANK_ONLY": total - comparable,
+                                  "NOT_ESTABLISHED": CORPORA - total},
+                                 population=boundary["target"])
+            found = met("planted_boundary", "team_match", record)
+            assert found["limited_tokens"] is expected, (total, comparable)
+            assert found["second_limited_tokens"] is True
 
 
 def test_each_scenario_names_its_structures() -> None:

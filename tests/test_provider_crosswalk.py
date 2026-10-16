@@ -932,6 +932,56 @@ def test_the_stress_applies_the_claimed_twice_rule_against_the_full_run() -> Non
     assert blocks[(("A", "N"), "pooled")]["absent_partner_stress_rate"]["point"] == 1.0
 
 
+def test_the_graded_runs_are_calls_of_the_public_link_function(monkeypatch) -> None:
+    """The full run and every stress rerun go through ``name_nationality_link``, the
+    function a later study calls: once per tier set on all evaluated players, then once
+    per paired player alone with his partner hidden, never one call for all of them."""
+    names = {1: "Abel Corte", 2: "Basso Mirel", 3: "Cesar Dunn"}
+    sb_people = pd.DataFrame([{"left_id": player, "full_name": name, "known_as": None,
+                               "country": HOME} for player, name in names.items()])
+    people = pd.DataFrame([person(100 + player, name) for player, name in names.items()],
+                          columns=PEOPLE_COLUMNS)
+    pairs = pd.DataFrame([{"sb_player_id": player, "wy_player_id": 100 + player,
+                           "status": "PAIRED_BY_TEAM_SHEET"} for player in (1, 2)])
+    sheets = {player: frozenset({100 + player}) for player in names}
+    subsets = {player: frozenset({WC}) for player in names}
+    original = provider_crosswalk.name_nationality_link
+    calls = []
+
+    def spy(left, right, config, *, tiers, exclude_right, unique_right):
+        calls.append(repr((list(tiers), left["left_id"].tolist(), right["right_id"].tolist(),
+                           exclude_right, unique_right)))
+        return original(left, right, config, tiers=tiers, exclude_right=exclude_right,
+                        unique_right=unique_right)
+
+    monkeypatch.setattr(provider_crosswalk, "name_nationality_link", spy)
+    blocks = blocks_by(evaluate_wide_link(pairs, sb_people, people, sheets, subsets, CONFIG))
+    expected = []
+    for tiers in CONFIG["link_tier_sets"]:
+        expected += [repr((tiers, [1, 2, 3], [101, 102, 103], None, True)),
+                     repr((tiers, [1], [101, 102, 103], {1: 101}, True)),
+                     repr((tiers, [2], [101, 102, 103], {2: 102}, True)),
+                     repr((tiers, [101, 102, 103], [101, 102, 103],
+                           {101: 101, 102: 102, 103: 103}, False))]
+    assert sorted(calls) == sorted(expected)
+    assert blocks[(("A",), "pooled")]["classes"] == {"CORRECT": 2, "FALSE": 0,
+                                                    "UNVERIFIABLE": 1, "NO_LINK": 0}
+
+    # The consequence: a step added to the public function outside its core reaches
+    # every class and the stress, read from the frame it returns.
+    def no_links(left, right, config, *, tiers, exclude_right, unique_right):
+        links = original(left, right, config, tiers=tiers, exclude_right=exclude_right,
+                         unique_right=unique_right)
+        return links.assign(right_id=pd.Series(pd.NA, index=links.index, dtype="Int64"),
+                            tier=None, outcome="NO_CANDIDATE")
+
+    monkeypatch.setattr(provider_crosswalk, "name_nationality_link", no_links)
+    block = blocks_by(evaluate_wide_link(pairs, sb_people, people, sheets, subsets, CONFIG))[
+        (("A",), "pooled")]
+    assert block["classes"] == {"CORRECT": 0, "FALSE": 0, "UNVERIFIABLE": 0, "NO_LINK": 3}
+    assert (block["paired"], block["absent_partner_stress_rate"]["point"]) == (2, 0.0)
+
+
 def test_namesake_collision_on_a_planted_roster() -> None:
     people = pd.DataFrame([
         person(1, "Abel Corte"), person(2, "Abel Corte"),                    # both link
@@ -1127,6 +1177,22 @@ def test_each_gate_and_too_few_players_gives_its_own_reason_in_order() -> None:
     assert link_verdict({}, [], CONFIG) == ("INCONCLUSIVE", "EVALUATED_PLAYERS")
     # The opposite: a gate that is not a link gate changes nothing.
     assert link_verdict(usable_block(), ["XT_SURFACE"], CONFIG) == ("LINK_USABLE", None)
+
+
+def test_the_reasons_are_the_four_link_gates_then_the_evaluated_players() -> None:
+    gates = CONFIG["link_inconclusive_reasons"][:-1]
+    # The gates are taken in the order the config lists them.
+    reordered = with_config(link_inconclusive_reasons=[*gates[::-1], "EVALUATED_PLAYERS"])
+    assert link_verdict({}, gates, reordered) == ("INCONCLUSIVE", gates[-1])
+    for broken in (["EVALUATED_PLAYERS", *gates],
+                   [*gates[:3], "EVALUATED_PLAYERS", gates[3]],
+                   [*gates[:3], "EVALUATED_PLAYERS"],
+                   [*gates, "XT_SURFACE", "EVALUATED_PLAYERS"],
+                   [*gates, gates[0], "EVALUATED_PLAYERS"],
+                   [*gates, "EVALUATED_PLAYERS", "EVALUATED_PLAYERS"],
+                   []):
+        with pytest.raises(ValueError):
+            link_verdict({}, [gates[0]], with_config(link_inconclusive_reasons=broken))
 
 
 def nudged(field: str, key: str, direction: float) -> dict:

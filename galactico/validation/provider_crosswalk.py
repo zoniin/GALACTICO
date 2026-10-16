@@ -74,6 +74,8 @@ _STATUSES = frozenset({_PAIRED, "NAME_WEAK", "ELIMINATION_ONLY", "STRUCTURE_CONF
 _CLASSES = ("CORRECT", "FALSE", "UNVERIFIABLE", "NO_LINK")
 _LINK_TOKENS = frozenset({"LINK_USABLE", "LINK_NOT_ESTABLISHED", "INCONCLUSIVE"})
 _EVALUATED = "EVALUATED_PLAYERS"
+_LINK_GATES = frozenset({"DATA_MISSING", "UNKNOWN_VOCABULARY", "MATCH_CROSSWALK",
+                         "IDENTITY_COVERAGE"})
 _TIERS = frozenset({"A", "N", "B"})
 
 # How a pair was taken in one sheet: steps 1 and 2 of the protocol.
@@ -925,6 +927,13 @@ def _right(wy_people: pd.DataFrame) -> pd.DataFrame:
     })
 
 
+def _outcomes(links: pd.DataFrame) -> list[tuple[int, int | None, str]]:
+    """(left id, right id, outcome) per row of a ``name_nationality_link`` frame."""
+    return [(int(left), None if pd.isna(right) else int(right), str(outcome))
+            for left, right, outcome in zip(links["left_id"], links["right_id"],
+                                            links["outcome"], strict=True)]
+
+
 def _interval(successes: int, trials: int, z: float) -> dict[str, float | None]:
     lower, upper = wilson_interval(successes, trials, z)
     return {"point": successes / trials if trials else None, "lower": lower, "upper": upper}
@@ -961,9 +970,9 @@ def evaluate_wide_link(pairs: pd.DataFrame, sb_people: pd.DataFrame, wy_people: 
     player with a ``LINKED`` record is ``CORRECT`` (paired, the record is his
     partner), ``FALSE`` (paired and another record, or unpaired and a record on none
     of his sheets) or ``UNVERIFIABLE`` (unpaired, a record on one of his sheets);
-    any other outcome is ``NO_LINK``. The absent-partner stress is one evaluation per
-    paired player with his partner hidden from him alone; every other player keeps the
-    record his full run reached, ``LINKED`` or ``CLAIMED_TWICE``, and the
+    any other outcome is ``NO_LINK``. The absent-partner stress is one call per paired
+    player, on his row alone with his partner hidden from him; every other player keeps
+    the record his full run reached, ``LINKED`` or ``CLAIMED_TWICE``, and the
     ``CLAIMED_TWICE`` rule is applied against those. A pool block holds the players
     whose subsets meet the pool, with the class and stress result of the single run.
 
@@ -990,7 +999,7 @@ def evaluate_wide_link(pairs: pd.DataFrame, sb_people: pd.DataFrame, wy_people: 
     partner = {int(sb): int(wy) for sb, wy in zip(paired_rows["sb_player_id"],
                                                  paired_rows["wy_player_id"], strict=True)}
     lefts = _lefts(sb_people, config)
-    records = _index(_right(wy_people))
+    right = _right(wy_people)
     nickname = {left.left_id: left.known is not None for left in lefts}
     z = float(config["wilson_z"])
 
@@ -1010,10 +1019,11 @@ def evaluate_wide_link(pairs: pd.DataFrame, sb_people: pd.DataFrame, wy_people: 
     blocks: list[dict[str, object]] = []
     for tier_set in config["link_tier_sets"]:
         tiers = _tiers(tier_set)
-        full = _link(lefts, records, config, tiers, None, True)
+        full = name_nationality_link(sb_people, right, config, tiers=tiers,
+                                     exclude_right=None, unique_right=True)
         holders: dict[int, set[int]] = defaultdict(set)
         classes, outcomes = {}, {}
-        for left_id, right_id, _, outcome in full:
+        for left_id, right_id, outcome in _outcomes(full):
             outcomes[left_id] = outcome
             if outcome in ("LINKED", "CLAIMED_TWICE"):
                 holders[right_id].add(left_id)
@@ -1026,11 +1036,12 @@ def evaluate_wide_link(pairs: pd.DataFrame, sb_people: pd.DataFrame, wy_people: 
             else:
                 classes[left_id] = "FALSE"
         still_linked = {}
-        for left in lefts:
+        for position, left in enumerate(lefts):
             if left.left_id not in partner:
                 continue
-            ((_, right_id, _, outcome),) = _link([left], records, config, tiers,
-                                                 {left.left_id: partner[left.left_id]}, True)
+            ((_, right_id, outcome),) = _outcomes(name_nationality_link(
+                sb_people.iloc[[position]], right, config, tiers=tiers,
+                exclude_right={left.left_id: partner[left.left_id]}, unique_right=True))
             others = holders.get(right_id, set()) - {left.left_id}
             still_linked[left.left_id] = outcome == "LINKED" and not others
         namesake = namesake_collision(wy_people, config, tiers=tiers)
@@ -1106,8 +1117,10 @@ def link_verdict(block: Mapping[str, object], failed_gates: Sequence[str],
     if set(config["verdict_vocabulary"]["link"]) != _LINK_TOKENS:
         raise ValueError("the link vocabulary is not the one implemented here")
     reasons = list(config["link_inconclusive_reasons"])
-    if _EVALUATED not in reasons:
-        raise ValueError("link_inconclusive_reasons does not end in the evaluated-players gate")
+    if (reasons[-1:] != [_EVALUATED] or len(reasons) != len(_LINK_GATES) + 1
+            or set(reasons[:-1]) != _LINK_GATES):
+        raise ValueError("link_inconclusive_reasons is not the four link gates, then the "
+                         "evaluated-players gate")
     failed = set(failed_gates)
     minimum = int(config["link_minimum_evaluated_players"])
     for reason in reasons:

@@ -4,15 +4,16 @@ Claim: ``preflight`` reads each provider's files alone (presence, JSON key sets,
 three folder digests, the vocabulary, match and sheet counts, the StatsBomb players
 whose lineup rows disagree) and joins nothing across providers. ``acceptance`` grades
 the planted corpora of PIPELINE.md section 6 and returns the stamp the root commits.
-``execute`` refuses, exit 2 with a one-line reason, unless the protocol commit, the
-registered files, the folder digests, the committed stamp, the output root and the
-Pappalardo files are what section 7 requires; it then runs every stage of ``run`` in
-the order of section 7, checks every object in memory against the size ceilings, the
-identifier denylist, the thesis walker, the provider key rule and the licence guard's
-patterns, and writes ``results.json``, ``report_tables.md`` and, last,
+``execute`` refuses, exit 2 with a one-line reason, unless the roots, the protocol
+commit, the registered files, the folder digests, the committed stamp, the output root
+and the Pappalardo files are what section 7 requires; it then runs every stage of
+``run`` in the order of section 7, checks every object in memory against the size
+ceilings, the identifier denylist, the thesis walker, the provider key rule and the
+licence guard's patterns, and writes ``results.json``, ``report_tables.md`` and, last,
 ``results.local.json`` under ``local_output_root``. A gate that fails is a verdict; an
-exception after the refusal checks is a failed run, recorded by type, stage and code
-location and never by message.
+exception after the refusal checks is a failed run: every file it wrote, a partial one
+included, is removed, and it is recorded by type, stage and code location and never by
+message.
 
 Non-claim: no token here is about football, and nothing here may run on real data
 before the protocol commit except ``preflight``. The results are aggregates: no
@@ -21,7 +22,7 @@ process memory. Every number is the frozen config's; the commit is the argument,
 a literal.
 
     python -X utf8 experiments/run_provider_agreement.py preflight
-    python -X utf8 experiments/run_provider_agreement.py acceptance [--output PATH]
+    python -X utf8 experiments/run_provider_agreement.py acceptance
     python -X utf8 experiments/run_provider_agreement.py execute --protocol-commit <sha>
     python -X utf8 experiments/run_provider_agreement.py execute --protocol-commit <sha> --verify
 """
@@ -81,6 +82,7 @@ from galactico.validation.provider_crosswalk import (
 )
 from galactico.validation.provider_inputs import (
     INPUTS_VERSION,
+    SurfaceUnfit,
     clock_offsets,
     divergence_tables,
     harmonise_statsbomb,
@@ -221,6 +223,26 @@ def _protocol_hashes(config: Mapping[str, object], root: Path) -> dict[str, str]
             "pipeline_hash": lf_sha256(directory / "PIPELINE.md")}
 
 
+def _frozen(config: Mapping[str, object], key: str, value: object) -> None:
+    """A config key that restates a protocol rule is asserted; only ``value`` is built."""
+    if config[key] != value:
+        raise ValueError(f"config {key} restates a frozen rule; only {value!r} is implemented")
+
+
+def _team_sheets(config: Mapping[str, object], root: Path, folder: str,
+                 game_ids: Sequence[int]) -> pd.DataFrame:
+    """``read_team_sheets`` with the keywords of section 2. It excludes recorded
+    off-pitch gaps unconditionally, so rule 2's restatement is asserted here."""
+    _frozen(config, "sb_minutes_exclude_off_pitch_gaps", True)
+    waiver = config["sheet_minutes_waiver"]
+    return read_team_sheets(
+        root, folder, list(game_ids), cap=int(config["regulation_minutes_cap"]),
+        regulation_periods=config["sb_regulation_periods"],
+        goalkeeper_position=str(config["sb_goalkeeper_position"]),
+        dismissal_card_types_exclude=waiver["sb_dismissal_card_types_exclude"],
+        spell_end_reason_contains=str(waiver["sb_spell_end_reason_contains"]))
+
+
 def _guard() -> object:
     """``scripts/check_licensing.py``, for its fingerprint and credential patterns."""
     spec = importlib.util.spec_from_file_location("check_licensing",
@@ -334,7 +356,6 @@ def _preflight_statsbomb(config: Mapping[str, object]) -> dict[str, object]:
     disagree on name, nickname or country."""
     root = _path(config["sb_root"])
     folders = [str(subset["sb_folder"]) for subset in _subsets(config)]
-    waiver = config["sheet_minutes_waiver"]
     out: dict[str, object] = {}
     sheets = []
     for folder in [*folders, str(config["xt_sb_reference_folder"])]:
@@ -360,13 +381,7 @@ def _preflight_statsbomb(config: Mapping[str, object]) -> dict[str, object]:
                          "event": sorted(events)},
         }
         if folder in folders:
-            frame = read_team_sheets(
-                root, folder, matches["sb_game_id"].tolist(),
-                cap=int(config["regulation_minutes_cap"]),
-                regulation_periods=config["sb_regulation_periods"],
-                goalkeeper_position=str(config["sb_goalkeeper_position"]),
-                dismissal_card_types_exclude=waiver["sb_dismissal_card_types_exclude"],
-                spell_end_reason_contains=str(waiver["sb_spell_end_reason_contains"]))
+            frame = _team_sheets(config, root, folder, matches["sb_game_id"].tolist())
             block["sheet_rows"] = len(frame)
             block["sheet_players"] = int(frame["sb_player_id"].nunique())
             sheets.append(frame)
@@ -375,8 +390,9 @@ def _preflight_statsbomb(config: Mapping[str, object]) -> dict[str, object]:
         rows = pd.concat(sheets, ignore_index=True)
         forms = rows[["sb_player_id", "player_name", "player_nickname", "country"]]
         distinct = forms.astype(object).drop_duplicates()
+        # Players, not surplus forms: a player with three forms counts once.
         out["players_whose_rows_disagree"] = int(
-            distinct["sb_player_id"].duplicated().sum())
+            distinct.loc[distinct["sb_player_id"].duplicated(), "sb_player_id"].nunique())
     return out
 
 
@@ -513,9 +529,9 @@ def _exposure(config: Mapping[str, object], level: str, pool: str) -> int | None
 
 
 def _empty_coverage(config: Mapping[str, object]) -> dict[str, object]:
-    subset_keys = ("expected_matches", "listed_with_files", "crosswalked_matches", "rejected",
-                   "swapped_orientation", "goal_checks", "team_matches", "player_matches",
-                   "coverage")
+    subset_keys = ("expected_matches", "listed_with_files", "missing_files",
+                   "crosswalked_matches", "rejected", "swapped_orientation", "goal_checks",
+                   "team_matches", "player_matches", "coverage")
     across = ("sheet_players", "zero_minute_rows_dropped", "pair_status",
                "player_matches_dropped", "paired_outfield", "swap_impossible_share",
                "cautioned", "sb_people_disagreeing", "players_by_exposure")
@@ -735,12 +751,9 @@ def _full_run(state: _Run, stage: _Stage, sb_matches: Mapping[str, pd.DataFrame]
     waiver = config["sheet_minutes_waiver"]
     subsets = _subsets(config)
 
-    sb_sheets = pd.concat([read_team_sheets(
-        sb_root, str(subset["sb_folder"]), sb_matches[str(subset["key"])]["sb_game_id"].tolist(),
-        cap=cap, regulation_periods=config["sb_regulation_periods"],
-        goalkeeper_position=str(config["sb_goalkeeper_position"]),
-        dismissal_card_types_exclude=waiver["sb_dismissal_card_types_exclude"],
-        spell_end_reason_contains=str(waiver["sb_spell_end_reason_contains"]))
+    sb_sheets = pd.concat([_team_sheets(
+        config, sb_root, str(subset["sb_folder"]),
+        sb_matches[str(subset["key"])]["sb_game_id"].tolist())
         for subset in subsets], ignore_index=True)
     wy_matches = {str(s["wy_competition"]): read_wyscout_matches(raw, str(s["wy_competition"]))
                   for s in subsets}
@@ -793,19 +806,21 @@ def _full_run(state: _Run, stage: _Stage, sb_matches: Mapping[str, pd.DataFrame]
     del sb_people, sheet_ids, subset_of_player
 
     stage("surfaces")
+    # Only an unfit surface is the gate's; any other ValueError of a surface function
+    # refuses the config or the input, and so is a failed run.
     surfaces: dict[str, object | None] = {}
     spain = read_wyscout_actions(parquet, str(config["xt_wy_reference_competition"]))
     try:
         surfaces["wy_reference"] = wyscout_reference_surface(
             spain, match_links["wy_game_id"].tolist(), config)
-    except ValueError:
+    except SurfaceUnfit:
         surfaces["wy_reference"] = None
     del spain
     for variant in config["reader_variants"]:
         try:
             surfaces[f"sb_reference_{variant}"] = statsbomb_reference_surface(
                 sb_root, config, variant=str(variant))
-        except ValueError:
+        except SurfaceUnfit:
             surfaces[f"sb_reference_{variant}"] = None
     state.gate("xt_surface", all(surface is not None for surface in surfaces.values()))
     state.xt = {name: surface.record() if surface is not None else None
@@ -1107,10 +1122,12 @@ def _run(config: Mapping[str, object], protocol_commit: str, stage: _Stage
     sb_matches = {}
     present = True
     for subset in _subsets(config):
-        frame, _ = read_matches(sb_root, str(subset["sb_folder"]))
+        # A listed match without its event or lineup file is dropped and counted.
+        frame, missing = read_matches(sb_root, str(subset["sb_folder"]))
         sb_matches[str(subset["key"])] = frame
         state.coverage["subsets"][str(subset["key"])].update(
-            expected_matches=int(subset["expected_matches"]), listed_with_files=len(frame))
+            expected_matches=int(subset["expected_matches"]), listed_with_files=len(frame),
+            missing_files=len(missing))
         present &= len(frame) >= int(subset["minimum_crosswalked_matches"])
     if state.gate("data", present):
         _full_run(state, stage, sb_matches)
@@ -1187,10 +1204,11 @@ def report_tables(local: Mapping[str, object], config: Mapping[str, object]) -> 
                      local["gates"].items()])
     lines += ["## Coverage", ""]
     lines += _table(
-        ["subset", "expected", "listed with files", "crosswalked", "swapped", "team-matches",
-         "player-matches sb", "player-matches wy", "coverage sb", "coverage wy"],
-        [(key, b["expected_matches"], b["listed_with_files"], b["crosswalked_matches"],
-          b["swapped_orientation"], b["team_matches"],
+        ["subset", "expected", "listed with files", "missing files", "crosswalked", "swapped",
+         "team-matches", "player-matches sb", "player-matches wy", "coverage sb",
+         "coverage wy"],
+        [(key, b["expected_matches"], b["listed_with_files"], b["missing_files"],
+          b["crosswalked_matches"], b["swapped_orientation"], b["team_matches"],
           *((b["player_matches"] or {}).get(side) for side in ("sb", "wy")),
           *((b["coverage"] or {}).get(side) for side in ("sb", "wy")))
          for key, b in local["coverage"]["subsets"].items()])
@@ -1274,10 +1292,10 @@ def report_tables(local: Mapping[str, object], config: Mapping[str, object]) -> 
         lines += ["## Divergence by family", ""]
         lines += _table(["family", "pool", "team-matches", "events sb", "events wy",
                          "count ratio", "interval"],
-                        [(family, pool, row["team_matches"], row["events"]["sb"],
-                          row["events"]["wy"],
-                          *((row["count_ratio"], row["interval"])
-                            if row["team_matches"] >= floor else (None, None)))
+                        [(family, pool, row["team_matches"],
+                          *((row["events"]["sb"], row["events"]["wy"], row["count_ratio"],
+                             row["interval"])
+                            if row["team_matches"] >= floor else (None,) * 4))
                          for family, pools in divergence["families"].items()
                          for pool, row in pools.items()])
         lines += ["## Pairing", ""]
@@ -1296,8 +1314,8 @@ def report_tables(local: Mapping[str, object], config: Mapping[str, object]) -> 
         lines += ["## Clock offsets", ""]
         lines += _table(["pool", "match-periods", "quantiles", "at a grid edge"],
                         [(pool, row["match_periods"],
-                          row["quantiles"] if row["match_periods"] >= floor else None,
-                          row["at_grid_edge"])
+                          *((row["quantiles"], row["at_grid_edge"])
+                            if row["match_periods"] >= floor else (None, None)))
                          for pool, row in divergence["clock_offsets"].items()])
         lines += ["## One-sided counts (events kept outside every compared family)", ""]
         lines += _table(["family", "pool", "events"],
@@ -1325,8 +1343,13 @@ def _lf_bytes(content: bytes) -> str:
 def refusal(config: Mapping[str, object], *, protocol_commit: str | None, verify: bool,
             root: Path) -> str | None:
     """The first of the seven checks of section 7 that does not hold, as one line, or
-    None. Read-only git only; no git, no run."""
+    None. Check 5 runs first, since checks 1 to 3 open files under the roots it checks.
+    Read-only git only; no git, no run."""
     directory = str(config["committed_experiment_dir"]).replace(os.sep, "/")
+    # 5. No forbidden root, before any file under a root is opened.
+    reason = _assert_roots(config, root)
+    if reason is not None:
+        return reason
     # 1. The protocol commit and the three registered files.
     if _git(root, "--version") is None:
         return "git is not available"
@@ -1396,10 +1419,6 @@ def refusal(config: Mapping[str, object], *, protocol_commit: str | None, verify
     if PROVIDERS["statsbomb"].tier is not DataTier.LOCAL_LICENSED:
         return "the StatsBomb tier is not LOCAL_LICENSED"
     assert_may_host(_PUBLIC_SOURCE)
-    # 5. No forbidden root.
-    reason = _assert_roots(config, root)
-    if reason is not None:
-        return reason
     # 6. One execution, and every failure on the record.
     if verify != (output / LOCAL).is_file():
         return ("results.local.json exists: execute runs once" if not verify
@@ -1430,10 +1449,45 @@ def _failure(error: BaseException, stage: str) -> dict[str, object]:
             "source_hashes": source_hashes()}
 
 
-def _record_failure(output: Path, record: Mapping[str, object]) -> None:
+def _record_failure(output: Path, record: Mapping[str, object],
+                    config: Mapping[str, object]) -> None:
+    """Append ``record`` to ``failed_runs.json`` after the in-memory checks. A record
+    that fails them, or that they cannot check, is appended with every value null: the
+    failure stays on the record and none of its values is written."""
     path = output / FAILED
     records = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
+    try:
+        problems = serialisation_problems([*records, dict(record)], config, committed=False)
+    except Exception:  # an unchecked record is never written
+        problems = ["the checks could not run"]
+    if problems:
+        record = dict.fromkeys(record)
     _write(path, _dumps([*records, dict(record)]))
+
+
+def _write_checked(output: Path, config: Mapping[str, object],
+                   files: Mapping[str, tuple[object | None, str, bool]]) -> bool:
+    """Check every file in memory, then write them in the order given. ``files`` maps a
+    name to its object (None for Markdown), its text and whether it is committed. On an
+    exception every file this call wrote, a partial one included, is removed and the
+    failure recorded; False then."""
+    written: list[Path] = []
+    try:
+        problems = [problem for obj, text, committed in files.values()
+                    for problem in serialisation_problems(
+                        obj, config, committed=committed, text=text if obj is None else None)]
+        if problems:
+            raise ValueError("; ".join(sorted(set(problems))))
+        for name, (_, text, _) in files.items():
+            written.append(output / name)   # before the write, so a partial file goes too
+            _write(output / name, text)
+    except Exception as error:
+        for path in written:
+            path.unlink(missing_ok=True)
+        _record_failure(output, _failure(error, "serialise"), config)
+        print(f"failed while writing; recorded in {FAILED}", file=sys.stderr)
+        return False
+    return True
 
 
 def execute(config: Mapping[str, object], *, protocol_commit: str | None, verify: bool,
@@ -1448,39 +1502,29 @@ def execute(config: Mapping[str, object], *, protocol_commit: str | None, verify
     try:
         local, results, report = run(config, protocol_commit=str(protocol_commit))
     except StageError as error:
-        _record_failure(output, _failure(error, error.stage))
+        _record_failure(output, _failure(error, error.stage), config)
         print(f"failed in stage {error.stage}; recorded in {FAILED}", file=sys.stderr)
         return 3
     except Exception as error:  # anything outside a stage is a failure too
-        _record_failure(output, _failure(error, "run"))
+        _record_failure(output, _failure(error, "run"), config)
         print(f"failed; recorded in {FAILED}", file=sys.stderr)
         return 3
-    texts = {COMMITTED: _dumps(results), REPORT: report, LOCAL: _dumps(local)}
     if verify:
-        recomputed = texts[LOCAL].encode("utf-8")
+        recomputed = _dumps(local).encode("utf-8")
         on_disk = (output / LOCAL).read_bytes()
-        equal = recomputed == on_disk
-        _write(output / DETERMINISM, _dumps({
-            "equal": equal, "local_results_sha256": hashlib.sha256(on_disk).hexdigest(),
-            "recomputed_sha256": hashlib.sha256(recomputed).hexdigest()}))
-        return 0 if equal else 1
-    written: list[Path] = []
-    try:
-        problems = (serialisation_problems(results, config, committed=True)
-                    + serialisation_problems(None, config, committed=False, text=report)
-                    + serialisation_problems(local, config, committed=False))
-        if problems:
-            raise ValueError("; ".join(sorted(set(problems))))
-        for name in (COMMITTED, REPORT, LOCAL):   # the local results last
-            _write(output / name, texts[name])
-            written.append(output / name)
-    except Exception as error:
-        for path in written:
-            path.unlink(missing_ok=True)
-        _record_failure(output, _failure(error, "serialise"))
-        print(f"failed while writing; recorded in {FAILED}", file=sys.stderr)
+        determinism = {"equal": recomputed == on_disk,
+                       "local_results_sha256": hashlib.sha256(on_disk).hexdigest(),
+                       "recomputed_sha256": hashlib.sha256(recomputed).hexdigest()}
+        if not _write_checked(output, config,
+                              {DETERMINISM: (determinism, _dumps(determinism), False)}):
+            return 3
+        return 0 if determinism["equal"] else 1
+    committed = _dumps(results)
+    files = {COMMITTED: (results, committed, True), REPORT: (None, report, False),
+             LOCAL: (local, _dumps(local), False)}   # the local results last
+    if not _write_checked(output, config, files):
         return 3
-    print(hashlib.sha256(texts[COMMITTED].encode("utf-8")).hexdigest())
+    print(hashlib.sha256(committed.encode("utf-8")).hexdigest())
     return 0
 
 
@@ -1493,9 +1537,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("preflight", help="one provider at a time; joins nothing")
-    stamp = commands.add_parser("acceptance", help="the synthetic acceptance run")
-    stamp.add_argument("--output", type=Path, default=None,
-                       help="where to write the stamp (default: local_output_root)")
+    # The stamp goes to local_output_root only; the root copies it to the experiment.
+    commands.add_parser("acceptance", help="the synthetic acceptance run")
     executing = commands.add_parser("execute", help="the one real execution")
     executing.add_argument("--protocol-commit", default=None)
     executing.add_argument("--verify", action="store_true")
@@ -1513,7 +1556,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if problems:
             print("refused: " + "; ".join(problems), file=sys.stderr)
             return 1
-        _write(args.output or _path(config["local_output_root"]) / STAMP, _dumps(record))
+        _write(_path(config["local_output_root"]) / STAMP, _dumps(record))
         print(f"E-11 acceptance: {'passed' if record['passed'] else 'FAILED'}", file=sys.stderr)
         return 0 if record["passed"] else 1
     return execute(config, protocol_commit=args.protocol_commit, verify=args.verify, root=ROOT)

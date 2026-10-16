@@ -753,6 +753,49 @@ def test_the_fixed_cohort_reweights_fixed_units_by_their_team(monkeypatch) -> No
         np.mean([orders[i] for i in valid]) - cell.point.order, abs=1e-9)
 
 
+def test_a_replicate_in_which_a_retained_stratum_has_zero_total_weight_is_valid() -> None:
+    # Every forward plays for team 401 and team 401 fields forwards only, so a replicate
+    # that gives team 401 weight 0 gives the retained FW stratum zero total weight.
+    roles = {player: "FW" if player // 100 == 401 else ("DF" if player % 2 else "MD")
+             for player in ROLE_OF}
+    sb_frame, wy_frame = planted(13)
+    sb, wy = panels(sb_frame, wy_frame, roles=roles)
+    weights = world(sb)
+    team = weights["team"].copy()
+    # Replicate 0 by hand: the World Cup block (401 to 404) and the league block.
+    assert ALL_TEAMS.tolist()[:4] == [401, 402, 403, 404]
+    team[0] = [0, 2, 1, 1, 1, 1, 1, 1]
+    quantity = QUANTITIES["completed_passes_per_90"]
+    cell, orders = cell_with_replicates(
+        sb, wy, quantity, SMALL, level="aggregated_player", pool=POOLED, reader="open_play",
+        valuation="regime", scheme="team_cluster_fixed_cohort",
+        weights={**weights, "team": team},
+        exposure=SMALL["exposure_minimum_minutes"][POOLED], graded=True)
+    assert cell.point.strata_retained == ("DF", "FW", "MD")
+
+    exposure = SMALL["exposure_minimum_minutes"][POOLED]
+    expected = oracle_aggregates(sb_frame, wy_frame, quantity, POOLED, exposure)
+    clusters = oracle_clusters(sb_frame, wy_frame, POOLED)
+    players = sorted(expected)
+    x = [expected[p][0] for p in players]
+    y = [expected[p][1] for p in players]
+    strata = [roles[p] for p in players]
+    columns = [ALL_TEAMS.tolist().index(clusters[p]) for p in players]
+    assert {clusters[p] for p in players if roles[p] == "FW"} == {401}
+    rest = [i for i, label in enumerate(strata) if label != "FW"]
+    w0 = [int(team[0, columns[i]]) for i in rest]
+    # Valid, and equal to the statistic on the other two strata.
+    assert math.isfinite(orders[0])
+    assert orders[0] == pytest.approx(
+        oracle_order([x[i] for i in rest], [y[i] for i in rest], [strata[i] for i in rest],
+                     w0), abs=1e-12)
+    assert cell.valid_replicates == int(np.isfinite(orders).sum()) == B
+    # The opposite: replicate 1 weights the forwards, and all three strata enter.
+    w1 = [int(team[1, c]) for c in columns]
+    assert sum(w1[i] for i, label in enumerate(strata) if label == "FW") > 0
+    assert orders[1] == pytest.approx(oracle_order(x, y, strata, w1), abs=1e-12)
+
+
 def test_the_sensitivity_scheme_recomputes_the_gates(monkeypatch) -> None:
     sb_frame, wy_frame = planted(12)
     sb, wy = panels(sb_frame, wy_frame)

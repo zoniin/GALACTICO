@@ -1200,7 +1200,7 @@ def permuted_link_control(statsbomb: InputPanel, wyscout: InputPanel,
                                     cell["valuation"]):
         raise ValueError("headline is not the quantity's cell at registry_headline_cell")
     if headline.verdict is None:
-        raise ValueError("the headline cell is graded")
+        raise ValueError("the headline cell is not graded")
     if headline.verdict == _INCONCLUSIVE:
         return {"values": [], "point": None, "strictly_above_all": None,
                 "singleton_players": None}

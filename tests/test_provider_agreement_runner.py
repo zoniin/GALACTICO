@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import contextlib
 import copy
 import dataclasses
 import hashlib
@@ -51,6 +52,24 @@ SEED = 3          # a corpus whose four league matches resample without ties
 REPLICATES = 100
 COMMIT = "c" * 40
 PROVIDER_NAMES = ("statsbomb", "pappalardo", "wyscout")
+# The twelve source files of section 9, written out by hand.
+SOURCE_PATHS = (
+    "galactico/validation/sb_reader.py", "galactico/validation/provider_crosswalk.py",
+    "galactico/validation/provider_inputs.py", "galactico/validation/provider_agreement.py",
+    "galactico/validation/provider_agreement_synthetic.py",
+    "experiments/run_provider_agreement.py", "galactico/validation/digests.py",
+    "galactico/models/xt/grid.py", "galactico/models/xt/__init__.py",
+    "galactico/identity/resolver.py", "galactico/providers/base.py",
+    "galactico/domain/thesis.py",
+)
+# The key names of results.json that section 8 names, written out by hand.
+RESULT_KEYS = {
+    "experiment", "version", "tier", "provenance", "verdicts", "cells", "gates", "controls",
+    "admission", "token", "reason", "second_reason", "quantity", "level", "pool", "reader",
+    "verdict", "flags", "passed", "data", "vocabulary", "match_crosswalk",
+    "identity_coverage", "xt_surface", "positive_passed", "permuted_link_passed",
+    "permuted_link", "strictly_above_all", "status", "pooled_verdict", "la_liga_verdict",
+}
 
 
 def load(name: str, path: Path):
@@ -61,6 +80,16 @@ def load(name: str, path: Path):
 
 
 runner = load("run_provider_agreement", ROOT / "experiments" / "run_provider_agreement.py")
+
+
+def dumps(obj: object) -> str:
+    """The file format of section 7, written out by hand."""
+    return json.dumps(obj, indent=2, allow_nan=False, sort_keys=True) + "\n"
+
+
+def source_hashes() -> dict[str, str]:
+    """``lf_sha256`` of the twelve source files of section 9."""
+    return {path: lf_sha256(ROOT / path) for path in SOURCE_PATHS}
 
 
 # --- shared corpora and configs -----------------------------------------------------------
@@ -89,7 +118,8 @@ def make_config(corpus: Mapping[str, object], output: Path, *, replicates: int =
     for subset in config["subsets"]:
         count = corpus["matches"][subset["key"]]
         subset.update(expected_matches=count, minimum_crosswalked_matches=count)
-    changed = {key for key in CONFIG if config[key] != CONFIG[key]}
+    changed = {key for key in set(CONFIG) | set(config)
+               if key not in CONFIG or key not in config or config[key] != CONFIG[key]}
     return config, changed
 
 
@@ -206,6 +236,7 @@ def test_the_crosswalk_is_complete_and_the_wide_link_counts_are_as_planted(
     for key, block in local["coverage"]["subsets"].items():
         count = corpus["matches"][key]
         assert block["expected_matches"] == block["listed_with_files"] == count
+        assert block["missing_files"] == 0
         assert block["crosswalked_matches"] == count
         assert set(block["rejected"].values()) == {0}
         assert block["coverage"] == {"sb": 1.0, "wy": 1.0}
@@ -245,7 +276,7 @@ def test_the_divergence_tables_and_the_pairing_read_the_divergence_reader(end_to
 def test_two_runs_are_byte_identical(end_to_end) -> None:
     first, second = end_to_end["first"], end_to_end["second"]
     for a, b in zip(first[:2], second[:2], strict=True):
-        assert runner._dumps(a) == runner._dumps(b)
+        assert dumps(a) == dumps(b)
     assert first[2] == second[2]
 
 
@@ -325,7 +356,7 @@ def test_the_stamp_carries_its_hashes_and_a_record_per_scenario_and_structure(st
                           "pipeline_hash", "source_hashes"}
     assert stamp["config_hash"] == lf_sha256(EXPERIMENT / "config.json")
     assert stamp["pipeline_hash"] == lf_sha256(EXPERIMENT / "PIPELINE.md")
-    assert list(stamp["source_hashes"]) == list(runner.SOURCES) and len(runner.SOURCES) == 12
+    assert stamp["source_hashes"] == source_hashes() and len(SOURCE_PATHS) == 12
     assert set(stamp["scenarios"]) == {"planted_comparable", "planted_count_boundary"}
     assert set(stamp["scenarios"]["planted_comparable"]) == {"independent", "systematic",
                                                              "team_match"}
@@ -364,13 +395,31 @@ def test_the_written_objects_pass_every_serialisation_check(end_to_end, stamp) -
     guard = load("check_licensing", ROOT / "scripts" / "check_licensing.py")
     for name, document in (("results.json", results), ("acceptance.json", stamp)):
         path = ROOT / DIRECTORY / name
-        text = runner._dumps(document).encode("utf-8")
+        text = dumps(document).encode("utf-8")
         assert guard.check([path], read=lambda _path, text=text: text) == [], name
 
 
 def test_results_hold_no_number_and_only_frozen_strings(end_to_end) -> None:
     local, results, _ = end_to_end["first"]
     assert runner.results_problems(results, CONFIG) == []
+
+    def strings(node):
+        """Every key and every string value, at any depth."""
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                yield str(key)
+                yield from strings(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from strings(value)
+        elif isinstance(node, str):
+            yield node
+
+    allowed = set(strings(CONFIG)) | RESULT_KEYS
+    assert set(results) <= RESULT_KEYS
+    for key, value in results.items():
+        if key not in ("experiment", "version", "provenance"):
+            assert set(strings(value)) <= allowed, key
 
     def numbers(node):
         if isinstance(node, Mapping):
@@ -387,7 +436,7 @@ def test_results_hold_no_number_and_only_frozen_strings(end_to_end) -> None:
                             "gates", "controls", "admission"}
     assert "config" not in results["provenance"]
     assert results["provenance"]["local_results_sha256"] == hashlib.sha256(
-        runner._dumps(local).encode("utf-8")).hexdigest()
+        dumps(local).encode("utf-8")).hexdigest()
     # The opposite: a number, or a string the config does not freeze, is refused.
     assert runner.results_problems({**results, "gates": {"data": {"passed": 1}}},
                                    CONFIG) == ["a number"]
@@ -436,7 +485,7 @@ def test_a_tree_built_from_the_results_passes_every_registry_checker(end_to_end,
     directory.mkdir(parents=True)
     for name in ("preregistration.md", "config.json"):
         shutil.copy(EXPERIMENT / name, directory / name)
-    (directory / "results.json").write_text(runner._dumps(results), encoding="utf-8")
+    (directory / "results.json").write_text(dumps(results), encoding="utf-8")
     (directory / "analysis.md").write_text(
         '<img src="statsbomb-logo.png" alt="StatsBomb">\n\nData source: StatsBomb.\n',
         encoding="utf-8")
@@ -465,6 +514,30 @@ def test_the_report_carries_the_credit_and_no_identifier(end_to_end, corpus) -> 
     sheets = json.loads((Path(corpus["wy_raw_root"]) / "players.json").read_text("utf-8"))
     for person in sheets[:40]:
         assert person["lastName"] not in report and str(person["wyId"]) not in report
+
+
+def test_a_divergence_row_under_the_print_floor_prints_its_unit_count_only(end_to_end) -> None:
+    """A families row's units are its team-matches and a clock-offset row's its
+    match-periods: under the floor neither the event sums nor the grid-edge count print,
+    and at the floor both do."""
+    local, _, _ = end_to_end["first"]
+    config = end_to_end["config"]
+    floor = config["minimum_units_nonzero_on_both_providers"]
+    family = next(iter(local["divergence"]["families"]))
+    pool = CONFIG["primary_pool"]
+    for units, family_line, offset_line in (
+            (floor - 1, f"| {family} | {pool} | {floor - 1} | — | — | — | — |",
+             f"| {pool} | {floor - 1} | — | — |"),
+            (floor, f"| {family} | {pool} | {floor} | 41 | 37 | 1.250 | [1.000, 1.500] |",
+             f"| {pool} | {floor} | [-1.000, 0.000, 1.000] | 1 |")):
+        changed = copy.deepcopy(local)
+        changed["divergence"]["families"][family][pool].update(
+            team_matches=units, events={"sb": 41, "wy": 37}, count_ratio=1.25,
+            interval=[1.0, 1.5])
+        changed["divergence"]["clock_offsets"][pool].update(
+            match_periods=units, quantiles=[-1.0, 0.0, 1.0], at_grid_edge=1)
+        lines = runner.report_tables(changed, config).splitlines()
+        assert family_line in lines and offset_line in lines
 
 
 # --- the synthetic corpus ---------------------------------------------------------------------
@@ -603,6 +676,21 @@ def test_a_surface_that_cannot_be_fitted_runs_to_the_end(corpus, tmp_path, side)
                 "strictly_above_all": None}
 
 
+@pytest.mark.parametrize(("key", "value"), [
+    ("xt_wy_reference_excludes_double_coded_matches", False),
+    ("sb_location_scale", [120, 0]),
+])
+def test_a_surface_function_that_refuses_its_config_is_a_failed_run_not_a_gate(
+        corpus, tmp_path, key, value) -> None:
+    """Only an unfit surface is the gate's verdict; a refused config is an exception."""
+    config, _ = make_config(corpus, tmp_path / "data" / "licensed" / "out", replicates=20)
+    config[key] = value
+    with pytest.raises(runner.StageError) as caught:
+        runner.run(config, protocol_commit=COMMIT)
+    assert caught.value.stage == "surfaces"
+    assert type(caught.value.__cause__) is ValueError
+
+
 # --- gates that stop the run ------------------------------------------------------------------
 
 def _stopped(corpus, tmp_path, monkeypatch, mutate) -> tuple[dict, dict, list[str]]:
@@ -627,6 +715,14 @@ def _stopped(corpus, tmp_path, monkeypatch, mutate) -> tuple[dict, dict, list[st
         monkeypatch.setattr(runner, name, spy)
     local, results, _ = runner.run(config, protocol_commit=COMMIT)
     return local, results, called
+
+
+def missing_files(sb_root: Path, folder: str) -> int:
+    """Listed matches of a folder whose event or lineup file is absent, counted by hand."""
+    listed = json.loads((sb_root / folder / "_matches.json").read_text(encoding="utf-8"))
+    return sum(not ((sb_root / folder / "events" / f"{match['match_id']}.json").is_file()
+                    and (sb_root / folder / "_lineups" / f"{match['match_id']}.json").is_file())
+               for match in listed)
 
 
 def _missing_event_file(corpus, config) -> None:
@@ -664,7 +760,8 @@ def _unlinkable(corpus, config) -> None:
 def test_a_stopping_gate_stops_its_stage_and_names_every_verdict(
         corpus, tmp_path, monkeypatch, mutate, gate, reason, first_unused) -> None:
     local, results, called = _stopped(corpus, tmp_path, monkeypatch, mutate)
-    order = list(runner.GATES)
+    # The order of the gates, section 8, written out by hand.
+    order = ["data", "vocabulary", "match_crosswalk", "identity_coverage", "xt_surface"]
     assert local["gates"][gate] == {"passed": False, "reason": reason}
     for name in order[:order.index(gate)]:
         assert local["gates"][name] == {"passed": True, "reason": None}
@@ -698,7 +795,12 @@ def test_a_stopping_gate_stops_its_stage_and_names_every_verdict(
     assert local["provenance"]["xt"] is None and local["provenance"]["crosswalk_digests"] is None
     for levels in local["subset_differences"].values():
         assert all(value is None for readers in levels.values() for value in readers.values())
-    for block in local["coverage"]["subsets"].values():
+    # A listed match without its file is dropped and counted, whichever gate stops.
+    missing = {subset["key"]: missing_files(tmp_path / "sb_root", subset["sb_folder"])
+               for subset in CONFIG["subsets"]}
+    assert sum(missing.values()) == (1 if gate == "data" else 0)
+    for key, block in local["coverage"]["subsets"].items():
+        assert block["missing_files"] == missing[key]
         assert block["expected_matches"] is not None and block["listed_with_files"] is not None
         crosswalked = ("crosswalked_matches", "rejected", "swapped_orientation", "goal_checks")
         assert all((block[key] is not None) == (gate == "match_crosswalk")
@@ -786,6 +888,52 @@ def test_preflight_reads_each_provider_alone(corpus, monkeypatch) -> None:
     assert all(wy["files"].values())
 
 
+def lineup_forms(sb_root: Path) -> dict[int, set[tuple]]:
+    """Each player's (name, nickname, country) forms over the lineup rows of the two
+    double-coded folders in which he has a spell, read by hand."""
+    forms: dict[int, set[tuple]] = {}
+    for subset in CONFIG["subsets"]:
+        for path in sorted((sb_root / subset["sb_folder"] / "_lineups").glob("*.json")):
+            for team in json.loads(path.read_text(encoding="utf-8")):
+                for player in team["lineup"]:
+                    if player["positions"]:
+                        forms.setdefault(player["player_id"], set()).add(
+                            (player["player_name"], player["player_nickname"],
+                             (player.get("country") or {}).get("name")))
+    return forms
+
+
+def test_preflight_counts_a_player_with_three_row_forms_once(corpus, tmp_path) -> None:
+    root = tmp_path / "sb"
+    shutil.copytree(corpus["sb_root"], root)
+    (planted,) = [player for player, seen in lineup_forms(root).items() if len(seen) > 1]
+    # A third form: the same player under another invented nickname in one more match.
+    for path in sorted((root / CONFIG["subsets"][0]["sb_folder"] / "_lineups").glob("*.json")):
+        teams = json.loads(path.read_text(encoding="utf-8"))
+        rows = [p for team in teams for p in team["lineup"] if p["player_id"] == planted]
+        if rows and rows[0]["positions"] and rows[0]["player_nickname"] is None:
+            rows[0]["player_nickname"] = "Brankie"
+            path.write_text(json.dumps(teams), encoding="utf-8")
+            break
+    forms = lineup_forms(root)
+    assert len(forms[planted]) == 3
+    assert [player for player, seen in forms.items() if len(seen) > 1] == [planted]
+    config, _ = make_config({**corpus, "sb_root": str(root)}, tmp_path / "out")
+    assert runner.preflight(config)["sb"]["players_whose_rows_disagree"] == 1
+
+
+def test_the_off_pitch_gap_rule_is_asserted_and_never_branched_on(corpus, tmp_path) -> None:
+    config, _ = make_config(corpus, tmp_path / "data" / "licensed" / "out")
+    assert runner.preflight(config)["sb"]["players_whose_rows_disagree"] == 1
+    config["sb_minutes_exclude_off_pitch_gaps"] = False
+    with pytest.raises(ValueError, match="sb_minutes_exclude_off_pitch_gaps"):
+        runner.preflight(config)
+    with pytest.raises(runner.StageError) as caught:
+        runner.run(config, protocol_commit=COMMIT)
+    assert caught.value.stage == "sheets"
+    assert "sb_minutes_exclude_off_pitch_gaps" in str(caught.value.__cause__)
+
+
 # --- refusals -------------------------------------------------------------------------------
 
 def git(repo: Path, *args: str) -> str:
@@ -814,29 +962,35 @@ def stamp_for(config: Mapping[str, object], root: Path, *, passed: bool = True) 
     return {"experiment": "E-11", "version": CONFIG["version"], "passed": passed,
             "scenarios": {}, "config_hash": lf_sha256(root / DIRECTORY / "config.json"),
             "pipeline_hash": lf_sha256(root / DIRECTORY / "PIPELINE.md"),
-            "source_hashes": runner.source_hashes()}
+            "source_hashes": source_hashes()}
 
 
 def make_repo(tmp_path: Path, corpus: Mapping[str, object], *, change=None,
-              stamp: bool = True, output: Path | None = None, passed: bool = True) -> Repo:
+              stamp: bool = True, output: Path | None = None, passed: bool = True,
+              later: str | None = None, replicates: int = REPLICATES) -> Repo:
     """A git repository holding the registered protocol and pipeline, a config whose
-    roots are the corpus's, a commit that first added the three, and, in a later commit,
-    a passing acceptance stamp equal to the local one."""
+    roots are the corpus's, a commit that first added the three (all but ``later``,
+    which the next commit adds), and, in a later commit, a passing acceptance stamp
+    equal to the local one."""
     root = tmp_path / "repo"
     directory = root / DIRECTORY
     directory.mkdir(parents=True)
     for name in ("preregistration.md", "PIPELINE.md"):
         shutil.copy(EXPERIMENT / name, directory / name)
     output = output or root / "data" / "licensed" / "research" / "E-11-provider-agreement"
-    config, _ = make_config(corpus, output)
+    config, _ = make_config(corpus, output, replicates=replicates)
     if change is not None:
         change(config)
     (directory / "config.json").write_text(json.dumps(config, indent=2) + "\n",
                                            encoding="utf-8")
     git(root, "init", "-q")
-    git(root, "add", DIRECTORY)
+    git(root, "add", *(f"{DIRECTORY}/{name}" for name in
+                       ("preregistration.md", "config.json", "PIPELINE.md") if name != later))
     git(root, "commit", "-q", "-m", "register")
     commit = git(root, "rev-parse", "HEAD")
+    if later is not None:
+        git(root, "add", f"{DIRECTORY}/{later}")
+        git(root, "commit", "-q", "-m", "late")
     if stamp:
         text = json.dumps(stamp_for(config, root, passed=passed), indent=2) + "\n"
         (directory / "acceptance.json").write_text(text, encoding="utf-8")
@@ -861,6 +1015,13 @@ def test_refused_without_a_commit_or_with_one_that_is_not_the_first(corpus, tmp_
     head = git(repo.root, "rev-parse", "HEAD")
     assert repo.refusal(commit=head) == ("the protocol commit is not the first to add "
                                          "preregistration.md")
+
+
+@pytest.mark.parametrize("name", ["preregistration.md", "config.json", "PIPELINE.md"])
+def test_refused_when_the_protocol_commit_did_not_add_one_registered_file(
+        corpus, tmp_path, name) -> None:
+    repo = make_repo(tmp_path, corpus, later=name)
+    assert repo.refusal() == f"the protocol commit is not the first to add {name}"
 
 
 def test_refused_when_a_later_commit_touches_a_registered_file(corpus, tmp_path) -> None:
@@ -911,17 +1072,23 @@ def test_refused_without_a_stamp_or_with_a_stale_failed_or_uncommitted_one(
     failed = make_repo(tmp_path / "failed", corpus, passed=False)
     assert failed.refusal() == "the acceptance stamp did not pass"
 
-    stale = make_repo(tmp_path / "stale", corpus)
-    for path in (stale.directory / "acceptance.json", stale.output / "acceptance.json"):
-        body = json.loads(path.read_text(encoding="utf-8"))
-        body["source_hashes"]["galactico/validation/provider_agreement.py"] = "0" * 64
-        path.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
-    git(stale.root, "commit", "-q", "-am", "stale")
-    assert stale.refusal() == "the acceptance stamp is stale"
-
     local = make_repo(tmp_path / "local", corpus)
     (local.output / "acceptance.json").unlink()
     assert local.refusal() == "the acceptance stamp is missing"
+
+
+@pytest.mark.parametrize("field", ["config_hash", "pipeline_hash", "source_hashes"])
+def test_refused_with_a_stamp_stale_in_each_hash(corpus, tmp_path, field) -> None:
+    stale = make_repo(tmp_path, corpus)
+    for path in (stale.directory / "acceptance.json", stale.output / "acceptance.json"):
+        body = json.loads(path.read_text(encoding="utf-8"))
+        if field == "source_hashes":
+            body[field]["galactico/validation/provider_agreement.py"] = "0" * 64
+        else:
+            body[field] = "0" * 64
+        path.write_text(json.dumps(body, indent=2) + "\n", encoding="utf-8")
+    git(stale.root, "commit", "-q", "-am", "stale")
+    assert stale.refusal() == "the acceptance stamp is stale"
 
 
 def test_a_stamp_that_differs_in_line_endings_only_is_accepted(corpus, tmp_path) -> None:
@@ -936,6 +1103,24 @@ def test_a_stamp_that_differs_in_line_endings_only_is_accepted(corpus, tmp_path)
 def test_refused_with_an_output_root_outside_data_licensed(corpus, tmp_path) -> None:
     repo = make_repo(tmp_path, corpus, output=tmp_path / "repo" / "data" / "public" / "out")
     assert repo.refusal() == "local_output_root does not resolve under data/licensed/"
+
+
+def test_a_root_under_a_forbidden_root_is_refused_before_a_digest_opens_it(
+        corpus, tmp_path, monkeypatch) -> None:
+    forbidden = Path(corpus["sb_root"]).parent
+    repo = make_repo(tmp_path, corpus,
+                     change=lambda c: c.update(sb_forbidden_roots=[str(forbidden)]))
+    opened: list[Path] = []
+    listen(monkeypatch, opened)
+    assert repo.refusal() == "sb_root lies under sb_forbidden_roots"
+    monkeypatch.undo()
+    assert not any(forbidden in path.parents for path in opened)
+    # The opposite: under no forbidden root the digests of check 2 open the folders.
+    allowed = make_repo(tmp_path / "allowed", corpus)
+    listen(monkeypatch, opened)
+    assert allowed.refusal() is None
+    monkeypatch.undo()
+    assert any(forbidden in path.parents for path in opened)
 
 
 def test_refused_on_a_second_execution_and_after_an_unlisted_failed_run(corpus,
@@ -972,6 +1157,7 @@ def test_refused_with_each_pappalardo_file_absent_and_nothing_is_written(
     repo = make_repo(tmp_path, {**corpus, **roots})
     raw = missing.endswith(".json")
     (Path(roots["wy_raw_root" if raw else "wy_parquet_root"]) / missing).unlink()
+    assert repo.refusal() == "a Pappalardo file is missing"
     before = sorted(repo.output.rglob("*"))
     assert runner.execute(repo.config, protocol_commit=repo.commit, verify=False,
                           root=repo.root) == 2
@@ -981,7 +1167,9 @@ def test_refused_with_each_pappalardo_file_absent_and_nothing_is_written(
 def test_a_failed_run_records_type_stage_and_place_never_the_message(
         corpus, tmp_path, monkeypatch) -> None:
     repo = make_repo(tmp_path, corpus)
-    secret_id, secret_count = "4711093", "238"
+    # A count of eight digits is no line number, and the twelve hashes hold one by chance
+    # about once in six million source states.
+    secret_id, secret_count = "4711093", "23817465"
 
     def broken(*args, **kwargs):
         raise ValueError(f"player {secret_id} lost {secret_count} rows")
@@ -990,15 +1178,165 @@ def test_a_failed_run_records_type_stage_and_place_never_the_message(
     assert runner.execute(repo.config, protocol_commit=repo.commit, verify=False,
                           root=repo.root) == 3
     text = (repo.output / "failed_runs.json").read_text(encoding="utf-8")
-    assert secret_id not in text and secret_count not in text
     (record,) = json.loads(text)
+    assert secret_id not in text and secret_count not in text
     assert record["exception"] == "ValueError" and record["stage"] == "vocabulary"
     assert record["location"]["file"] == "experiments/run_provider_agreement.py"
-    assert record["source_hashes"] == runner.source_hashes()
+    assert record["source_hashes"] == source_hashes()
     assert not (repo.output / "results.json").exists()
     assert not (repo.output / "results.local.json").exists()
     # The next start is refused until the failure is on the record.
     assert repo.refusal() == "a failed run is not listed in the committed analysis.md"
+
+
+def test_a_failed_run_record_that_fails_the_checks_is_written_with_null_values(
+        corpus, tmp_path, monkeypatch) -> None:
+    repo = make_repo(tmp_path, corpus)
+    fingerprint = "freeze" + "_frame"
+    planted = type(fingerprint, (ValueError,), {})
+
+    def broken(*args, **kwargs):
+        raise planted("nothing")
+
+    monkeypatch.setattr(runner, "folder_vocabulary", broken)
+    assert runner.execute(repo.config, protocol_commit=repo.commit, verify=False,
+                          root=repo.root) == 3
+    text = (repo.output / "failed_runs.json").read_text(encoding="utf-8")
+    assert fingerprint not in text
+    assert text == dumps([{"exception": None, "stage": None, "location": None,
+                           "source_hashes": None}])
+    assert repo.refusal() == "a failed run is not listed in the committed analysis.md"
+
+
+# --- execute to the end ---------------------------------------------------------------------
+
+@pytest.fixture(scope="module")
+def executed(corpus, tmp_path_factory) -> dict[str, object]:
+    """One ``execute`` on a valid repository: its exit code, stdout, the order of its
+    writes, and every file under the output root and the next start's refusal, taken
+    as it returns."""
+    repo = make_repo(tmp_path_factory.mktemp("executed"), corpus, replicates=20)
+    order: list[str] = []
+    write_text = Path.write_text
+
+    def recording(self, data, *args, **kwargs):
+        order.append(self.name)
+        return write_text(self, data, *args, **kwargs)
+
+    stdout = io.StringIO()
+    patch = pytest.MonkeyPatch()
+    patch.setattr(Path, "write_text", recording)
+    try:
+        with contextlib.redirect_stdout(stdout):
+            code = runner.execute(repo.config, protocol_commit=repo.commit, verify=False,
+                                  root=repo.root)
+    finally:
+        patch.undo()
+    return {"repo": repo, "code": code, "stdout": stdout.getvalue(), "order": order,
+            "files": {path.name: path.read_bytes() for path in repo.output.iterdir()},
+            "next": repo.refusal()}
+
+
+def test_execute_writes_the_local_results_last_and_prints_one_sha256(executed) -> None:
+    files = executed["files"]
+    assert executed["code"] == 0
+    assert set(files) == {"acceptance.json", "results.json", "report_tables.md",
+                          "results.local.json"}
+    assert executed["order"] == ["results.json", "report_tables.md", "results.local.json"]
+    assert executed["stdout"] == hashlib.sha256(files["results.json"]).hexdigest() + "\n"
+    for name in ("results.json", "results.local.json"):
+        assert files[name] == dumps(json.loads(files[name])).encode("utf-8"), name
+    provenance = json.loads(files["results.json"])["provenance"]
+    assert provenance["local_results_sha256"] == hashlib.sha256(
+        files["results.local.json"]).hexdigest()
+    assert provenance["acceptance_hash"] == hashlib.sha256(files["acceptance.json"]).hexdigest()
+    assert files["report_tables.md"].startswith(b'<img src="')
+    assert executed["next"] == "results.local.json exists: execute runs once"
+
+
+def test_verify_writes_determinism_only_and_exits_one_when_a_byte_differs(
+        executed, monkeypatch) -> None:
+    repo = executed["repo"]
+    original = executed["files"]["results.local.json"]
+    digest = hashlib.sha256(original).hexdigest()
+    determinism = repo.output / "determinism.json"
+
+    def verify(config: Mapping[str, object]) -> int:
+        return runner.execute(config, protocol_commit=repo.commit, verify=True, root=repo.root)
+
+    assert verify(repo.config) == 0
+    assert determinism.read_text(encoding="utf-8") == dumps(
+        {"equal": True, "local_results_sha256": digest, "recomputed_sha256": digest})
+    assert {path.name for path in repo.output.iterdir()} == {*executed["files"],
+                                                              "determinism.json"}
+    for name, content in executed["files"].items():
+        assert (repo.output / name).read_bytes() == content, name
+
+    changed = bytearray(original)
+    index = next(i for i, byte in enumerate(changed) if chr(byte).isdigit())
+    changed[index] = ord("1") if changed[index] != ord("1") else ord("2")
+    (repo.output / "results.local.json").write_bytes(bytes(changed))
+    assert verify(repo.config) == 1
+    assert determinism.read_text(encoding="utf-8") == dumps(
+        {"equal": False, "local_results_sha256": hashlib.sha256(changed).hexdigest(),
+         "recomputed_sha256": digest})
+
+    # determinism.json is checked in memory like every local file: over its ceiling it
+    # is not written and the failure is recorded, its record too large for the same
+    # ceiling and so written with every value null.
+    before = determinism.read_bytes()
+    ceiling = len(dumps({"equal": True, "local_results_sha256": digest,
+                         "recomputed_sha256": digest}).encode("utf-8")) - 1
+    monkeypatch.setattr(runner, "run",
+                        lambda config, *, protocol_commit: (json.loads(original), {}, ""))
+    assert verify({**repo.config, "maximum_local_results_bytes": ceiling}) == 3
+    assert determinism.read_bytes() == before
+    assert (repo.output / "failed_runs.json").read_text(encoding="utf-8") == dumps(
+        [{"exception": None, "stage": None, "location": None, "source_hashes": None}])
+
+
+@pytest.mark.parametrize("failing", ["results.json", "report_tables.md", "results.local.json"])
+def test_a_write_that_fails_half_way_leaves_no_file_of_the_run(
+        executed, corpus, tmp_path, monkeypatch, failing) -> None:
+    """Every file written before the failure is removed, the half-written one included."""
+    repo = make_repo(tmp_path, corpus, replicates=20)
+    files = executed["files"]
+    objects = (json.loads(files["results.local.json"]), json.loads(files["results.json"]),
+               files["report_tables.md"].decode("utf-8"))
+    write_text = Path.write_text
+
+    def half(self, data, *args, **kwargs):
+        if self.name == failing:
+            write_text(self, data[:len(data) // 2], *args, **kwargs)
+            raise OSError(28, "No space left on device")
+        return write_text(self, data, *args, **kwargs)
+
+    monkeypatch.setattr(runner, "run", lambda config, *, protocol_commit: objects)
+    monkeypatch.setattr(Path, "write_text", half)
+    code = runner.execute(repo.config, protocol_commit=repo.commit, verify=False,
+                          root=repo.root)
+    monkeypatch.undo()
+    assert code == 3
+    assert sorted(path.name for path in repo.output.iterdir()) == ["acceptance.json",
+                                                                   "failed_runs.json"]
+    (record,) = json.loads((repo.output / "failed_runs.json").read_text(encoding="utf-8"))
+    assert (record["exception"], record["stage"]) == ("OSError", "serialise")
+    assert repo.refusal() == "a failed run is not listed in the committed analysis.md"
+
+
+def test_acceptance_writes_its_stamp_under_the_output_root_only(stamp, tmp_path,
+                                                                monkeypatch) -> None:
+    output = tmp_path / "data" / "licensed" / "out"
+    monkeypatch.setattr(runner, "_load_config",
+                        lambda: {**CONFIG, "local_output_root": str(output)})
+    monkeypatch.setattr(runner, "acceptance", lambda config: stamp)
+    elsewhere = tmp_path / "elsewhere.json"
+    with pytest.raises(SystemExit):
+        runner.main(["acceptance", "--output", str(elsewhere)])
+    assert not elsewhere.exists()
+    assert runner.main(["acceptance"]) == (0 if stamp["passed"] else 1)
+    assert [path for path in tmp_path.rglob("*") if path.is_file()] == [output / "acceptance.json"]
+    assert (output / "acceptance.json").read_text(encoding="utf-8") == dumps(stamp)
 
 
 # --- the modules ------------------------------------------------------------------------------

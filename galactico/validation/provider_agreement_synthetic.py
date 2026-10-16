@@ -28,6 +28,7 @@ import json
 import math
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from fractions import Fraction
 from itertools import combinations
 from pathlib import Path
 
@@ -459,9 +460,9 @@ def _graded(seed_words: Sequence[int], scenario: Mapping[str, object], structure
     return result, control["strictly_above_all"] is True
 
 
-def _by_structure(value: object, structure: str) -> float:
-    """A share requirement is a number, or a map by structure."""
-    return float(value[structure]) if isinstance(value, Mapping) else float(value)
+def _by_structure(value: object, structure: str) -> Fraction:
+    """A share requirement is a number, or a map by structure; read exactly as written."""
+    return Fraction(str(value[structure] if isinstance(value, Mapping) else value))
 
 
 def scenario_requirements(scenario: Mapping[str, object], structure: str,
@@ -476,11 +477,15 @@ def scenario_requirements(scenario: Mapping[str, object], structure: str,
     target unless ``population_check`` is false; a scenario of
     ``permuted_link_acceptance`` reaches its ``holds_minimum_share``. A
     ``report_only`` scenario requires only the population check and the control.
+    A token share is the exact fraction of the record's ``token_counts`` over its
+    ``corpora``, never a sum of rounded shares, so a set of tokens exactly at its
+    threshold meets it.
     """
-    tokens = record["tokens"]
+    counts = record["token_counts"]
+    corpora = int(record["corpora"])
 
-    def share(names: Sequence[str]) -> float:
-        return sum(float(tokens[name]) for name in names)
+    def share(names: Sequence[str]) -> Fraction:
+        return Fraction(sum(int(counts[name]) for name in names), corpora)
 
     met: dict[str, bool] = {}
     if not scenario.get("report_only"):
@@ -488,7 +493,7 @@ def scenario_requirements(scenario: Mapping[str, object], structure: str,
             met["required_tokens"] = share(scenario["required_tokens"]) >= _by_structure(
                 scenario["minimum_share"], structure)
         if "forbidden_tokens" in scenario:
-            met["forbidden_tokens"] = share(scenario["forbidden_tokens"]) == 0.0
+            met["forbidden_tokens"] = share(scenario["forbidden_tokens"]) == 0
         for prefix in ("", "second_"):
             if f"{prefix}limited_tokens" in scenario:
                 met[f"{prefix}limited_tokens"] = share(
@@ -533,6 +538,7 @@ def _record(scenario_index: int, structure_index: int, config: Mapping[str, obje
             gaps.append(cell.replicate_mean_minus_point)
     record: dict[str, object] = {
         "corpora": corpora,
+        "token_counts": {token: counts[token] for token in vocabulary},
         "tokens": {token: counts[token] / corpora for token in vocabulary},
         "point_inside_interval_share": float(np.mean(inside)) if inside else None,
         "replicate_mean_minus_point_mean": float(np.mean(gaps)) if gaps else None,
@@ -562,8 +568,8 @@ def run_acceptance(config: Mapping[str, object], *,
     ``acceptance_corpora`` corpora each, seeded ``[acceptance_seed, acceptance,
     scenario, structure, corpus]`` (0-based positions), each graded through
     ``cell_agreement`` and ``classify`` with its own weight arrays of
-    ``acceptance_bootstrap_replicates`` replicates. A record holds the token shares,
-    the share of corpora whose point lies inside its interval and the mean of
+    ``acceptance_bootstrap_replicates`` replicates. A record holds the token counts and
+    shares, the share of corpora whose point lies inside its interval and the mean of
     ``replicate_mean_minus_point`` (both over corpora that are not ``INCONCLUSIVE``,
     null when there is none), the mean unit count, the population value, the
     permuted-link share where it runs, each requirement and ``passed``. The overall

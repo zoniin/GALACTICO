@@ -4,8 +4,11 @@ Every frame below is built in memory, or written into a temporary directory, fro
 seed or by hand: names, ids, seconds and coordinates are invented, and no row is
 copied from either provider. Kind, type and subtype names are the providers'
 vocabulary as the frozen config lists it, and every number the functions read is the
-frozen config's, except the expected match counts of the two reference corpora, which
-a test shrinks to its own corpus and says so. Each expected value is written from
+frozen config's, except where a test changes a key through ``with_keys`` and says so:
+the expected match counts and the folder of the two reference corpora, set to the
+test's own corpus; ``xt_max_iterations``, so that a fit stops short of converging;
+and, in the refusal tests, ``xt_wy_reference_excludes_double_coded_matches``,
+``xt_recipe`` and ``sb_location_scale``. Each expected value is written from
 PIPELINE.md section 4 with hand numbers, ``itertools``, ``math`` and ``fractions``;
 nothing from the module under test computes one. No test opens anything under
 ``data/``.
@@ -20,7 +23,7 @@ import itertools
 import json
 import math
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 from pathlib import Path
 
@@ -38,6 +41,7 @@ from galactico.validation.provider_inputs import (
     HARMONISED_COLUMNS,
     INPUTS_VERSION,
     WY_ACTION_COLUMNS,
+    SurfaceUnfit,
     clock_offsets,
     divergence_tables,
     goal_angle,
@@ -288,6 +292,8 @@ def test_the_module_names_the_functions_of_section_4_and_the_flags_in_table_orde
     assert columns == HARMONISED_COLUMNS
     assert {f.__name__ for f in PUBLIC} <= set(provider_inputs.__all__)
     assert tuple(e["key"] for e in CONFIG["player_match_inputs"]) == PLAYER_INPUTS
+    # The one exception the runner reads as the XT_SURFACE gate.
+    assert "SurfaceUnfit" in provider_inputs.__all__ and issubclass(SurfaceUnfit, ValueError)
 
 
 @pytest.mark.parametrize("function", PUBLIC, ids=lambda f: f.__name__)
@@ -322,6 +328,11 @@ SB_CASES = [
     ({"kind": "Pass", "goal_assist": True}, PASS_ASSIST, PASS_ASSIST),
     ({"kind": "Pass"}, {"open_play_pass", "completed"}, {"open_play_pass", "completed"}),
     ({"kind": "Pass", "has_outcome": True, "outcome": "Incomplete"},
+     {"open_play_pass", "turnover"}, {"open_play_pass", "turnover"}),
+    # A failed pass is no key pass, whatever it assisted.
+    ({"kind": "Pass", "has_outcome": True, "outcome": "Incomplete", "shot_assist": True},
+     {"open_play_pass", "turnover"}, {"open_play_pass", "turnover"}),
+    ({"kind": "Pass", "has_outcome": True, "outcome": "Incomplete", "goal_assist": True},
      {"open_play_pass", "turnover"}, {"open_play_pass", "turnover"}),
     ({"kind": "Pass", "pass_type": "Kick Off"}, {"open_play_pass", "completed"},
      {"open_play_pass", "completed"}),
@@ -384,6 +395,11 @@ WY_CASES = [
      {"open_play_pass", "completed"}),
     ({"type": "pass", "subtype": "Simple pass", "success": False},
      {"open_play_pass", "turnover"}),
+    # A failed pass is no key pass, whatever it is tagged with.
+    ({"type": "pass", "subtype": "Simple pass", "success": False, "key_pass": True},
+     {"open_play_pass", "turnover"}),
+    ({"type": "pass", "subtype": "Cross", "success": False, "assist": True},
+     {"open_play_pass", "turnover"}),
     ({"type": "pass", "subtype": "Simple pass", "success": None}, {"open_play_pass"}),
     ({"type": "set_piece", "subtype": "corner", "success": True}, {"corner"}),
     ({"type": "set_piece", "subtype": "free_kick", "success": True}, {"free_kick_pass"}),
@@ -415,6 +431,8 @@ WY_CASES = [
     ({"type": "offside", "subtype": ""}, {"wy_one_sided"}),
     ({"type": "keeper_action", "subtype": "Goalkeeper leaving line"}, {"wy_one_sided"}),
     ({"type": "save", "subtype": "Reflexes"}, {"wy_one_sided"}),
+    # The goal tag sets the goal flag on the three shot families only.
+    ({"type": "save", "subtype": "Reflexes", "goal": True}, {"wy_one_sided"}),
     ({"type": "touch", "subtype": "Acceleration", "success": True}, set()),
 ]
 
@@ -597,15 +615,20 @@ def test_unpaired_and_unattributed_rows_are_absent_at_player_level_present_at_te
 
 
 def test_the_regulation_filter_keeps_the_two_halves_on_both_sides() -> None:
-    match = make_match(random.Random(21), 0)
+    rng = random.Random(21)
+    match, unlinked = make_match(rng, 0), make_match(rng, 1)
     sb = sb_harmonised([match], [sb_row(match, match.home, "Pass", period=p,
                                         period_seconds=float(p)) for p in (1, 2, 3, 4, 5)])
-    wy = wy_harmonised([match], [wy_row(match, match.home, "pass", period=p, seconds=float(i))
-                                 for i, p in enumerate(("1H", "2H", "E1", "E2", "P"))])
+    # An extra-time row and a row of an unlinked match come first in the Parquet.
+    wy = wy_harmonised([match], [
+        wy_row(match, match.home, "pass", period="E1", seconds=7.0),
+        wy_row(unlinked, unlinked.home, "pass", period="1H", seconds=8.0),
+        *[wy_row(match, match.home, "pass", period=p, seconds=float(i))
+          for i, p in enumerate(("1H", "2H", "E2", "P"))]])
     assert sb["period"].tolist() == [1, 2] and sb["seconds"].tolist() == [1.0, 2.0]
     assert wy["period"].tolist() == [1, 2] and wy["seconds"].tolist() == [0.0, 1.0]
-    # Row positions in the Parquet, including the dropped rows before them.
-    assert wy["event_order"].tolist() == [0, 1]
+    # Row positions in the Parquet, counting the two dropped rows before them.
+    assert wy["event_order"].tolist() == [2, 3]
 
 
 def test_unlinked_matches_are_dropped_and_teams_map_through_the_link() -> None:
@@ -653,6 +676,10 @@ def test_the_parquet_reader_takes_a_column_list_from_one_file(tmp_path) -> None:
     frame.to_parquet(directory / "actions.parquet", index=False)
     with pytest.raises(ValueError, match="another provider"):
         read_wyscout_actions(tmp_path, "Invented")
+    # A file of no rows does not hold provider == {"pappalardo"} either.
+    wy_frame([]).to_parquet(directory / "actions.parquet", index=False)
+    with pytest.raises(ValueError, match="no rows"):
+        read_wyscout_actions(tmp_path, "Invented")
 
 
 # The fifteen player inputs ---------------------------------------------------------
@@ -685,6 +712,13 @@ def test_each_of_the_fifteen_player_inputs_on_a_hand_built_match() -> None:
         dict(type="foul", subtype="Foul", **at(0.30, 0.30)),
         # m: a clearance, in no compared quantity
         dict(type="touch", subtype="Clearance", **at(0.10, 0.50)),
+        # n, o: failed passes from the half-space and from wide, in no completed count
+        dict(type="pass", success=False, **at(0.30, 0.25), **to(0.70, 0.30)),
+        dict(type="pass", success=False, **at(0.60, 0.10), **to(0.40, 0.12)),
+        # p: a foul past the halfway line, a defensive action but no duel or interception
+        dict(type="foul", subtype="Foul", **at(0.80, 0.30)),
+        # q: a free-kick shot inside the Wyscout box, not an open-play shot
+        dict(type="set_piece", subtype="free_kick_shot", **at(0.90, 0.50)),
     ]
     others = [  # the goalkeeper, an unpaired player and nobody: no player-level row
         dict(type="pass", success=True, player_id=keeper, **at(0.1, 0.5), **to(0.9, 0.5)),
@@ -701,16 +735,16 @@ def test_each_of_the_fifteen_player_inputs_on_a_hand_built_match() -> None:
     assert (cell(0.60, 0.10), cell(0.40, 0.12)) == (25, 22)
     assert (cell(0.20, 0.90), cell(0.25, 0.85)) == (163, 164)
     expected = {
-        "minutes_regulation": 77, "open_play_passes_attempted": 4,
+        "minutes_regulation": 77, "open_play_passes_attempted": 6,
         "open_play_passes_completed": 3,
         "positive_xt_gain_completed_passes": max(0, 7) + max(0, -3) + max(0, 1),
         "xt_delta_key_passes": 7, "xt_delta_key_passes_assist_inclusive": 7 - 3,
         "key_passes": 1, "completed_passes_from_half_space": 1,
-        "completed_passes_from_wide": 2, "non_penalty_shots": 3, "open_play_shots": 2,
+        "completed_passes_from_wide": 2, "non_penalty_shots": 4, "open_play_shots": 2,
         "open_play_shots_in_penalty_area": 1,
         "shot_goal_angle_sum": (angle_by_hand(0.90, 0.50) + angle_by_hand(0.70, 0.30)
-                                + angle_by_hand(0.75, 0.60)),
-        "defensive_actions": 4, "opp_half_duel_or_interception": 2,
+                                + angle_by_hand(0.75, 0.60) + angle_by_hand(0.90, 0.50)),
+        "defensive_actions": 5, "opp_half_duel_or_interception": 2,
     }
     assert list(inputs.columns) == ["match_key", "subset", "player_key", "team_key",
                                     *PLAYER_INPUTS]
@@ -746,6 +780,30 @@ def test_statsbomb_key_passes_and_its_own_penalty_area() -> None:
     assert sb_inputs.loc[0, "open_play_shots_in_penalty_area"] == 1.0
     wy_inputs = player_match_inputs(wy, minutes, None, CONFIG)
     assert wy_inputs.loc[0, "open_play_shots_in_penalty_area"] == 1.0
+
+
+def test_box_entry_passes_enter_each_providers_own_penalty_area_from_outside_it() -> None:
+    """Completed passes that end inside the provider's own drawing and do not start
+    inside it. x = 0.845 is inside the Wyscout drawing and outside the StatsBomb one."""
+    match = make_match(random.Random(43), 0)
+    passes = [  # (start, end, completed)
+        ((0.80, 0.50), (0.90, 0.50), True),   # 0: enters both drawings
+        ((0.80, 0.50), (0.845, 0.50), True),  # 1, 2: end inside the Wyscout drawing only
+        ((0.80, 0.45), (0.845, 0.55), True),
+        ((0.845, 0.50), (0.90, 0.50), True),  # 3: starts inside the Wyscout drawing only
+        ((0.90, 0.50), (0.95, 0.50), True),   # 4: inside to inside on both
+        ((0.80, 0.50), (0.90, 0.50), False),  # 5: a failed entry
+    ]
+    sb = sb_harmonised([match], [sb_row(match, match.home, "Pass", has_outcome=not completed,
+                                        outcome=None if completed else "Incomplete",
+                                        **at(*start), **to(*end))
+                                 for start, end, completed in passes])
+    wy = wy_harmonised([match], [wy_row(match, match.home, "pass", success=completed,
+                                        **at(*start), **to(*end))
+                                 for start, end, completed in passes])
+    # StatsBomb: rows 0 and 3. Wyscout: rows 0, 1 and 2.
+    assert team_match_inputs(sb, None, CONFIG)["box_entry_passes"].tolist() == [2.0]
+    assert team_match_inputs(wy, None, CONFIG)["box_entry_passes"].tolist() == [3.0]
 
 
 def test_without_a_surface_no_xt_column_is_returned_and_with_one_each_is() -> None:
@@ -887,22 +945,33 @@ def test_final_third_entries_lanes_and_pitch_thirds() -> None:
     final = cut.numerator / cut.denominator
     lane = [a / b for a, b in CONFIG["lane_y_edge_fractions"]]
     third = [a / b for a, b in CONFIG["pitch_third_x_fractions"]]
-    passes = [  # (start x, end x, end y): entries end at or beyond the cut from short of it
-        (0.60, final, 0.10), (0.60, np.nextafter(final, 0), 0.50), (final, 0.90, 0.50),
-        (0.60, 0.90, np.nextafter(lane[0], 0)), (0.60, 0.90, lane[0]), (0.60, 0.90, lane[1]),
-        (0.60, 0.90, np.nextafter(lane[1], 1)), (0.60, 0.90, 0.95)]
+    passes = [  # (start x, end x, end y, completed): an entry is a completed pass that
+        # ends at or beyond the cut from short of it
+        (0.60, final, 0.10, True), (0.60, np.nextafter(final, 0), 0.50, True),
+        (final, 0.90, 0.50, True), (0.60, 0.90, np.nextafter(lane[0], 0), True),
+        (0.60, 0.90, 0.20, True), (0.60, 0.90, lane[0], True), (0.60, 0.90, lane[1], True),
+        (0.60, 0.90, np.nextafter(lane[1], 1), True), (0.60, 0.90, 0.95, True),
+        (0.60, 0.90, 0.20, False)]
     defending = [np.nextafter(third[0], 0), third[0], np.nextafter(third[1], 0), third[1]]
-    rows = [wy_row(match, match.home, "pass", success=True, **at(x0, 0.5), **to(x1, y1))
-            for x0, x1, y1 in passes]
-    rows += [wy_row(match, match.home, "foul", subtype="Foul", **at(x, 0.5)) for x in defending]
-    teams = team_match_inputs(wy_harmonised([match], rows), None, CONFIG).loc[0]
-    # Entries: rows 0, 3, 4, 5, 6, 7. y = 0 is the attacker's left.
-    assert teams["final_third_entries"] == 6
-    assert (teams["final_third_entries_left"], teams["final_third_entries_centre"],
-            teams["final_third_entries_right"]) == (2, 2, 2)
-    assert teams["final_third_entries_wide"] == 4
-    assert (teams["defensive_actions_own_third"], teams["defensive_actions_middle_third"],
-            teams["defensive_actions_opposition_third"]) == (1, 2, 1)
+    wy_rows = [wy_row(match, match.home, "pass", success=completed, **at(x0, 0.5),
+                      **to(x1, y1)) for x0, x1, y1, completed in passes]
+    wy_rows += [wy_row(match, match.home, "foul", subtype="Foul", **at(x, 0.5))
+                for x in defending]
+    sb_rows = [sb_row(match, match.home, "Pass", has_outcome=not completed,
+                      outcome=None if completed else "Incomplete", **at(x0, 0.5), **to(x1, y1))
+               for x0, x1, y1, completed in passes]
+    sb_rows += [sb_row(match, match.home, "Foul Committed", **at(x, 0.5)) for x in defending]
+    # Entries: rows 0 and 3 to 8. y = 0 is the attacker's left on both sides, and the
+    # lanes are planted unequal (three left, two on the cuts, two right), so a flip of
+    # y on either side moves a count.
+    for frame in (wy_harmonised([match], wy_rows), sb_harmonised([match], sb_rows)):
+        teams = team_match_inputs(frame, None, CONFIG).loc[0]
+        assert teams["final_third_entries"] == 7
+        assert (teams["final_third_entries_left"], teams["final_third_entries_centre"],
+                teams["final_third_entries_right"]) == (3, 2, 2)
+        assert teams["final_third_entries_wide"] == 5
+        assert (teams["defensive_actions_own_third"], teams["defensive_actions_middle_third"],
+                teams["defensive_actions_opposition_third"]) == (1, 2, 1)
 
 
 def test_statsbomb_cuts_are_float64_quotients() -> None:
@@ -1093,22 +1162,28 @@ def test_a_failed_pass_with_a_sentinel_end_is_a_wyscout_turnover() -> None:
         "iterations": oracle.iterations}
 
 
-def test_a_spain_frame_without_its_expected_matches_raises() -> None:
+def refusal(function, *args: object, **kwargs: object) -> ValueError:
+    """The call raises a plain ValueError, never SurfaceUnfit: the runner records it
+    as a failed run, not as the XT_SURFACE gate."""
+    with pytest.raises(ValueError) as raised:
+        function(*args, **kwargs)
+    assert type(raised.value) is ValueError, raised.value
+    return raised.value
+
+
+def test_a_spain_frame_without_its_expected_matches_is_unfit() -> None:
     actions = spain_actions(52, 3, sentinels=False)
-    with pytest.raises(ValueError, match="expected matches"):
+    with pytest.raises(SurfaceUnfit, match="expected matches"):
         wyscout_reference_surface(actions, [], with_keys(xt_wy_reference_expected_matches=4))
-    with pytest.raises(ValueError, match="expected matches"):
+    with pytest.raises(SurfaceUnfit, match="expected matches"):
         wyscout_reference_surface(actions, [], CONFIG)
     assert wyscout_reference_surface(actions, [], with_keys(xt_wy_reference_expected_matches=3))
-    other = actions.assign(competition="Invented")
-    with pytest.raises(ValueError, match="another competition"):
-        wyscout_reference_surface(other, [], with_keys(xt_wy_reference_expected_matches=3))
 
 
-def test_a_surface_that_does_not_converge_raises() -> None:
+def test_a_surface_that_does_not_converge_is_unfit() -> None:
     actions = spain_actions(53, 2, sentinels=False)
     config = with_keys(xt_wy_reference_expected_matches=2, xt_max_iterations=1)
-    with pytest.raises(ValueError, match="converge"):
+    with pytest.raises(SurfaceUnfit, match="converge"):
         wyscout_reference_surface(actions, [], config)
 
 
@@ -1201,14 +1276,70 @@ def test_the_statsbomb_reference_needs_its_matches_and_its_vocabulary(tmp_path) 
     write_reference_folder(tmp_path / "short", events, listed_only=(50_003,))
     config = with_keys(xt_sb_reference_folder=REFERENCE_FOLDER,
                        xt_sb_reference_expected_matches=3)
-    with pytest.raises(ValueError, match="expected matches"):
+    with pytest.raises(SurfaceUnfit, match="expected matches"):
         statsbomb_reference_surface(tmp_path / "short", config, variant="open_play")
+    # The two matches with files are its count; one iteration does not converge.
+    config = with_keys(xt_sb_reference_folder=REFERENCE_FOLDER,
+                       xt_sb_reference_expected_matches=2, xt_max_iterations=1)
+    with pytest.raises(SurfaceUnfit, match="converge"):
+        statsbomb_reference_surface(tmp_path / "short", config, variant="open_play")
+    # An unknown name is a refusal of the input, not an unfit surface.
     events[50_002].append(raw_event(9, "Invented Kind", [1.0, 1.0]))
     write_reference_folder(tmp_path / "unknown", events)
     config = with_keys(xt_sb_reference_folder=REFERENCE_FOLDER,
                        xt_sb_reference_expected_matches=2)
-    with pytest.raises(ValueError, match="closed vocabulary"):
-        statsbomb_reference_surface(tmp_path / "unknown", config, variant="open_play")
+    error = refusal(statsbomb_reference_surface, tmp_path / "unknown", config,
+                    variant="open_play")
+    assert "closed vocabulary" in str(error)
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf])
+def test_a_surface_with_a_value_that_is_not_finite_is_unfit(tmp_path, monkeypatch,
+                                                           value) -> None:
+    """No finite input makes the shipped fit return such a value, so the fit is
+    replaced by one that writes it into one cell and says it converged."""
+    def fit(**inputs: object) -> ExpectedThreat:
+        surface = fit_expected_threat(**inputs)
+        values = surface.values.copy()
+        values[0] = value
+        return replace(surface, values=values, converged=True)
+
+    monkeypatch.setattr(provider_inputs, "fit_expected_threat", fit)
+    with pytest.raises(SurfaceUnfit, match="not finite"):
+        wyscout_reference_surface(spain_actions(54, 2, sentinels=False), [],
+                                  with_keys(xt_wy_reference_expected_matches=2))
+    write_reference_folder(tmp_path, reference_events())
+    config = with_keys(xt_sb_reference_folder=REFERENCE_FOLDER,
+                       xt_sb_reference_expected_matches=2)
+    with pytest.raises(SurfaceUnfit, match="not finite"):
+        statsbomb_reference_surface(tmp_path, config, variant="open_play")
+
+
+def test_every_other_refusal_of_a_surface_function_is_a_plain_value_error(tmp_path) -> None:
+    """A changed rule restatement, a row of another provider or competition, another
+    variant or a scale ``read_events`` refuses is a defect or an integrity failure."""
+    actions = spain_actions(55, 2, sentinels=False)
+    two = {"xt_wy_reference_expected_matches": 2}
+    for frame, config, words in (
+            (actions.assign(competition="Invented"), with_keys(**two), "another competition"),
+            (actions.assign(provider="invented"), with_keys(**two), "another provider"),
+            (actions, with_keys(**two, xt_wy_reference_excludes_double_coded_matches=False),
+             "frozen rule"),
+            (actions, with_keys(**two, xt_recipe="an invented recipe"), "frozen rule")):
+        assert words in str(refusal(wyscout_reference_surface, frame, [], config))
+    write_reference_folder(tmp_path, reference_events())
+    folder = {"xt_sb_reference_folder": REFERENCE_FOLDER, "xt_sb_reference_expected_matches": 2}
+    error = refusal(statsbomb_reference_surface, tmp_path, with_keys(**folder),
+                    variant="invented")
+    assert "frozen variants" in str(error)
+    error = refusal(statsbomb_reference_surface, tmp_path,
+                    with_keys(**folder, xt_recipe="an invented recipe"), variant="open_play")
+    assert "frozen rule" in str(error)
+    # Each scale read_events refuses; a negative one would mirror every location silently.
+    for scale in ([-120, 80], [0, 80], [120, math.nan], [120]):
+        error = refusal(statsbomb_reference_surface, tmp_path,
+                        with_keys(**folder, sb_location_scale=scale), variant="open_play")
+        assert "positive finite" in str(error), scale
 
 
 # Clock offsets and pairing -----------------------------------------------------------
@@ -1325,23 +1456,68 @@ def test_pairing_is_one_to_one_within_tolerance_and_invariant_to_row_order(famil
 
 
 def test_a_wider_window_cannot_take_a_row_twice() -> None:
+    # Each side's event_order runs against its row order, so the tie-break is read
+    # from event_order and not from the frame.
     sb = harmonised_like([{"match_key": 0, "period": 1, "team_key": 5, "seconds": s,
-                           "start_x": 0.5, "start_y": 0.5, "event_order": i,
-                           "open_play_pass": True} for i, s in enumerate((10.0, 11.0))])
+                           "start_x": 0.5, "start_y": 0.5, "event_order": order,
+                           "open_play_pass": True} for s, order in ((10.0, 5), (11.0, 2))])
     wy = harmonised_like([{"match_key": 0, "period": 1, "team_key": 5, "seconds": 10.5,
                            "start_x": 0.5, "start_y": 0.5, "event_order": 0,
                            "open_play_pass": True}])
     pairs = pair_events(sb, wy, CONFIG["pair_families"][0], {(0, 1): 0.0}, CONFIG)
     # Both are 0.5 s away: the tie goes to the earlier StatsBomb event.
-    assert pairs[["sb_row", "wy_row"]].to_numpy().tolist() == [[0, 0]]
+    assert pairs[["sb_row", "wy_row"]].to_numpy().tolist() == [[1, 0]]
+    # The mirror: one StatsBomb row 0.5 s from two Wyscout rows; the earlier Wyscout
+    # event wins.
+    wy = harmonised_like([{"match_key": 0, "period": 1, "team_key": 5, "seconds": s,
+                           "start_x": 0.5, "start_y": 0.5, "event_order": order,
+                           "open_play_pass": True} for s, order in ((9.5, 7), (10.5, 3))])
+    pairs = pair_events(sb.iloc[:1], wy, CONFIG["pair_families"][0], {(0, 1): 0.0}, CONFIG)
+    assert pairs[["sb_row", "wy_row"]].to_numpy().tolist() == [[0, 1]]
+
+
+def test_a_candidate_exactly_at_a_tolerance_pairs_and_one_past_it_does_not() -> None:
+    family = CONFIG["pair_families"][0]
+    seconds, metres = family["time_tolerance_seconds"], family["distance_tolerance_m"]
+    at_metres = 0.5 - metres / LENGTH
+    past_metres = np.nextafter(at_metres, 0)
+    assert math.hypot((0.5 - at_metres) * LENGTH, 0.0) == metres
+    assert math.hypot((0.5 - past_metres) * LENGTH, 0.0) > metres
+    # (team, Wyscout seconds, Wyscout start x) against a StatsBomb pass at 10 s from
+    # x = 0.5: exactly at each tolerance, then one step past it.
+    cases = ((5, 10.0 + seconds, 0.5), (6, 10.0, at_metres),
+             (7, np.nextafter(10.0 + seconds, math.inf), 0.5), (8, 10.0, past_metres))
+    sb = harmonised_like([{"match_key": 0, "period": 1, "team_key": team, "seconds": 10.0,
+                           "start_x": 0.5, "start_y": 0.5, "event_order": i,
+                           "open_play_pass": True} for i, (team, _, _) in enumerate(cases)])
+    wy = harmonised_like([{"match_key": 0, "period": 1, "team_key": team, "seconds": s,
+                           "start_x": x, "start_y": 0.5, "event_order": i,
+                           "open_play_pass": True} for i, (team, s, x) in enumerate(cases)])
+    pairs = pair_events(sb, wy, family, {(0, 1): 0.0}, CONFIG)
+    assert pairs[["sb_row", "wy_row"]].to_numpy().tolist() == [[0, 0], [1, 1]]
+    assert pairs["time_gap"].tolist() == [seconds, 0.0]
+    assert pairs["start_distance_m"].tolist() == [0.0, metres]
 
 
 # Divergence tables -----------------------------------------------------------------------
 
+# The La Liga open-play pass pairs of ``divergence_world``, each from (0.40, 0.50) on
+# both sides: (period, seconds, who the two sides name, StatsBomb end x, Wyscout end x,
+# Wyscout success). "same" is one paired player on both sides, "nobody" no player on
+# either, "other" a paired player against his teammate's partner. The second-half pass
+# fails on the Wyscout side only.
+LA_LIGA_PASSES = (
+    (1, 10.0, "same", 0.60, 0.55, True),
+    (1, 300.0, "nobody", 0.70, 0.60, True),
+    (1, 600.0, "other", 0.80, 0.55, True),
+    (2, 50.0, "same", 0.60, 0.90, False),
+)
+
 
 def divergence_world(seed: int):
     """Three matches, two in the World Cup subset and one in La Liga. Corners per match
-    and team are placed by hand; everything else is a few rows for the tables."""
+    and team are placed by hand; the La Liga open-play pass pairs are placed by hand;
+    everything else is a few rows for the tables."""
     rng = random.Random(seed)
     matches = [make_match(rng, 0, "world_cup"), make_match(rng, 1, "world_cup"),
                make_match(rng, 2, "la_liga")]
@@ -1366,6 +1542,8 @@ def divergence_world(seed: int):
                period_seconds=21.0, **at(0.50, 0.50)),
         sb_row(m, m.home, "Carry", sb_player_id=sb_player, period_seconds=22.0),
         sb_row(m, m.home, "Shot", shot_type="Corner", period=3, period_seconds=5.0),
+        # in no family, so not a row without location
+        sb_row(m, m.home, "Half Start", period_seconds=0.0),
     ]
     wy_rows += [
         wy_row(m, m.home, "pass", subtype="Simple pass", success=True, player_id=wy_player,
@@ -1374,6 +1552,21 @@ def divergence_world(seed: int):
         wy_row(m, m.home, "pass", success=True, seconds=40.0, **at(0.0, 0.0)),
         wy_row(m, m.home, "pass", success=True, seconds=41.0, **to(1.0, 1.0)),
     ]
+    m = matches[2]
+    (sb_player, wy_player), (_, wy_teammate) = m.home.paired
+    actors = {"same": (sb_player, wy_player), "nobody": (None, 0),
+              "other": (sb_player, wy_teammate)}
+    # The second-half pair is this late on the Wyscout clock: only the top offset of
+    # the grid holds it within the window.
+    late = CONFIG["pair_offset_grid_seconds"][1] + CONFIG["pair_offset_match_window_seconds"]
+    for period, seconds, who, sb_end, wy_end, wy_success in LA_LIGA_PASSES:
+        sb_actor, wy_actor = actors[who]
+        sb_rows.append(sb_row(m, m.home, "Pass", sb_player_id=sb_actor, period=period,
+                              period_seconds=seconds, **at(0.40, 0.50), **to(sb_end, 0.50)))
+        wy_rows.append(wy_row(m, m.home, "pass", subtype="Simple pass", success=wy_success,
+                              player_id=wy_actor, period=f"{period}H",
+                              seconds=seconds + (late if period == 2 else 0.0),
+                              **at(0.40, 0.50), **to(wy_end, 0.50)))
     sb_events = sb_frame(sb_rows)
     links, pairs = links_of(*matches), pairs_of(*matches)
     sb = harmonise_statsbomb(sb_events, links, pairs, CONFIG, variant="open_play")
@@ -1440,11 +1633,13 @@ def test_divergence_one_sided_counts_and_rows_without_location() -> None:
     assert int(sb["non_penalty_shot"].sum()) == 0
     count_only = tables["count_only"]["pooled"]
     assert count_only["wy_sentinel_rows"] == {"start": 1, "end_only": 1}
-    assert count_only["wy_unattributed_rows"] == 3
-    assert count_only["sb_rows_without_location"] == 1  # the Carry has no location
+    # The offside, the two sentinel passes and the La Liga pass that names nobody.
+    assert count_only["wy_unattributed_rows"] == 4
+    # The Carry; the Half Start has no location either but sets no family flag.
+    assert count_only["sb_rows_without_location"] == 1
     types = {(row["kind"], row["type"]): row["events"]
              for row in tables["sb_pass_and_shot_types"]["pooled"]}
-    assert types[("Pass", "Corner")] == 6 and types[("Pass", None)] == 1
+    assert types[("Pass", "Corner")] == 6 and types[("Pass", None)] == 1 + len(LA_LIGA_PASSES)
     assert types[("Shot", "Corner")] == 1 and types[("Shot", "Kick Off")] == 1
     assert set(types) == ({("Pass", t) for t in CONFIG["sb_known_pass_types"]}
                           | {("Shot", t) for t in CONFIG["sb_known_shot_types"]})
@@ -1458,7 +1653,7 @@ def test_divergence_pairing_rows_and_a_failed_surface() -> None:
     assert offsets[(0, 1)] == 2.0 - CONFIG["pair_offset_match_window_seconds"]
     valued = divergence_tables(sb_events, sb, wy, offsets, numbered_surface(), links, weights,
                                CONFIG)
-    passes = valued["pairing"]["open_play_pass"]["pooled"]
+    passes = valued["pairing"]["open_play_pass"]["world_cup"]
     assert (passes["pairs"], passes["events"]) == (1, {"sb": 1, "wy": 3})
     assert passes["paired_share"] == {"sb": 1.0, "wy": pytest.approx(1 / 3)}
     assert passes["player_agreement"] == {"pairs": 1, "share": 1.0}
@@ -1469,6 +1664,22 @@ def test_divergence_pairing_rows_and_a_failed_surface() -> None:
     assert passes["xt_delta_difference"] == {
         "pairs": 1, "mean": (cell(0.60, 0.50) - cell(0.40, 0.50))
         - (cell(0.62, 0.50) - cell(0.41, 0.50)), "sd": None}
+    la_liga = valued["pairing"]["open_play_pass"]["la_liga"]
+    assert (la_liga["pairs"], la_liga["events"]) == (4, {"sb": 4, "wy": 4})
+    assert valued["pairing"]["open_play_pass"]["pooled"]["pairs"] == 5
+    # Named on both sides: "same" twice and "other" once; "nobody" is no pair of names.
+    assert la_liga["player_agreement"] == {"pairs": 3, "share": pytest.approx(2 / 3)}
+    assert la_liga["completion_agreement"] == {"pairs": 4, "share": 3 / 4}
+    # Valued: the three pairs completed on both sides, with sd at ddof 1.
+    start = cell(0.40, 0.50)
+    differences = [(cell(sb_end, 0.50) - start) - (cell(wy_end, 0.50) - start)
+                   for _, _, _, sb_end, wy_end, completed in LA_LIGA_PASSES if completed]
+    assert differences == [1, 2, 4]
+    mean = Fraction(sum(differences), len(differences))
+    variance = sum((d - mean) ** 2 for d in differences) / (len(differences) - 1)
+    assert la_liga["xt_delta_difference"] == {
+        "pairs": 3, "mean": pytest.approx(float(mean)),
+        "sd": pytest.approx(math.sqrt(variance))}
     corners = valued["pairing"]["corner"]["la_liga"]
     assert corners["pairs"] == 2 and corners["completion_agreement"] is None
     failed = divergence_tables(sb_events, sb, wy, offsets, None, links, weights, CONFIG)
@@ -1482,6 +1693,10 @@ def test_divergence_pairing_rows_and_a_failed_surface() -> None:
         k: v for k, v in valued.items() if k != "pairing"}
     offsets_table = valued["clock_offsets"]["pooled"]
     assert offsets_table["match_periods"] == len(offsets)
+    # The La Liga second half sits on the top edge of the grid.
+    assert offsets[(2, 2)] == CONFIG["pair_offset_grid_seconds"][1]
+    assert {pool: row["at_grid_edge"] for pool, row in valued["clock_offsets"].items()} == {
+        "pooled": 1, "world_cup": 0, "la_liga": 1}
 
 
 def keys_of(payload: object) -> list[str]:

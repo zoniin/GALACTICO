@@ -9,9 +9,10 @@ per event family (``FLAGS``), set by the Wyscout rule on the neutral Parquet and
 the StatsBomb rule of the requested reader variant on the research event frame.
 Every count, sum and table here reads those columns and nothing provider-specific,
 except the penalty area, which is each provider's own drawing. Both reference
-surfaces are fitted by the one shipped xT recipe on rows of that shape. Event
-pairing and the divergence tables (purpose c) describe how the two streams differ
-and decide nothing.
+surfaces are fitted by the one shipped xT recipe on rows of that shape; a surface
+the run cannot use raises ``SurfaceUnfit``, and every other refusal of a surface
+function is a plain ``ValueError``. Event pairing and the divergence tables
+(purpose c) describe how the two streams differ and decide nothing.
 
 Non-claim: equal names do not make the two event streams the same observation. The
 two unit squares are different pitch drawings and no registration between them is
@@ -31,6 +32,7 @@ config key that restates a protocol rule is asserted, never branched on.
 from __future__ import annotations
 
 import hashlib
+import math
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,7 +41,7 @@ import numpy as np
 import pandas as pd
 
 from ..models.xt import ExpectedThreat, PitchGrid, fit_expected_threat
-from .sb_reader import iter_events, read_matches
+from .sb_reader import _END_DETAIL, _name, _point, iter_events, read_matches
 
 __all__ = [
     "INPUTS_VERSION",
@@ -47,6 +49,7 @@ __all__ = [
     "HARMONISED_COLUMNS",
     "WY_ACTION_COLUMNS",
     "ReferenceSurface",
+    "SurfaceUnfit",
     "read_wyscout_actions",
     "harmonise_statsbomb",
     "harmonise_wyscout",
@@ -114,8 +117,6 @@ _PAIRED = "PAIRED_BY_TEAM_SHEET"
 _VARIANTS = ("open_play", "as_shipped")
 # Kind and outcome names the StatsBomb column of the flag table names literally.
 _PASS, _SHOT, _DUEL, _GOAL = "Pass", "Shot", "Duel", "Goal"
-# The kinds whose detail object carries an end location, as ``read_events`` reads it.
-_END_DETAIL = {"Pass": "pass", "Carry": "carry", "Shot": "shot"}
 
 # Rule sentences the surfaces implement; asserted, never branched on.
 _XT_RECIPE = (
@@ -138,6 +139,13 @@ _ROW_AUDITS = ("wy_unattributed_rows", "wy_sentinel_rows", "sb_rows_without_loca
 # on open-play passes only, a goal on the three shot families only.
 _PASS_FAMILIES = frozenset({"open_play_pass"})
 _GOAL_FAMILIES = frozenset({"open_play_shot", "free_kick_shot", "penalty"})
+
+
+class SurfaceUnfit(ValueError):
+    """A reference surface the run cannot use: its fit did not converge or is not
+    finite, or its corpus does not hold the expected matches. The runner maps this,
+    and only this, to the ``XT_SURFACE`` gate; any other ``ValueError`` of a surface
+    function refuses the config or the input."""
 
 
 @dataclass(frozen=True)
@@ -454,10 +462,12 @@ def _sentinel(x: np.ndarray, y: np.ndarray, config: Mapping[str, object]) -> np.
 
 def read_wyscout_actions(parquet_root: Path, competition: str) -> pd.DataFrame:
     """One competition's ``actions.parquet``, read as a file with ``WY_ACTION_COLUMNS``
-    (never the directory), in file order, checked to hold Pappalardo rows only."""
+    (never the directory), in file order, checked for ``provider == {"pappalardo"}``:
+    a file of another provider's rows, or of none, is refused."""
     path = Path(parquet_root) / f"competition={competition}" / "actions.parquet"
     actions = pd.read_parquet(path, columns=list(WY_ACTION_COLUMNS))
-    _check_source(actions)
+    if set(actions["provider"].unique()) != {_WY_SOURCE}:
+        raise ValueError("a Wyscout action file holds no rows, or rows of another provider")
     return actions
 
 
@@ -549,7 +559,7 @@ def _fit(rows: pd.DataFrame, config: Mapping[str, object], *, matches: int) -> R
         turnover_start=coordinates[turnovers, :2], grid=PitchGrid(*config["xt_grid"]),
         max_iterations=int(config["xt_max_iterations"]), tolerance=float(config["xt_tolerance"]))
     if not surface.converged or not np.isfinite(surface.values).all():
-        raise ValueError("a reference surface did not converge or is not finite")
+        raise SurfaceUnfit("a reference surface did not converge or is not finite")
     return ReferenceSurface(
         grid=surface.grid, values=surface.values, iterations=surface.iterations,
         converged=surface.converged, n_actions=surface.n_actions, matches=matches,
@@ -562,17 +572,18 @@ def wyscout_reference_surface(actions: pd.DataFrame, excluded_game_ids: Collecti
                               config: Mapping[str, object]) -> ExpectedThreat:
     """``wy_reference``: the Spain frame minus the linked double-coded matches.
 
-    Raises ``ValueError`` unless the frame, before the exclusion, holds exactly
-    ``xt_wy_reference_expected_matches`` distinct matches of
-    ``xt_wy_reference_competition``, or when the fit did not converge or is not
-    finite. Returns a ``ReferenceSurface``.
+    Raises ``SurfaceUnfit`` unless the frame, before the exclusion, holds exactly
+    ``xt_wy_reference_expected_matches`` distinct matches, or when the fit did not
+    converge or is not finite; a plain ``ValueError`` for a changed rule restatement,
+    or for a row of another provider or of a competition other than
+    ``xt_wy_reference_competition``. Returns a ``ReferenceSurface``.
     """
     _frozen(config, "xt_wy_reference_excludes_double_coded_matches", True)
     _check_source(actions)
     if not actions["competition"].eq(config["xt_wy_reference_competition"]).all():
         raise ValueError("the Wyscout reference frame holds another competition")
     if actions["game_id"].nunique() != int(config["xt_wy_reference_expected_matches"]):
-        raise ValueError("the Wyscout reference frame does not hold its expected matches")
+        raise SurfaceUnfit("the Wyscout reference frame does not hold its expected matches")
     excluded = [int(game_id) for game_id in excluded_game_ids]
     kept = actions[~actions["game_id"].isin(excluded).to_numpy(dtype=bool)]
     return _fit(_wyscout_rows(kept, config), config, matches=int(kept["game_id"].nunique()))
@@ -584,19 +595,24 @@ def statsbomb_reference_surface(root: Path, config: Mapping[str, object],
     event file at a time through ``iter_events``, each reduced to the coordinates
     and flags a fit input reads before the next is opened.
 
-    Raises ``ValueError`` unless the folder holds exactly
-    ``xt_sb_reference_expected_matches`` listed matches with their files, on a name
-    outside the closed vocabulary, or when the fit did not converge or is not
-    finite. Locations are divided by ``sb_location_scale`` as ``read_events``
-    divides them. Returns a ``ReferenceSurface``.
+    Raises ``SurfaceUnfit`` unless the folder holds exactly
+    ``xt_sb_reference_expected_matches`` listed matches with their files, or when
+    the fit did not converge or is not finite; a plain ``ValueError`` for another
+    variant, a changed rule restatement, a scale ``read_events`` would refuse, or a
+    name outside the closed vocabulary. Locations are divided by
+    ``sb_location_scale`` as ``read_events`` divides them, with its point rule.
+    Returns a ``ReferenceSurface``.
     """
     _variant(config, variant)
+    scale = config["sb_location_scale"]
+    if len(scale) != 2 or not all(math.isfinite(value) and value > 0 for value in scale):
+        raise ValueError("sb_location_scale must be two positive finite numbers")
+    width, height = (float(value) for value in scale)
     folder = str(config["xt_sb_reference_folder"])
     matches, _ = read_matches(root, folder)
     game_ids = matches["sb_game_id"].tolist()
     if len(game_ids) != int(config["xt_sb_reference_expected_matches"]):
-        raise ValueError("the StatsBomb reference folder does not hold its expected matches")
-    width, height = (float(value) for value in config["sb_location_scale"])
+        raise SurfaceUnfit("the StatsBomb reference folder does not hold its expected matches")
     kept: list[pd.DataFrame] = []
     for _, events in iter_events(root, folder, game_ids):
         rows = _raw_events(events, width, height)
@@ -642,18 +658,6 @@ def _raw_events(events: Sequence[Mapping], width: float, height: float) -> pd.Da
             "duel_type": _name(event.get("duel"), "type"),
         })
     return _frame({name: [row[name] for row in rows] for name in _RAW_DTYPES}, _RAW_DTYPES)
-
-
-
-def _point(location: Sequence[float] | None, width: float, height: float) -> tuple[float, float]:
-    if not location:
-        return np.nan, np.nan
-    return float(location[0]) / width, float(location[1]) / height
-
-
-def _name(record: Mapping | None, field: str) -> str | None:
-    named = (record or {}).get(field)
-    return None if named is None else named.get("name")
 
 
 # --- geometry -------------------------------------------------------------------------
