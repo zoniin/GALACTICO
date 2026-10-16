@@ -93,6 +93,23 @@ their endpoints are listed in the routers. The two planning pages compute nothin
 about football; `web/labs-shared.js` and `web/planning.js` are render functions
 over server payloads.
 
+## Research pipelines
+
+Each preregistered experiment has its pipeline under `galactico/validation/` and a
+runner under `experiments/`. They are built and tested on synthetic data only, run on
+the real corpus once after the protocol commit, and firewalled from product code
+(`tests/test_research_firewall.py` lists every one). E-11's, built against its frozen
+`PIPELINE.md`, has not run:
+
+| Module | Responsibility |
+|---|---|
+| `validation/sb_reader.py` | LOCAL tier: the licensed provider's double-coded folders read from their match index only; team sheets, events, the closed vocabulary and the folder digest |
+| `validation/provider_crosswalk.py` | The public provider's sheets and people; match and team-sheet crosswalks and the name-and-nationality link, in memory only; no function takes an event frame |
+| `validation/provider_inputs.py` | Both providers' events harmonised under two readers, reference xT surfaces on the frozen fit, player and team inputs, event pairing and divergence tables |
+| `validation/provider_agreement.py` | Rank and level agreement, one weight array per axis, the decision rule (`classify`), the permuted controls, admission and the registry tokens |
+| `validation/provider_agreement_synthetic.py` | Planted corpora, population values and the acceptance run |
+| `experiments/run_provider_agreement.py` | `preflight`, `acceptance` and `execute`, with the refusal checks of the protocol; writes aggregates only, under the gitignored local root |
+
 ## The provenance core
 
 `galactico.domain.provenance` holds the project's defining abstraction.

@@ -76,6 +76,10 @@ When a limitation changes, preserve the experiment in `docs/research/`.
   differ at rounding tolerance; unproven feasible solutions are not optimal.
 - Infeasibility diagnostics do not yet certify a minimal conflicting constraint
   set. No constraint is silently relaxed.
+- XI Lab's snapshot (`decision_lab.snapshot`) is cached per process on the match id
+  and world count only, so after the corpus files are rewritten the shipped XI routes
+  keep serving the snapshot built before, until the server restarts. The planning
+  routes key their builds on the identity of the files they read and do not.
 - The development backtest loses to prior minutes: 6.00 versus 6.83 actual starters
   out of 11. Manager agreement is not correctness, and tied representative choice
   can change overlap. See [E-06](docs/research/E-06-lineup-requirements.md).
