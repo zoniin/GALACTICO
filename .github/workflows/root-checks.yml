@@ -1,0 +1,98 @@
+name: root-checks
+
+# Checks the root runs on the public corpus by hand, before a registration or a menu change.
+# Their output is read from the job log; xi-screenshots also uploads the two XI Lab captures,
+# and nothing else.
+#   e10-counts      E-10's structure-only counts before registration (its config,
+#                   verified_by_root_before_registration items 3 to 5; PIPELINE section 13;
+#                   ROOT-DECISIONS 2.9 Z2). They compute no outcome.
+#   xi-risk-timing  the 40-world declared-risk solves, timed against 12 (ROOT-DECISIONS 2.7 X5;
+#                   OR-XI-SPEC 7.1, 11 item 15): statuses, seconds and memory only.
+#   xi-screenshots  docs/screenshots/11-xi-lab.png and 12-xi-mobile.png regenerated with the
+#                   corpus for the root to inspect (ROOT-DECISIONS 2.7 X14).
+# Public CC BY 4.0 only. The runtime corpus, the built bundle and every file under data/ are
+# never uploaded as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      check:
+        description: which root check to run
+        required: true
+        type: choice
+        options:
+          - e10-counts
+          - xi-risk-timing
+          - xi-screenshots
+
+permissions:
+  contents: read
+
+jobs:
+  root-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      # The setup of ci.yml's historical-browser job; node and the browser for screenshots only.
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-node@v4
+        if: inputs.check == 'xi-screenshots'
+        with:
+          node-version: 22
+      - run: uv python install 3.12
+      - run: uv venv && uv pip install -e ".[dev,api]"
+      - if: inputs.check == 'xi-screenshots'
+        run: npm ci
+      - if: inputs.check == 'xi-screenshots'
+        run: npx playwright install --with-deps chromium
+
+      # All five leagues, as in ci.yml.
+      - run: uv run python scripts/fetch_pappalardo.py
+
+      # e10-counts. The tag sidecar carries no period, team or player, so the counts read the
+      # neutral actions of the five leagues too: the ingest that prepare_lab.py and
+      # prepare_planning.py run, without the profile bundle. Then the sidecar of every league,
+      # after the frames, so that its build checks its event ids against them.
+      - name: neutral frames, five leagues (e10-counts)
+        if: inputs.check == 'e10-counts'
+        run: >-
+          uv run python -c "from pathlib import Path;
+          from galactico.ingestion.pipeline import ingest;
+          from galactico.providers.pappalardo import PappalardoProvider;
+          ingest(PappalardoProvider(Path('data/public/pappalardo')),
+          Path('data/public/parquet/pappalardo'),
+          competitions=['Spain', 'England', 'Italy', 'Germany', 'France'])"
+      - name: tag sidecar, every league (e10-counts)
+        if: inputs.check == 'e10-counts'
+        run: uv run python scripts/build_sidecar.py --all
+      - name: E-10 structure-only counts
+        if: inputs.check == 'e10-counts'
+        run: uv run python scripts/e10_root_counts.py
+
+      # The XI checks: the preparation of ci.yml's historical-browser job.
+      - if: inputs.check == 'xi-risk-timing' || inputs.check == 'xi-screenshots'
+        run: uv run python scripts/prepare_lab.py
+      - if: inputs.check == 'xi-risk-timing' || inputs.check == 'xi-screenshots'
+        run: uv run python scripts/prepare_planning.py
+
+      - name: XI declared-risk timing
+        if: inputs.check == 'xi-risk-timing'
+        run: uv run python scripts/time_xi_risk.py
+
+      # The tracked captures are removed first, so the artifact holds only what this run drew.
+      - name: XI Lab captures
+        id: capture
+        if: inputs.check == 'xi-screenshots'
+        run: |
+          rm -f docs/screenshots/11-xi-lab.png docs/screenshots/12-xi-mobile.png
+          npx playwright test e2e/labs.spec.js
+      - name: upload the two XI Lab captures, and nothing else
+        uses: actions/upload-artifact@v4
+        if: always() && inputs.check == 'xi-screenshots' && steps.capture.outcome != 'skipped'
+        with:
+          name: xi-screenshots
+          path: |
+            docs/screenshots/11-xi-lab.png
+            docs/screenshots/12-xi-mobile.png
+          if-no-files-found: error
+          retention-days: 14
