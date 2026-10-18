@@ -7,12 +7,13 @@
   "provider": "pappalardo",
   "season_label": "2017/18",
   "key_naming": "sb = StatsBomb side, wy = Wyscout/Pappalardo side, as one _-separated part of a key that concerns one provider; no key at any depth of this file, of descriptor_test_vectors.json, of synthetic_gate.json or of results.json contains statsbomb, pappalardo or wyscout in any letter case or starts with SB_ (tests/test_licensing.py reads the keys of every JSON file under experiments/ for the first and the prefix; the runner test of PIPELINE section 9 for all three)",
-  "pipeline_spec_sha256": "429256e399c29a8df6142a34d4c2b3d6951e6910131a5e96d85151fede919915",
+  "pipeline_spec_sha256": "fc80dc5c00143a439ad1c1bc0b901387a22c822c49ee262400e2b2dc93f2c34e",
   "verified_by_root_before_registration": [
     "pipeline_spec_sha256: lf_sha256 of PIPELINE.md as registered",
     "descriptor_fingerprints and descriptor_fingerprints_sb: recomputed from the payloads of descriptor_test_vectors.json",
     "dismissal_check assumption (ROOT 2.9 Z2): a structure-only count, run by the root on the corpus before registration and computing no outcome, per league, of the players whose event record carries a second_yellow card and of those among them whose sheet red_minute in that match is not null, its counts and share per league recorded in the registration commit; the assumption holds when that share is at least dismissal_assumption_minimum_share in every league; otherwise dismissal_check_fallback replaces dismissal_check before registration and the draft is audited again",
-    "dismissal_check residuals: the same structure-only count of players with a dismissal card in the event record and a null sheet red_minute, and of the reverse, per league, is stated in the registration commit; these are the matches dismissals_mismatch is built to invalidate, and only G1 bounds them"
+    "dismissal_check residuals: the same structure-only count of players with a dismissal card in the event record and a null sheet red_minute, and of the reverse, per league, is stated in the registration commit; these are the matches dismissals_mismatch is built to invalidate, and only G1 bounds them",
+    "reliability_split calendar count (third audit, 2-1): a structure-only count on the match calendars, run by the root before registration and computing no outcome, per league and for each half of reliability_split, the distribution over teams of the share of the half's meetings dated before evaluation_start and of the half's home meetings; recorded in the registration commit; it changes nothing in the rule"
   ],
   "leagues": [
     "Spain",
@@ -388,7 +389,7 @@
   "holm_family_alpha_one_sided": 0.025,
   "holm_family_size": 5,
   "holm_order_rule": "ascending p; None and NaN after every number and never rejected; ties in the order of secondary_descriptors; m is holm_family_size always",
-  "reliability_split": "each half holds one meeting with each opponent: opponents ordered by the date of the first valid meeting, then team id; for opponents at even positions (0-based) half A takes the meeting at which the team was at home, for odd positions the meeting at which it was away; half B takes the other; a missing meeting is not replaced",
+  "reliability_split": "each half holds one meeting with each opponent: the team's meetings with an opponent are its rows against it, valid or not, the earlier and the later by (date, game_id); opponents are ordered by the date of the earlier meeting, then team id; for an opponent at a position (0-based) of 0 or 1 modulo 4 half A takes the earlier meeting, at 2 or 3 modulo 4 the later meeting; half B takes the other; a team with one meeting against an opponent has no later meeting; an invalid meeting is in neither half and is not replaced",
   "reliability_centring": "league mean removed within each half",
   "persistence_rule": "T1: per coordinate, the correlation over teams of the league-centred development-part value with the league-centred evaluation-part value, each from the pooled counts of the team's valid rows dated in that part (log_ratio_smoothing_per_part per part), teams with at least minimum_half_matches_per_team valid rows in each part; no step-up",
   "reliability_interval_method": "fisher_z_on_half_correlation_then_spearman_brown",
@@ -532,7 +533,7 @@
       "STRENGTH_NOT_EXCLUDED": {
         "status": "NOT_ESTABLISHED",
         "limits": false,
-        "statement": "On later matches the defending team's own history added to what the attacking team's own history accounts for in this split, and the split repeats across two halves of the team's matches that each hold one meeting with every opponent, but it did not pass the frozen check that it is more than team strength measured by points, goals and pass share. Read it as a record of past matches, not as a tendency."
+        "statement": "On later matches the defending team's own history added to what the attacking team's own history accounts for in this split, and the split passed the frozen check that it repeats across two halves of the team's matches that each hold one meeting with every opponent, but it did not pass the frozen check that it is more than team strength measured by points, goals and pass share. Read it as a record of past matches, not as a tendency."
       },
       "INCONCLUSIVE": {
         "status": "INCONCLUSIVE",
@@ -631,7 +632,7 @@
     "proposal_sentence_rule": "keyed on the cited record's may_gate: may_gate true needs no sentence; otherwise proposal_sentence_not_tested when the record is not registered, PENDING or INCONCLUSIVE, and proposal_sentence_not_established when its status is NOT_ESTABLISHED; a proposal that cites several E-10 records carries one qualifier per cited record whose may_gate is false, each beside that record's label, in the order of subject_groups, none merged or dropped",
     "proposal_sentence_not_tested": "based on a record E-10 has not tested",
     "proposal_sentence_not_established": "based on a record that did not pass E-10",
-    "planning_research_sentence": "E-10 tested whether a defending team's own history adds information about where and how many final-third entry passes it concedes. That is not validity or decision use, and no quantity on this page is an E-10 descriptor.",
+    "planning_research_sentence": "E-10 asked whether a defending team's own history adds information about what it concedes and where its defensive actions are recorded; each E-10 record listed here says whether that was tested for its quantity. That is not validity or decision use, and no quantity on this page is an E-10 descriptor.",
     "words_never_on_the_page": [
       "weak",
       "weakness",
@@ -786,10 +787,11 @@
     },
     "status_rule": "the first that holds: NOT_COMPARABLE, NOT_RUN, REPLICATION_INCONCLUSIVE with the first reason that holds, REPLICATED, NOT_REPLICATED; FAILED_RUN replaces only a status that reached REPLICATION_INCONCLUSIVE's step; entries are keyed by descriptor, and the level subject has none",
     "local_artifact": "data/licensed/research/E-10/replication.json",
-    "local_artifact_records": "written only when a comparable descriptor reached step 3 of status_rule: per such descriptor the replication's gates, events, shape ladder, p1, m1 (those computed) and status, and the folder_manifest digest of each folder of leagues whose match index exists (null for an absent folder or index); returned by run_replication and written by the runner in stage serialise; never committed",
+    "local_artifact_records": "written only when a comparable descriptor reached step 3 of status_rule: statuses, every descriptor's status and reason; per such descriptor the replication's gates, events, shape ladder, p1, m1 (those computed) and status; and the folder_manifest digest of each folder of leagues whose match index exists (null for an absent folder or index); returned by run_replication and written by the runner in stage serialise; never committed",
     "sb_events_batch_matches": 40,
     "served_by_product": false,
-    "registry_record": false
+    "registry_record": false,
+    "results_record": false
   },
   "synthetic_gate": {
     "base_seed": 20261010,
@@ -836,8 +838,8 @@
     "pass_strength_slope": 0.15,
     "coordinate_rule": "sd_side and sd_width are standard deviations of the defender effect on log-ratio coordinates z1 and z2; at league_composition a shift of 0.15 moves a channel share by about four percentage points (3.9 on z1, 3.6 on z2)",
     "strength_shape_rules": {
-      "latent_tercile": "f = +1, 0, -1 for the top, middle and bottom latent-strength tercile (descending latent strength s_t, tercile = (strength_tercile_count * position) // T), standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
-      "measured_points": "f = full-season points per match from the season's goals, which are drawn before the team terms (PIPELINE section 5), standardised within league; delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
+      "latent_tercile": "f = +1, 0, -1 for the top, middle and bottom latent-strength tercile (descending latent strength s_t, tercile = (strength_tercile_count * position) // T), standardised within league (minus the league mean, divided by the population standard deviation, ddof 0; latent_tercile_code of PIPELINE section 5); delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
+      "measured_points": "f = full-season points per match from the season's goals, which are drawn before the team terms (PIPELINE section 5), standardised within league (minus the league mean, divided by the population standard deviation, ddof 0; points_per_match_code of PIPELINE section 5); delta_t += strength_shape * f * (+1, -1) on (z1, z2)",
       "none": "no strength-shaped term"
     },
     "secondary_laws": {
@@ -1218,7 +1220,7 @@
     "uncertainty_limit": "Calendar-week intervals condition on the selected constants and on the post-kick-off window; selection uncertainty and dependence across weeks within a team are omitted. A third of the evaluation rows were scored before for a different conceded target.",
     "product_effect": "Opponent Lab may show a descriptor as a tested tendency of one season, behind an opt-in, only under an established token; under every other token the panel shows the prior-date record only. No requirement, optimiser weight or ordering of teams changes.",
     "identity_stress_note": "Teams are permuted within league and strength tercile; this is a stress diagnostic, not an exchangeable permutation test and not a p-value.",
-    "data_license": "Public Pappalardo/Wyscout CC BY 4.0; the replication arm's numbers are local only and are not in this file.",
+    "data_license": "Public Pappalardo/Wyscout CC BY 4.0; the replication arm's results are not in this file: they are reported in analysis.md only.",
     "reuse_disclosure": "E-07 and E-08 scored a third of these evaluation rows for a conceded level of xT; before registration no descriptor of this protocol was computed by team on this corpus, except, if E-11 ran first, its per team-match counts on 36 double-coded matches, which the registration commit states."
   },
   "forbidden_result_substrings": [
@@ -1233,6 +1235,11 @@
   ],
   "hash_policy": "sha256 over LF-normalised bytes for protocol, config, pipeline document, vectors and source files; content hashes for data frames",
   "determinism_reruns": 1,
+  "blas_thread_environment": {
+    "OMP_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
   "output_root": "data/licensed/research/E-10",
   "output_results": "data/licensed/research/E-10/results.json",
   "failed_run_log": "data/licensed/research/E-10/failed_runs.json",

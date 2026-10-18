@@ -429,6 +429,139 @@ Refuted claims: none.
 1. ROOT 2.5 O1 and OPEN QUESTION 3: whether O1's "a second-provider replication status sits
    beside them as a label" is read as ADR-0018's permission, which E-10 does not use, or requires
    a LOCAL record of its own. Until it is ruled, the registration commit states it open
-   (section 13).
+   (section 13). (Ruled the same day: ROOT 2.9 Z5. Applied in the third audit's revision,
+   below.)
 2. ROOT 2.9 Z4 and the E-11 precedent: this third revision has not been audited. An audit that
+   confirms no blocker is still needed before E-10 is called READY.
+
+## Third audit, 16 October 2026, and its revision (18 October 2026)
+
+ROOT 2.9 Z4 requires each revision to be audited before E-10 is called READY. The third audit
+read the second audit's revision (commit `f877891`) in the same four scopes, against
+ROOT-DECISIONS (2.9 included, Z5 among it), the ADRs, KNOWN_LIMITATIONS, LICENSING, VALIDATION,
+the house lifecycle and the registered E-11 protocol: 1 measurement, the estimator and prior
+exposure; 2 statistics and models; 3 claims, product consequence and registry; 4 pipeline,
+runner and reproducibility. It claimed no blocker, so no refuter was called. One reviser
+verified every major and minor against the draft, the shipped code (`sb_reader`, `match_lab`,
+`planning`, `snapshots`, `verdicts`) and the rules, reran the auditors' synthetic scripts, and
+applied each finding, or applied a variant with the reason stated. No file under `data/` was
+opened; every number below is synthetic, arithmetic, or a structure count already pinned in a
+committed test.
+
+The audit's ids are `Thirdaudit16October2026-<scope>-<n>`, written here as `<scope>-<n>`; one
+arrived with a typo in the prefix (`Thirdaudit16OctOctober2026-4-8`) and is listed as 4-8.
+
+Scope readiness as audited, by the rule of the first audit (a scope with a confirmed blocker is
+not READY): scope 1 had no blocker and no major (READY); scope 2 no blocker and one major
+(READY); scope 3 no blocker and two majors (READY); scope 4 no blocker and three majors
+(READY). So every scope was READY as audited. After this revision every finding is applied, but
+the revision itself has not been audited (ROOT 2.9 Z4).
+
+| Severity | Findings | Applied | Applied with a variant | Rejected | Refuted |
+|---|---|---|---|---|---|
+| blocker | 0 | 0 | 0 | 0 | 0 |
+| major | 6 | 6 | 1 (2-1) | 0 | 0 |
+| minor | 25 | 25 | 5 (1-1, 1-2, 1-4, 1-8, 4-11) | 0 | 0 |
+
+Duplicates, each listed under its own id: 1-1 = 3-1 = 4-2 (ROOT 2.9 Z5 not applied); 1-7 is
+the first half of 3-5.
+
+### Root ruling applied (ROOT 2.9 Z5)
+
+The commit that added Z5 to ROOT-DECISIONS left the draft calling OPEN QUESTION 3 unruled
+(1-1, 3-1, 4-2). Z5 is now applied everywhere the question appeared: the protocol's banner and
+Replication qualifier paragraph, `PIPELINE.md` section 0 (tier rule), section 6 (the local
+artifact), 7.4, section 8, 12.4, section 13 (the "Before registration" row now records the
+ruling and leaves nothing open) and OPEN QUESTION 3 (settled). `results.json` no longer holds
+`replication[key]`: Z5 says the arm's result is reported in `analysis.md` only, `results.json`
+cannot carry LICENSING.md's logo and credit, and removal satisfies Z5 on its literal reading
+and on the narrower one, so no further ruling is needed. The statuses' machine record is the
+local artifact (new key `statuses`, every descriptor) or, after a replication exception,
+`replication_failure_log` (which now also records every descriptor's status and reason, tokens
+only); neither is committed. `real --verify` takes a first-run replication failure from the
+existence of `replication_failure_log` instead of from `results.json`. New config key
+`replication.results_record` (false); `results_strings.data_license` now says the arm's results
+are not in the file and are reported in `analysis.md` only; the runner asserts before writing
+that the payload has no `replication` key and no string equal to a replication status outside
+the config echo.
+
+### Majors
+
+| Id | Finding | Disposition |
+|---|---|---|
+| 2-1 | The frozen split (home meeting at even positions, away at odd, by the order of first meetings) does not interleave the season: when venues alternate by round, position parity is venue parity, so on the gate's Berger tables one half was a single run of consecutive rounds and the other the season's two ends (for two teams per league exactly the first leg against the second). In-season change then lowers R1, and a league-wide seasonal shift survives the league centring; the protocol's "the two halves interleave August and May" and "R1 interleaves the halves" were false | Applied with a variant, the preferred option. `reliability_split`, the protocol's Reliability paragraph and 4.3 `split_half` (which `level_split_half` follows): a team's meetings with an opponent are its rows against it, valid or not, earlier and later by `(date, game_id)`; opponents ordered by the date of the earlier meeting, then team id; half A takes the earlier meeting at positions 0 and 1 modulo 4 and the later at 2 and 3; an invalid meeting is in neither half and is not replaced. Variant: the meetings and the order are taken over every row, valid or not, rather than over valid meetings as the proposal wrote, so the split is fixed by the calendar, an invalid match moves no other opponent's position, and "earlier" and "later" are defined when only one meeting is valid. `test_split_balances_opponents_and_venues` now asserts on the Berger tables at 18 and 20 teams, mirrored and with the second leg's rounds permuted: one meeting per opponent, home counts differing by at most one (tighter than the proposed two, and it holds: `split_balance.py`, 201 schedules per size), each half holding half of each leg within one, and the old rule failing the leg assertion. The calendar count the proposal asks of the root is added to `verified_by_root_before_registration` and to section 13. The protocol's "interleave" sentences (line 34 and What this experiment cannot show) are now true and unchanged; the Reliability paragraph gives the reason and the auditor's drift numbers. Reviser's rerun (`split_rerun.py`, the same 200 seeded seasons per cell as the first audit's `twotail_sim.py`): the old split reproduces every published count; under the new split (e) and (g) together are 0 for every strength plant, `WIDTH_ONLY` and `NULL_NOTHING`, `EFFECT_STRONG` 200 / 85 / 0 (was 200 / 87 / 0), `EFFECT_0_09` 147 / 0 / 0 (was 132), `EFFECT_0_06` 1 / 0 / 0 (was 0). The table under section 10 and the protocol's What a null will mean carry the new counts with the old beside them |
+| 3-1 | ROOT 2.9 Z5 was added in `f877891` but not applied; the hashed PIPELINE still said ROOT 2.9 does not rule OPEN QUESTION 3, and `results.json` carried a replication token beside Z5's "in `analysis.md` only" | Applied, option (b): above (Root ruling applied). `pipeline_spec_sha256` recomputed |
+| 3-2 | The frozen `planning_research_sentence` ("E-10 tested whether ... where and how many final-third entry passes it concedes") is false when only the level reads TESTED (G5 is one gate for all six descriptors, so a G5 failure leaves every descriptor `INCONCLUSIVE` while the level, which has no G5, can be TESTED) and when the level fails LG6 alone; it also did not describe S3 to S5 | Applied: the auditor's sentence, "E-10 asked whether a defending team's own history adds information about what it concedes and where its defensive actions are recorded; each E-10 record listed here says whether that was tested for its quantity. That is not validity or decision use, and no quantity on this page is an E-10 descriptor." (copy guard and `finalize` pass; the planning page lists the registered records with their state, `REGISTERED_NOT_TESTED_STATEMENT`). Section 13 copies it, gives the two branches, adds planning tests for "only the level TESTED" and "only the primary TESTED", and says the Director's desk shows no E-10 panel while it serves the sentence |
+| 4-1 | A regression of the second audit's 4-1: one generator consumed league by league makes every league's goals after the first depend on the scenario, because `N ~ Poisson(mean)` consumes a mean-dependent number of values; the frozen test's "two scenarios with one seed emit the same goals" holds for the first league only, and passes vacuously for pairs whose rows consume alike | Applied, first option: two passes. Section 5: the first pass draws, league by league, the strength and every fixture's goals; the second, league by league, the team terms and the rows; `measured_points` reads the first pass's goals. The test compares `NULL_NOTHING` with `EFFECT_STRONG` in every league and states that the one-pass order fails it. The second audit's 4-1 check sentence ("two scenarios with one seed draw identical goals") is corrected here: it held for the first league only. Reviser's check (`two_pass.py`, the config's constants): one pass reproduces the auditor's 0, 359, 364, 290 and 362 differing fixtures; two passes give 0 in every league. `pipeline_spec_sha256` recomputed |
+| 4-2 | As 3-1, with the alternative of removing `replication` from `results.json` and letting `--verify` read the failure from `replication_failure_log` | Applied with 3-1, that alternative (7.4, section 8, the runner tests) |
+| 4-3 | The runner tests ran on the real output paths and the real StatsBomb root: `real` in a test would write `results.json` under `data/licensed/research/E-10` (then refusing the real execution), the failure tests would append to `failed_runs.json`, and a test season reaching `DEFENDER_SHAPE_SIGNAL` would compute replication P1 and M1 on the LOCAL corpus before registration (R5) | Applied. The test config of `test_results_shape_is_strict_json_aggregate_and_small`, which every runner test reads, replaces `output_root`, the four output files, `replication.local_artifact` and `replication.sb_root` with paths under `tmp_path` and lists them beside `bootstrap_replicates` and `strength_permutations` (E-11's form); 7.4 says a config path is joined with `pathlib`, so an absolute test path stands; `run_replication` is monkeypatched where a test does not exercise it and pointed at synthetic folders where it does; the output-root refusal is monkeypatched to pass except in the refusal test, which shows the `tmp_path` root refused. New `test_runner_tests_never_touch_the_repository_data_tree`: an autouse fixture fails any test that opens a path under the repository's `data/` |
+
+### Minors
+
+| Id | Finding | Disposition |
+|---|---|---|
+| 1-1 | Z5 unapplied in the banner, section 13 and OPEN QUESTION 3; `results.json`'s token not reconciled with "in `analysis.md` only" | Applied with a variant: as 3-1. The variant is the proposal's fallback (remove the token) instead of its first choice (keep it with a sentence), because removal needs no reading of "only" by the root |
+| 1-2 | `test_engine_reads_the_one_estimator` perturbed neither `ShapeEstimate.pi_venue` (B0, B2 shapes) nor `LevelEstimate.rate` (B5), and monkeypatching module attributes misses an engine that imports the functions by name | Applied with a variant. Added: `pi_venue` by `normalise(pi_venue * exp(b))` (B0 and B2 shape losses) and `rate` times 2 (B5 deviance); variant: also `observed` by `observed * exp(b)` and `unit_observed` times 2, the two remaining estimator fields the engine reads (the candidate and peers' losses; the B2 and B3 deviances), so a copied `O = C.sum((0, 2))` fails too. 3.8 fixes the import, `from galactico.features.team import estimator` and `estimator.<name>(...)`, and the AST part refuses `from galactico.features.team.estimator import` in `conceded_shape.py` |
+| 1-3 | `state_at` compared rows' normalised dates with `date` as passed, so a decision date with a time of day admitted that day's earlier matches | Applied, first option: `state_at` reads `pd.Timestamp(date).normalize()`, as `snapshots.prior_frames` normalises its cutoff (checked in the code). The estimator test adds a decision-day row with `date` given later that day; the 12.3 panel test asserts the state holds neither planted match |
+| 1-4 | The sentinels `(0, 0)` and `(1, 1)` lie on one diagonal, so the drop removes the attacker's far right corner (`att_right`, the primary's `def_left`) but keeps `(1, 0)` as `att_left`; drops were reported per event set only | Applied with a variant: the protocol's Locations paragraph and 2.2 say so; the audit gains `dropped_sentinel__<event_set>__<i>` per point and coverage `dropped_at_sentinel`, for every event set rather than only `f3_entry_pass` and `box_entry_pass` (one rule for all, and S3 and S5 read starts too). The sentinel test asserts the `(1, 0)` and `(1, 1)` cases and the per-point counts. Checked in the adapter: the neutral `y` is the raw `y / 100` with no flip, so the raw `(100, 100)` corner is the neutral `(1, 1)` |
+| 1-5 | The Match Lab prior-exposure row omitted served per-team-match `progression`, `progression_per_action`, `chance_creation`, recorded actions, clearances and `threat_flow` | Applied (checked in `match_lab/model.py`): the row lists them, says they are per match and never aggregated by team or season, and that the opponent's `progression` is a per-match conceded xT level visible in every league, Italy, Germany and France included, so "unexposed" means no E-07/E-08 analysis, not no served conceded value |
+| 1-6 | No test covered `period_missing`, `clock_invalid`, the reason order or the `ValueError` guards of 2.4 | Applied: `test_validity_reasons_and_their_order` |
+| 1-7 | 3.7 left `registry_non_claims` out of the Opponent Lab constants | Applied (with 3-5) |
+| 1-8 | The coach-id count did not say how a null id counts | Applied with a variant: coverage reports teams with more than one distinct non-null coach id and, separately, teams with at least one null (section 8, the protocol's Eligibility). Variant: the proposal asked which reading the protocol's "49 of 98" used; that reconnaissance count's handling of the raw 0 was not recorded and cannot be recovered without opening the corpus, and the protocol now says so. No criterion reads either count |
+| 2-2 | `sample_gates` needed `audit_summary` for G1, which was defined only on the replication path | Applied: `audit_summary_from_rows(rows, leagues)` (per league, distinct `game_id` and distinct valid `game_id`; every match has two rows), built by `evaluate_descriptor` and `evaluate_level`; the replication adds `listed_matches`. `test_any_failed_gate_is_inconclusive_and_computes_no_loss` checks G1 from rows with one invalid match |
+| 2-3 | An invalid row's exposure is NaN, and no test fed such a row to a forward pass, so an `add_rows` that multiplied by a zero weight would make `X` and `lam_v` NaN and the level `INCONCLUSIVE` on the real run | Applied: 3.8 and 4.2 say `add_rows` selects valid rows before any multiplication; the estimator and engine invalid-row tests build rows as 2.2 emits them, with weights 1 and 0, and assert finite, unchanged state; the end-to-end test makes one match per league invalid that way and asserts finite level deviances and LG6 |
+| 2-4 | How a `context_only` selection is serialised was unstated | Applied: the string `"context_only"` in `selection.k_unit`, `level.selection.k_unit`, `identity_stress.placebo_k_unit` and the keys of `selected_k_unit_counts`, a grid value as its number (section 8); asserted in `test_context_only_selection_against_grid_selecting_placebos` |
+| 3-3 | Nothing said or tested that a secondary's token is decided after Holm fills its criterion (a) | Applied: 4.3 (`evaluate_descriptor` returns a gated-in secondary with `a` `None` and no token; `evaluate_study` sets `a` from `holm`, then calls `decide_descriptor`; lifecycle follows); `test_secondary_token_follows_holm` |
+| 3-4 | The `STRENGTH_NOT_EXCLUDED` statement said the split "repeats", a fact, where its siblings say it passed the frozen check | Applied: "and the split passed the frozen check that it repeats across two halves ..."; copy guard and `finalize` pass, and the seven records pass `finalize` under every token |
+| 3-5 | 3.7 omitted `registry_non_claims`; the protocol's proposal-qualifier bullet omitted "in the order of `subject_groups`" | Applied, both |
+| 4-4 | `load_sb_league` read "listed match ids", but `read_events` and `iter_events` open the file of any listed id, so an absent file would raise (`FAILED_RUN`) instead of counting against G1 | Applied (checked in `sb_reader`): the ids of `read_matches`' frame; `listed_matches` stays frame plus missing; the G1 test asserts the readers never see an absent id |
+| 4-5 | Whether each replication check runs over every folder before the next was unstated | Applied: check-major order, each check over every folder of `replication.leagues` before the next; the test adds two folders failing `ORIENTATION` and `VOCABULARY` in that order, giving `VOCABULARY` |
+| 4-6 | `real --verify` was not refused when `determinism_record` existed, and whether the record is written on a failure was unstated | Applied: a 7.2 refusal (with `--verify`, `determinism_record` must be absent); the record is written only when every byte is equal; the two `--verify` failure tests assert none is written, and the passing test that a second `--verify` is refused. Also stated: a replication exception in the re-run after a first execution without one is a `serialise` failure even when no artifact exists to differ |
+| 4-7 | `run_gate` had two signatures and two owners | Applied: `conceded_shape_synthetic.run_gate(config, *, workers)` only; the runner's `gate` subcommand calls it and the 7.4 block no longer lists it |
+| 4-8 | Merging the synthetic descriptor frames on `(game_id, team_id)` suffixes every shared column, so `descriptor_rows` would find no `valid` | Applied: combined so that each column appears once (merged on every shared column, which holds the same values in every frame) |
+| 4-9 | The generator test asserted on `f`, which `synthetic_season` does not return, and "standardised" had no ddof | Applied: `latent_tercile_code` and `points_per_match_code` in section 5, population standard deviation (ddof 0, as the reviser's 14 October simulation used) in section 5 and `strength_shape_rules`; the generator test replaces `points_per_match_code` with a recording wrapper and checks the two helpers on hand examples |
+| 4-10 | Section 10 said "tercile code" where the law standardises it (about 0.80 at 20 teams, so a factor of about 1.25) | Applied: "standardised latent-strength tercile code (`strength_shape_rules.latent_tercile`)" |
+| 4-11 | The local artifact was "restricted to `gates`", which `descriptors[key]` does not have; `load_sb_league` returned an int and card names under `dict[str, DataFrame]` | Applied with a variant: section 6 names the artifact's keys (`statuses`; per descriptor `gates`, `events`, `shape_ladder`, `p1`, `m1`, `status`, `reason`, with `gates` in the shape of the top-level `gates[subject]`; `folder_digests`) and `load_sb_league` returns a frozen `SbLeague`. Variant: `card_names` is dropped from the loader's return, since `vocabulary_check` runs before any loading; it reads the card names itself through `iter_events` |
+| 4-12 | `input_frame_hashes[league][frame]` named no keys, and two frames are both "matches" | Applied: five keys, `actions`, `matches`, `sidecar_events`, `sidecar_matches`, `sidecar_squads`, each as read; `load_league` returns a frozen `LeagueInputs` with the frames and these hashes; the end-to-end stub hashes its frames under the same keys |
+| 4-13 | Provenance recorded no BLAS library or machine, and no BLAS thread count was fixed, though the re-run must match byte for byte (E-11 records both) | Applied: `provenance.packages` adds python, the BLAS library and version numpy reports, `platform.platform()` and `platform.processor()`, and the thread variables; new config key `blas_thread_environment` (`OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS`, `MKL_NUM_THREADS`, each `"1"`), set in the commands of 7.1 and checked by a 7.2 refusal |
+| 4-14 | `orientation_check` did not say which matches it reads or what fewer than 40 gives | Applied: the first `orientation_check_minimum_matches` matches of `read_matches`' frame in index order; fewer is `ORIENTATION`; tested |
+
+Refuted claims: none (no blocker was claimed).
+
+### Checks run by the reviser (synthetic or data-free)
+
+Scripts under the session scratchpad, folder `E-10-Third-audit-16-October-2026/rev`, not
+committed:
+
+- `split_rerun.py`: the first audit's 200 seeded seasons per cell, (e) under both splits and
+  two-tail (g); the old split reproduces every published count, and the new split's counts are
+  those of 2-1. The auditor's `split_time.py`, `mod4_check.py` and `drift_r1.py` were rerun and
+  reproduce the audit's figures.
+- `split_balance.py`: the new split on the Berger tables at 18 and 20 teams, mirrored and with
+  200 seeded permutations of the second leg: home counts of the two halves differ by at most
+  one, and each half holds half of each leg within one.
+- `two_pass.py`: the one-pass draw order reproduces the auditor's differing-goal counts; the two
+  passes give identical goals in all five leagues.
+- The seven records built from the config pass `finalize` under `PENDING` and every token, and
+  every `product_rules` string (the new `planning_research_sentence` included), every
+  `results_strings` entry (the new `data_license` included), every outcome statement (the new
+  `STRENGTH_NOT_EXCLUDED` included) and every non-claim pass the copy guard and `finalize`.
+- No key at any depth of `config.json` or `descriptor_test_vectors.json` names a provider,
+  starts with `SB_` or is refused by `banned_key_paths`; the eight fingerprints recompute from
+  the payloads and equal the config. `descriptor_test_vectors.json` is unchanged.
+- `pipeline_spec_sha256` recomputed with `galactico.validation.digests.lf_sha256` after the last
+  `PIPELINE.md` edit.
+- `tests/test_licensing.py` passes and `scripts/check_licensing.py` is clean; the list entries
+  for this folder's protocol, pipeline and record now also say where the arm's result is
+  reported.
+
+### For the root
+
+1. No new ruling is needed. Z5 is applied on its literal reading (no replication status in
+   `results.json`); if the root reads "only" as contrasting with a registry record and a
+   hosted label alone, a token could return to `results.json`, but nothing requires it.
+2. Two new root steps before registration, both structure only and computing no outcome: the
+   calendar count of `reliability_split` (2-1; `verified_by_root_before_registration`), and the
+   BLAS thread variables set in the shell for `real` and `real --verify` (4-13; 7.1).
+3. ROOT 2.9 Z4 and the E-11 precedent: this fourth revision has not been audited. An audit that
    confirms no blocker is still needed before E-10 is called READY.

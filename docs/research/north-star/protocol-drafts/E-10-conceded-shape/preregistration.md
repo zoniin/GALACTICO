@@ -1,6 +1,6 @@
 # E-10 — is where a team concedes a property of the defending team?
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. As ROOT 2.9 Z4 requires, a second audit read that revision on 16 October 2026 in the same four scopes; its one claimed blocker (the synthetic generator's draw order) was confirmed by a refuter, and every finding was applied, or applied with a stated variant, in a third revision the same day; one question waits for a root ruling (REVIEW-RECORD.md, Second audit). That third revision has not itself been audited; as with E-11, E-10 is called READY only after an audit of a revision confirms no blocker. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. As ROOT 2.9 Z4 requires, a second audit read that revision on 16 October 2026 in the same four scopes; its one claimed blocker (the synthetic generator's draw order) was confirmed by a refuter, and every finding was applied, or applied with a stated variant, in a third revision the same day. A third audit read that revision in the same four scopes (dated 16 October 2026); it claimed no blocker, and its majors and minors were applied, or applied with a stated variant, in a fourth revision on 18 October 2026, which also applied ROOT 2.9 Z5, the root's ruling on the second audit's question, so that ROOT 2.9 Z1 to Z3 and Z5 are now applied (REVIEW-RECORD.md, Third audit). That fourth revision has not itself been audited; as with E-11, E-10 is called READY only after an audit of a revision confirms no blocker. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 **Commit this plan, `config.json`, `PIPELINE.md` and `descriptor_test_vectors.json` before
 any E-10 outcome is computed. Nothing in the four may change once the first outcome is
@@ -77,11 +77,11 @@ defender term (ROOT 2.2). Nothing in this paragraph was computed on either corpu
 | StatsBomb 2015/16, player-level constructs | E-01, Stage 1C | The replication corpus is not untouched. No team-conceded quantity was computed on it |
 | E-11, registered 14 October 2026, not run | `experiments/preregistered/E-11-provider-agreement/preregistration.md` | Its prior-exposure section prints review-time counts one provider at a time: for Wyscout England 2017/18 the number of non-penalty shots and the number in the provider-drawn box, which is the league-level split behind S3 for one league of this corpus; the same split for one StatsBomb 2015/16 league of the replication arm (not repeated here); that every team-match of Barcelona's double-coded La Liga matches has at least ten final-third entries; and, on the public side of those matches, that 75 of 76 team-matches (122 of 128 at the World Cup) have at least five open-play shots. These are league or club totals, not a composition by team, and the model's league term removes a league's share |
 | E-11's pipeline and results | E-11 `PIPELINE.md` section 4 | Built on synthetic data and its acceptance stamp committed (f6f9184); not run; no real value computed. On Barcelona's 36 double-coded La Liga matches, both sides, it computes per team-match final-third entries by left, centre and right, box entry passes, defensive actions by third and `high_zone_defensive_action_share`. Its committed `results.json` will hold tokens only; its `analysis.md` prints agreement statistics and per-provider means and spreads over team-matches, and no team row. E-10 is to be registered before E-11's results are committed; if E-11 runs first, the registration commit says so and states whether its analysis was read, and by whom, and the frozen `reuse_disclosure` names that case |
-| Match Lab | every served match | Per team-match shots, key passes, interceptions and completed passes are served on the team profiles of every match, and so are each team's wide-channel and half-space pass-origin shares (`width`, completed-pass origins at `y < 0.21` or `y > 0.79`, and `half_space_share`): the opponent's per-match share is a wide-against-the-rest split of what the team conceded, by pass origin over the whole pitch, not by lateral third and not of final-third entries. Also served: the start coordinates of every shot of both teams (the shot map), which are S3's raw inputs for each team-match, and the mean pass locations of each player (the passing-network nodes). No conceded split by lateral third, no defensive-action location and no team-season composition is served |
+| Match Lab | every served match, all five leagues | Per team-match recorded actions, completed passes, shots, key passes, interceptions and clearance sub-events are served on the team profiles of every match, and so are each team's `progression` (positive completed-pass xT gain), `progression_per_action` and `chance_creation`, and each team's xT gain in five-minute bins (`threat_flow`). The opponent's `progression` is a per-match conceded level of xT, the kind of exposure the E-07/E-08 row describes, and it is visible for every match of every league, Italy, Germany and France included: "unexposed" below means that no E-07/E-08 analysis scored those leagues, not that no conceded per-match value of them is served. Every one of these is per match, never aggregated by team or season. Also served: each team's wide-channel and half-space pass-origin shares (`width`, completed-pass origins at `y < 0.21` or `y > 0.79`, and `half_space_share`): the opponent's per-match share is a wide-against-the-rest split of what the team conceded, by pass origin over the whole pitch, not by lateral third and not of final-third entries; the start coordinates of every shot of both teams (the shot map), which are S3's raw inputs for each team-match; and the mean pass locations of each player (the passing-network nodes). No conceded split by lateral third, no defensive-action location and no team-season composition is served |
 | Sidecar audit counts | `tests/test_sidecar.py` (`AUDIT`), pinned per league | Structure only, league totals. The red-card (tag 1701) and second-yellow (tag 1703) event records against the sheet's red-card entries are Spain 29 + 42 against 71, England 22 + 19 against 39, Italy 46 + 45 against 91, Germany 21 + 22 against 43, France 53 + 33 against 87. Exact in three leagues, which supports the assumption that the sheet's `red_minute` carries a second-yellow dismissal; the England and France differences are why the check before registration is a share, not a zero (Match validity). The same pinned dict holds per league the goal tags (and those on save rows), own goals, the open-play, free-kick and penalty shot totals (S3's league totals, with no inside-the-box split), and the counts of starts and ends at a corner (the rows `wy_location_sentinels` drops), with event, tag, substitution and match counts. None is a team composition |
 | Structure only: entry-pass counts per team-match (median 37 to 39.5 by league), state-filter survival (79.0% in Spain with dismissals; about 84% in five leagues from goals alone), share of entries on a lateral-third edge (about 3%), calendars, coach-id counts, mean pass `y` by listed position in 40 StatsBomb files | reconnaissance, critic, this design | Exposure and structure only. No channel split by team, no reliability, no persistence, no loss was computed. Sample gates were set with the entry-pass counts known; they are not expected to bind for the primary and S1. For S2 and S3 no count was looked at, and the events minimum may bind there |
 | `synthetic_gate.league_composition` | the gate's generator | Its source is not recorded by the designer and the reviser could not establish it (`league_composition_source`). If it was read from the corpus it discloses a league-level share of conceded entries by lateral third, which the model's league term removes; no team-level split |
-| Simulations | the designer's prototype (`_work/prototype.py`, logs `_work/rates_*.log`); the reviewers' and the reviser's scripts of 14 October 2026; the auditors', refuters' and revisers' scripts of the two audits of 16 October 2026 (among them `twotail_sim.py`, `twotail_invariance.py`, `lattice_holm.py`, `check_results_contract.py`, `draw_order_4_1.py`, `estimator_walk.py`, `replication_walk.py`) | Synthetic only; none read `data/`. None of these files is committed |
+| Simulations | the designer's prototype (`_work/prototype.py`, logs `_work/rates_*.log`); the reviewers' and the reviser's scripts of 14 October 2026; the auditors', refuters' and revisers' scripts of the two audits of 16 October 2026 (among them `twotail_sim.py`, `twotail_invariance.py`, `lattice_holm.py`, `check_results_contract.py`, `draw_order_4_1.py`, `estimator_walk.py`, `replication_walk.py`); the third audit's and its reviser's (among them `split_time.py`, `drift_r1.py`, `mod4_check.py`, `draw_order.py`, `pairs.py`, `split_rerun.py`, `split_balance.py`, `two_pass.py`) | Synthetic only; none read `data/`. None of these files is committed |
 
 Italy, Germany and France (535 evaluation matches, 1,070 rows) carry no E-07/E-08 exposure.
 They are reported as a separate pooled estimate and enter the decision rule as criterion (f).
@@ -151,9 +151,12 @@ event-derived quantities only.
 `minimum_prior_matches` prior valid matches. Ineligible rows still feed later histories.
 No exclusion on team, strength, coach or venue. Promoted clubs and coach changes are not
 adjusted for: a team is one unit for the season. The sidecar's match table carries both
-coach ids (49 of 98 teams show more than one in the raw sheets); this experiment does not
-read them beyond reporting that count in coverage, and a coach-tenure analysis is in
-`not_run_in_this_experiment`.
+coach ids (49 of 98 teams show more than one in the raw sheets, a reconnaissance count whose
+reading of the raw value 0 was not recorded); this experiment does not read them beyond
+reporting in coverage the number of teams with more than one distinct non-null coach id (the
+sidecar writes a raw 0 as null, and a null is never counted as an id) and, separately, the
+number of teams with at least one null coach id; no criterion reads either, and a
+coach-tenure analysis is in `not_run_in_this_experiment`.
 
 ## Measurements — frozen
 
@@ -171,13 +174,19 @@ criterion is unchanged and only the names on the panel would be exchanged. The d
 team's left is the acting team's right. That mirror is written once,
 in the descriptor definition: part `def_left` reads the opponent's `att_right` column.
 
-**Locations.** A Wyscout start or end at exactly a point of `wy_location_sentinels` is not
-read as a location: the sidecar records such raw corners as facts and says nothing of their
-meaning. The rule is Wyscout's only; a StatsBomb location at the far corner is a real one. On
-both providers a coordinate outside `coordinate_range` or non-finite is not a location. An
-event set that reads a location drops such rows and the count dropped is reported per event
-set. The adapter writes a missing Wyscout coordinate as 0, which lands on a touchline or goal
-line and is caught only when both coordinates sit at a sentinel.
+**Locations.** A Wyscout start or end at exactly a point of `wy_location_sentinels` is not read
+as a location: the sidecar records such raw corners as facts and says nothing of their meaning.
+The rule is Wyscout's only; a StatsBomb location at the far corner is a real one. On both
+providers a coordinate outside `coordinate_range` or non-finite is not a location. An event set
+that reads a location drops such rows and the count dropped is reported per event set. The
+adapter writes a missing Wyscout coordinate as 0, which lands on a touchline or goal line and
+is caught only when both coordinates sit at a sentinel. The two sentinels lie on one diagonal,
+`(0, 0)` and `(1, 1)`, so the location rule, unlike the lateral rule, is not its own mirror
+image: in the attacking frame an end at `(1, 1)`, the attacker's far right corner (`att_right`,
+the primary's `def_left`), is dropped, while an end at `(1, 0)` is kept as `att_left`, and
+likewise for the start of a box entry (S2); an end at `(0, 0)` can never be a final-third
+entry. A league-wide offset of this kind is absorbed by `pi`; the drops are reported per event
+set and per sentinel point, so a loss that falls on one side is visible.
 
 **Cuts** (`fraction_rule`): a cut the config gives as `[n, d]` is the float64 quotient
 `n/d`, compared with float64 coordinates. On the Wyscout lattice `x = 0.84`, `y = 0.19` and
@@ -391,33 +400,50 @@ the check for "the shape is strength" (below). B7 is a stress diagnostic, not an
 exchangeable permutation test and not a p-value. The share of rows whose donor differs is
 reported per seed.
 
-**Reliability (R1).** Units: teams with at least `minimum_half_matches_per_team` valid rows
-in each half. The split is `reliability_split`: each half holds one meeting with each
-opponent; opponents are ordered by the date of the first valid meeting, then team id; for an
-opponent at an even position (0-based) half A takes the meeting at which the team was at
-home, for an odd position the away meeting; half B takes the other; a missing meeting is not
-replaced. Each half therefore faces the same opponents and is home in about half its
-matches. A date-alternating split puts most of one team's home matches in one half of a
-mirrored double round-robin, and an alternation within home and within away matches leaves
-the halves facing different opponents; on synthetic seasons the first lowered the mean half
-correlation under a planted venue effect and the second lowered it without one
-(REVIEW-RECORD, R-statistics-16). A half's value is the log-ratio coordinate of its pooled
-counts (`log_ratio_smoothing_per_part` per part); the league mean is removed within each half
-(`reliability_centring`). With `r` the correlation over `n` teams in `G` leagues:
-`R = 2r/(1+r)`; lower bound `R_lo = SB(tanh(atanh(r) - c / sqrt(n - 3 - (G - 1))))`, `c =
-reliability_critical_value`, the one-sided 95% value ROOT 2.5 O5 writes for a protocol with
-fewer than 100 units, applied to the half-sample correlation before the step-up, as O5
-orders. At `n = 98` a coordinate needs an observed `R` of at least 0.646 for a band
-(`reliability_band`) and 0.788 for a number (`reliability_number`). The house interval
-applies Fisher's transform to the stepped-up value with `n - 3`; it is `AxisReliability` at
-`house_reliability_confidence`, whose critical value is `house_reliability_critical_value`
-(a test ties the two), reported beside this one (0.616 and 0.776 at `n = 98`), and it gates
-nothing. A
-descriptor passes when **every** coordinate has `R_lo >= reliability_band`. Its render state
-is "number" when the smallest `R_lo` is at least `reliability_number`, "band" when at least
-`reliability_band`, else "insufficient" (ADR-0002). No per-league reliability is gated: at
-20 teams the sample size decides the outcome. (Le) applies the same split and bound to
-`ln((sum y + s) / sum e)`, `s = log_ratio_smoothing_per_part`.
+**Reliability (R1).** Units: teams with at least `minimum_half_matches_per_team` valid rows in
+each half. The split is `reliability_split`: each half holds one meeting with each opponent. A
+team's meetings with an opponent are its rows against it, valid or not, the earlier and the
+later by date, then game id; opponents are ordered by the date of the earlier meeting, then
+team id; for an opponent at a position (0-based) of 0 or 1 modulo 4 half A takes the earlier
+meeting, at 2 or 3 modulo 4 the later; half B takes the other; an invalid meeting is in neither
+half and is not replaced. Each half therefore faces the same opponents, holds about half of
+each part of the season and is home in about half its matches: on the gate's double round-robin
+tables at 18 and 20 teams, mirrored or with the second leg's rounds permuted, each half holds
+half (within one) of each leg, and the two halves' home counts differ by at most one. The split
+is fixed by the calendar, so an invalid match moves no other opponent. A date-alternating split
+puts most of one team's home matches in one half of a mirrored double round-robin, and an
+alternation within home and within away matches leaves the halves facing different opponents;
+on synthetic seasons the first lowered the mean half correlation under a planted venue effect
+and the second lowered it without one (REVIEW-RECORD, R-statistics-16). The draft's next rule,
+half A taking the home meeting at even positions and the away meeting at odd ones, kept the
+opponents and the venues balanced but not the season: when a team's venues alternate by round,
+position parity is venue parity, and on those tables each of its halves was one run of
+consecutive rounds against the season's two ends, so a change within the season (49 of 98 teams
+show more than one coach id) would lower R1, and a league-wide seasonal shift would survive the
+league centring. On 60 synthetic five-league seasons in which half the teams change their
+defender shape at a random round (the auditor's script), the mean stepped-up correlation was
+0.570 and 0.574 (side, width) under that rule and 0.629 and 0.598 under this one; with static
+teams the two rules gave 0.686 and 0.663 against 0.681 and 0.661 (REVIEW-RECORD, Third audit,
+2-1). Before registration the root counts, on the real calendars and computing no outcome, the
+share of each half dated before `evaluation_start` and its home share, team by team
+(`verified_by_root_before_registration`).
+
+A half's value is the log-ratio coordinate of its pooled counts (`log_ratio_smoothing_per_part`
+per part); the league mean is removed within each half (`reliability_centring`). With `r` the
+correlation over `n` teams in `G` leagues: `R = 2r/(1+r)`; lower bound
+`R_lo = SB(tanh(atanh(r) - c / sqrt(n - 3 - (G - 1))))`, `c = reliability_critical_value`, the
+one-sided 95% value ROOT 2.5 O5 writes for a protocol with fewer than 100 units, applied to the half-sample correlation
+before the step-up, as O5 orders. At `n = 98` a coordinate needs an observed `R` of at least
+0.646 for a band (`reliability_band`) and 0.788 for a number (`reliability_number`). The house
+interval applies Fisher's transform to the stepped-up value with `n - 3`; it is
+`AxisReliability` at `house_reliability_confidence`, whose critical value is
+`house_reliability_critical_value` (a test ties the two), reported beside this one (0.616 and
+0.776 at `n = 98`), and it gates nothing. A descriptor passes when **every** coordinate has
+`R_lo >= reliability_band`. Its render state is "number" when the smallest `R_lo` is at least
+`reliability_number`, "band" when at least `reliability_band`, else "insufficient" (ADR-0002).
+No per-league reliability is gated: at 20 teams the sample size decides the outcome. (Le)
+applies the same split and bound to `ln((sum y + s) / sum e)`, `s =
+log_ratio_smoothing_per_part`.
 
 **Validity against strength (V1).** Per coordinate, the team-season value from the pooled
 counts of all valid rows, league-centred, and the four `strength_covariates`, league-centred,
@@ -482,7 +508,8 @@ primary: P1 with the `close_11v11` `kA` and `kD`, no re-selection, on the same e
 R1 with the same split. Loss of every rung. The implied per-match intraclass correlation
 `R / (m - (m - 1) R)`, `m` the mean number of valid rows per qualifying team over both halves.
 For the level, pooled L1 over `unexposed_leagues` with its interval (Prior exposure). Coverage,
-exclusion and dropped-replicate counts, and the number of teams with more than one coach id.
+exclusion and dropped-replicate counts, the dropped locations by event set and by sentinel point
+(Locations), and the two coach-id counts of Eligibility.
 Empty metrics are `null`, never zero.
 
 ## Decision rule — frozen
@@ -578,17 +605,22 @@ competition is its folder. Status (`status_rule`), the first that holds:
 5. `NOT_REPLICATED`: otherwise.
 
 Entries are keyed by descriptor; the level subject has no replication entry. An exception
-inside the replication stage gives `FAILED_RUN` to every descriptor whose status reached
-step 3; `NOT_COMPARABLE` and `NOT_RUN` stand. The local artifact exists only when a comparable
-descriptor reached step 3, and also records the `folder_manifest` digest of each folder whose
-match index exists, so a later fetch of re-versioned files can be told apart; it is never
-committed. The Pappalardo results are written whatever the replication returns. Ligue 1 has 377 matches
-in the provider's index. The replication status sits in `results.json` as a token and reason
-only, with no number and no digest of a LOCAL file; its numbers stay in the local artifact
-and in `analysis.md`, with the logo and credit. It is never served (`served_by_product`,
-`registry_record`): ADR-0018 permits a LOCAL label beside a hosted panel, and this protocol
-creates no registry record for one, so product code cannot read it. No replication status
-changes what a panel shows, its opt-in, its interval or its evidence class.
+inside the replication stage gives `FAILED_RUN` to every descriptor whose status reached step
+3; `NOT_COMPARABLE` and `NOT_RUN` stand. The local artifact exists only when a comparable
+descriptor reached step 3; it records every descriptor's status and reason, and the
+`folder_manifest` digest of each folder whose match index exists, so a later fetch of
+re-versioned files can be told apart; it is never committed. The Pappalardo results are written
+whatever the replication returns. Ligue 1 has 377 matches in the provider's index. ROOT 2.9 Z5
+rules how the arm's result is reported: ROOT 2.5 O1's "a second-provider replication status
+sits beside them as a label" is ADR-0018's permission, not a duty; E-10 creates no registry
+record for its LOCAL replication arm (`registry_record`); the arm's result, each descriptor's
+status and reason and the numbers behind them, is reported in `analysis.md` only, with the logo
+and credit of LICENSING.md; and no hosted page carries a label from it (`served_by_product`).
+`results.json` therefore holds no replication status, token or number (`results_record`); the
+statuses' machine record is the local artifact or, after a replication exception, the
+replication failure log, neither ever committed. Product code cannot read a replication status,
+and none changes what a panel shows, its opt-in, its interval or its evidence class. A later
+protocol may add such a label only through its own LOCAL record.
 
 **No rescue.** No change of grid, window, event set, state filter, lateral rule, split, gate,
 threshold or criterion after an outcome is read. A second operationalisation needs a new
@@ -605,9 +637,10 @@ The gate's generator sets `D` through `overdispersion_grid`: about 1.1, 3.3 and 
 three values (`design_effect`; the gate reports what it realises). On the reviser's synthetic
 seasons (`REVIEW-RECORD.md`; not the gate), (e) and (g) together, which bound the detection
 rate from above, held for a planted defender SD of 0.15 on both coordinates (about four
-percentage points of a channel share) in 200 of 200 seasons at `D` 1.1, 87 of 200 at 3.3 and
-none at 6.1, and for an SD of 0.09 in 132 of 200 at 1.1 and none above; the audit's rerun with
-(g) reading both tails gave the same counts. If real overdispersion
+percentage points of a channel share) in 200 of 200 seasons at `D` 1.1, 85 of 200 at 3.3 and
+none at 6.1, and for an SD of 0.09 in 147 of 200 at 1.1 and none above, with the split above
+(the third audit's rerun of the same seasons; the split it replaced gave 87 and 132, and the
+first audit's rerun with (g) reading both tails gave those same counts). If real overdispersion
 is near the top of the assumed range, this protocol will return `NOT_RELIABLE` or
 `ADDED_INFORMATION_NOT_SHOWN` even for an effect of four percentage points. A null therefore
 means "smaller than about that, or not separable from match-to-match variation at this sample
@@ -667,7 +700,7 @@ Fixed in every state (`product_rules`):
   never evidence of absence, R11); `proposal_sentence_not_established`, *"based on a record
   that did not pass E-10"*, when its status is NOT_ESTABLISHED. A proposal that cites several
   E-10 records carries one qualifier per cited record whose `may_gate` is false, beside that
-  record's label; none is merged or dropped.
+  record's label, in the order of `subject_groups`; none is merged or dropped.
 - S5's panel shows the share under its label, the tested quantity, with the share's badge
   (`s5_panel_rule`). `s5_ratio_name`, ROOT H14-H21's name for the analogue (*opponent passes
   per recorded high-zone defensive action*), names in prose only the ratio of which the share
@@ -716,9 +749,11 @@ protocol, config, pipeline-document, vectors and source hashes on LF-normalised 
 `pipeline_spec_sha256`; content hashes of every input frame and of each team-match table; the
 sidecar's `provenance()` per league and the loader version; descriptor fingerprints; package
 versions; seeds and the world's fingerprint; the synthetic-gate report hash; coverage and gate
-counts; every rung, estimand, criterion and verdict; the replication's tokens and reasons; the
-frozen strings of `results_strings`, copied verbatim. No key at any depth names a provider
-(`forbidden_result_key_names`); no player identifier or name appears outside the verbatim
+counts; every rung, estimand, criterion and verdict; the frozen strings of `results_strings`,
+copied verbatim; and no replication status (ROOT 2.9 Z5, Replication qualifier). Package
+versions include the BLAS library numpy reports and the machine, and `real` and its
+determinism re-run use the BLAS thread counts of `blas_thread_environment`. No key at any
+depth names a provider (`forbidden_result_key_names`); no player identifier or name appears outside the verbatim
 config echo (`forbidden_result_substrings_scope`: the echo holds the list of forbidden
 substrings itself, and equals the committed config). Replication numbers are written only to
 `replication.local_artifact`. The runner refuses a dirty working tree, a fingerprint mismatch
@@ -739,10 +774,12 @@ execution starts only when the committed `analysis.md` holds the sha256 of the l
 (an `analysis.md` that records only the failures may be committed before the next execution
 and completed in the results commit). The determinism re-run (`real --verify`) recomputes
 everything and compares the bytes of `results.json` and, when a replication ran, of the local
-artifact; it writes only `determinism_record`. A difference in any byte, or an exception in the
+artifact; it writes only `determinism_record`, and only when every byte is equal, and it is
+refused when that record already exists. A difference in any byte, or an exception in the
 re-run outside the replication stage, is a failed execution (stage `serialise` for a byte
-difference): the first execution's outputs are removed and never committed, the failure goes on
-the record as any other, and there is no second re-run; the next step is a new execution.
+difference): the first execution's outputs are removed and never committed, no determinism
+record is written, the failure goes on the record as any other, and there is no second re-run;
+the next step is a new execution.
 An exception inside the replication stage is not a failed execution: the Pappalardo results stand, every descriptor whose replication status
 reached step 3 is `REPLICATION_INCONCLUSIVE (FAILED_RUN)`, the exception's type, stage, file and
 line go to `replication_failure_log`, not to `failed_run_log`, and nothing attempts that
@@ -789,7 +826,7 @@ with B4 and with B1; Poisson-multinomial factorisation; ratio of sums; selection
 tie set; development-only selection; permutation determinism, strata and order invariance;
 mirror swap; the shared world (both rows of a match in one cluster, one world for every
 estimand and subset, its fingerprint); Holm against hand examples with `None`, NaN and ties;
-the reliability bound at the stated thresholds; the split's opponent and venue balance; the
+the reliability bound at the stated thresholds; the split's opponent, venue and season balance; the
 confound audit as `discriminant_validity` with the frozen thresholds on both tails, including
 a tied twelfth place in either tail, and unchanged when a coordinate is negated; a
 `context_only` selection against placebos that select grid values; fail-closed validity;
@@ -797,8 +834,9 @@ every gate yielding `INCONCLUSIVE` with no loss computed, and the level evaluate
 or G6 fails; a synthetic season that feeds every league subset; the full truth table of both
 verdict maps over `{True, False, None}`, token and statement; the replication's status table;
 every registry sentence served through the response boundary under `PENDING` and every token;
-the runner's refusals, failure log and determinism re-run under `output_root`; strict JSON; no
-identifier and no provider-named key in any artifact.
+the runner's refusals, failure log and determinism re-run under an `output_root` in a temporary
+directory, no runner test opening a path under the repository's `data/`; strict JSON; no
+identifier, no provider-named key and no replication status in `results.json`.
 
 *Committed before running. Results in `results.json`, interpretation in `analysis.md`. If
 either contradicts this document, this document wins.*

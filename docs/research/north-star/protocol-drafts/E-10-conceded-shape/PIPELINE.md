@@ -17,9 +17,12 @@ that the protocol is right about real ones.
 `galactico/validation/conceded_shape_sb.py` reads StatsBomb files, and only through
 `galactico.validation.sb_reader`. Nothing that reads StatsBomb is imported by `galactico/api`,
 `galactico/optimization`, `galactico/profiles`, `galactico/match_lab`, `galactico/models` or
-`galactico/features`. No code writes a LOCAL-derived number, interval, coefficient, digest or
-identifier anywhere but `replication.local_artifact`, which is never committed (ADR-0018);
-`analysis.md` prints the replication's numbers, with the credit, only as section 12.4 allows.
+`galactico/features`. No code writes a LOCAL-derived number, interval, coefficient, digest,
+identifier or replication status anywhere but `replication.local_artifact` and, after a
+replication exception, `replication_failure_log`, neither of which is ever committed
+(ADR-0018). ROOT 2.9 Z5: the arm's result is reported in `analysis.md` only, so `results.json`
+holds no replication entry (`replication.results_record`); `analysis.md` prints the
+replication's statuses and numbers, with the credit, only as section 12.4 allows.
 
 ## 0. Files, owners, order
 
@@ -209,7 +212,14 @@ home_dismissed_sheet, away_dismissed_sheet, goal_incidents, dismissal_incidents,
 first_dismissal_period, first_dismissal_seconds, period_seconds_1H, period_seconds_2H,
 events_in_window, events_all_states`, and one `dropped_location__<event_set>` per event set
 (rows that matched the clauses and the window but whose needed location failed
-`location_valid`).
+`location_valid`), and, per event set and per point of `sentinels` (index `i`, 0-based, in
+the order given), `dropped_sentinel__<event_set>__<i>`: the dropped rows with a needed start
+or end exactly at that point (a row with needed locations at two points counts under each; a
+row dropped only for being out of range or non-finite counts under none; with `sentinels`
+`()` there is no such column). The two Wyscout sentinels lie on one diagonal, `(0, 0)` and
+`(1, 1)`, so the rule is not its own mirror image: an end at `(1, 1)` is the attacker's far
+right corner (`att_right`, the primary's `def_left`) and is dropped, while an end at `(1, 0)`
+is kept as `att_left`; the split by point shows whether the loss falls on one side.
 
 ### 2.3 State and window
 
@@ -453,8 +463,8 @@ constants, every value of the config that a product caller passes: `REGULATION_P
 descriptors` asserts each equals the config. `estimator.py` holds
 `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART` (`league_prior_pseudocount_per_part`, which `pi` needs),
 tied the same way by `test_estimator_constant_matches_the_config` (3.8). The served panel's
-constants (`served_panel`, `product_rules`) live in the Opponent Lab module and are tied the
-same way (section 12.3).
+constants (`served_panel`, `product_rules`, `registry_non_claims`) live in the Opponent Lab
+module and are tied the same way (section 12.3).
 
 ### 3.8 `galactico/features/team/estimator.py`: the one estimator (ROOT 2.9 Z3)
 
@@ -466,8 +476,12 @@ persists or is a property of the team (that is what E-10 tests). It is product-s
 library, NumPy and pandas, and so nothing from `galactico.validation` or `experiments`
 (`tests/test_research_firewall.py`). The research engine
 (4.3) imports it and Opponent Lab's panel (12.3) calls it; there is no second implementation and
-no parity test. Its `lf_sha256` is in `source_hashes` (7.3), so an edit after registration is
-visible against the registered results. The formulas are those of 4.2, which stay normative;
+no parity test. The engine imports the module, `from galactico.features.team import
+estimator`, and calls every function and dataclass of it as `estimator.<name>`, never through a
+name imported from it (`from galactico.features.team.estimator import ...` does not occur in
+`conceded_shape.py`), so a test that replaces a function of the module replaces it for the
+engine (`test_engine_reads_the_one_estimator`). Its `lf_sha256` is in `source_hashes` (7.3),
+so an edit after registration is visible against the registered results. The formulas are those of 4.2, which stay normative;
 this section fixes where they live and how they are called.
 
 ```python
@@ -535,12 +549,18 @@ def served_volume(estimate: LevelEstimate, team_id: int) -> tuple[float, float]
 - `add_rows` adds `weights[i]` times the row's `n__<part>` counts and `exposure` at
   `[context, unit, context_home]` for every row with `valid` true; an invalid row adds nothing;
   a unit or context id outside `team_ids` raises `ValueError`; inputs are never mutated and the
-  result does not depend on row order. `weights` is required and aligned to `rows`: the engine
+  result does not depend on row order. It selects the rows with `valid` true before any
+  multiplication: an invalid row's `exposure` is NaN (its `window_seconds` is NaN, 2.2), and
+  `0 * NaN` is NaN, so a weighted sum over every row would make `X`, and with it `lam_v`, NaN.
+  `weights` is required and aligned to `rows`: the engine
   passes ones; the panel passes ones for its point and each world's match weights for its
   interval (12.3), so an integer weight `w` is the row counted `w` times and a weight of 0 is the
   row absent. A listed team with no row changes no quantity of another team.
 - `state_at` = `add_rows(empty_state(team_ids, parts), r, weights=w)` over the rows `r` (and
-  their weights `w`) whose normalised calendar date is strictly before `date` (`prior_rule`).
+  their weights `w`) whose normalised calendar date is strictly before the normalised `date`
+  (`prior_rule`): `date` is read as `pd.Timestamp(date).normalize()`, so a decision date given
+  with a time of day (a kick-off) excludes every row of that calendar day, as the house
+  `snapshots.prior_frames` excludes its whole cutoff day.
 - `shape_estimate` computes `pi`, `pi_v`, `nu_v`, `A_c`, `A_c^(-u)`, `e`, `O_u`, `E_u` and
   `delta_u` by the formulas of 4.2, with `a = league_pseudocount`; `delta` is
   `unit_deviation(observed, expected, k_unit=k_unit)`. `level_estimate` computes `lam_v`, `lam`,
@@ -665,8 +685,9 @@ The level ladder exists for the level subject only; S1 to S5 report shape rungs 
 Rules that must hold in code:
 
 - A row is predicted only if valid and `played_valid[unit] >= m` and `played_valid[context] >=
-  m` (`m = minimum_prior_matches`). Invalid rows never update `C` or `X`; they update the sheet
-  counters.
+  m` (`m = minimum_prior_matches`). Invalid rows never update `C` or `X` (`add_rows` selects
+  the valid rows before any multiplication, so an invalid row's NaN exposure never reaches `X`,
+  3.8); they update the sheet counters.
 - A league date with no prior events (`S.sum() == 0`) predicts nothing.
 - For the boundary candidate `context_only` the candidate, mirror, peers and permuted loss
   arrays **are** the B4 array (assigned, not recomputed), so every difference is exactly 0.0;
@@ -787,8 +808,16 @@ def holm(p_values: Mapping[str, float | None], order: Sequence[str], *, alpha: f
          family_size: int) -> dict[str, dict]
 def count_pass(rows: pd.DataFrame, settings: ForwardSettings) -> CountPass
     # loss-free walk over the schedule: eligible [R], donor_changed [P, R], prior matches; no model
+def audit_summary_from_rows(rows: pd.DataFrame, leagues: Sequence[str]) -> dict[str, dict]
+    # per league of `leagues`: {matches: distinct game_id of the league's rows, valid_matches:
+    # distinct game_id of its rows with valid}; a league with no row gives 0 and 0. Every match
+    # of the table has two rows (2.2), valid or not, so G1 reads valid_matches / matches
 def sample_gates(rows, counts: CountPass, audit_summary: Mapping, config: dict, *,
                  subject: str) -> dict[str, dict]   # subject "shape", "level" or "replication"
+    # audit_summary: for "shape" and "level", audit_summary_from_rows(rows, leagues), built by
+    # evaluate_descriptor and evaluate_level from the rows they receive (the primary's rows for
+    # the level); for "replication", the same with listed_matches added (evaluate_replication).
+    # A league whose matches is 0 fails G1
 def decide_descriptor(*, gates: Mapping[str, bool], criteria: Mapping[str, bool | None]
                       ) -> tuple[str, list[str]]
 def decide_level(*, gates: Mapping[str, bool], criteria: Mapping[str, bool | None]
@@ -814,10 +843,24 @@ Details not already in the protocol:
   `config["replication"]["leagues"]` for the replication); (f), `p1.unexposed` and the level's
   `l1.unexposed` (reported only) read `unexposed_leagues`. A listed league with no rows fails
   its gates; it is never skipped.
-- `split_half`: per team, the opponents ordered by the date of the first valid meeting, then
-  team id; for an opponent at an even position (0-based) half A takes the meeting at which the
-  team was at home, for an odd position the away meeting; half B the other; a missing meeting
-  is not replaced (`reliability_split`). Team value per half: `basis @ ln((counts + s) /
+- `split_half` (`reliability_split`): per team, its meetings with an opponent are its rows
+  against that opponent, valid or not, the earlier and the later by `(date, game_id)`; the
+  opponents are ordered by the date of the earlier meeting, then team id; for an opponent at a
+  position (0-based) of 0 or 1 modulo 4 half A takes the earlier meeting, at 2 or 3 modulo 4 the
+  later; half B takes the other; a team with one meeting against an opponent has no later
+  meeting; an invalid meeting is in neither half and is not replaced. The split is therefore
+  fixed by the calendar, and an invalid match moves no other opponent's position. Positions
+  modulo 4 interleave the season: when a team's venues alternate by round, a choice of the home
+  or the away meeting by the parity of the position (the rule before the third audit, 2-1) puts
+  whole runs of consecutive rounds in one half (on the Berger tables of section 5 one half was
+  a single run of consecutive rounds, 19 at 20 teams, and the other the season's two ends, for
+  two teams per league exactly the first leg and the second), so a change within the
+  season would lower R1 and a league-wide seasonal shift would survive the league centring;
+  choosing the earlier or the later meeting by the parity of the position would, in a mirrored
+  schedule whose venues alternate, put every home meeting in one half. On the
+  Berger tables at 18 and 20 teams, mirrored and with the second leg's rounds permuted, each
+  half holds half (within one) of each leg and the two halves' home counts differ by at most
+  one. Team value per half: `basis @ ln((counts + s) /
   (counts.sum() + s K))`. Teams with fewer than `minimum_half_matches` rows in a half are
   dropped and counted. League mean removed per half and coordinate. Returns `coordinates`, per
   coordinate `half_r`, `spearman_brown`, `lower_bound` (protocol formula, `critical_value`),
@@ -884,14 +927,22 @@ Details not already in the protocol:
 - `decide_level` (`verdict_precedence.level`): `INCONCLUSIVE` if any gate of `level_gates` is
   false; else `LEVEL_ESTABLISHED` if `La`, `Lb`, `Le` are all `True`; else
   `ADDED_INFORMATION_NOT_SHOWN` if `La` or `Lb` is not; else `NOT_RELIABLE`.
-- `evaluate_descriptor` order of work: `count_pass` and gates G1 to G5 (no loss exists yet)
+- `evaluate_descriptor` order of work: `count_pass`, `audit_summary_from_rows` and gates G1 to
+  G5 (no loss exists yet)
   -> select `kA` (one forward pass per grid value, development rows only scored) -> one forward
   pass with every `kD` candidate and all placebo seeds -> select `kD` for the real history and,
   separately, for each seed -> G6 (false when a selection loss is non-finite, `select_k`
   returning `None` as its index; then `INCONCLUSIVE`, no evaluation loss is aggregated or
   serialised; a `context_only` selection is an int index and leaves G6 true) ->
   estimands in `world` -> criteria -> verdict. A secondary's criterion (a) is filled by
-  `evaluate_study` after `holm` over the family. `sensitivity_rows` is the primary's
+  `evaluate_study` after `holm` over the family, and its token is decided only then:
+  `evaluate_descriptor` returns a secondary whose gates passed with `criteria["a"]` `None` and
+  no token, reasons or lifecycle status; after `holm`, `evaluate_study` sets `criteria["a"] =
+  holm[name]["rejected"]` for each such secondary, then calls `decide_descriptor` on its gates
+  and criteria for its token and reasons, and `lifecycle_status` follows the token. A
+  secondary whose gates failed is `INCONCLUSIVE` with its failed gates from
+  `evaluate_descriptor`, and enters `holm` with the p-value `None`. The level is decided by
+  `evaluate_level` alone. `sensitivity_rows` is the primary's
   `all_states` rows or `None` (the gate and every secondary pass `None`). When given, it adds
   the `all_states` P1: one forward pass on those rows with the selected `kA` and `kD` as the
   only candidate and no placebo, no re-selection, on the same eligible rows (eligibility
@@ -901,8 +952,9 @@ Details not already in the protocol:
 - `evaluate_replication` (the replication's frozen path; no selection happens anywhere in
   it): gates `sample_gates(..., subject="replication")`, which are G1 and G3 only
   (`replication.gates`, `replication.gate_rule`), with the `replication` block's minima and G1's
-  share over the matches the index lists: `audit_summary` carries `listed_matches`, and G1 is
-  the league's valid matches among `rows` divided by `listed_matches[league]`, so a listed
+  share over the matches the index lists: `audit_summary` is `audit_summary_from_rows` with
+  `listed_matches` added, and G1 is the league's `valid_matches` among `rows` divided by
+  `listed_matches[league]`, not by its `matches`, so a listed
   match whose files are absent counts as invalid although it has no row; a failed gate is the
   reason `SAMPLE`. Then one
   forward pass with `k_context = frozen["k_context"]`, `k_unit_candidates =
@@ -917,8 +969,9 @@ Details not already in the protocol:
   not `None`; else `REPLICATED` if `p1 <= alpha` and, for a descriptor of
   `descriptor_mirror_pairs`, `m1 <= alpha`; else `NOT_REPLICATED`. The reason is `None` except
   under `REPLICATION_INCONCLUSIVE`. A `None` p-value is not at most `alpha`.
-- `evaluate_level`: G1 to G4 from the primary's counts (the level's `N` is the primary's
-  total), then `kA'` (B1 deviance over the grid), then `kD'` (B2 deviance over the grid and
+- `evaluate_level`: G1 to G4 from the primary's rows and counts (the level's `N` is the
+  primary's total; G1 from `audit_summary_from_rows` of those rows), then `kA'` (B1 deviance
+  over the grid), then `kD'` (B2 deviance over the grid and
   `context_only`), LG6 (false when `select_k` returns `None` as its index, never for a
   `context_only` selection), estimands (L1 pooled, by league and over `unexposed_leagues`, the
   last reported only), `level_split_half`, `level_strength_validity` (reported only), criteria,
@@ -946,8 +999,19 @@ def synthetic_season(seed: int, scenario: Mapping[str, object], overdispersion: 
     # columns only), valid = True}; the secondaries only when scenario["secondaries"]
 def synthetic_match_events(seed: int, *, teams: int, side_effect: float) -> dict[str, pd.DataFrame]
     # keys: actions (joined, I3 shape), matches, match_meta, sheet_dismissals; tiny, for table tests
+def latent_tercile_code(strength: np.ndarray, *, tercile_count: int) -> np.ndarray
+    # f of strength_shape_rules.latent_tercile: +1, 0, -1 for the top, middle and bottom
+    # tercile of descending latent strength (tercile = (tercile_count * position) // T),
+    # minus its mean, divided by its population standard deviation (ddof 0)
+def points_per_match_code(home: np.ndarray, away: np.ndarray, home_goals: np.ndarray,
+                          away_goals: np.ndarray, *, teams: int) -> np.ndarray
+    # f of strength_shape_rules.measured_points: each team's points per match over the
+    # fixtures given (team indices home[i], away[i]; three for a win, one for a draw), minus
+    # the mean over teams, divided by the population standard deviation (ddof 0)
 def design_effect(settings: Mapping, overdispersion: float) -> float
 def run_gate(config: dict, *, workers: int) -> dict
+    # the one gate entry point; the runner's gate subcommand calls
+    # conceded_shape_synthetic.run_gate(config, workers=...) and defines no run_gate of its own
 ```
 
 `settings` is the season configuration of `season_seed_rule` (below): `config.json` with
@@ -967,7 +1031,7 @@ reads the names the real run reads. Per league:
 | fixtures | `berger_tables(T)` (`schedule_rule`); round `r` on `first_round_date + days_between_rounds * r`, plus `winter_break_extra_days` for `r >= T - 1`; match `i` of a round one day later when `i` is odd |
 | goals | home `~ Poisson(exp(home_intercept + strength_slope (s_h - s_a)))`, away `~ Poisson(exp(away_intercept + strength_slope (s_a - s_h)))` |
 | attacker shape | `alpha_t ~ N(0, sd_attacker_shape^2 I_2)` on `(z1, z2)`; plus `home_shape_attacker` when the attacker is at home |
-| defender shape | `delta_t = (N(0, sd_side^2), N(0, sd_width^2))`, plus `strength_shape * f * (+1, -1)` by `strength_shape_rules[strength_shape_rule]` (`latent_tercile`: `f` from the latent-strength tercile; `measured_points`: from the points per match of the season's goals, drawn before the team terms) |
+| defender shape | `delta_t = (N(0, sd_side^2), N(0, sd_width^2))`, plus `strength_shape * f * (+1, -1)` by `strength_shape_rules[strength_shape_rule]` (`latent_tercile`: `f = latent_tercile_code(s)`; `measured_points`: `f = points_per_match_code` of the season's goals, drawn in the first pass, before any team term; both standardised with the population standard deviation) |
 | defender level | `lev_t ~ N(0, sd_level^2)` |
 | row composition | `p = ilr^-1(ilr(league_composition) + alpha_att + home term + delta_def + N(0, overdispersion^2 I_2))`, parts ordered `(def_left, def_centre, def_right)` |
 | row total | `N ~ Poisson(mean_events_per_row * window_exposure * exp(level_strength_attacker s_att - level_strength_defender s_def + lev_def + home_level [attacker at home] + N(0, sd_match_level^2)))` |
@@ -975,20 +1039,27 @@ reads the names the real run reads. Per league:
 | secondaries | `secondary_laws`: S1 from the primary's counts; S2 to S5 each with its own `league_composition` and `mean_events_per_row`, the same attacker, home, overdispersion and level laws (its own draws), and no defender term; for a two-part secondary (S3, S5) every two-dimensional term is a one-dimensional draw with the same standard deviation and the home term is the first component of `home_shape_attacker` (`secondary_laws.rule`); every secondary's counts written where its descriptor reads them: S2 and S3 in the defender's `against__` columns, S4 in the unit's `for__` columns, and S5's first part in the unit's `for__defensive_action_high` and its second in `against__own_60_pass` |
 | other columns | `window_seconds = exposure_unit_seconds * window_exposure`; `goals_for/against`; `match__completed_passes ~ Poisson(mean_completed_passes * exp(pass_strength_slope * s_t))` |
 
-One `np.random.default_rng(seed)` per season, consumed league by league in the order of
-`leagues`, in the same order in every scenario. Within a league: first the strength, a vector
-over teams in team order. Then the goals of every fixture in schedule order, each match's home
-goals then its away goals. Then the other team draws, each a vector over teams in team order,
-per subject (the primary, then each generated secondary in the order of
-`secondary_descriptors`; S1 draws nothing): its attacker shape and, for the primary only, the
-defender shape and the defender level. The defender shape draws only its two normal
-components. Its `strength_shape` term is added without a draw, with `f` read from the latent
-strength (`latent_tercile`) or from the points per match of the goals already drawn
-(`measured_points`; three points for a win, one for a draw). Then, fixture by fixture in
-schedule order, the home row and the away row, each drawing per subject in the same order its
-shape noise, its level noise, `N` and the counts, and last the row's
-`match__completed_passes`. The `goals_for` and `goals_against` columns are the goals drawn
-above.
+One `np.random.default_rng(seed)` per season, consumed in two passes over the leagues, each in
+the order of `leagues`, in the same order in every scenario. **First pass**, league by league:
+the strength, a vector over teams in team order; then the goals of every fixture in schedule
+order, each match's home goals then its away goals. **Second pass**, league by league: the
+other team draws, each a vector over teams in team order, per subject (the primary, then each
+generated secondary in the order of `secondary_descriptors`; S1 draws nothing): its attacker
+shape and, for the primary only, the defender shape and the defender level. The defender shape
+draws only its two normal components. Its `strength_shape` term is added without a draw, with
+`f` from `latent_tercile_code` of the latent strength (`latent_tercile`) or from
+`points_per_match_code` of the league's goals drawn in the first pass (`measured_points`).
+Then, fixture by fixture in schedule order, the home row and the away row, each drawing per
+subject in the same order its shape noise, its level noise, `N` and the counts, and last the
+row's `match__completed_passes`. The `goals_for` and `goals_against` columns are the goals of
+the first pass. The two passes are needed because `N ~ Poisson(mean)` consumes a
+mean-dependent number of values of the stream and the mean depends on the scenario: with one
+pass, the goals of every league after the first would depend on what the earlier leagues'
+rows consumed (on the config's constants, `NULL_NOTHING` and `EFFECT_STRONG` with one seed drew
+different goals in 359 of 380, 364 of 380, 290 of 306 and 362 of 380 fixtures of the second to
+fifth leagues, and in none of the first's). With the
+first pass, every league's strength and goals are drawn before any scenario-dependent draw,
+so two scenarios with one seed emit the same goals in every league.
 
 The season's seed (`season_seed_rule`) is the `seed` of the configuration its evaluation
 reads. That configuration is `config.json` with exactly two keys replaced, `seed` by the
@@ -1035,16 +1106,25 @@ an exception.
 
 Memory (ROOT section 4, no process over about 1.5 GB): one folder is read at a time.
 `read_events` builds one Python dict per event before its frame, so `load_sb_league` calls it in
-batches of `replication.sb_events_batch_matches` listed match ids, ascending, keeps only the
-columns the mapping below needs for I3, concatenates the batches in order and frees each
-batch's frame before the next; card names are read through `iter_events`, one file at a time.
-The frames do not depend on the batch size (a test).
+batches of `replication.sb_events_batch_matches` match ids, ascending, keeps only the columns
+the mapping below needs for I3, concatenates the batches in order and frees each batch's frame
+before the next; card names are read through `iter_events`, one file at a time. The ids are
+those of `read_matches`' frame, the listed matches whose files exist, never the missing ids it
+returns: `read_events` and `iter_events` check only that an id is listed and then open its file,
+so a listed match whose files are absent would raise (`FAILED_RUN`) instead of counting as an
+invalid match against G1. The frames do not depend on the batch size (a test).
 
 ```python
-def load_sb_league(root: Path, folder: str, config: Mapping) -> dict[str, pd.DataFrame]
-    # keys: actions (joined shape of I3), matches, match_meta, sheet_dismissals; plus
-    # "card_names" and "listed_matches", an int: the number of matches the folder's index
-    # lists, len(frame) + len(missing ids) of read_matches
+@dataclass(frozen=True)
+class SbLeague:
+    actions: pd.DataFrame          # the joined shape of I3
+    matches: pd.DataFrame          # game_id, competition, date, home_team_id, away_team_id
+    match_meta: pd.DataFrame       # game_id, home_score, away_score (int64)
+    sheet_dismissals: pd.DataFrame # game_id, team_id, dismissed_players (int64)
+    listed_matches: int            # the matches the folder's index lists:
+                                   # len(frame) + len(missing ids) of read_matches
+
+def load_sb_league(root: Path, folder: str, config: Mapping) -> SbLeague
 def vocabulary_check(root: Path, folder: str, config: Mapping) -> dict
 def orientation_check(root: Path, folder: str, config: Mapping) -> dict
 
@@ -1081,13 +1161,17 @@ Frozen mapping (keys read with single-quoted strings; no schema key in double qu
 
 No sentinel rule applies (`wy_location_sentinels` is Wyscout's); `coordinate_range` and the
 finiteness rule do. `vocabulary_check` (before any replication loss): the pass and shot types
-of `folder_vocabulary` and the card names seen are compared with `sb_known_pass_types`,
-`sb_known_shot_types`, `sb_known_card_names`, names only; a name outside a list gives
-`REPLICATION_INCONCLUSIVE (VOCABULARY)` for every comparable descriptor. `orientation_check`
-(structure, before any replication loss): over at least `orientation_check_minimum_matches`
-matches, the mean `start_y` of `pass` rows whose event `position.name` (read through
-`iter_events`) is `orientation_positions.left` is below `orientation_threshold`, and that of
-`orientation_positions.right` above it; otherwise `REPLICATION_INCONCLUSIVE (ORIENTATION)`.
+of `folder_vocabulary` and the card names it reads itself through `iter_events`, one file at a
+time, from the matches of `read_matches`' frame (the card details of `sb_card_detail_keys`),
+are compared with `sb_known_pass_types`, `sb_known_shot_types`, `sb_known_card_names`, names
+only; a name outside a list gives `REPLICATION_INCONCLUSIVE (VOCABULARY)` for every comparable
+descriptor. `orientation_check` (structure, before any replication loss) reads the first
+`orientation_check_minimum_matches` matches of `read_matches`' frame (listed matches whose
+files exist), in index order, through `iter_events`; over the `pass` rows of those matches,
+the mean `start_y` of the rows whose event `position.name` is `orientation_positions.left` is
+below `orientation_threshold`, and the mean of the rows whose `position.name` is
+`orientation_positions.right` is above it; otherwise, and when the frame holds fewer than
+`orientation_check_minimum_matches` matches, `REPLICATION_INCONCLUSIVE (ORIENTATION)`.
 Neither raises. Known differences, stated in `analysis.md`: StatsBomb coordinates are
 continuous, so few rows sit on a cut; the box rectangle is each provider's own; StatsBomb
 pass types Recovery and Interception are open-play passes, and on the Wyscout side a pass after
@@ -1102,21 +1186,30 @@ that is in `comparable_descriptors`, the checks run in this order and stop at th
 fails, which is therefore the first reason that holds in `inconclusive_reasons` order: the
 existence check above (`DATA_MISSING`, before any file is opened); `vocabulary_check`
 (`VOCABULARY`); `orientation_check` (`ORIENTATION`); a folder whose index lists a number of
-matches other than `expected_matches` (`SAMPLE`). Then the `_sb` definitions through
+matches other than `expected_matches` (`SAMPLE`). Each check runs over every folder of
+`replication.leagues`, in list order, before the next check starts (check-major order, one
+folder in memory at a time), so a run with one folder failing `ORIENTATION` and a later folder
+failing `VOCABULARY` records `VOCABULARY`. Then the `_sb` definitions through
 `build_team_match_table`; `evaluate_replication` (4.3) with `kA` and `kD` frozen and
 `listed_matches` the listed count of each folder, every row of the season (`evaluation_start =
 season_start` for this arm), in its own `SeasonWorld` (`seed + seed_streams.replication_world`,
 `replication.bootstrap_replicates`, strata in the order of `replication.leagues`), a failed G1
 or G3 being `SAMPLE`. When at least one comparable descriptor reached step 3 of `status_rule`
 (its token is `run_only_if_descriptor_verdict`), it returns as `artifact` the payload of
-`replication.local_artifact`: per such descriptor the shape of `descriptors[key]` restricted to
-`gates`, `events`, `shape_ladder`, `p1`, `m1` (those it computed) and `status`, plus
+`replication.local_artifact` (`replication.local_artifact_records`), with exactly these keys:
+`statuses`, every descriptor of `descriptor_parts` mapped to its `{status, reason}` (the
+replication's machine record, which ROOT 2.9 Z5 keeps out of `results.json`); `descriptors`,
+per descriptor that reached step 3, `{gates, events, shape_ladder, p1, m1, status, reason}`,
+where `gates` is `{gate: {passed, detail}}` for G1 and G3 (the shape of the top-level
+`gates[subject]` of section 8), `events`, `shape_ladder` (B4, candidate, B6), `p1` and `m1`
+have the shapes of the same keys of `descriptors[key]` in section 8, and a key whose quantity
+was not computed (a failed gate, a check that stopped the run) is `null`; and
 `folder_digests`, the `folder_manifest` digest of each folder of `replication.leagues` whose
-match index exists, and `null` for one whose folder or index is absent
-(`replication.local_artifact_records`; ADR-0027 allows a digest of a provider's files, and this
-one is never committed). Otherwise `artifact` is `None` and no local artifact exists. It writes
-no file and returns the statuses and the artifact; the runner writes or compares the artifact
-under `output_root` (7.4). An exception inside it is handled by the runner (7.4).
+match index exists, and `null` for one whose folder or index is absent (ADR-0027 allows a
+digest of a provider's files, and this one is never committed). Otherwise `artifact` is `None`
+and no local artifact exists. It writes no file and returns the statuses and the artifact; the
+runner writes or compares the artifact under `output_root` (7.4). An exception inside it is
+handled by the runner (7.4).
 
 ## 7. `experiments/run_conceded_shape.py`
 
@@ -1125,6 +1218,8 @@ under `output_root` (7.4). An exception inside it is handled by the runner (7.4)
 ```powershell
 # pre-outcome, synthetic only (anyone may run it; root commits the stamp in its own commit)
 .venv\Scripts\python.exe -X utf8 experiments\run_conceded_shape.py gate --workers 4
+# the BLAS threads of real and real --verify (blas_thread_environment), set in the same shell
+$env:OMP_NUM_THREADS = "1"; $env:OPENBLAS_NUM_THREADS = "1"; $env:MKL_NUM_THREADS = "1"
 # THE single command of the real execution (root, once)
 .venv\Scripts\python.exe -X utf8 experiments\run_conceded_shape.py real
 # determinism re-run (root, once): recomputes, compares, writes only the determinism record
@@ -1132,6 +1227,12 @@ under `output_root` (7.4). An exception inside it is handled by the runner (7.4)
 # helper, no data: print fingerprints, source hashes and the pipeline hash
 .venv\Scripts\python.exe -X utf8 experiments\run_conceded_shape.py fingerprints
 ```
+
+In `real` and `real --verify`, the least-squares fits (`pair_interaction`'s residualisation) and
+every other LAPACK or BLAS call run with the thread counts of `blas_thread_environment`, so a
+summation order that depends on the thread count cannot make the two executions differ in a
+byte; the runner refuses when any of those variables is not set to its value (7.2), and
+`provenance.packages` records the BLAS library and version and the machine (section 8).
 
 | Subcommand | Writes |
 |---|---|
@@ -1156,7 +1257,8 @@ Exit 2 with a one-line reason; nothing is written.
 | pipeline hash | `lf_sha256(PIPELINE.md) == pipeline_spec_sha256` |
 | output root | `output_root` resolves under `data/licensed/`, `git check-ignore` reports it ignored, and `output_results`, `failed_run_log`, `replication_failure_log`, `determinism_record` and `replication.local_artifact` all resolve under it |
 | clean tree | `git status --porcelain` is empty (untracked files included: an untracked module or `sitecustomize.py` refuses; the outputs under `output_root` are ignored and so never refuse) |
-| output absent | without `--verify`: neither `output_results` nor `committed_experiment_dir/results.json` exists (one execution). With `--verify`: `output_results` exists |
+| output absent | without `--verify`: neither `output_results` nor `committed_experiment_dir/results.json` exists (one execution). With `--verify`: `output_results` exists and `determinism_record` does not (one determinism re-run, `determinism_reruns`: a second `--verify` after a passing one is refused, so it can never remove the outputs of a verified execution) |
+| BLAS threads | each variable of `blas_thread_environment` is set in the environment to its value (`real` and `real --verify`) |
 | failed runs on the record | if `failed_run_log` exists, the committed `analysis.md` at `HEAD` contains the sha256 of its bytes. The same rule is stated in 7.4 and in the protocol; an `analysis.md` that records only the failures may be committed for this, and is completed in the results commit |
 | fingerprints | every `TEAM_DESCRIPTORS[key].fingerprint` equals `descriptor_fingerprints[key]`, and every `TEAM_DESCRIPTORS_SB[key].fingerprint` equals `descriptor_fingerprints_sb[key]` |
 | synthetic gate | `synthetic_gate.json` exists in `HEAD`, `passed` is true, and its `config_hash`, `protocol_hash`, `pipeline_hash`, `vectors_hash` and `code_hash` equal the current ones |
@@ -1174,7 +1276,7 @@ never a literal. `git` unavailable is a refusal, not a skip.
 | `protocol_hash`, `config_hash`, `pipeline_hash`, `vectors_hash` | `lf_sha256(path)` |
 | `source_hashes[posix path]` | `lf_sha256` of: `galactico/validation/conceded_shape.py`, `conceded_shape_synthetic.py`, `conceded_shape_sb.py`, `features/team/{__init__,descriptors,estimator,match_table}.py` (the estimator of 3.8 among them, ROOT 2.9 Z3), this runner, `validation/digests.py`, `validation/sb_reader.py`, `ingestion/sidecar.py`, `storage/public.py`, `reliability/core.py`, `reliability/confound.py`, `domain/precision.py` (its `format_plain` writes the audit's `failures` words), `domain/thesis.py` (the runner's key check) |
 | `code_hash` | `lf_sha256_text("\n".join(f"{path} {hash}" for path sorted))` |
-| `input_frame_hashes[league][frame]` | `sha256(pd.util.hash_pandas_object(canonical, index=False).values.tobytes())` where `canonical` = the columns the pipeline reads, in the order of section 1, index reset, sorted stably by every one of those columns in that order, nulls last (`event_id` alone orders `actions` and `game_id` alone `matches` and the sidecar `matches`, both unique; `squads` rows that tie on every read column are identical, so the order among them cannot change the bytes); the sidecar's own content hashes are in `provenance.sidecar` |
+| `input_frame_hashes[league][frame]` | `frame` is one of exactly five keys, one per frame read: `actions` (I1, the columns of `ACTION_COLUMNS`), `matches` (I1), `sidecar_events` (I2), `sidecar_matches` (I4) and `sidecar_squads` (I5), each as read, before any join or cast. Each is `sha256(pd.util.hash_pandas_object(canonical, index=False).values.tobytes())` where `canonical` = the columns the pipeline reads, in the order of section 1, index reset, sorted stably by every one of those columns in that order, nulls last (`event_id` alone orders `actions` and `sidecar_events`, and `game_id` alone `matches` and `sidecar_matches`, each unique; `sidecar_squads` rows that tie on every read column are identical, so the order among them cannot change the bytes); `load_league` computes them (7.4); the sidecar's own content hashes are in `provenance.sidecar` |
 | `table_hashes[league][window]` | same recipe over the table sorted by `(game_id, team_id)`, columns sorted by name |
 | `world.fingerprint` | `SeasonWorld.fingerprint` (4.3) |
 | `synthetic_gate_hash` | `lf_sha256(synthetic_gate.json)` |
@@ -1185,15 +1287,27 @@ between machines. Content hashes do not.
 ### 7.4 Structure of `run_real`, and failure
 
 ```python
-def load_league(league: str, config: dict) -> dict[str, pd.DataFrame]   # I1 to I5, joined
-def league_tables(frames, config) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]   # window -> (table, audit)
+@dataclass(frozen=True)
+class LeagueInputs:
+    frames: dict[str, pd.DataFrame]       # actions (the joined frame of I3), matches,
+                                          # match_meta (I4, scores int64), sheet_dismissals (I5)
+    input_frame_hashes: dict[str, str]    # the five keys of 7.3, from the frames as read
+
+def load_league(league: str, config: dict) -> LeagueInputs           # I1 to I5, joined
+def league_tables(frames: Mapping[str, pd.DataFrame], config: dict
+                  ) -> dict[str, tuple[pd.DataFrame, pd.DataFrame]]  # window -> (table, audit)
 def run_real(config: dict, *, verify: bool) -> dict           # one league in memory at a time
-def run_gate(config: dict, workers: int) -> dict
 def main(argv: Sequence[str] | None = None) -> int
 ```
 
-The replication is `conceded_shape_sb.run_replication` (section 6); the runner has no function
-of its own for it. Stages (names for the failure logs): `refusals`, `load`, `tables`, `world`,
+The replication is `conceded_shape_sb.run_replication` (section 6) and the gate is
+`conceded_shape_synthetic.run_gate(config, workers=...)` (section 5), which the `gate`
+subcommand calls; the runner has no function of its own for either. Every repository-relative
+path of the config (`output_root`, the output files, `replication.sb_root`,
+`replication.local_artifact`) is joined to the repository root with `pathlib`, so an absolute
+path in a test config is used as it stands (section 9).
+
+Stages (names for the failure logs): `refusals`, `load`, `tables`, `world`,
 `descriptors`, `level`, `study`, `replication`, `serialise`. Paths are anchored on
 `Path(__file__)`. No pool in `real`. `gate` may use a process pool of at most
 `workers_maximum`; results must not depend on the worker count (seasons are seeded
@@ -1218,29 +1332,34 @@ committed `analysis.md` at `HEAD` contains the sha256 of the log's bytes (the re
 7.2, the same words).
 
 **An exception in `replication`** is not a failed execution. It is caught; its type, stage,
-file and line and the source hashes (never the message) form the record written to
-`replication_failure_log`, not to `failed_run_log`; every descriptor whose replication status
-reached step 3 of `replication.status_rule` is `REPLICATION_INCONCLUSIVE` with reason
-`FAILED_RUN` (`NOT_COMPARABLE` and `NOT_RUN` stand); no local artifact is written;
-`output_results` is written; the replication is not attempted again. `failed_run_log`
-therefore holds the records of exit-3 executions and of `--verify` failures (below), none of
-which leaves an `output_results`, and a replication exception never blocks the determinism
-re-run of an execution that succeeded.
+file and line, the source hashes (never the message) and every descriptor's `{status, reason}`
+(tokens only) form the record written to `replication_failure_log`, not to `failed_run_log`;
+every descriptor whose replication status reached step 3 of `replication.status_rule` is
+`REPLICATION_INCONCLUSIVE` with reason `FAILED_RUN` (`NOT_COMPARABLE` and `NOT_RUN` stand); no
+local artifact is written; `output_results` is written, and it holds no replication status
+whatever the replication returned (`replication.results_record`, ROOT 2.9 Z5); the replication
+is not attempted again. `failed_run_log` therefore holds the records of exit-3 executions and
+of `--verify` failures (below), none of which leaves an `output_results`, and a replication
+exception never blocks the determinism re-run of an execution that succeeded.
 
-**`real --verify`** recomputes everything except a replication whose first-run status is
-`FAILED_RUN`, which it takes unchanged from `output_results` without attempting it. It writes
-no output file: it reads the bytes of `output_results` and, when it exists,
-`replication.local_artifact` before it recomputes, and compares them in memory with the
-recomputed bytes (the local artifact's existence included). It writes only
-`determinism_record` (`{results_sha256, recomputed_sha256, local_artifact_equal, equal}`, no
-number from the run). On any byte difference, or on an exception in any stage of the re-run
-other than a replication exception (which sets `FAILED_RUN` as above, writes no log under
-`--verify`, and then shows as a byte difference), it removes the first execution's outputs,
-`output_results`, `replication.local_artifact` and `replication_failure_log` (they are never
-committed, and nothing from them may be read), appends one failed-run record (stage
-`serialise` for a byte difference, the raising stage for an exception) and exits 1. There is
-no second determinism re-run (`determinism_reruns`): the next execution is a new `real` under
-the failed-execution rule above, followed by its own `real --verify`.
+**`real --verify`** recomputes everything except a replication that raised in the first
+execution (`replication_failure_log` exists), which it does not attempt: its statuses are those
+of that log, and there is no local artifact to compare. It writes no output file: it reads the
+bytes of `output_results` and, when it exists, `replication.local_artifact` before it
+recomputes, and compares them in memory with the recomputed bytes (the local artifact's
+existence included). When every byte is equal it writes `determinism_record`
+(`{results_sha256, recomputed_sha256, local_artifact_equal, equal}`, no number from the run)
+and exits 0; that is the only file it writes, and it is written only then. On any byte
+difference, or on an exception in any stage of the re-run other than a replication exception,
+it writes no `determinism_record`, removes the first execution's outputs, `output_results`,
+`replication.local_artifact` and `replication_failure_log` (they are never committed, and
+nothing from them may be read), appends one failed-run record (stage `serialise` for a byte
+difference, the raising stage for an exception) and exits 1. A replication exception in the
+re-run, when the first execution wrote no `replication_failure_log`, writes no log under
+`--verify` and counts as a byte difference of stage `serialise`, whether or not a local
+artifact differs. There is no second determinism re-run (`determinism_reruns`; 7.2 refuses
+`--verify` when `determinism_record` exists): the next execution is a new `real` under the
+failed-execution rule above, followed by its own `real --verify`.
 
 **Before writing**, in stage `serialise`, the runner asserts on the in-memory payload:
 `allow_nan=False` serialises it; its size, echo included, is at most `results_maximum_bytes`;
@@ -1250,8 +1369,10 @@ the substring scan of section 8 finds none of `forbidden_result_substrings`;
 `provenance.data_license` and `provenance.reuse_disclosure` are present and equal their
 `results_strings` entries; and every `identity_stress.note` that exists equals
 `results_strings.identity_stress_note`, with no requirement that one exists (a descriptor whose
-gates failed has no `identity_stress`, section 8). A failure is a failed execution of stage
-`serialise`.
+gates failed has no `identity_stress`, section 8); and the payload has no key `replication`
+at its top level, and no string value outside the config echo equals a member of
+`replication.statuses` (`replication.results_record` is false). A failure is a failed
+execution of stage `serialise`.
 
 ### 7.5 Which code reads which `config.json` key
 
@@ -1270,7 +1391,7 @@ is read by its consumer, and no consumer reads a number from anywhere else.
 | criteria | `leagues` ((b), (Lb), the per-league subsets), `unexposed_leagues` ((f), `p1.unexposed`, `l1.unexposed`), `criterion_alpha_one_sided`, `minimum_leagues_with_negative_estimate`, `level_minimum_leagues_with_negative_estimate`, `holm_family_alpha_one_sided`, `holm_family_size`, `reliability_critical_value`, `reliability_band`, `reliability_number`, `house_reliability_critical_value`, `house_reliability_confidence`, `season_label` (the house bound's period, passed to `split_half` and `level_split_half` as `period`), `strength_covariates`, `strength_variance_explained_ceiling`, `strength_spearman_floor`, `strength_top_k`, `strength_top_k_survival_floor`, `strength_tie_policy`, `strength_permutations`, `interaction_minimum_events_per_meeting`, `calibration_minimum_events_per_row` |
 | verdicts and registry | `verdict_vocabulary`, `verdict_precedence`, `registry_*`, `lifecycle_status`, `subject_groups` |
 | study layout | `primary_descriptor`, `secondary_descriptors`, `level_subject`, `committed_experiment_dir`, `version`, `experiment_id`, `registry_experiment_id`, `tier` |
-| runner | `pipeline_spec_sha256`, `output_root`, `output_results`, `failed_run_log`, `replication_failure_log`, `determinism_record`, `results_maximum_bytes`, `results_strings` (copied verbatim, asserted), `forbidden_result_substrings`, `forbidden_result_substrings_scope` (the scan of section 8 follows it; the runner applies it before writing, 7.4), `forbidden_result_key_names`, `determinism_reruns` |
+| runner | `pipeline_spec_sha256`, `output_root`, `output_results`, `failed_run_log`, `replication_failure_log`, `determinism_record`, `results_maximum_bytes`, `results_strings` (copied verbatim, asserted), `forbidden_result_substrings`, `forbidden_result_substrings_scope` (the scan of section 8 follows it; the runner applies it before writing, 7.4), `forbidden_result_key_names`, `determinism_reruns`, `blas_thread_environment` (the refusal of 7.2 and `provenance.packages`) |
 | replication | every key of `replication` |
 | synthetic gate | every key of `synthetic_gate` |
 | estimator constant test (3.8; product code cannot read an experiment config, so `estimator.py` holds the value and a test asserts equality) | `league_prior_pseudocount_per_part` |
@@ -1303,15 +1424,26 @@ headline: {primary: token, level: token}
 provenance:
   protocol_commit, protocol_hash, config_hash, pipeline_hash, vectors_hash,
   pipeline_spec_sha256, config (verbatim), source_hashes, code_hash, hash_policy,
-  packages {numpy, pandas, pyarrow}, team_match_version, loader_version,
+  packages {python, numpy, pandas, pyarrow, blas, machine, blas_threads},
+                                  # blas: the BLAS library and version numpy reports
+                                  # (numpy.show_config); machine: platform.platform() and
+                                  # platform.processor(); blas_threads: the variables of
+                                  # blas_thread_environment as set (7.1, 7.2)
+  team_match_version, loader_version,
   descriptor_schema, descriptor_fingerprints, descriptor_fingerprints_sb,
   sidecar {league: sidecar.provenance(league)}, sidecar_schema_version, tag_mapping_version,
   input_frame_hashes, table_hashes, world {fingerprint, replicates, clusters, strata},
   synthetic_gate_hash, data_license, reuse_disclosure    # the two: results_strings, verbatim
 coverage[league]:
-  matches, valid_matches, invalid_by_reason, teams, teams_with_more_than_one_coach_id,
+  matches, valid_matches, invalid_by_reason, teams,
+  teams_with_more_than_one_coach_id,  # teams with more than one distinct non-null coach id
+                                      # over their matches (a team's coach id of a match is
+                                      # home_coach_id at home, away_coach_id away; I4 nulls a
+                                      # raw 0, and a null is never counted as an id)
+  teams_with_a_null_coach_id,         # teams with at least one match whose coach id is null
   development {rows, eligible_rows, weeks}, evaluation {rows, eligible_rows, weeks},
-  window {events_in_window_share, median_window_seconds}, dropped_location {event_set: n}
+  window {events_in_window_share, median_window_seconds}, dropped_location {event_set: n},
+  dropped_at_sentinel {event_set: [n per point of wy_location_sentinels, in its order]}
 gates[subject]: {gate: {passed, detail}}
 descriptors[key]:
   role ("primary" | "secondary"), fingerprint, parts, mirror_pairs, gates_passed,
@@ -1355,12 +1487,20 @@ level:
   strength_validity (level_strength_validity: the descriptors' shape, coordinate log_rate;
                      kind CONTEXT, reported),
   criteria {La, Lb, Le}, token, reasons, lifecycle_status
-replication[key]: {status, reason}   # every descriptor key, none for the level; tokens only
+# no replication entry (replication.results_record false; ROOT 2.9 Z5): the arm's result is
+# reported in analysis.md only, its statuses are in the local artifact or, after a
+# replication exception, in replication_failure_log, neither ever committed
 interpretation, uncertainty_limit, product_effect     # results_strings, verbatim
 ```
 
 `ClusterEstimate` serialises as `{estimate, interval, p_one_sided, rows, weight, clusters,
-holes}`. Coordinate names: three parts `side_balance`, `wide_versus_centre` for the two
+holes}`. A selected unit constant is written as its number when it is a value of
+`shrinkage_grid` and as the string `"context_only"` when the boundary candidate is selected,
+never `null` (which would read as not computed): in `descriptors[key].selection.k_unit`,
+`level.selection.k_unit`, each entry of `identity_stress.placebo_k_unit`, the keys of
+`unit_losses` and `unit_deviances`, and the keys of `selected_k_unit_counts` in
+`synthetic_gate.json` (there the grid values as `str(value)` and `"context_only"`).
+Coordinate names: three parts `side_balance`, `wide_versus_centre` for the two
 conceded-channel descriptors and `first_versus_last`, `ends_versus_middle` otherwise; two parts
 `first_versus_second`. A subject whose gates failed has `token` `INCONCLUSIVE` and its failed
 gates as reasons. The figures of section 12.2 point into this shape.
@@ -1389,11 +1529,12 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | | `test_log_ratio_basis_is_orthonormal_and_sums_to_zero` | |
 | `test_team_match_table.py` | `test_attack_down_attackers_right_lands_on_defenders_left` | synthetic events: entries ending `y = 0.9` are in the defender's `def_left`; the paired defending duels sit at `y = 0.1` in the defender's own frame |
 | | `test_without_the_mirror_the_planted_side_has_the_opposite_sign` | negative control (M-01): reading `att_left` as `def_left` flips the recovered sign of the statistic of `synthetic_gate.frame_negative_control` |
-| | `test_sentinels_are_wyscout_only_and_out_of_range_is_dropped` | `(1,1)` Wyscout end is not an entry on the attacker's right; the same point with sentinels `()` is |
+| | `test_sentinels_are_wyscout_only_and_out_of_range_is_dropped` | `(1,1)` Wyscout end is not an entry on the attacker's right; the same point with sentinels `()` is; an end at `(1,0)` is an `att_left` entry (the sentinels lie on one diagonal); the audit counts the `(1,1)` end in `dropped_sentinel__f3_entry_pass__1`, a pass from `(0,0)` to `(1,1)` under both points, and an out-of-range end under neither |
 | | `test_state_window_goals_own_goals_dismissals`, `test_same_second_incident_does_not_change_that_row`, `test_save_row_goal_tag_is_ignored`, `test_goal_flag_on_a_row_that_is_not_a_shot`, `test_own_goal_takes_precedence` | hand-built timeline; `state` and `incidents` carry the columns of 2.1 |
 | | `test_window_seconds_hand_example` | closes at 2-0, reopens at 2-1, closes at a red card; `period_ends` holds each period's last second |
 | | `test_goals_mismatch_and_dismissals_mismatch_invalidate_both_rows_in_every_window` | validity is the same for `close_11v11` and `all_states`; the `match__` columns of an invalid match equal Match Lab's, its `for__` and `against__` counts are 0 |
 | | `test_a_team_match_without_a_sheet_row_raises` | `sheet_dismissals` missing one team of one match raises `ValueError` |
+| | `test_validity_reasons_and_their_order` | hand-built matches: one with no `2H` row is `period_missing`; one with a negative `seconds` in regulation is `clock_invalid`; one with a missing period and a goals mismatch records `period_missing`, the first of `validity_reasons`; a duplicate `game_id` in `matches`, a duplicate `game_id` in `match_meta`, a `team_id` that is neither side of its match and a match with no `match_meta` row each raise `ValueError` |
 | | `test_row_order_and_input_immutability` | shuffle rows; frames unchanged |
 | | `test_against_columns_are_the_opponents_for_columns` | |
 | | `test_oracle_against_build_match_synthetic` | 2.5 on a synthetic match with a penalty, a direct free-kick shot and a flagged non-duel row, `build_match` given the extra inputs 2.5 lists |
@@ -1401,17 +1542,17 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | `test_team_estimator.py` | `test_hand_computed_two_date_example` | every state quantity of 4.2 (`pi`, `pi_v`, `nu_v`, `A_c`, `A_c^(-u)`, `e`, `O_u`, `E_u`, `delta_u`, `lam_v`, `lam`, `rA_c`, `rA_c^(-u)`, `O'_u`, `E'_u`, `rD_u`), `predicted_shape`, `predicted_level`, `served_composition` and `served_volume` through `state_at`, `shape_estimate` and `level_estimate`, against `fractions.Fraction` arithmetic written in the test; the team ids of the example are not `0..T-1` (for example 11, 23, 37), so the id-to-index mapping is exercised, and an id outside `team_ids` raises `ValueError` |
 | | `test_estimator_constant_matches_the_config` | `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART == league_prior_pseudocount_per_part` |
 | | `test_unit_matches_are_excluded_from_its_expected_composition` | (moved from the engine's tests; the exclusion is the estimator's) |
-| | `test_rows_on_or_after_the_date_and_invalid_rows_are_not_added` | `state_at` ignores poison rows dated on or after `date` and every invalid row |
+| | `test_rows_on_or_after_the_date_and_invalid_rows_are_not_added` | `state_at` ignores poison rows dated on or after `date` and every invalid row; a row dated on the decision day is not added when `date` is given as a later time of that day (for example `"2018-03-10 19:45"`). Invalid rows are built as 2.2 emits them (`window_seconds` NaN, so `exposure` NaN, counts 0) and passed to `add_rows` and `state_at` with a weight of 1 and with a weight of 0: every array of the `PriorState` is finite and equal to the state without them |
 | | `test_weights_count_rows_and_zero_removes_them` | an integer weight `w` gives the state of the row repeated `w` times; a weight of 0 the state without it; row order does not matter; inputs unchanged |
 | | `test_context_only_gives_zero_delta_and_unit_ratio_one`, `test_served_functions_refuse_context_only` | `k_unit=None` gives `delta` 0 and `k_unit_level=None` `rD` 1; `served_composition` and `served_volume` raise `ValueError` on them |
 | | `test_no_argument_has_a_default` | no parameter of a public function of the module has a default |
 | `test_conceded_shape_engine.py` | `test_hand_computed_two_date_example` | the rung assembly of 4.2 on the estimator's example (B0 to B7 and the candidate, the B3 and B5 level means included, the mirror swap, the peers' pooled `(O, E)`, the P2 inputs), against `fractions.Fraction` arithmetic written in the test |
-| | `test_engine_reads_the_one_estimator` | AST: `conceded_shape.py` imports `galactico.features.team.estimator`, and none of the three research modules defines a function or class named in the estimator's `__all__`; `conceded_shape_synthetic.py` imports from the estimator at most `descriptor_rows`, and only `run_gate` calls it (the generator of section 5 reads none of the estimator). Behaviour, on the estimator's two-date example. Every perturbation moves a composition or a rate; a constant added to every part of `delta` would not, since it cancels in the normalisation and in `basis @ delta`, whose rows sum to zero. With `b = log_ratio_basis(K)[0]`, each monkeypatch is applied alone, and the engine's pooled quantity named beside it must change by more than `1e-6` in absolute value: `estimator.unit_deviation` adding `b` to every row of its result (the candidate loss and the P2 inputs); `estimator.unit_level_ratio` multiplying its result by 2 (the B2 deviance); `estimator.shape_estimate` returning its estimate with one field replaced, in turn `context` by `normalise(context * exp(b))` (the B1 and B4 losses), `nu` by `nu + b` (the B1 loss), `expected` by `expected * exp(b)` (the candidate loss) and `expected_share` by `normalise(expected_share * exp(b))` (the P2 inputs); `estimator.level_estimate` returning its estimate with `rate_venue` (the B0 deviance), `context_ratio` (B1) or `unit_expected` (B2) multiplied by 2. So an engine that holds a copy of any formula of 4.2 under another name, the level ratios included, fails |
+| | `test_engine_reads_the_one_estimator` | AST: `conceded_shape.py` imports the module as `from galactico.features.team import estimator` and holds no `from galactico.features.team.estimator import` (so every monkeypatch below reaches the engine, 3.8), and none of the three research modules defines a function or class named in the estimator's `__all__`; `conceded_shape_synthetic.py` imports from the estimator at most `descriptor_rows`, and only `run_gate` calls it (the generator of section 5 reads none of the estimator). Behaviour, on the estimator's two-date example. Every perturbation moves a composition or a rate; a constant added to every part of `delta` would not, since it cancels in the normalisation and in `basis @ delta`, whose rows sum to zero. With `b = log_ratio_basis(K)[0]`, each monkeypatch is applied alone, and the engine's pooled quantity named beside it must change by more than `1e-6` in absolute value: `estimator.unit_deviation` adding `b` to every row of its result (the candidate loss and the P2 inputs); `estimator.unit_level_ratio` multiplying its result by 2 (the B2 deviance); `estimator.shape_estimate` returning its estimate with one field replaced, in turn `context` by `normalise(context * exp(b))` (the B1 and B4 losses), `nu` by `nu + b` (the B1 loss), `expected` by `expected * exp(b)` (the candidate loss) and `expected_share` by `normalise(expected_share * exp(b))` (the P2 inputs); `estimator.shape_estimate` returning its estimate with `pi_venue` replaced by `normalise(pi_venue * exp(b))` (the B0 and B2 shape losses) or `observed` by `observed * exp(b)` (the candidate loss and the peers' loss); `estimator.level_estimate` returning its estimate with `rate_venue` (the B0 deviance), `context_ratio` (B1), `unit_expected` (B2), `unit_observed` (B2 and B3) or `rate` (the B5 deviance) multiplied by 2. So an engine that holds a copy of any formula of 4.2 under another name, the level ratios, the venue shape `pi_v` and the B5 rate `lam` included, fails |
 | | `test_context_only_is_exactly_b4_and_b1`, `test_delta_is_zero_without_history` | under `context_only` the candidate, mirror, peers and permuted arrays are the B4 array, and the level's B2 and B3 arrays are B1's |
-| | `test_context_only_selection_against_grid_selecting_placebos` | a planted history where the real `kD` is `context_only` and every placebo selects a grid value with positive evaluation P1: (a), (b), (f) are `False`; (d) is `False` for a mirror descriptor and `True` otherwise; (c) is `True`; the pooled P1 `p_one_sided` is exactly 1.0; the token is `ADDED_INFORMATION_NOT_SHOWN` and the reasons are exactly the criteria that are not `True` |
+| | `test_context_only_selection_against_grid_selecting_placebos` | a planted history where the real `kD` is `context_only` and every placebo selects a grid value with positive evaluation P1: (a), (b), (f) are `False`; (d) is `False` for a mirror descriptor and `True` otherwise; (c) is `True`; the pooled P1 `p_one_sided` is exactly 1.0; the token is `ADDED_INFORMATION_NOT_SHOWN` and the reasons are exactly the criteria that are not `True`; the serialised `selection.k_unit` is the string `"context_only"` and each `identity_stress.placebo_k_unit` is a grid number (section 8) |
 | | `test_raw_five_level_is_positive_with_no_recent_event` | a unit with no conceded event in its last `raw_persistence_matches` rows has a finite deviance |
 | | `test_future_and_same_day_rows_cannot_change_a_prediction` | poison rows on or after the date |
-| | `test_invalid_rows_never_update_state_but_count_on_the_sheet`, `test_row_order_invariance` | |
+| | `test_invalid_rows_never_update_state_but_count_on_the_sheet`, `test_row_order_invariance` | invalid rows built as 2.2 emits them (`window_seconds` NaN, so `exposure` NaN, counts 0): every state array, prediction, loss and deviance equals the run without them and is finite, and the sheet counters count them |
 | | `test_mirror_swaps_only_the_pair`, `test_poisson_multinomial_factorisation` | |
 | | `test_donor_map_is_deterministic_within_strata_and_order_invariant` | the seed string is `donor_seed_rule`'s, byte for byte, on a hand example |
 | | `test_one_world_for_every_estimand_subset_and_window` | per-league and unexposed replicates are restrictions of the pooled ones; both rows of a match share a weight; the fingerprint changes with one multiplicity; a zero-denominator replicate is a hole |
@@ -1420,15 +1561,16 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | | `test_selection_tie_set`, `test_selection_reads_development_rows_only` | candidates within tolerance of the minimum, not of each other; `context_only` first, then the largest; with candidates `(None, 25, 50, 100)` and pooled losses `(1.0, 1.0 + 1e-13, 1.2, 1.3)`, `select_k` returns `(0, losses)`, an int index, and G6 and LG6 stay true |
 | | `test_select_k_returns_none_on_a_non_finite_loss` | `(None, losses)`; G6 (LG6) false, `INCONCLUSIVE`, no further forward pass (monkeypatched to raise) |
 | | `test_sensitivity_uses_the_selected_constants_and_the_same_eligible_rows` | the `all_states` P1 reads one forward pass with the selected `kA`, `kD`, no placebo, the same eligible mask and the shared world |
-| | `test_split_balances_opponents_and_venues` | each half meets every opponent once; home counts differ by at most one; a missing meeting is not replaced |
+| | `test_split_balances_opponents_and_venues` | on the Berger tables of section 5 at 18 and 20 teams, mirrored and with the second leg's rounds permuted by several seeded permutations: each half meets every opponent once; the two halves' home counts differ by at most one; each half holds half, within one, of the first leg and of the second; the rule before the third audit (home or away meeting by the parity of the position) fails the leg assertion on the same tables, so the test can fail; an invalid meeting is in neither half, is not replaced, and moves no other opponent's position |
 | | `test_persistence_follows_its_rule` | league-centred part values, the minimum per part, no step-up, on a hand example |
 | | `test_two_part_engine_recovers_a_planted_width_effect` | one seeded season, `sd_width = 0.15`: P1 p-value at most `alpha` for the wide share |
 | | `test_replication_path_computes_p1_and_m1_only` | `evaluate_replication` on synthetic rows with no development part: gates G1 and G3 only, from the `replication` minima; no selection, placebo, R1, V1, P2, T1 or I1 is computed (each monkeypatched to raise); a planted effect gives `REPLICATED` and a planted nothing `NOT_REPLICATED` |
 | `test_conceded_shape_rule.py` | `test_verdict_truth_tables` | descriptor: every combination of `{True, False, None}^7` with each gate pattern; level: `{True, False, None}^3` with each level gate pattern; each maps to exactly one token, the protocol's, with its reasons and its `registry_outcomes` statement |
 | | `test_replication_status_truth_table` | every comparable and not comparable descriptor; every token; `inconclusive` `None` and each of `inconclusive_reasons`; P1 and M1 p-values below, at and above `alpha` and `None`: exactly the protocol's status and reason, including a mirror descriptor with P1 at most `alpha` and M1 above it giving `NOT_REPLICATED`, and `FAILED_RUN` never replacing `NOT_COMPARABLE` or `NOT_RUN` |
-| | `test_any_failed_gate_is_inconclusive_and_computes_no_loss` | loss fields absent; forward pass not called (monkeypatched to raise) |
+| | `test_any_failed_gate_is_inconclusive_and_computes_no_loss` | loss fields absent; forward pass not called (monkeypatched to raise); `audit_summary_from_rows` on rows with one invalid match gives per league `matches` and `valid_matches` as built, and G1 reads their quotient |
 | | `test_level_runs_when_only_g5_or_g6_fails`, `test_level_inconclusive_on_lg6` | |
 | | `test_holm_hand_examples` | `m` fixed at `holm_family_size`, `alpha = holm_family_alpha_one_sided`, `order = secondary_descriptors` (S1 to S5). Example 1, p = (S1 0.004, S2 0.007, S3 None, S4 NaN, S5 0.007): positions S1 1, S2 2, S5 3 (the tie in list order), S3 4, S4 5; thresholds 0.005, 0.00625, 0.0083333, 0.0125, 0.025; rejected S1 only (S5 is under its threshold but follows a failure). The wrong readings it excludes: `m` shrinking to the three numbers rejects S1, S2 and S5; `None` ranked first rejects nothing. Example 2, p = (0.0049, 0.0062, None, NaN, 0.0062): rejected S1, S2, S5 at the same positions and thresholds. A p-value of 1.0 (a `context_only` selection) is a number and is ranked |
+| | `test_secondary_token_follows_holm` | one synthetic family through `evaluate_study`, with `holm` monkeypatched to return `rejected` true and then false for one secondary whose other criteria hold: the serialised token and reasons equal `decide_descriptor` over the serialised gates and criteria (with `a` the Holm rejection), the token is `DEFENDER_SHAPE_SIGNAL` in the first case and `ADDED_INFORMATION_NOT_SHOWN` in the second, and `lifecycle_status` follows it; no secondary is serialised with `criteria.a` `None` when its gates passed |
 | | `test_reliability_bound_thresholds` | at `n = 98`, `G = 5`, `c = reliability_critical_value`: `r = 0.4770` gives 0.50009 and `r = 0.4769` 0.49996; `r = 0.6495` gives 0.70001 and `r = 0.6494` less than 0.700; the house bound differs |
 | | `test_house_bound_confidence_matches_the_critical_value` | `galactico.reliability.core._CRITICAL_VALUES[house_reliability_confidence] == house_reliability_critical_value` |
 | | `test_split_half_known_answer` | 4,000 synthetic units, true plus independent noise: stepped-up value 2/3 within 0.03 |
@@ -1437,35 +1579,36 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | | `test_pair_interaction_recovers_a_planted_pair_term_and_zero` | |
 | | `test_every_registry_sentence_is_served_under_every_token` | the seven records built from the config pass `finalize` under `PENDING` and every token, with figures under the established ones; a planted `line height` in a non-claim is refused; the proposal sentences, `planning_research_sentence` and `s5_ratio_name` pass the copy guard |
 | `test_conceded_shape_synthetic.py` | `test_berger_tables_shape` | every directed pair once, every unordered pair twice with venues swapped, for 18 and 20 teams; the rule of `schedule_rule` |
-| | `test_generator_is_seeded_and_emits_the_table_schema` | with and without the secondaries; a two-part secondary draws one-dimensional terms; two scenarios run with one seed emit the same `goals_for` and `goals_against` (strength and goals come first in every scenario); under `STRENGTH_MEASURED_0_15` the season builds, and its `f` is the within-league standardised points per match (three for a win, one for a draw) of the goals it emits |
+| | `test_generator_is_seeded_and_emits_the_table_schema` | with and without the secondaries; a two-part secondary draws one-dimensional terms; `NULL_NOTHING` and `EFFECT_STRONG` run with one seed emit the same `goals_for` and `goals_against` in every league of `leagues`, not only the first (the first pass draws every league's strength and goals before any scenario-dependent draw, section 5); built with the one-pass order (each league's rows drawn before the next league's goals) the same assertion fails, so the test can fail; under `STRENGTH_MEASURED_0_15` the season builds, and `points_per_match_code`, which the generator calls as a module attribute, is replaced by a wrapper that records its arguments and result: it is called once per league, with the fixtures and the goals the season emits as `goals_for` and `goals_against`. `latent_tercile_code` and `points_per_match_code` on hand examples: at 20 teams the tercile code has seven `+1`, seven `0` and six `-1` (mean 0.05, population standard deviation 0.805 before standardisation), and both return mean 0 and population standard deviation 1 |
 | | `test_synthetic_season_feeds_every_league_subset` | one seeded `EFFECT_STRONG` season at overdispersion 0.1: its keys equal `leagues`, in order, each with `expected_teams_per_league` teams; every per-league subset of P1 and L1 has rows; the `unexposed` estimates of P1 and L1 have rows and non-`None` estimates; criteria (b), (f) and (Lb) are not `None`; G1 to G3 read non-empty league counts; the world's strata follow `leagues` |
 | | `test_season_configuration_differs_in_two_keys_only` | the configuration a season's evaluation reads differs from `config.json` in `seed` and `bootstrap_replicates` only |
 | | `test_season_seeds_and_streams_never_collide` | over every scenario, overdispersion and season of the gate, the season seeds and their `seed + seed_streams` values are distinct, and neither `design_effect.seed` nor `frame_negative_control.seed` is among them |
 | | `test_design_effect_increases_with_overdispersion` | |
 | | `test_small_gate_classifies_planted_effect_and_planted_nothing` | 6 seasons each of `EFFECT_STRONG` and `NULL_NOTHING`, five leagues named by `leagues`, at overdispersion 0.1 and 500 replicates: all six `DEFENDER_SHAPE_SIGNAL`; none in the null |
 | `test_conceded_shape_experiment.py` | `test_config_has_every_key_the_pipeline_reads`, `test_no_number_is_hard_coded` | AST scan of the three research modules: every numeric literal is in the allowlist `{0, 1, 2, 3, 8}` declared in the test (indices, the deviance factor, Fisher's `n - 3`, the digest slice), except inside `synthetic_match_events`, which the test exempts by name (its event layout); every threshold, stride, scale, seed and count is read from `config` |
-| | `test_results_shape_is_strict_json_aggregate_and_small` | end to end on one five-league synthetic season (`synthetic_season`, leagues named by `leagues`, with the secondaries), through `run_real`'s stages below the refusal checks. The injection, written in the test: the refusal checks are monkeypatched to pass; `load_league` returns, per league, a stub of its frame dict built from the season's tables: `matches` (`game_id`, `competition`, `date`, `home_team_id`, `away_team_id`), `match_meta` (`game_id`, the scores from `goals_for` and `goals_against`, both coach ids null), and empty `actions` and `sheet_dismissals` frames with the columns of I3 and I5; `league_tables` returns for each window of `windows` one table, the league's descriptor frames merged on `(game_id, team_id)` (the same table for `all_states`), and an `audit` built from it (each match valid with reason `""`, the goal columns from `goals_for` and `goals_against`, no dismissal, the period seconds half of `window_seconds` each, `events_in_window` and `events_all_states` the primary's total of the match, every `dropped_location__<event_set>` 0); `sidecar.provenance` is monkeypatched to return a fixed dict written in the test; `provenance.input_frame_hashes` hash the stub frames and `table_hashes` the merged tables, by the recipe of 7.3. The test config differs from the frozen one only in `bootstrap_replicates` and `strength_permutations` (the test lists them and asserts no other key differs). Asserted: `allow_nan=False`, under `results_maximum_bytes`, none of `forbidden_result_substrings` in the payload with `provenance.config` removed, `banned_key_paths(...) == []` and no key at any depth containing `forbidden_result_key_names`, both with `provenance.config` echoed, and the key walker of `tests/test_licensing.py` finds nothing. Two further cases: the full serialised payload, echo included, does contain `player_id` (the exemption is needed); a payload with `player_id` planted outside the echo, in a reason string, is refused by the runner's check |
+| | `test_results_shape_is_strict_json_aggregate_and_small` | end to end on one five-league synthetic season (`synthetic_season`, leagues named by `leagues`, with the secondaries), through `run_real`'s stages below the refusal checks. The injection, written in the test: the refusal checks are monkeypatched to pass; `conceded_shape_sb.run_replication` is monkeypatched to return a fixed `ReplicationRun` written in the test (`NOT_RUN` and `NOT_COMPARABLE` statuses, no artifact), so no StatsBomb folder is read; `load_league` returns, per league, a stub `LeagueInputs` built from the season's tables: `frames` holds `matches` (`game_id`, `competition`, `date`, `home_team_id`, `away_team_id`), `match_meta` (`game_id`, the scores from `goals_for` and `goals_against`, both coach ids null), and empty `actions` and `sheet_dismissals` frames with the columns of I3 and I5, and `input_frame_hashes` hashes, by the recipe of 7.3 under its five keys, the stub's `actions` and `matches`, its `match_meta` as `sidecar_matches`, and empty frames with the columns of I2 and I5 as `sidecar_events` and `sidecar_squads`; before the tables are built, one match per league is made invalid exactly as 2.2 emits it (`valid` false and `invalid_reason` `goals_mismatch` on both rows, `window_seconds` NaN, every `for__` and `against__` count 0); `league_tables` returns for each window of `windows` one table, the league's descriptor frames combined so that each column appears once (merged on every column they share, all of which hold the same values in every frame: a merge on `(game_id, team_id)` alone would suffix `valid`, `window_seconds` and the shared count columns) (the same table for `all_states`), and an `audit` built from it (each match's `valid` and `invalid_reason` from the table, the goal columns from `goals_for` and `goals_against`, no dismissal, the period seconds half of `window_seconds` each, `events_in_window` and `events_all_states` the primary's total of the match, every `dropped_location__<event_set>` and `dropped_sentinel__<event_set>__<i>` 0); `sidecar.provenance` is monkeypatched to return a fixed dict written in the test; `table_hashes` hash the combined tables by the recipe of 7.3. The test config differs from the frozen one only in `bootstrap_replicates`, `strength_permutations`, `output_root`, `output_results`, `failed_run_log`, `replication_failure_log`, `determinism_record`, `replication.local_artifact` and `replication.sb_root`, every path under the test's `tmp_path` (the test lists the keys and asserts no other differs; E-11's runner test does the same with its roots). Asserted: the level's development selection deviances are finite and LG6 holds although an invalid row's exposure is NaN; the payload has no key `replication`; `allow_nan=False`, under `results_maximum_bytes`, none of `forbidden_result_substrings` in the payload with `provenance.config` removed, `banned_key_paths(...) == []` and no key at any depth containing `forbidden_result_key_names`, both with `provenance.config` echoed, and the key walker of `tests/test_licensing.py` finds nothing. Two further cases: the full serialised payload, echo included, does contain `player_id` (the exemption is needed); a payload with `player_id` planted outside the echo, in a reason string, is refused by the runner's check |
 | | `test_results_strings_are_copied_verbatim` | `interpretation`, `uncertainty_limit`, `product_effect`, `provenance.data_license` and `provenance.reuse_disclosure` are present and equal `results_strings`; every `identity_stress.note` present equals `identity_stress_note` |
-| | `test_every_subject_inconclusive_still_writes_results` | the injection of the test above, with `valid` set false (and `invalid_reason` `goals_mismatch`) on enough of one league's matches to put its valid share below `minimum_valid_match_share_per_league`, so G1 fails for every subject: `real` writes `output_results` and exits 0; every token is `INCONCLUSIVE` with its failed gates; no descriptor has `identity_stress` and the level block has no `selection`; the five always-present strings are there; `allow_nan=False` holds |
+| | `test_every_subject_inconclusive_still_writes_results` | the injection and test config of the test above, with matches made invalid as 2.2 emits them (`valid` false, `invalid_reason` `goals_mismatch`, `window_seconds` NaN, counts 0) on enough of one league's matches to put its valid share below `minimum_valid_match_share_per_league`, so G1 fails for every subject: `real` writes `output_results` and exits 0; every token is `INCONCLUSIVE` with its failed gates; no descriptor has `identity_stress` and the level block has no `selection`; the five always-present strings are there; `allow_nan=False` holds |
 | | `test_synthetic_results_pass_the_registry_checks` | a synthetic tree with that `results.json` and the seven records of section 12, executed under every token including `DEFENDER_SHAPE_SIGNAL` and `LEVEL_ESTABLISHED` with their figures, passes every checker of `tests/test_verdict_registry.py`; every figure pointer, `/level/reliability/minimum_lower_bound` included, resolves to a value of the figure's JSON type |
-| | `test_runner_refuses_dirty_tree_missing_gate_hash_and_fingerprint_mismatch` | monkeypatched git; each row of 7.2; an untracked file outside `output_root` refuses; outputs present under `output_root` do not trip the clean-tree row |
-| | `test_verify_passes_after_a_clean_real` | `real`, then `real --verify`, outputs under `output_root`: exit 0, only `determinism_record` written |
+| | `test_runner_refuses_dirty_tree_missing_gate_hash_and_fingerprint_mismatch` | monkeypatched git; each row of 7.2; an untracked file outside `output_root` refuses; outputs present under `output_root` do not trip the clean-tree row; the output-root row refuses the test config's `tmp_path` root, which is not under `data/licensed/` (every other runner test monkeypatches that row to pass); `--verify` with `determinism_record` present refuses; a variable of `blas_thread_environment` unset or set to another value refuses |
+| | `test_runner_tests_never_touch_the_repository_data_tree` | every runner test of this file reads the test config of `test_results_shape_is_strict_json_aggregate_and_small`, every output path and `replication.sb_root` under `tmp_path`; an autouse fixture wraps `builtins.open`, `io.open` and `pathlib.Path.open` and fails the test on any path, read or written, under the repository's `data/` directory; tests that exercise `run_replication` point `replication.sb_root` at synthetic folders under `tmp_path`, and the others monkeypatch it as above. So no runner test writes a `results.json` or a failed-run record that the real execution's refusals would then read, and none computes a replication P1 or M1 on the local corpus (R5) |
+| | `test_verify_passes_after_a_clean_real` | `real`, then `real --verify`, outputs under `output_root`: exit 0, only `determinism_record` written; a second `real --verify` is refused (exit 2) and changes no file |
 | | `test_failed_run_writes_no_results_and_no_message` | a planted exception whose message holds an invented id is absent from the log; no `output_results` |
 | | `test_failed_run_on_the_record_lets_the_next_real_start` | a planted exception in a stage other than `replication`; once a committed `analysis.md` holds the log's sha256 the next `real` starts, and before that it is refused |
-| | `test_replication_failure_keeps_the_public_results` | a planted exception in `replication`: `output_results` written, `FAILED_RUN` only for descriptors past step 2, `replication_failure_log` written, `failed_run_log` untouched; `real --verify` then passes and does not call `run_replication` (monkeypatched to raise) |
-| | `test_verify_mismatch_is_one_serialise_failure` | a planted byte difference: exit 1, exactly one record of stage `serialise` appended, `output_results`, the local artifact and the replication failure log removed |
-| | `test_verify_exception_is_one_failed_run_and_writes_no_output` | a planted exception in stage `descriptors` of `real --verify`: exit 1, one record of that stage appended, `output_results`, the local artifact and the replication failure log removed, no other file written; `run_replication` writes no file in either mode (the local artifact's bytes are compared in memory) |
+| | `test_replication_failure_keeps_the_public_results` | a planted exception in `replication`: `output_results` written, with no key `replication` and no replication status; `replication_failure_log` written, holding `FAILED_RUN` only for descriptors past step 2 and `NOT_COMPARABLE` or `NOT_RUN` for the others; `failed_run_log` untouched; `real --verify` then passes and does not call `run_replication` (monkeypatched to raise) |
+| | `test_verify_mismatch_is_one_serialise_failure` | a planted byte difference: exit 1, exactly one record of stage `serialise` appended, `output_results`, the local artifact and the replication failure log removed, no `determinism_record` written; and, separately, a replication exception in the re-run after a first execution that wrote no `replication_failure_log` gives the same single `serialise` record |
+| | `test_verify_exception_is_one_failed_run_and_writes_no_output` | a planted exception in stage `descriptors` of `real --verify`: exit 1, one record of that stage appended, `output_results`, the local artifact and the replication failure log removed, no `determinism_record` and no other file written; `run_replication` writes no file in either mode (the local artifact's bytes are compared in memory) |
 | | `test_a_serialise_failure_leaves_no_output` | with a replication that returned an artifact and one that raised: a planted failure of a "Before writing" check, and a planted exception while writing the local artifact, each leave under `output_root` only the appended `failed_run_log` record |
 | | `test_hashes_are_line_ending_invariant`, `test_rerun_is_byte_identical` | |
 | | `test_research_modules_are_not_imported_by_product_code` | AST import scan; `galactico/features/team/estimator.py` imports nothing from `galactico.validation` or `experiments` (the firewall's one direction, ROOT 2.9 Z3) |
 | `test_conceded_shape_sb.py` | `test_mapping_on_a_synthetic_event_file` | set-piece passes excluded, kick-off kept; own goal credited to the other team; cards from both details; `(120, 80)` kept; period-relative seconds; `competition` is the folder name |
-| | `test_vocabulary_and_orientation_failures_are_inconclusive_not_exceptions` | |
-| | `test_data_missing_before_any_read_and_reasons_in_their_order` | an absent folder or index is `DATA_MISSING` with no file opened; an index listing other than `expected_matches` matches is `SAMPLE`; a folder with both an unknown pass type and a wrong listed count is `VOCABULARY`, the first in `inconclusive_reasons` order |
-| | `test_absent_files_count_against_g1` | synthetic folders, an index of 380 with 12 matches' files absent and 8 present matches invalid: G1 reads 360 / 380 and fails at `minimum_valid_match_share_per_league`, so the status is `REPLICATION_INCONCLUSIVE (SAMPLE)` (360 / 368 would have passed) |
+| | `test_vocabulary_and_orientation_failures_are_inconclusive_not_exceptions` | an unknown card name read through `iter_events` is `VOCABULARY`; the orientation check reads the first `orientation_check_minimum_matches` matches with files in index order (a planted later match does not change it), and a folder with fewer such matches is `ORIENTATION` |
+| | `test_data_missing_before_any_read_and_reasons_in_their_order` | an absent folder or index is `DATA_MISSING` with no file opened; an index listing other than `expected_matches` matches is `SAMPLE`; a folder with both an unknown pass type and a wrong listed count is `VOCABULARY`, the first in `inconclusive_reasons` order; two folders, the first failing `ORIENTATION` and the second `VOCABULARY`, give `VOCABULARY` (each check over every folder before the next) |
+| | `test_absent_files_count_against_g1` | synthetic folders, an index of 380 with 12 matches' files absent and 8 present matches invalid: G1 reads 360 / 380 and fails at `minimum_valid_match_share_per_league`, so the status is `REPLICATION_INCONCLUSIVE (SAMPLE)` (360 / 368 would have passed); `read_events` and `iter_events` are never called with an absent match's id, and `load_sb_league` returns an `SbLeague` with `listed_matches` 380 |
 | | `test_events_do_not_depend_on_the_batch_size` | the frames of `load_sb_league` on synthetic files are equal with `sb_events_batch_matches` 1 and with its config value |
 | | `test_local_artifact_only_past_step_two_and_digests_of_existing_folders` | no comparable descriptor at `run_only_if_descriptor_verdict` (only S4 or S5 at it included): `artifact` is `None`; one absent folder with a comparable descriptor at it: `DATA_MISSING`, no exception, `folder_digests` `null` for the absent folder and the `folder_manifest` digest for the others |
 | | `test_a_malformed_timestamp_is_failed_run` | `read_events` raises; the runner records `FAILED_RUN` as in 7.4 |
-| | `test_local_artifact_records_folder_digests` | the artifact holds `folder_digests` equal to `folder_manifest`'s; `results.json` holds no digest |
+| | `test_local_artifact_records_folder_digests` | the artifact holds exactly the keys of section 6 (`statuses` for every descriptor of `descriptor_parts`, `descriptors` for those past step 2, `folder_digests` equal to `folder_manifest`'s); `results.json` holds no digest and no replication status |
 | | `test_matches_come_from_the_index_only` | a file on disk the index does not list is not read |
 | | `test_sb_module_is_not_imported_by_product_code` | |
 
@@ -1496,8 +1639,8 @@ below. `passed` is the conjunction of every requirement and the control.
 | `NULL_SHAPE_WITH_LEVEL` | defender level only | 0.1 and 0.8: `DEFENDER_SHAPE_SIGNAL` at most 5%; 0.1: `LEVEL_ESTABLISHED` at least 90% |
 | `EFFECT_STRONG` | defender shape, SD 0.15 on both coordinates | 0.1: `DEFENDER_SHAPE_SIGNAL` at least 90% |
 | `WIDTH_ONLY` | width-only defender shape, SD 0.15 on wide-versus-centre | 0.1 and 0.8: `DEFENDER_SHAPE_SIGNAL` at most 5% (the claim needs side information; (d) passes only by chance, and (e) fails on the side coordinate) |
-| `STRENGTH_TERCILE_0_08`, `_0_10`, `_0_12`, `_0_15` | shape = size × latent-strength tercile code × (+1, -1) | 0.1 and 0.8: `DEFENDER_SHAPE_SIGNAL` at most 5% each |
-| `STRENGTH_MEASURED_0_15` | shape = 0.15 × standardised finished-season points per match × (+1, -1) | 0.1 and 0.8: `DEFENDER_SHAPE_SIGNAL` at most 5% |
+| `STRENGTH_TERCILE_0_08`, `_0_10`, `_0_12`, `_0_15` | shape = size × standardised latent-strength tercile code (`strength_shape_rules.latent_tercile`, `latent_tercile_code`: the codes +1, 0, -1 minus their league mean, divided by their population standard deviation, about 0.80 at 20 teams) × (+1, -1) | 0.1 and 0.8: `DEFENDER_SHAPE_SIGNAL` at most 5% each |
+| `STRENGTH_MEASURED_0_15` | shape = 0.15 × standardised finished-season points per match (`points_per_match_code`, population standard deviation) × (+1, -1) | 0.1 and 0.8: `DEFENDER_SHAPE_SIGNAL` at most 5% |
 | `SECONDARY_FAMILY_NULL` | nothing, all five secondaries generated | 0.1 and 0.8: any secondary `DEFENDER_SHAPE_SIGNAL` at most 5% (family-wise); Holm's family-wise rejection rate reported |
 | `EFFECT_0_09`, `_0_06`, `_0_03` | smaller shapes | detection rate and per-criterion pass rates at 0.1, 0.5 and 0.8; no requirement |
 | `EFFECT_STRONG` at 0.5 and 0.8, `NULL_SHAPE_WITH_LEVEL` at 0.5 and 0.8 | as above | reported; no requirement |
@@ -1515,19 +1658,25 @@ computes (e) (this split, `reliability_critical_value`) and (g) (`discriminant_v
 frozen thresholds) only, so their joint pass rate bounds `DEFENDER_SHAPE_SIGNAL` from above. The
 audit of 16 October 2026 reran the same seasons with (g) reading both tails
 (`strength_survival_tails`): every entry of the table is unchanged (REVIEW-RECORD, Audit,
-A-1-1), so the gate's `EFFECT_STRONG` requirement is not made harder to meet. The table
-describes the generator law, not the frozen random stream of section 5: the draw order fixed
-on 16 October 2026 (second audit, 4-1) gives other season realisations than these scripts drew,
-and the gate run of the implementers' code is the binding check:
+A-1-1), so the gate's `EFFECT_STRONG` requirement is not made harder to meet. The third
+audit's revision reran the same seasons once more with the interleaving split of
+`reliability_split` (third audit, 2-1) beside the split it replaced (the home or away meeting by
+the parity of the position); the earlier counts are reproduced exactly under the old split, and
+the column below is the new split's, with the old split's count in brackets where it differs.
+The table describes the generator law, not the frozen random stream of section 5: the draw
+order fixed on 16 October 2026 (second audit, 4-1, and its two passes, third audit, 4-1) gives
+other season realisations than these scripts drew, and the gate run of the implementers' code is
+the binding check:
 
 | Scenario | (e) and (g) at overdispersion 0.1 / 0.5 / 0.8 |
 |---|---|
 | `STRENGTH_TERCILE` at 0.08, 0.10, 0.12, 0.15 | 0 / 0 / 0 at every size |
 | `STRENGTH_MEASURED_0_15` | 0 / 0 / 0 |
 | `WIDTH_ONLY` | 0 / 0 / 0 ((e) fails on the side coordinate) |
-| `EFFECT_STRONG` | 200 / 87 / 0 |
-| `EFFECT_0_09` | 132 / 0 / 0 |
-| `EFFECT_0_06`, `NULL_NOTHING` | 0 / 0 / 0 |
+| `EFFECT_STRONG` | 200 / 85 (87) / 0 |
+| `EFFECT_0_09` | 147 (132) / 0 / 0 |
+| `EFFECT_0_06` | 1 (0) / 0 / 0 |
+| `NULL_NOTHING` | 0 / 0 / 0 |
 
 Under the draft's (g) (adjusted `R2` at most 0.6, no survival check) the latent-tercile plant at
 0.10 passed (e) and (g) together in 33 of 200 seasons (with `reliability_critical_value` and an
@@ -1653,7 +1802,9 @@ record's figures:
 The Opponent Lab module holds `served_panel`, `product_rules` and `registry_non_claims` as
 constants; a test asserts they equal the registered config and that the panel's world draw
 receives exactly the ids of the league's valid matches dated before `D` (an invalid match and
-a match on `D` planted in the input are not among them). The non-claim of its group is printed
+a match on `D` planted in the input are not among them), and that the state `state_at` builds
+holds neither of them when `D` is given with a time of day later than the planted match's
+kick-off (3.8 normalises `D`). The non-claim of its group is printed
 in every state, before registration included, when `verdict_for` returns no record and so no
 `non_claim` (`verdicts._unregistered` gives `""`); once a record exists, the test also asserts
 that the record's `non_claim` equals the constant. `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART` is the estimator's
@@ -1671,7 +1822,12 @@ record's statement and non-claim.
 block E-11's PIPELINE section 12 gives, with the image path
 `../../../docs/assets/statsbomb/statsbomb-logo.png`, and goes on `FORMED_FROM_STATSBOMB` in
 `tests/test_licensing.py` in the commit that adds it. If no replication ran and it mentions
-StatsBomb only as a plan, it goes on `NO_FIGURE_FORMED_FROM_STATSBOMB` instead.
+StatsBomb only as a plan, it goes on `NO_FIGURE_FORMED_FROM_STATSBOMB` instead. Under ROOT 2.9
+Z5 `analysis.md` is the only committed file that reports the arm's result: it states every
+descriptor's replication status and reason, read from the local artifact when it exists, from
+`replication_failure_log` after a replication exception, and otherwise (no comparable
+descriptor reached step 3) `NOT_COMPARABLE` or `NOT_RUN` by `replication.status_rule` from the
+PUBLIC tokens.
 
 ## 13. Order of operations and shared-file requests
 
@@ -1687,7 +1843,8 @@ pipeline, the gate stamp in a commit of its own, the run, the results.
 | Fingerprints | recomputed from the vectors' payloads |
 | Dismissal rule (ROOT 2.9 Z2) | the structure-only counts of `verified_by_root_before_registration`, run by the root on the corpus before registration; counts only, they compute no outcome. The assumption test: per league, the share of players with a `second_yellow` event card whose sheet `red_minute` in that match is not null, its counts and share per league recorded in the registration commit; if it is below `dismissal_assumption_minimum_share` in any league, `dismissal_check_fallback` replaces `dismissal_check` and the draft is audited again before registration. The residuals: per league, players with a dismissal card in the event record and a null sheet `red_minute`, and the reverse, stated in the registration commit; they are the matches `dismissals_mismatch` is built to invalidate, bounded by G1 only, and they never stop registration. The audit counts pinned in `tests/test_sidecar.py` (red and second-yellow tags against sheet red-card entries) are already disclosed in the protocol's prior-exposure table |
 | E-11 order | whether E-11 has run and whether its results are committed; if it has run, the registration commit says so (the `reuse_disclosure` string of `results_strings` names that case) and whether its analysis was read, and by whom |
-| Replication label (OPEN QUESTION 3) | ROOT 2.5 O1 says a second-provider replication status "sits beside" a hosted panel as a label; this protocol creates no registry record for one and serves none. A root ruling that O1 is read as ADR-0018's permission, which E-10 does not use, or a LOCAL record of its own, is recorded before registration; until it is, the registration commit states the question open |
+| Split calendar count (third audit, 2-1) | the structure-only count of `verified_by_root_before_registration` on the match calendars, run by the root before registration and computing no outcome: per league and for each half of `reliability_split`, the distribution over teams of the share of the half's meetings dated before `evaluation_start` and of the half's home meetings, recorded in the registration commit. It shows how far the real calendars, which are not Berger tables, interleave the two halves; it changes nothing in the rule |
+| Replication label (ROOT 2.9 Z5, ruled) | ROOT 2.5 O1's "a second-provider replication status sits beside them as a label" is ADR-0018's permission, not a duty. E-10 creates no registry record for its LOCAL replication arm; the arm's result is reported in `analysis.md` only, with the attribution of section 12.4 (LICENSING.md); no hosted page carries a label from it; and `results.json` holds no replication entry (`replication.results_record`, section 8), so the machine record of the statuses is the local artifact or, after a replication exception, `replication_failure_log`, neither committed. A later protocol may add such a label only through its own LOCAL record. Nothing is left open for the registration commit |
 
 **The registration commit:**
 
@@ -1731,10 +1888,20 @@ records that result writes the sentence that replaces it). That commit therefore
 `galactico/api/planning.py`: the sentence that replaces `REGISTERED_NOT_TESTED_STATEMENT` (or,
 if an earlier results commit already replaced it, the sentence that commit wrote, which this
 one follows with its own) is, for E-10, `product_rules.planning_research_sentence`: "E-10
-tested whether a defending team's own history adds information about where and how many
-final-third entry passes it concedes. That is not validity or decision use, and no quantity on
-this page is an E-10 descriptor." It passes the copy guard and `finalize`, and a planning test
-asserts that the served sentence contains it verbatim. The tests that assert the old sentence or that every record is
+asked whether a defending team's own history adds information about what it concedes and where
+its defensive actions are recorded; each E-10 record listed here says whether that was tested
+for its quantity. That is not validity or decision use, and no quantity on this page is an
+E-10 descriptor." It is true whichever of the seven records read TESTED: G5 is the same for the
+six descriptors (one donor map, one eligible set), so a G5 failure leaves every descriptor
+`INCONCLUSIVE` while the level, which has no G5, may read TESTED, and the level may fail LG6
+alone while the primary reads TESTED; a sentence that said E-10 tested "where and how many"
+entries are conceded would be false in either branch. It passes the copy guard and `finalize`.
+Planning tests assert that the served sentence contains it verbatim in two branches: only the
+level record TESTED (every descriptor `INCONCLUSIVE`), and only the primary TESTED (the level
+`INCONCLUSIVE`). Because the sentence says no quantity on the page is an E-10 descriptor, no
+planning surface that serves it may show an E-10 panel: the Director's desk (`galactico/api/
+desk.py`, `web/desk.html`, not yet built) shows no E-10 descriptor or volume while it serves
+this sentence. The tests that assert the old sentence or that every record is
 `PENDING` are updated in that commit: `tests/test_planning_api.py`, `tests/test_squad_api.py`,
 `tests/test_transfer_api.py`, `tests/test_planning_render.py` and the e2e specs that read the
 research statement. If every E-10 token is `INCONCLUSIVE`, no record reads TESTED and the
@@ -1772,9 +1939,10 @@ sentence is unchanged.
    be registered without anyone reading it, or registered with a statement of who read it?
    Either way the frozen `reuse_disclosure` stays true: it names the case where E-11 ran first,
    and the registration commit states which case holds (section 13).
-3. Should a replication status ever be shown beside a hosted badge? ADR-0018 permits a LOCAL
-   label; it would need its own LOCAL registry record in a directory of its own, with the logo,
-   credit and link ADR-0027 requires. This protocol does not create one. ROOT 2.5 O1 says such
-   a status "sits beside" a hosted panel as a label, and ROOT 2.9 does not rule this question,
-   so it needs a root ruling before registration, or is stated open in the registration commit
-   (section 13).
+3. Settled by ROOT 2.9 Z5. Whether a replication status is ever shown beside a hosted badge:
+   O1's "sits beside them as a label" is ADR-0018's permission, not a duty; E-10 creates no
+   registry record for its LOCAL replication arm, reports the arm's result in `analysis.md` only,
+   with the attribution of section 12.4, and no hosted page carries a label from it. This
+   protocol also keeps the status out of `results.json` (section 8). A later protocol may add
+   such a label only through its own LOCAL record, in a directory of its own, with the logo,
+   credit and link ADR-0027 requires.
