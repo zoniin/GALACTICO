@@ -24,6 +24,7 @@ import json
 import shutil
 import sys
 import time
+import urllib.error
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -58,6 +59,18 @@ ASSETS: tuple[Asset, ...] = (
 )
 
 
+# figshare answers an occasional request with a 5xx; a retry is the whole cure. A 4xx is
+# not retried: the asset is gone or the URL is wrong, and waiting changes neither.
+ATTEMPTS = 4
+BACKOFF_SECONDS = (2, 4, 8)
+
+
+def _transient(error: Exception) -> bool:
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code >= 500
+    return isinstance(error, (urllib.error.URLError, TimeoutError, ConnectionError))
+
+
 def fetch(asset: Asset, *, force: bool) -> Path:
     target = DEST / asset.name
     if target.exists() and not force:
@@ -66,8 +79,23 @@ def fetch(asset: Asset, *, force: bool) -> Path:
     print(f"  get   {asset.name} (~{asset.expected_mb:.1f} MB)", flush=True)
     started = time.monotonic()
     request = urllib.request.Request(asset.url, headers={"User-Agent": "galactico/0.1"})
-    with urllib.request.urlopen(request, timeout=600) as response, target.open("wb") as handle:
-        shutil.copyfileobj(response, handle, length=1 << 20)
+    # Written beside the target and moved into place whole, so an interrupted download is
+    # never taken for a finished one by the "have" check above.
+    partial = target.with_name(target.name + ".part")
+    for attempt in range(ATTEMPTS):
+        try:
+            with urllib.request.urlopen(request, timeout=600) as response, \
+                    partial.open("wb") as handle:
+                shutil.copyfileobj(response, handle, length=1 << 20)
+            break
+        except Exception as error:
+            partial.unlink(missing_ok=True)
+            if not _transient(error) or attempt == ATTEMPTS - 1:
+                raise
+            wait = BACKOFF_SECONDS[attempt]
+            print(f"        {error}; retrying in {wait}s", flush=True)
+            time.sleep(wait)
+    partial.replace(target)
     size = target.stat().st_size / 1e6
     print(f"        {size:.1f} MB in {time.monotonic() - started:.0f}s", flush=True)
     return target
