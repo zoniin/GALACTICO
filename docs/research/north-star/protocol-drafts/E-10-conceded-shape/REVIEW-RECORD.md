@@ -636,3 +636,95 @@ Refuted claims: none (no blocker was claimed).
 - `tests/test_licensing.py`: the list entries for this folder's protocol and pipeline also say
   when `analysis.md` carries the credit. The test passes and `scripts/check_licensing.py` is
   clean.
+
+## Alignment with ROOT 2.12, 18 October 2026
+
+On 18 October 2026 the root ruled the questions of the Opponent Lab and desk specification
+(ROOT-DECISIONS 2.12; `OPPONENT-DESK-SPEC.md`, R-1 and R-5). Two rulings bind this READY draft
+before registration. N2: the product table is aligned, so that the prior-date record is shown
+from E-10's results commit and, before it, the panel prints the non-claim and the reason it
+withholds the record, and the rows "no record (before registration)" and `PENDING` say so (N1
+puts the gate at the results commit, when all seven E-10 records are `EXECUTED`). N6: section
+13's line for "the wording that names the registered protocols" covers rewording planning's
+`shots` item at E-10's registration, and N2's edit names it in that line. These two were applied
+and nothing else: no verdict rule, criterion, gate, estimand, seed, registry sentence, figure,
+served sentence or key name changed. No file under `data/` was opened. The applier's script
+(`n6_guard.py`) is data-free and is not committed.
+
+### N2: the record is withheld until the results commit
+
+| Where | Was | Now |
+|---|---|---|
+| `preregistration.md`, Product consequence, first paragraph | the prior-date record "is shown in every state" | shown from E-10's results commit, when all seven E-10 records are `EXECUTED` (`product_rules.record_shown_from`; ROOT 2.12 N1, N2). Before it, with no E-10 record or while any is `PENDING`, the record is neither computed for a page nor shown: each panel shows its subject's definition and badge and prints its group's non-claim and the reason (E-10 not registered; E-10 registered and not run), and no count. The paragraph gives the reasons: before registration a record of every team would be a composition E-10 tests, computed before the plan is frozen (R5); while `PENDING` it would run WP A on the corpus in the window where `PIPELINE.md` section 11 row 1 signs that nothing under review ran on `data/`, which the registry cannot tell from the time after the gate stamp (N1) |
+| `preregistration.md`, the table of registry states | four columns; the rows "no record (before registration)" and `PENDING` showed "nothing" beyond a record that was shown, with evidence class "counts OBSERVED, shares and rates DERIVED" | a column "Prior-date record". Those two rows read "withheld, not computed", each with the reason it prints, and evidence class "none: no number is shown". The four executed rows read "shown". The `INCONCLUSIVE` row now states its evidence class in full, because its "same" pointed at the `PENDING` row, which changed |
+| `preregistration.md`, the proposal bullet of `product_rules` | the qualifier `proposal_sentence_not_tested` for a record not registered, `PENDING` or `INCONCLUSIVE` | the same, plus: a proposal reads the record, so none is formed before the results commit; on a page this qualifier is then met only under `INCONCLUSIVE`, and the rule stays defined for the two earlier states |
+| `PIPELINE.md` 12.3 | opened with "Shown only for a record whose `may_gate` is true", about the estimate; no rule for the record itself | a new first paragraph, **The prior-date record**, states the same rule as the protocol: no function of sections 2 and 3 runs on the corpus for a page before the results commit, and no count is served. The old opening now begins **The estimate**. The proposal bullet carries the protocol's added sentence, and its test's `PENDING` record is marked as planted. The panel test adds planted registries (no E-10 record; seven `PENDING`; six `EXECUTED` and one `PENDING`) and asserts that no count is served and that the non-claim and the reason (not registered; not run) are printed. These states and that split of reasons are those of `OPPONENT-DESK-SPEC.md` 1.7 and its `test_record_available_follows_the_registry` |
+| `config.json` `product_rules` | no key fixed when the record is shown | `record_shown_from`, a restated rule (a string that no code branches on). The Opponent Lab module holds `product_rules` verbatim, and its test ties that constant to the registered config (`PIPELINE.md` 7.5 and 12.3), so the constants carry the rule. It passes the copy guard, though it is not served |
+
+Checked and left unchanged:
+
+- The `non_claim` row of the field table already prints the non-claim "in every state", before
+  registration from the panel's own constant, so it covers the withheld states.
+- `product_rules.proposal_sentence_rule` maps `may_gate` to a qualifier and says nothing about
+  when a record is shown. The desk specification tests it on planted records
+  (`test_qualifiers_follow_may_gate`).
+- `results_strings.product_effect` ("under every other token the panel shows the prior-date
+  record only") is written into `results.json` by the run. It names verdict tokens, each of which
+  exists only from the results commit, and from then on the record is shown. It is true as it
+  stands.
+- 12.1 ("Each reads `E-10 · RECORD ONLY · NOT RUN`") and the rules "Fixed in every state" apply to
+  a record that is shown.
+
+### N6: planning's `shots` item at registration
+
+The shipped item (`galactico/api/planning.py`, `NOT_MEASURED_EXTRA`, the entry
+`shell.NotMeasured("shots", "Shot volume and location", "UNMEASURED", ...)`) reads "No shot
+construct is shown. No registered protocol tests one; E-11, registered and not run, compares only
+whether two providers agree on shot counts." Its second sentence becomes false when E-10
+registers S3, `conceded_shots_inside_box_share`. Section 13's row for
+`galactico/api/planning.py` now names the item, keeps its id, term and status, and gives the
+reason:
+
+> No shot construct is shown. E-11, registered and not run, compares only whether two providers
+> agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning
+> page shows.
+
+The E-11 clause is kept as `planning.py` reads it at the time; it is ADR-0029's wording for
+E-11. Why this wording:
+
+- The first sentence stays true. A planning surface that serves the planning research sentence
+  may show no E-10 panel (section 13, the results commit), and the desk shows no descriptor in
+  any state (ROOT 2.12 N3).
+- "E-10, registered" is true from registration on, and the run does not make it false, so E-10's
+  results commit leaves the item alone. E-10's state is read from its badges in the same
+  payload's list of registered protocols (`planning.verdict_reading()`, served as `verdicts`).
+  The wording "E-10, registered and not run" would have needed a second rewording at the results
+  commit, which section 13 does not schedule.
+- The E-10 clause is the example in `OPPONENT-DESK-SPEC.md` section 11. Its first sentence there,
+  "No shot construct is shown on a planning page.", was not taken: the item is printed only on
+  planning pages, and the E-10 clause already names them.
+
+Checks (`n6_guard.py`):
+
+- `labels.scan_labels` finds no banned token in the reason.
+- `runtime.finalize` passes planning's whole not-measured list with the reason replaced: fifteen
+  items, the shell's nine and planning's six, through `shell.not_measured_payload` with the
+  hosted provenance.
+- The same reason with "should", "quality" or "expected" planted is refused.
+- No test or e2e spec pins the reason's text: `tests/test_planning_api.py` asserts the item ids
+  only.
+
+### Hash, tests and what remains
+
+- `pipeline_spec_sha256` was recomputed with `galactico.validation.digests.lf_sha256` after the
+  last `PIPELINE.md` edit: `193f8786a30f82fbe3d14ce89e22de6533eebf61f0553ef44eaff8728f7eb284`
+  became `578ed5a095dcc9f6d16cf33d4585462407297279da600cd2f8e8fd8049f2bed7`.
+  `tests/test_protocol_drafts.py` holds no pin of E-10's hash (it guards the registered E-11 and
+  the E-09 draft), so it is unchanged. Its E-10 twin is added at registration (section 13).
+- `descriptor_test_vectors.json` is unchanged.
+- The DRAFT banner's history names this alignment.
+- `tests/test_protocol_drafts.py` and `tests/test_licensing.py`: 42 passed.
+  `scripts/check_licensing.py` reports clean.
+- N2 makes this an edit to a READY draft. An independent auditor must verify it before
+  registration (ROOT 2.9 Z4), with `pipeline_spec_sha256` recomputed again if `PIPELINE.md` moves.
+  That verification has not been done.

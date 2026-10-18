@@ -1772,14 +1772,24 @@ files.
 
 ### 12.3 The served computation (Opponent Lab)
 
-Shown only for a record whose `may_gate` is true, behind an explicit opt-in, at a decision date
-`D` on or after `evaluation_start` (`product_rules.panel_from_date`). With the league's valid
-rows dated before `D` in window `close_11v11`, through `build_team_match_table`, the
-descriptor's `counts` and `estimator.descriptor_rows`, and `kA`, `kD` the record's `k_context`,
-`k_unit` figures, every quantity below comes from the estimator of 3.8: `estimator.state_at(rows,
-team_ids=the league's teams, parts=spec.part_names, date=D, weights=...)`, then
-`shape_estimate(state, league_pseudocount=LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART, k_context=kA,
-k_unit=kD)` or, for the level record, `level_estimate(state, k_context_level=kA',
+**The prior-date record** is shown from E-10's results commit, when all seven E-10 records are
+`EXECUTED` (`product_rules.record_shown_from`; ROOT 2.12 N1, N2). Before it, with no E-10 record
+(before registration) or while any is `PENDING`, the record is withheld: no function of sections
+2 and 3 runs on the corpus for a page, no count is served, and each subject's panel shows its
+definition and badge and prints its group's non-claim and the reason the record is withheld
+(E-10 not registered; E-10 registered and not run). A record computed in the `PENDING` state
+would run WP A on the corpus in the window where section 11 row 1 signs that no file under
+review was executed on `data/`, which the registry cannot tell from the time after the gate
+stamp (ROOT 2.12 N1).
+
+**The estimate** is shown only for a record whose `may_gate` is true, behind an explicit opt-in,
+at a decision date `D` on or after `evaluation_start` (`product_rules.panel_from_date`). With
+the league's valid rows dated before `D` in window `close_11v11`, through
+`build_team_match_table`, the descriptor's `counts` and `estimator.descriptor_rows`, and `kA`,
+`kD` the record's `k_context`, `k_unit` figures, every quantity below comes from the estimator
+of 3.8: `estimator.state_at(rows, team_ids=the league's teams, parts=spec.part_names, date=D,
+weights=...)`, then `shape_estimate(state, league_pseudocount=LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART,
+k_context=kA, k_unit=kD)` or, for the level record, `level_estimate(state, k_context_level=kA',
 k_unit_level=kD')` on the primary's rows (the level's `N` is the primary's total) with the level
 record's figures:
 
@@ -1809,8 +1819,10 @@ record's figures:
   `proposal_sentence_not_established` for a NOT_ESTABLISHED status. A proposal that cites
   several E-10 records carries one qualifier per cited record whose `may_gate` is false, each
   beside that record's label, in the order of `subject_groups`; no qualifier is merged or
-  dropped. The panel test covers a proposal citing a `DEFENDER_SHAPE_SIGNAL` record, a
-  `PENDING` one and a NOT_ESTABLISHED one.
+  dropped. A proposal reads the record, so none is formed before the results commit; on a page
+  `proposal_sentence_not_tested` is then met only under `INCONCLUSIVE`, and the rule stays
+  defined for the two earlier states. The panel test covers a proposal citing a
+  `DEFENDER_SHAPE_SIGNAL` record, a `PENDING` one (planted) and a NOT_ESTABLISHED one.
 
 The Opponent Lab module holds `served_panel`, `product_rules` and `registry_non_claims` as
 constants; a test asserts they equal the registered config and that the panel's world draw
@@ -1821,7 +1833,10 @@ with `D` given as a date and with `D` given with a time of day later than the pl
 kick-off (3.8 normalises `D`). The non-claim of its group is printed
 in every state, before registration included, when `verdict_for` returns no record and so no
 `non_claim` (`verdicts._unregistered` gives `""`); once a record exists, the test also asserts
-that the record's `non_claim` equals the constant. `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART` is the estimator's
+that the record's `non_claim` equals the constant. On planted registries (no E-10 record; seven
+`PENDING`; six `EXECUTED` and one `PENDING`) the test asserts that no count is served and that
+the panel prints the non-claim and the reason the record is withheld (not registered for the
+first, not run for the other two). `LEAGUE_PRIOR_PSEUDOCOUNT_PER_PART` is the estimator's
 constant (3.7, 3.8), not the panel's. The panel computes none of 4.2 itself: the served `pi`,
 `A_c^(-u)`, `e`, `delta_u`, `lam` and `rD_u` are the values of the one estimator the research
 engine imports (ROOT 2.9 Z3), so there is no second implementation and no parity test. Product
@@ -1874,7 +1889,7 @@ pipeline, the gate stamp in a commit of its own, the run, the results.
 | `DECISIONS.md` | an ADR recording the registration, as ADR-0029 did for E-11 |
 | `tests/test_protocol_drafts.py` | the E-10 twin of its three checks, on the registered directory: `lf_sha256(PIPELINE.md) == pipeline_spec_sha256`; every registry sentence and figure sentence served through `finalize` under `PENDING` and every token, with a planted `line height` refused; no key at any depth of `config.json` or `descriptor_test_vectors.json` names a provider or starts with `SB_`, with a planted negative |
 | `tests/test_verdict_registry.py`, `tests/test_lab_runtime.py`, `tests/test_shell_payloads.py`, the planning tests and the e2e specs | every assertion that the registry holds E-11's records only, or that an E-10 subject is unregistered: `test_the_shipped_registry_holds_e11_pending_and_answers_not_registered_otherwise`, `test_verdicts_endpoint_serves_the_registry`, `tests/test_shell_payloads.py::test_verdict_payload_is_the_registry_payload` (it asks for `("E-10", "conceded_f3_entries_per_90")`, the level subject's id, and expects `RECORD ONLY · NOT TESTED` and `NOT_REGISTERED`: it is pointed at a subject no protocol registers, or asserts `E-10 · RECORD ONLY · NOT RUN` and `REGISTERED_NOT_RUN`), and the lists of records in `tests/test_planning_api.py`, `tests/test_planning_render.py`, `tests/test_squad_api.py`, `tests/test_transfer_api.py`, `e2e/squad.spec.js`, `e2e/transfer.spec.js`. `test_payload_is_json_ready_and_carries_no_hash_or_pointer` replaces `VERDICTS` with its own records and needs no change |
-| `galactico/api/planning.py` and the pages that list registered protocols | the wording that names the registered protocols (ADR-0029's rule: the wording follows the evidence, not the commit). Nothing is tested at registration: `REGISTERED_NOT_TESTED_STATEMENT` stays, since every E-10 record is `PENDING` |
+| `galactico/api/planning.py` and the pages that list registered protocols | the wording that names the registered protocols (ADR-0029's rule: the wording follows the evidence, not the commit). Nothing is tested at registration: `REGISTERED_NOT_TESTED_STATEMENT` stays, since every E-10 record is `PENDING`. The wording includes planning's `shots` item of `NOT_MEASURED_EXTRA` (ROOT 2.12 N6), the `shell.NotMeasured("shots", ...)` entry, whose reason says "No registered protocol tests one", which is false once E-10 registers `conceded_shots_inside_box_share` (S3). Its id, term and status stay (`shots`, "Shot volume and location", `UNMEASURED`); its reason becomes "No shot construct is shown. E-11, registered and not run, compares only whether two providers agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning page shows.", the E-11 clause kept as `planning.py` then reads it (it is ADR-0029's wording for E-11). The reason passes the copy guard (`galactico/domain/labels.py`, `BANNED_LABEL_TOKENS`) and `api/runtime.finalize`, checked on planning's whole `not_measured()` list with it in place. It stays true at E-10's results commit, which therefore leaves it: E-10's state is read from its badges in the page's list of registered protocols (`planning.verdict_reading()`), and no planning surface shows an E-10 panel (the planning research sentence below). No test pins the reason's text (`tests/test_planning_api.py` asserts the item ids) |
 | `tests/test_preregistration_order.py` | add `"descriptor_test_vectors.json"` to `PROTOCOL`, and in the same edit add it as `"frozen"` to the `E-91-in-order` entry of the first `SCRATCH_HISTORY` commit, as E-11 did for `PIPELINE.md` |
 | `tests/test_licensing.py` | add the registered `preregistration.md` and `PIPELINE.md` to `NO_FIGURE_FORMED_FROM_STATSBOMB` (they print no figure formed from StatsBomb data); remove the draft `preregistration.md` and `PIPELINE.md`, which become one-line pointers; `REVIEW-RECORD.md` stays on its list |
 | prose that describes E-10 as an unreviewed draft or the sidecar as unread by any draft | `docs/research/north-star/README.md`, `KNOWN_LIMITATIONS.md` (the sidecar entry and "Registered or drafted, not run"), ROOT-DECISIONS 2.6's registry sentence, ADR-0018's registry paragraph |

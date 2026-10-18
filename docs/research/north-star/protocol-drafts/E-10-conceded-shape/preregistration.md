@@ -1,6 +1,6 @@
 # E-10 — is where a team concedes a property of the defending team?
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. As ROOT 2.9 Z4 requires, a second audit read that revision on 16 October 2026 in the same four scopes; its one claimed blocker (the synthetic generator's draw order) was confirmed by a refuter, and every finding was applied, or applied with a stated variant, in a third revision the same day. A third audit read that revision in the same four scopes (dated 16 October 2026); it claimed no blocker, and its majors and minors were applied, or applied with a stated variant, in a fourth revision on 18 October 2026, which also applied ROOT 2.9 Z5, the root's ruling on the second audit's question, so that ROOT 2.9 Z1 to Z3 and Z5 are now applied (REVIEW-RECORD.md, Third audit). As with E-11, E-10 is called READY only after an audit of a revision confirms no blocker: the third audit confirmed none in the third revision, and on 18 October 2026 three verifiers read the fourth revision's edits against it to decide whether they added one; none was confirmed, so E-10 is READY, and their thirteen consistency findings, eleven distinct (two were found by two verifiers each), were verified and applied the same day, `pipeline_spec_sha256` recomputed (REVIEW-RECORD.md, Verification of the fourth revision). No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day; independently audited on 16 October 2026 in four scopes, with every claimed blocker put to a refuter, and revised again the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding of both rounds and its disposition); the root's rulings on that audit (ROOT 2.9, Z1 to Z3) were then applied. As ROOT 2.9 Z4 requires, a second audit read that revision on 16 October 2026 in the same four scopes; its one claimed blocker (the synthetic generator's draw order) was confirmed by a refuter, and every finding was applied, or applied with a stated variant, in a third revision the same day. A third audit read that revision in the same four scopes (dated 16 October 2026); it claimed no blocker, and its majors and minors were applied, or applied with a stated variant, in a fourth revision on 18 October 2026, which also applied ROOT 2.9 Z5, the root's ruling on the second audit's question, so that ROOT 2.9 Z1 to Z3 and Z5 are now applied (REVIEW-RECORD.md, Third audit). As with E-11, E-10 is called READY only after an audit of a revision confirms no blocker: the third audit confirmed none in the third revision, and on 18 October 2026 three verifiers read the fourth revision's edits against it to decide whether they added one; none was confirmed, so E-10 is READY, and their thirteen consistency findings, eleven distinct (two were found by two verifiers each), were verified and applied the same day, `pipeline_spec_sha256` recomputed (REVIEW-RECORD.md, Verification of the fourth revision). On 18 October 2026 the root's rulings ROOT 2.12 N2 and N6 were applied to this READY draft: the prior-date record is shown from E-10's results commit, when all seven E-10 records are `EXECUTED`, and before it the panel prints the non-claim and the reason the record is withheld; and `PIPELINE.md` section 13's registration commit names the rewording of planning's `shots` item and gives its replacement; `pipeline_spec_sha256` recomputed (REVIEW-RECORD.md, Alignment with ROOT 2.12, 18 October 2026). As N2 requires, an independent auditor verifies these edits before registration (ROOT 2.9 Z4). No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 **Commit this plan, `config.json`, `PIPELINE.md` and `descriptor_test_vectors.json` before
 any E-10 outcome is computed. Nothing in the four may change once the first outcome is
@@ -655,11 +655,20 @@ publishes the measured detection rate at three smaller planted effects and at ev
 
 One panel per subject in Opponent Lab: the six descriptors and the level subject. The
 prior-date record (counts over the team's prior matches in the same window, matches and events
-used) is shown in every state. Product code reads nothing from this experiment but its
-registry records (ROOT 3b): seven PUBLIC `VerdictRecord`s in `galactico/domain/verdicts.py`,
-built at registration from the config's own entries, token `PENDING`, and given their tokens,
-hashes and figures in the results commit (`PIPELINE.md` sections 12 and 13). Every badge,
-statement and gate comes from `verdicts.derive` and `verdicts.badge_text`.
+used) is shown from E-10's results commit, when all seven E-10 records are `EXECUTED`
+(`product_rules.record_shown_from`; ROOT 2.12 N1, N2). Before it, with no E-10 record or while
+any is `PENDING`, the record is neither computed for a page nor shown: each panel shows its
+subject's definition and badge and prints its group's non-claim and the reason the record is
+withheld (E-10 not registered; E-10 registered and not run), and no count. Before registration
+a record of every team would be a composition E-10 tests, computed before its plan is frozen
+(R5); in the `PENDING` state it would run `galactico/features/team/` on the corpus in the
+window where `PIPELINE.md` section 11 (row 1) signs that no file under review was executed on
+`data/`, and the registry cannot tell that window from the time after the gate stamp (ROOT
+2.12 N1). Product code reads nothing from this experiment but its registry records (ROOT 3b):
+seven PUBLIC `VerdictRecord`s in `galactico/domain/verdicts.py`, built at registration from
+the config's own entries, token `PENDING`, and given their tokens, hashes and figures in the
+results commit (`PIPELINE.md` sections 12 and 13). Every badge, statement and gate comes from
+`verdicts.derive` and `verdicts.badge_text`.
 
 | Field | Descriptor records | Level record |
 |---|---|---|
@@ -670,14 +679,14 @@ statement and gate comes from `verdicts.derive` and `verdicts.badge_text`.
 | `not_run_statement` | `registry_common.not_run_statement` | same |
 | `figures` (results commit, only under an established token) | `registry_figures.descriptor`: `k_context`, `k_unit`, `reliability_lower_bound`, each with its pointer into `results.json` | `registry_figures.level` |
 
-| Registry state | Badge (`badge_text`) | Shown beyond the record | Evidence class |
-|---|---|---|---|
-| no record (before registration) | `RECORD ONLY · NOT TESTED` | nothing | counts OBSERVED, shares and rates DERIVED |
-| `PENDING` | `E-10 · RECORD ONLY · NOT RUN` | nothing | same |
-| `INCONCLUSIVE` | `E-10 · INCONCLUSIVE` | nothing | same |
-| a token of status NOT_ESTABLISHED | `E-10 · TESTED · NOT ESTABLISHED` | nothing | same |
-| `DEFENDER_SHAPE_SIGNAL` | `E-10 · TESTED · TENDENCY, ONE SEASON` | behind an explicit opt-in, at decision dates on or after `evaluation_start` only: the shrunken composition, its interval and shrink weight (`PIPELINE.md` section 12); the point only when the `reliability_lower_bound` figure is at least `reliability_number` (ADR-0002), otherwise the interval only | EXPERIMENTAL |
-| `LEVEL_ESTABLISHED` | `E-10 · TESTED · VOLUME, ONE SEASON` | the same rule: shrunken entries per 90 window minutes, interval and shrink weight | EXPERIMENTAL |
+| Registry state | Badge (`badge_text`) | Prior-date record | Shown beyond the record | Evidence class |
+|---|---|---|---|---|
+| no record (before registration) | `RECORD ONLY · NOT TESTED` | withheld, not computed: the panel shows the definition and the badge and prints the non-claim and the reason (E-10 is not registered and has not run); no count | nothing | none: no number is shown |
+| `PENDING` | `E-10 · RECORD ONLY · NOT RUN` | withheld, not computed: the same, with the reason that E-10 is registered and has not run | nothing | none: no number is shown |
+| `INCONCLUSIVE` | `E-10 · INCONCLUSIVE` | shown (from the results commit) | nothing | counts OBSERVED, shares and rates DERIVED |
+| a token of status NOT_ESTABLISHED | `E-10 · TESTED · NOT ESTABLISHED` | shown | nothing | same |
+| `DEFENDER_SHAPE_SIGNAL` | `E-10 · TESTED · TENDENCY, ONE SEASON` | shown | behind an explicit opt-in, at decision dates on or after `evaluation_start` only: the shrunken composition, its interval and shrink weight (`PIPELINE.md` section 12); the point only when the `reliability_lower_bound` figure is at least `reliability_number` (ADR-0002), otherwise the interval only | EXPERIMENTAL |
+| `LEVEL_ESTABLISHED` | `E-10 · TESTED · VOLUME, ONE SEASON` | shown | the same rule: shrunken entries per 90 window minutes, interval and shrink weight | EXPERIMENTAL |
 
 The statement shown is the record's (`registry_outcomes`), verbatim, and names which question
 failed; no sentence denies what an earlier criterion found. The established statements say the
@@ -703,7 +712,10 @@ Fixed in every state (`product_rules`):
   never evidence of absence, R11); `proposal_sentence_not_established`, *"based on a record
   that did not pass E-10"*, when its status is NOT_ESTABLISHED. A proposal that cites several
   E-10 records carries one qualifier per cited record whose `may_gate` is false, beside that
-  record's label, in the order of `subject_groups`; none is merged or dropped.
+  record's label, in the order of `subject_groups`; none is merged or dropped. A proposal
+  reads the record, so before the results commit, while the record is withheld, no proposal is
+  formed; on a page the first qualifier is then met only under `INCONCLUSIVE`, and the rule
+  stays defined for the two earlier states.
 - S5's panel shows the share under its label, the tested quantity, with the share's badge
   (`s5_panel_rule`). `s5_ratio_name`, ROOT H14-H21's name for the analogue (*opponent passes
   per recorded high-zone defensive action*), names in prose only the ratio of which the share

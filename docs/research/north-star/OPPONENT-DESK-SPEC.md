@@ -5,19 +5,23 @@ Build contract for the last two surfaces of ROOT-DECISIONS 2.3: Opponent Lab at 
 badged with its E-10 verdict, and an optional HEURISTIC requirement proposal the user must
 accept before it changes an XI solve) and the Director's desk at `/desk` (the chain of ROOT 2
 end to end, one evidence ledger, and the "not measured here" panel). The binding rules are
-ROOT-DECISIONS sections 0, 1 (R1-R13), 2.3, 2.5 (O12, O13, H14-H21), 2.6, 2.9 (Z1-Z5), 2.10, 3b
-and 4; ADR-0018 to ADR-0030; KNOWN_LIMITATIONS. The E-10 protocol draft
+ROOT-DECISIONS sections 0, 1 (R1-R13), 2.3, 2.5 (O12, O13, H14-H21), 2.6, 2.9 (Z1-Z5), 2.10,
+2.12 (N1-N7), 3b and 4; ADR-0018 to ADR-0030; KNOWN_LIMITATIONS. The E-10 protocol draft
 (`protocol-drafts/E-10-conceded-shape/`, READY, not registered) already fixes the product-side
 team modules (PIPELINE sections 2 and 3) and the served panel (PIPELINE 12.3); this file reuses
 them by name and never redefines them. Where this file and those rules, the E-10 draft or the
 shipped code disagree, they win and the disagreement is a defect to report (ROOT 2.6). Points
-where this file departs from a ruling's wording are under DISSENT; points only the root can
-settle are under ROOT RULINGS NEEDED.
+where this file departs from a ruling's wording are under DISSENT; the points only the root
+could settle were ruled in ROOT-DECISIONS 2.12 and are recorded under Root rulings
+(ROOT-DECISIONS 2.12).
 
 **Status.** Draft by the Opponent/desk designer, 18 October 2026; revised the same day after
 three adversarial reviews (constitution, product, exactness and data). Their 72 findings and
-the disposition of each are in the Review record at the end. Not yet audited. Nothing built.
-Every claim about the shipped code was read from the tree at `52bdc0b`; line numbers refer to
+the disposition of each are in the Review record at the end. The root ruled the five questions
+the revision left to it (R-1 to R-5), and the order of work, the same day (ROOT-DECISIONS 2.12,
+N1 to N7); this file records each ruling under Root rulings (ROOT-DECISIONS 2.12) and follows
+it. Not yet audited: under N7 it is audited, with a refuter per claimed blocker, until no scope
+has a blocker. Nothing built. Every claim about the shipped code was read from the tree at `52bdc0b`; line numbers refer to
 it. The public corpus was not present when this was written (`data/public/` is empty), so no
 number below was computed on it, and none may be computed on it for this work before E-10 has
 run (1.7).
@@ -32,7 +36,7 @@ is ESTABLISHED and only behind an opt-in (EXPERIMENTAL); the minima a requiremen
 computation on the declared model, as XI Lab). The desk composes the replies of the pages that
 compute them and computes nothing of its own but the composition. It reads no opponent record
 and forms no requirement proposal: those are read, and a proposal accepted, on Opponent Lab
-(6.4, DISSENT 5).
+(6.4, DISSENT 5, N3).
 
 **Rulings this file depends on.**
 
@@ -45,11 +49,12 @@ and forms no requirement proposal: those are read, and a proposal accepted, on O
 | ROOT 2.7 X6 | the same default for XI parts outside XI Lab's main solve |
 | ROOT 2.9 Z3 | one estimator, `galactico/features/team/estimator.py`, product side; the panel calls it, never a copy |
 | ROOT 2.9 Z5 | no hosted label from E-10's LOCAL replication arm |
+| ROOT 2.12 N1-N7 | the rulings on this file's questions (Root rulings): the record gate opens at E-10's results commit (N1) and E-10's product table is aligned to it before registration (N2); the desk reaches the record and the proposal by a link to Opponent Lab (N3); S3, S4 and S5 wait for an E-09 record (N4); ADR-0031 overrides R13 for the nav bytes and pinned tests (N5); E-10's registration commit rewords planning's `shots` item (N6); the order of work (N7, 0.2) |
 | ROOT 3b | `galactico/models/opponent/` is the prior-date opponent record; `api/opponent_lab.py`, `api/desk.py`, `web/opponent.html`, `web/desk.html`; the root registers the routers; `verdicts.py` is the only thing product code reads from research |
-| E-10 PIPELINE 2.5 and 11 (row 1) | no WP A file is executed on `data/` before E-10's code review, and the only real-data test before the run requests no descriptor column; with R5, the reason the record waits for E-10's run (1.7, DISSENT 1) |
+| E-10 PIPELINE 2.5 and 11 (row 1) | no WP A file is executed on `data/` before E-10's code review, and the only real-data test before the run requests no descriptor column; with R5, the reason the record waits for E-10's run (1.7, DISSENT 1, N1) |
 | E-10 PIPELINE 12.3 | when the estimate is shown, how it is computed, the proposal qualifiers, the tests the module carries |
 | E-10 PIPELINE 13 (last paragraph) | while `planning_research_sentence` is served, the desk shows no E-10 descriptor or volume (met in every state, 6.4) |
-| E-10 preregistration, "Product consequence" | the states of 1.6; this file departs from "shown in every state" before the run (DISSENT 1) |
+| E-10 preregistration, "Product consequence" | the states of 1.6; this file departs from the READY draft's "shown in every state" before the run (DISSENT 1), and N2 aligns that table to 1.6 before registration |
 
 ## 0. Files and ownership
 
@@ -80,23 +85,32 @@ lands. Nobody here writes WP A: it is built by E-10's WP A owner from PIPELINE s
 
 ### 0.2 Order of work
 
-1. E-10 is registered (its PIPELINE section 13: the four files, the seven `PENDING` records).
-2. E-10's pipeline commit lands WP A to D (PIPELINE section 13, "After registration"). WP A is
-   then on disk, frozen with the registered PIPELINE.
-3. This work is built on WP A, unit-tested on synthetic tables only, reviewed against section 10,
-   and, once the rulings under ROOT RULINGS NEEDED are made, the root registers the two routers
-   and the two nav entries in one commit (section 11).
-4. E-10's code review (PIPELINE 11), gate stamp, run and results commit proceed as PIPELINE 13
-   says. The record gate of 1.7 opens at that results commit, when every E-10 record is
-   `EXECUTED`, and not before.
+The order is ROOT 2.12 N7's; N2 and N6 fix what E-10's registration carries for this work.
 
-Nothing in this work runs a WP A function on the real corpus before step 4's results commit. The
+1. This file is audited, with a refuter per claimed blocker, until no scope has a blocker (N7).
+   The audit needs nothing of E-10 and may run beside steps 2 and 3; the build waits for it.
+2. E-10 is registered (its PIPELINE section 13: the four files, the seven `PENDING` records).
+   Before registration its product table is aligned to N1 (the record shown from the results
+   commit, withheld with the reason before it, as 1.6 and 1.7 say) and that edit is verified by
+   an independent auditor (N2, Z4); the registration commit carries the rewording of planning's
+   `shots` item (N6, section 11).
+3. E-10's pipeline commit lands WP A to D (PIPELINE section 13, "After registration"). WP A is
+   then on disk, frozen with the registered PIPELINE.
+4. The build follows that commit (N7). This work is built on WP A, unit-tested on synthetic
+   tables only and reviewed against section 10; then the root registers the two routers and the
+   two nav entries in one commit with ADR-0031, which carries N5's R13 override (section 11).
+5. E-10's code review (PIPELINE 11), gate stamp, run and results commit proceed as PIPELINE 13
+   says. The record gate of 1.7 opens at that results commit, when every E-10 record is
+   `EXECUTED`, and not before (N1).
+
+Nothing in this work runs a WP A function on the real corpus before step 5's results commit. The
 gate is inside the one loader that reads the corpus for a record (1.7), so no route, test, e2e
 spec, screenshot or person can reach a descriptor column, a validity decision or a window time
-earlier. The pages may ship between steps 3 and 4: the record is then withheld, every badge reads
-`E-10 · RECORD ONLY · NOT RUN`, and the page says why (`RECORD_WITHHELD_NOT_RUN`). The XI solve of
-Opponent Lab without a proposal, and the whole desk, read no record and work in every state.
-This work cannot be built before step 2: it imports WP A's definitions (OPEN QUESTION 1).
+earlier. The pages may ship between steps 4 and 5: the record is then withheld, every badge reads
+`E-10 · RECORD ONLY · NOT RUN`, and the page says why (`RECORD_WITHHELD_NOT_RUN`, N1). The XI
+solve of Opponent Lab without a proposal, and the whole desk, read no record and work in every
+state. This work cannot be built before step 3: it imports WP A's definitions (N7; OPEN
+QUESTION 1).
 
 ### 0.3 Frozen and not edited
 
@@ -252,14 +266,14 @@ Every badge, statement and gate comes from `verdicts.verdict_for("E-10", subject
 | Registry state of the subject | Badge (`badge_text`) | Shown beyond the definition, badge and non-claim | Evidence class |
 |---|---|---|---|
 | no record (E-10 not registered) | `RECORD ONLY · NOT TESTED` | nothing: the record is withheld (1.7) | (none shown) |
-| `PENDING` | `E-10 · RECORD ONLY · NOT RUN` | nothing: the record is withheld (1.7, DISSENT 1) | (none shown) |
+| `PENDING` | `E-10 · RECORD ONLY · NOT RUN` | nothing: the record is withheld (1.7, DISSENT 1, N1) | (none shown) |
 | `INCONCLUSIVE` | `E-10 · INCONCLUSIVE` | the record | counts OBSERVED; shares, rates and window time DERIVED |
 | `ADDED_INFORMATION_NOT_SHOWN`, `SIDE_NOT_SHOWN`, `NOT_RELIABLE`, `STRENGTH_NOT_EXCLUDED` (NOT_ESTABLISHED) | `E-10 · TESTED · NOT ESTABLISHED` | the record | same |
 | `DEFENDER_SHAPE_SIGNAL` (ESTABLISHED, limits) | `E-10 · TESTED · TENDENCY, ONE SEASON` | the record; behind the opt-in, at `D` on or after `PANEL_FROM_DATE`: the estimate of 3.3, the point only when the `reliability_lower_bound` figure is at least the config's bound | EXPERIMENTAL for the estimate; the record keeps its classes |
 | `LEVEL_ESTABLISHED` (level, ESTABLISHED, limits) | `E-10 · TESTED · VOLUME, ONE SEASON` | the same rule for the volume | same |
 
-The record of one subject is shown only when all seven records are `EXECUTED` (1.7) and, until
-the root rules R-3, the subject is not one E-09 still holds back (1.7). The statement printed
+The record of one subject is shown only when all seven records are `EXECUTED` (1.7, N1) and the
+subject is not one E-09 still holds back (1.7, N4). The statement printed
 beside each badge is the payload's `statement`, verbatim (the registry's `registry_outcomes`
 sentence, `not_run_statement`, or "No registered protocol tests this claim."). The group's
 non-claim (`registry_non_claims[group]`, config.json:498-502) is printed in every state, before
@@ -286,7 +300,9 @@ looking at a page. Two rules of the E-10 draft fix this.
   served between registration and that review would execute WP A on the corpus and break the
   check. Registration alone is therefore not enough.
 
-The gate is in code. `record.record_available()` is true when, and only when, for each of the
+ROOT 2.12 N1 accepts this gate (R-1): it opens at E-10's results commit, when all seven E-10
+records are `EXECUTED`, and not at registration, and it sits inside the one loader that reads the
+corpus for a record. The gate is in code. `record.record_available()` is true when, and only when, for each of the
 seven subjects `verdicts.verdict_for("E-10", subject).basis` is `VerdictBasis.EXECUTED` (the
 results commit gives every record its token, PIPELINE 12.2; `derive` reads EXECUTED for every
 token but `PENDING`, verdicts.py:452-487). Product code may read only the registry from research
@@ -296,18 +312,19 @@ function that reads the corpus for a record: `record.load_league_tables` raises 
 (a `RuntimeError`, a 500) when it is closed, so no caller, route or test can bypass it. The routes
 check the gate first and never call the loader while it is closed.
 
-**E-09 (ROOT RULING NEEDED, R-3).** Three subjects are team aggregates of the event sets behind
+**E-09 (N4, ruling R-3).** Three subjects are team aggregates of the event sets behind
 E-09's unregistered player candidates: S3 (`conceded_shots_inside_box_share`) beside
 `box_shot_share` on open-play shots, and S4 (`defensive_actions_by_pitch_third`) and S5
 (`high_zone_defensive_action_share`) beside `opp_half_defensive_actions`, ground defending duels
-and interception-flagged rows by start x (E-09 draft config.json, the `box_shot_share` and `opp_half_defensive_actions` candidates and `registry_candidate_subjects`). Until the root
-rules, `record.subject_available(subject)` is `record_available()` and, for the three subjects of
+and interception-flagged rows by start x (E-09 draft config.json, the `box_shot_share` and `opp_half_defensive_actions` candidates and `registry_candidate_subjects`). Under N4,
+`record.subject_available(subject)` is `record_available()` and, for the three subjects of
 `record.E09_ADJACENT`, at least one key of `verdicts.VERDICTS` under `"E-09"`. A subject that is
 not available is withheld on its own: its definition, badge and non-claim are shown with
 `SUBJECT_WITHHELD_E09` and no count, and its columns are not requested from
-`build_team_match_table` (2.1), so they are never computed. If the root rules instead that E-09's
-registration commit records Opponent Lab exposure in its prior-exposure table,
-`E09_ADJACENT` becomes `()` and nothing else changes.
+`build_team_match_table` (2.1), so they are never computed. N4 accepts this default, so no one is
+exposed to the three subjects before E-09 is frozen; the alternative R-3 offered (E-09's
+registration commit recording Opponent Lab exposure in its prior-exposure table, and
+`E09_ADJACENT` becoming `()`) is not taken.
 
 While `record_available()` is false:
 
@@ -342,7 +359,7 @@ ACTION_COLUMNS: tuple[str, ...]  # = PIPELINE I1, verbatim
 SIDECAR_EVENT_COLUMNS = ("card", *descriptors.GOAL_INCIDENT_COLUMNS)
 E09_ADJACENT: tuple[str, ...] = ("conceded_shots_inside_box_share",
                                  "defensive_actions_by_pitch_third",
-                                 "high_zone_defensive_action_share")      # 1.7, R-3
+                                 "high_zone_defensive_action_share")      # 1.7, N4
 
 class RecordCorpusDefect(RuntimeError): ...   # a corpus that cannot give a table; the router's 503
 class RecordWithheld(RuntimeError): ...       # the gate is closed; never reached by a route (500)
@@ -1124,8 +1141,8 @@ Every shipped API route answers byte for byte as before; `decision_lab.snapshot`
 nor cleared; `runtime.router` still serves only `/api/evidence/verdicts`
 (`tests/test_lab_runtime.py:783-798`); runtime, squad and transfer still serve exactly 14 API
 paths (`tests/test_planning_api.py:1630-1650`); `runtime.BUDGETS` and `LONG_ROUTES` are unchanged.
-The HTML of the five shipped pages changes in its nav block only, by the root's edit under an
-explicit R13 ruling named in ADR-0031 (section 11, R-4), as W8 names its overrides.
+The HTML of the five shipped pages changes in its nav block only, by the root's edit under the
+R13 override ROOT 2.12 N5 rules (R-4), named in ADR-0031 (section 11), as W8 names its overrides.
 
 ## 6. API: `galactico/api/desk.py`
 
@@ -1300,7 +1317,7 @@ and repeated requests would narrow it (review E6), so neither is on the desk. Th
 proposal are the `opponent` stage, which links to Opponent Lab (`DESK_OPPONENT_STAGE`), where a
 proposal is read beside the record it reads and accepted by the reader who saw it (ROOT 2.3,
 4.5). This is stricter than PIPELINE 13's "while it serves this sentence", so that no later
-results commit can make a desk reply false (DISSENT 5). `test_desk_shows_no_e10_descriptor` (8.1)
+results commit can make a desk reply false (DISSENT 5, N3). `test_desk_shows_no_e10_descriptor` (8.1)
 spies `record.load_league_tables`, `record.build_record` and `proposal.evaluate` and asserts that
 no desk request calls them, and that no desk reply holds a `proposal`, `rules`,
 `cited_value_text` or `minimum_rows` key or a non-null `record_state`.
@@ -1662,18 +1679,18 @@ The reviewer signs each line before the root registers the routers.
 | File | Change |
 |---|---|
 | `galactico/api/player_lab.py` | after `app.include_router(xi_extensions_router)` (player_lab.py:61): `from .opponent_lab import router as opponent_router` and `from .desk import router as desk_router` with the other imports, then `app.include_router(opponent_router)` and `app.include_router(desk_router)`. Both import nothing heavy at import (8.1) |
-| `galactico/api/shell.py` | `Destination` gains `sr_suffix: str = " Lab"`, and `nav_markup` writes `f'<span class="sr-only">{destination.sr_suffix}</span>'` only when it is non-empty (the five shipped links keep their bytes); `DESTINATIONS` gains `Destination("opponent", "/opponent", "Opponent", "matchday")` after XI and `Destination("desk", "/desk", "Desk", "desk", sr_suffix=" (Director’s desk)")` last, with U+2019 (7.1); the module docstring's "Five destinations ship" becomes seven. In the same commit as the two routers, never before (a nav link to a missing page is a 404, shell.py:11-12) |
-| `web/match.html`, `web/xi.html`, `web/squad.html`, `web/transfer.html` | the nav block replaced by the new `nav_markup(dest)` bytes, nothing else (under R-4) |
-| `web/index.html` | two links in its own nav (index.html:189-199), `/opponent` and `/desk` (under R-4) |
+| `galactico/api/shell.py` | `Destination` gains `sr_suffix: str = " Lab"`, and `nav_markup` writes `f'<span class="sr-only">{destination.sr_suffix}</span>'` only when it is non-empty (the five shipped links keep their bytes); `DESTINATIONS` gains `Destination("opponent", "/opponent", "Opponent", "matchday")` after XI and `Destination("desk", "/desk", "Desk", "desk", sr_suffix=" (Director’s desk)")` last, with U+2019 (7.1); the module docstring's "Five destinations ship" becomes seven. In the same commit as the two routers and ADR-0031 (N7), never before (a nav link to a missing page is a 404, shell.py:11-12) |
+| `web/match.html`, `web/xi.html`, `web/squad.html`, `web/transfer.html` | the nav block replaced by the new `nav_markup(dest)` bytes, nothing else (under N5's R13 override, R-4) |
+| `web/index.html` | two links in its own nav (index.html:189-199), `/opponent` and `/desk` (under N5's R13 override, R-4) |
 | `web/labs-shared.css` | only if the 320 px check of seven links and three separators overflows (labs-shared.css:8-11) |
 | tests that pin the nav | `tests/test_shell_payloads.py:30-42` (seven hrefs and dests, three separators, the visible text with "Opponent Lab" and "Desk (Director’s desk)", no `opponent`/`desk` exclusion), `:53-56` (parametrise with names that are still not destinations), `:59-79` (items carry `d.sr_suffix`); `tests/test_web_shell.py:19` (`PAGES` gains `opponent` and `desk`); `tests/test_xi_extensions_render.py:843-870` (`SHIPPED_XI_HTML` re-pinned after the nav edit: the five additive edits are unchanged); any e2e assertion that counts nav links. `tests/test_shell_render.py:312-369` builds its own five-item nav literal and is not edited |
 | `.github/workflows/ci.yml:69` | add `e2e/opponent.spec.js e2e/desk.spec.js` to the playwright command (both branch on the registry state, 8.4) |
 | `galactico/api/runtime.py:331-342` and `tests/test_lab_runtime.py:399-408` (recommended) | `source_fingerprint` also hashes `models/opponent/*.py` and `features/team/*.py`, and the pinned set says so |
-| `galactico/api/planning.py` (E-10's registration commit) | under PIPELINE 13's line for "the wording that names the registered protocols": the `shots` item of `NOT_MEASURED_EXTRA` (planning.py:1439-1442), whose "No registered protocol tests one" is false once E-10 registers `conceded_shots_inside_box_share`, reworded, for example "No shot construct is shown on a planning page. E-11, registered and not run, compares only whether two providers agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning page shows." The desk serves `planning.not_measured()` and inherits the edit; its test compares with planning's list, not with the text |
-| `DECISIONS.md` | ADR-0031 "Opponent Lab and the Director's desk": Problem (ROOT 2.3's two surfaces unbuilt; KNOWN_LIMITATIONS "not implemented"), Decision (sections 1.7, 2.2, 3, 4.5, 6.3 and 6.4 of this file), the R13 override of R-4 naming exactly the nav bytes of `web/index.html`, `match.html`, `xi.html`, `squad.html`, `transfer.html` and the pinned tests above, Evidence (the oracle, parity and loader tests, the measured times and memory of 8.5), Alternatives rejected (a record before E-10's run; a record in a window E-10 does not register; a second estimator; a proposal with default thresholds; comparing two parts of a record; an acceptance not bound to the proposal shown; client-side composition of the desk; the desk showing descriptors or forming proposals; carrying declarations across pages by URL), Relation to ADR-0018, ADR-0019, ADR-0024; and, at E-10's results commit, a note with the record and proposal routes' measured times |
-| `KNOWN_LIMITATIONS.md` | "Product scope" (:418-422): Opponent Lab and the desk are implemented, with what they are; "The tag sidecar holds facts, and nothing has read it yet" (:271-283): Opponent Lab reads cards, own goals, goals and the sheet's dismissals, after `verify`, once E-10 has run; new entries: the record is withheld until E-10 has run (1.7); S3, S4 and S5 are withheld until E-09 is registered (under R-3's default); one window, E-10's; a record is not adjusted for opponents or strength and cannot tell funnelling from failing to close (H14); a proposal is a declared HEURISTIC policy; the per-match chain exists at two Madrid decision points only; the desk's per-match chain takes a decision point and a mode, and minima, locks, exclusions, proposals, the frontier and the risk modes are declared on Opponent Lab and XI Lab; the desk page offers presets, the opt-in, the formation, the slot, stress and leagues, and requirement declarations, exclusions, locks and filters are declared on Squad and Transfer Lab; the desk is sequential, can take its budget plus one build per part that starts cold, and holds two of the sixteen places; a league without a built sidecar has no record (CI builds Spain only) |
+| `galactico/api/planning.py` (E-10's registration commit, N6) | E-10's registration commit carries it: N6 rules (R-5) that PIPELINE 13's line for "the wording that names the registered protocols" covers it, and N2's edit names it in that line. The change: the `shots` item of `NOT_MEASURED_EXTRA` (planning.py:1439-1442), whose "No registered protocol tests one" is false once E-10 registers `conceded_shots_inside_box_share`, reworded, for example "No shot construct is shown on a planning page. E-11, registered and not run, compares only whether two providers agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning page shows." The desk serves `planning.not_measured()` and inherits the edit; its test compares with planning's list, not with the text |
+| `DECISIONS.md` | ADR-0031 "Opponent Lab and the Director's desk": Problem (ROOT 2.3's two surfaces unbuilt; KNOWN_LIMITATIONS "not implemented"), Decision (sections 1.7, 2.2, 3, 4.5, 6.3 and 6.4 of this file), the R13 override (ROOT 2.12 N5, ruling R-4: in the form of W8, overriding R13 for exactly the nav bytes of `web/index.html`, `match.html`, `xi.html`, `squad.html` and `transfer.html` and the pinned tests above; `d9bf28f`'s earlier nav edit for Squad and Transfer Lab recorded as the same kind of edit, made without naming R13), Evidence (the oracle, parity and loader tests, the measured times and memory of 8.5), Alternatives rejected (a record before E-10's run; a record in a window E-10 does not register; a second estimator; a proposal with default thresholds; comparing two parts of a record; an acceptance not bound to the proposal shown; client-side composition of the desk; the desk showing descriptors or forming proposals; carrying declarations across pages by URL), Relation to ADR-0018, ADR-0019, ADR-0024; and, at E-10's results commit, a note with the record and proposal routes' measured times |
+| `KNOWN_LIMITATIONS.md` | "Product scope" (:418-422): Opponent Lab and the desk are implemented, with what they are; "The tag sidecar holds facts, and nothing has read it yet" (:271-283): Opponent Lab reads cards, own goals, goals and the sheet's dismissals, after `verify`, once E-10 has run; new entries: the record is withheld until E-10 has run (1.7); S3, S4 and S5 are withheld until E-09 is registered (N4); one window, E-10's; a record is not adjusted for opponents or strength and cannot tell funnelling from failing to close (H14); a proposal is a declared HEURISTIC policy; the per-match chain exists at two Madrid decision points only; the desk's per-match chain takes a decision point and a mode, and minima, locks, exclusions, proposals, the frontier and the risk modes are declared on Opponent Lab and XI Lab; the desk page offers presets, the opt-in, the formation, the slot, stress and leagues, and requirement declarations, exclusions, locks and filters are declared on Squad and Transfer Lab; the desk is sequential, can take its budget plus one build per part that starts cold, and holds two of the sixteen places; a league without a built sidecar has no record (CI builds Spain only) |
 | `README.md`, `ARCHITECTURE.md` | the three model modules, the two routers and the six web files in the module tables; the two labs in the product list |
-| `docs/research/north-star/README.md` | a row for this file: draft, revised after three reviews, not audited, nothing built |
+| `docs/research/north-star/README.md` | a row for this file: draft, revised after three reviews, its root questions ruled (ROOT 2.12), not audited, nothing built |
 | E-10's results commit | nothing extra for this work's tests: they plant registry states, the e2e reads every badge from `/api/evidence/verdicts`, and the record gate opens by itself (PIPELINE 13's list stays sufficient) |
 
 ## 12. Reconciliation
@@ -1686,7 +1703,7 @@ and its proposal test is `test_qualifiers_follow_may_gate`; its hole rule is use
 step 5). Section 11's first check holds because no WP A function runs on the corpus here before
 the results commit (1.7). Section 13's desk rule is met in every state (6.4). The product
 consequence table of the protocol is 1.6, with the record withheld in the "no record" and
-`PENDING` rows (DISSENT 1).
+`PENDING` rows (DISSENT 1, N1); N2 aligns the protocol's table to that before registration.
 
 **With OR-XI.** The per-match XI part uses `xi_extensions.declare` (the opt-in rule) and its gated
 snapshot; the desk composes ceilings and conflict by their handlers, so their claims, ledgers and
@@ -1713,8 +1730,12 @@ sentence. D4 holds: progression alone unless the reader opts in.
    on the corpus inside that window, and the registry, the only research state product code may
    read (ROOT 3b), cannot tell the window from the time after the gate stamp. A served record of
    every team of five leagues is the composition E-10 tests, and every person who looks at it
-   before the run is exposed. R-1 asks the root to confirm; if it rules otherwise, the conditions
-   are stated there.
+   before the run is exposed. ROOT 2.12 N1 accepts this on that evidence (R-1). N2 aligns E-10's
+   product table before registration: its rows "no record (before registration)" and `PENDING`
+   print the non-claim and the reason the record is withheld, and the record is shown from the
+   results commit. The edit is E-10's, verified by an independent auditor before registration
+   (Z4); until it is registered this file departs from the READY draft's wording, and after it
+   from nothing.
 2. **No default threshold or percentile in a proposal.** ROOT section 3 makes any mapping from an
    adjective to a number a declared, editable HEURISTIC policy, and the planning presets ship a
    default percentile (75, IDENTITY_PHRASES). Here the template is the structure and every number
@@ -1738,40 +1759,68 @@ sentence. D4 holds: progression alone unless the reader opts in.
    proposal's minima and the thresholds its rules reached bound a record's share, and repeated
    requests would narrow it (review E6), so no copy could make the desk "show no descriptor"; and
    ROOT 2.3's acceptance presupposes that the reader saw the proposal, which a desk request
-   carrying an acceptance beside unseen rules would not guarantee (review C6). R-2 asks the root
-   to confirm.
+   carrying an acceptance beside unseen rules would not guarantee (review C6). ROOT 2.12 N3
+   accepts this (R-2): it meets ROOT 2.3's "chain end to end", because the chain's first two
+   steps live on the page that may show them; the desk forms no proposal and shows no descriptor.
 
-## ROOT RULINGS NEEDED (before the routers are registered)
+## Root rulings (ROOT-DECISIONS 2.12)
 
-- **R-1. When the record gate opens.** This file opens it at E-10's results commit, when all
-  seven records are `EXECUTED` (1.7, DISSENT 1), which departs from the E-10 draft's product
-  table for the `PENDING` row. If the root wants records in the `PENDING` state, the registry
-  cannot express "after the gate stamp", so the safety would rest on commit order: the gate code
-  would become "seven E-10 records exist", and the root would register the routers, add the two
-  e2e specs to CI and let any corpus test of this work run only after E-10's gate-stamp commit,
-  with 0.2, 1.7, 8 and 11 saying so. Either way, E-10's reviser may wish to align the draft's
-  product table before registration (it would read "shown in every state once E-10 has run").
+The revision put five questions to the root, R-1 to R-5, to be ruled before the routers are
+registered. ROOT-DECISIONS 2.12 ruled them on 18 October 2026 (N1 to N6) and fixed the order of
+work (N7). Each is recorded here against the question it answers; where this summary and 2.12
+differ, 2.12 wins.
+
+- **R-1. When the record gate opens.** The question: this file opens the gate at E-10's results
+  commit, when all seven records are `EXECUTED` (1.7, DISSENT 1), departing from the E-10 draft's
+  product table for the `PENDING` row; the alternative was records in the `PENDING` state, with
+  the gate reading "seven E-10 records exist" and the safety resting on commit order.
+  **N1 ACCEPTED.** The gate opens at E-10's results commit, when all seven E-10 records are
+  `EXECUTED`, and not at registration, inside the one loader that reads the corpus for a record;
+  evidence R5 and E-10 PIPELINE 11 row 1, and the registry cannot tell the window before the gate
+  stamp from the time after it. Before the run the pages ship with the record withheld
+  (`RECORD_WITHHELD_NOT_RUN`). The `PENDING` alternative is not taken. **N2 RULED** (consequence
+  for E-10): E-10's product table is aligned before registration. The prior-date record is shown
+  from E-10's results commit; before it the panel prints the non-claim and the reason it
+  withholds the record, and the rows "no record (before registration)" and `PENDING` say so. The
+  edit is to a READY draft, so an independent auditor verifies it before registration (Z4), with
+  `pipeline_spec_sha256` recomputed if PIPELINE.md moves. It is E-10's edit, not this work's (0.2
+  step 2).
 - **R-2. The desk's per-match chain without the record and the proposal** (DISSENT 5, 6.4): a
-  narrower reading of ROOT 2.3's "chain end to end".
+  narrower reading of ROOT 2.3's "chain end to end". **N3 ACCEPTED.** The desk composes the XI
+  solve and its exact additions and reaches the opponent record and the requirement proposal by
+  the `opponent` stage, which links to Opponent Lab. That meets "chain end to end": the chain's
+  first two steps live on the page that may show them. The desk forms no proposal and shows no
+  descriptor (E-10 PIPELINE 13; the narrowing of review E6).
 - **R-3. E-09 adjacency.** S3, S4 and S5 are team aggregates of the event sets behind E-09's
-  unregistered candidates (1.7). The default withholds them per subject until a registry record
-  under `"E-09"` exists. Alternative: E-09's registration commit states in its prior-exposure
-  table whether, and by whom, Opponent Lab records were seen, and `E09_ADJACENT` becomes `()`.
+  unregistered candidates (1.7). The default withheld them per subject until a registry record
+  under `"E-09"` exists; the alternative had E-09's registration commit record Opponent Lab
+  exposure in its prior-exposure table, with `E09_ADJACENT` = `()`. **N4 ACCEPTED the default.** Each of the three is withheld
+  until a registry record under `"E-09"` exists (`record.E09_ADJACENT`, 1.7, 2.1), so no one is
+  exposed to them before E-09 is frozen. The alternative is not taken.
 - **R-4. The nav edit and R13.** Adding two destinations changes the nav bytes of
   `web/index.html`, `match.html`, `xi.html`, `squad.html`, `transfer.html` and re-pins
-  `SHIPPED_XI_HTML`, `tests/test_web_shell.py` and `tests/test_shell_payloads.py`. Commit
-  `d9bf28f` made the same kind of edit for Squad and Transfer Lab without naming R13; W8 shows the
-  explicit form ("overriding R13 ... and that commit carries an ADR naming them"). ADR-0031 should
-  carry that override for exactly those bytes and tests.
+  `SHIPPED_XI_HTML`, `tests/test_web_shell.py` and `tests/test_shell_payloads.py`. **N5 RULED.**
+  ADR-0031 overrides R13 for exactly those nav bytes and the pinned tests section 11 names, in the
+  form of W8 ("overriding R13 ... and that commit carries an ADR naming them"). `d9bf28f`'s
+  earlier nav edit for Squad and Transfer Lab is recorded there as the same kind of edit, made
+  without naming R13 (5.8, section 11's ADR-0031 row).
 - **R-5. Planning's `shots` item** (section 11): whether PIPELINE 13's planning wording line
-  covers the rewording at E-10's registration, as this file reads it.
+  covers the rewording at E-10's registration. **N6 RULED.** It does: E-10 PIPELINE 13's line for
+  "the wording that names the registered protocols" covers rewording planning's `shots` item at
+  E-10's registration, and N2's edit names it in that line, so E-10's registration commit carries
+  it explicitly (section 11's planning row).
+- **Order** (no question was put; ruled with the five). **N7 RULED.** This file is audited, with a
+  refuter per claimed blocker, until no scope has a blocker. The build follows E-10's pipeline
+  commit, which brings WP A (`galactico/features/team/`). The routers and the nav entries are
+  registered in one commit with ADR-0031 (0.2, section 11).
 
 ## OPEN QUESTIONS
 
-1. **Ship order.** 0.2 assumes E-10's registration, then its pipeline commit (WP A), then this
-   work. This work imports WP A's definitions, so it cannot be built before WP A exists, and
-   PIPELINE 13 puts WP A after registration. Whatever the order, the gate of 1.7 is inside the one
-   loader and opens only at E-10's results commit, so the record cannot reach the corpus earlier.
+1. **Ship order.** Ruled by ROOT 2.12 N7 (0.2): this file is audited until no scope has a
+   blocker, and the build follows E-10's pipeline commit (WP A), which PIPELINE 13 puts after
+   registration; this work imports WP A's definitions, so it cannot be built before WP A exists.
+   Whatever the order, the gate of 1.7 is inside the one loader and opens only at E-10's results
+   commit (N1), so the record cannot reach the corpus earlier.
 2. **Proposal defaults.** Should the 75th percentile, the planning presets' convention, be
    pre-filled for the percentile (never for the threshold)? This file says no (DISSENT 2).
 3. Withdrawn in revision: the desk forms no proposal, so it states nothing about a record (6.4,
@@ -1795,7 +1844,7 @@ sentence. D4 holds: progression alone unless the reader opts in.
 9. **The audit frame.** `build_team_match_table` returns per-match drop counts at sentinels and
    out-of-range locations. Should the record show, per team, how many of its prior entries were
    dropped for a location, as a sample note?
-10. Moved to ROOT RULINGS NEEDED, R-3.
+10. Moved to the root as R-3; ruled by ROOT 2.12 N4 (Root rulings).
 11. **A second window.** Should a later release show a record in `all_states`, and under which
     identity: a fingerprint E-10 never froze (WP A's payload with that window), or none? Any such
     record is a definition no registry record names (1.3).
@@ -1807,7 +1856,9 @@ product (P, 24) and exactness and data (E, 19). Each finding was checked against
 E-10 draft and the tree at `52bdc0b` before its disposition. "Accepted" means applied as the
 reviewer proposed; "accepted, modified" means the defect is fixed by a different change, named;
 "partially accepted" means part of the proposal is applied and the rest is rejected with the
-reason given. No finding was found to be false.
+reason given. No finding was found to be false. The dispositions below name R-1 to R-5 as the
+questions were put to the root; ROOT 2.12 has since ruled them (N1 to N6, recorded under Root
+rulings).
 
 | # | Sev | Finding (short) | Verified by | Disposition and where |
 |---|---|---|---|---|
