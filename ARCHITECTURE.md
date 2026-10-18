@@ -36,6 +36,8 @@ coverage or an objective.
 | `optimization/historical.py` | Strict prior-date snapshot, independent pre-cutoff xT fit, versioned eligibility, heuristic minima and coherent team-match worlds |
 | `optimization/xi/domain.py` | Typed candidates, role-slot templates, requirements, assessments and `XIResult` |
 | `optimization/xi/solver.py` | Exact quantized CP-SAT; lexicographic deficits, certification, tie-aware membership, removal and candidate-injection re-solves |
+| `optimization/xi/ceilings.py`, `conflict.py`, `frontier.py`, `risk.py` | The exact additions of ADR-0030: the attainable range of each requirement sum; a certified minimal conflicting set in the arithmetic of the solve it explains; the complete nondominated requirement-sum vectors of declared dimensions; declared-risk selection over shared worlds. Each is checked against the brute-force oracle `tests/xi_exact_oracle.py`, written by an author who built none of them |
+| `api/xi_extensions.py` | Their router: one corpus-free menu route and four POST routes through `runtime.finalize`, the declared-inputs ledger and the build-gated snapshot loader |
 
 `GET /api/matches` and `/api/matches/{id}` expose the historical match artifacts;
 `/{id}/{timeline,shots,network,players,flow,teams}` expose individual sections.

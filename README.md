@@ -14,7 +14,7 @@ Five connected historical workstations now run locally:
 
 - **Player Lab** — five surviving season constructs, with shared-match uncertainty and evidence gates.
 - **Match Lab** — actual lineups, key/tactical timelines, positive pass-xT flow, shot locations, inferred passing networks and player-match contribution vectors.
-- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
+- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Four exact additions sit under the main solve: the attainable range of each requirement, a certified minimal conflicting set when the minima cannot all hold, the nondominated sums of two or three declared requirements (never ranked), and declared-risk selection over resampled matches. The two side requirements enter them only with the experimental opt-in. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
 - **Squad Lab** — for a declared squad, template and minima: who is eligible where and why not, which absences raise the declared shortfall or leave no fieldable XI, and what an addition at a slot would have to supply. Real Madrid at the end of 2017/18 by default; any league club under an unreviewed position rule.
 - **Transfer Lab** — for a slot you declare: every gated player admitted there, placed at that slot and re-solved exactly, with the smallest share of his recorded rates that must carry over for the conclusion to hold. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
 
@@ -46,7 +46,7 @@ group before no XI can be fielded under the eligibility rules, and two once the
 leaves the declared shortfall where it was, because nothing here measures
 finishing. A page that printed a shortlist would be answering a question this
 data cannot. These print the question back, with what it is conditional on.
-[Decisions](DECISIONS.md) ADR-0018 to ADR-0029 ·
+[Decisions](DECISIONS.md) ADR-0018 to ADR-0030 ·
 [what they cannot say](KNOWN_LIMITATIONS.md)
 
 ![Squad Lab](docs/screenshots/17-squad-lab.png)

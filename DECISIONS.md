@@ -1189,3 +1189,72 @@ by editing a registered file.
 
 **Reversal.** None for the files. A protocol found unsound before its run is superseded
 by a new experiment id, and this one is recorded as not run.
+
+
+---
+
+## ADR-0030 — XI exact additions: ranges, minimal conflict, frontier, declared-risk modes
+
+**Problem.** Four limitations of XI Lab were written down and not repaired: infeasibility
+diagnostics did not certify a minimal conflicting set; a single maximum was not a frontier;
+no robust or regret selection mode existed; and the attainable range of a requirement was
+known only through one maximiser. ROOT 2.1 asked for all four as exact computation on the
+declared model, each with a written claim, a certificate and an independent oracle. No
+OR-XI specification existed when the council stopped.
+
+**Decision.** [OR-XI-SPEC.md](docs/research/north-star/OR-XI-SPEC.md), attacked by three
+lenses, ruled by the root (ROOT-DECISIONS 2.7, X1 to X14) and audited twice in five scopes,
+is the contract. Four modules under `galactico/optimization/xi/`:
+
+- `ceilings.py`: the least and largest sum of each requirement in force over the declared
+  XIs, with the objective rounding for sums and the conservative rounding for any declared
+  floor; either end's witness may decide whether a minimum is reached.
+- `conflict.py`: a deletion filter over floors, locks, exclusions and slot coverage, each
+  removal proved by an INFEASIBLE solve, in the arithmetic of the solve it explains:
+  `explain_solve` in the half-even integers of XI Lab's Satisfy rule, `explain_floors` in
+  the conservative integers of a hard-floor query (X2). A per-member restore test says
+  whether dropping that declaration alone leaves an XI.
+- `frontier.py`: the complete set of nondominated requirement-sum vectors over two or three
+  declared dimensions, one witness each, with a completeness certificate; no default
+  dimension and no ranking, knee or best point (O7).
+- `risk.py`: TAIL(k of B), WORST_WORLD as TAIL(1) and MINIMAX_REGRET over the shared worlds,
+  on the lexicographic per-world loss in the solver's own integers, searched through the
+  exact encoding `BIG = 2·|U|·T_bound + 1` (X3), which preserves the order for a sum of `k`
+  encodings and for a regret and is never serialised, logged or displayed (O8).
+
+`galactico/api/xi_extensions.py` serves them; `web/xi-extensions.js` draws them under the
+main solve, each panel sending nothing until its button is pressed (X4, X12). The new parts
+use progression alone unless the reader opts in to the two experimental side requirements
+(X6). No frozen file and not `squad/kernel.py` is edited; the shipped XI routes return the
+same bytes with the router present.
+
+**Evidence.** A brute-force oracle (`tests/xi_exact_oracle.py`), written from the spec alone
+by an author who built none of the four modules, imports nothing from `galactico`. Each tool
+equals it over 120 seeded instances with non-vacuity checks (a three-point frontier, a binding
+floor, a summed tail above the bound, a set holding a lock, a floor and an exclusion), and
+the risk modes return BALANCE's pair with one world. CEILING's largest end matches the
+shipped maximiser's arithmetic (X7). A three-way review against the spec's checklist
+follows the build.
+
+**Numerical boundary.** Three named policies (X1): the shortfall rounding of `solver._q`,
+the conservative floor and ceiling of hard statements, and the exact half-even objective.
+A floor is met in the conservative model, so an XI within `(a_r + 1)/q` of the club median of
+a raw floor can be left out. Integers are read from the solver's values, never from its
+objective value. A declared problem whose encoding would overflow is refused.
+
+**Alternatives rejected.** Calling `maximize_requirement` per requirement (no minimiser, every
+minimum a floor, warnings that fail the copy guard); QuickXplain; a weighted sum for the
+frontier; a probability for a tail; a default dimension; editing `kernel.py`; the literal O8
+BIG, which a sum of `k` encodings can carry past; a stand-alone page beside `/xi`.
+
+**Relation to ADR-0020 and ADR-0024.** ADR-0020's rejection of a weighted sum of the two
+stages as a search device stands for the kernel; O8 overrides it for the risk modes only,
+because the encoding is exact by construction and never leaves the solve. The router's
+snapshot loader is behind ADR-0024's build gate, and `xi.risk.tail` is a long route (X5).
+
+**Confidence.** High that each tool computes what its claim says on the declared model, by
+the oracle. The 40-world risk option is withheld until its solves are timed on the corpus,
+and the run times and peak memory are recorded in that change.
+
+**Reversal.** E-13's verdict relabels the risk modes. A change of policy is a new version of
+the affected module and of its served constants.

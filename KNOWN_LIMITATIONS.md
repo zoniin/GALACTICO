@@ -74,8 +74,17 @@ When a limitation changes, preserve the experiment in `docs/research/`.
   rather than remove it.
 - Optimality applies to the recorded integer-quantized problem. Raw values may
   differ at rounding tolerance; unproven feasible solutions are not optimal.
-- Infeasibility diagnostics do not yet certify a minimal conflicting constraint
-  set. No constraint is silently relaxed.
+- The shipped solve's infeasibility diagnostics are not a minimal conflicting set.
+  XI Lab's conflict panel is the separate, certified answer: a deletion filter over
+  the declared floors, locks, exclusions and slot coverage, each removal proved by an
+  INFEASIBLE solve, in the arithmetic of the solve it explains (half-even for the
+  Satisfy rule, conservative for a hard-floor query; ROOT 2.7 X2). A test that times
+  out or is refused keeps its declaration and marks the set as not proved minimal;
+  it is never read as absence. No constraint is silently relaxed.
+- After the corpus files are rewritten in a running server, the conflict panel can
+  explain a model built from the files as they are now while the main solve above it
+  still runs on `decision_lab.snapshot`'s older copy (the next item), so the two can
+  differ, and the panel can even find the declarations feasible.
 - XI Lab's snapshot (`decision_lab.snapshot`) is cached per process on the match id
   and world count only, so after the corpus files are rewritten the shipped XI routes
   keep serving the snapshot built before, until the server restarts. The planning
@@ -90,7 +99,14 @@ When a limitation changes, preserve the experiment in `docs/research/`.
 - The separate hard-floor query maximizes historical positive-pass xT only, not
   football quality or team output. It can omit famous finishers or defensive players
   because those functions are absent from its objective. A maximum is not a
-  Pareto-frontier certificate; larger side-origin counts are not merit.
+  frontier; the frontier explorer lists the nondominated sums of declared
+  requirements at the shipped quantisation, never a ranking. Larger side-origin
+  counts are not merit. Any frontier with the shipped requirements needs the
+  experimental opt-in, because only progression is not experimental.
+- With declared floors, XI Lab's ranges and frontier are taken over the conservative
+  integer model: an XI that meets a raw floor with less than `(a_r + 1)/100000` of the
+  club median to spare (one unit for each place counted and one more) can be left out
+  of every range and point.
 - Its conservative floor rounding guarantees raw-floor satisfaction for returned
   assignments but can reject raw-feasible boundary XIs. INFEASIBLE and OPTIMAL
   concern that integer model, not the full unquantized problem. The numerical
@@ -123,9 +139,14 @@ When a limitation changes, preserve the experiment in `docs/research/`.
   scientific boundaries. A user lock is a constraint, not statistical evidence.
 - The old three-to-five stable-core result and 3.5%/9.9% inflation figures were
   illustrative rating-noise experiments, **not current XI Lab results**. The current
-  requirement-model simulation confirms selection optimism, but no football-calibrated
-  correction, robust/CVaR objective or minimax-regret mode ships
-  ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
+  requirement-model simulation confirms selection optimism, and no football-calibrated
+  correction ships ([M-05](docs/research/M-05-optimizer-selection-bias.md)). XI Lab's
+  declared-risk modes (the tail of k of B resampled worlds, the worst world, minimax
+  regret) select for stability against resampling of the historical matches, not
+  robustness to states of football; E-13, which would test whether they reduce
+  selection optimism, is a draft and has not run. The worst world grows with B, a
+  declared problem whose encoding would overflow is refused, and the menu offers 12
+  worlds until the 40-world solves are timed on the corpus.
 - You never observe the unplayed XI. Observational associations or manager
   agreement cannot establish that a proposed lineup would have won.
 
@@ -397,6 +418,5 @@ to the server's sentence in a comparison. For the
 
 No LLM invents a number or post-hoc tactical explanation. The frontend renders
 server-computed assignments, constraints, deficits and uncertainty. Opponent Lab,
-a Director's desk, certified Pareto frontiers, declared-risk XI modes, minimal
-conflict sets, learned embeddings, LIVE and VISION are not implemented. VISION's
+a Director's desk, learned embeddings, LIVE and VISION are not implemented. VISION's
 intended target remains team shape, not player ratings.
