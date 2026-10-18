@@ -15,7 +15,7 @@
   "counted_by_root_assumption_pins": ["expected_rows_outside_periods", "expected_body_part_coverage_on_shots", "expected_clause_overlap_rows", "expected_shot_family_disagreements"],
   "counted_by_root_assumption_rule": "the frozen text depends on these values (preregistration 3 states that the leagues hold no period outside periods and phase 2 stops when the period filter drops a row, shot_frame raises on a shot row with a null body part, preregistration 5.4 states that the two clauses of opp_half_defensive_actions do not overlap, phase 2 stops on a shot-family disagreement), so the same script counts them and they are never edited: a count that differs from this file's value is not written; registration stops, and the draft returns to a revision that freezes a rule for those rows (for example, a shot without exactly one body part left out of the model domain and counted), then to an audit",
   "root_rulings_applied": ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8", "W9"],
-  "root_rulings_rule": "ROOT-DECISIONS 2.10 (18 October 2026) ruled every question the audit's revision put to the root (REVIEW-RECORD, \"For a root ruling\"); W1 to W9 are applied in this file, preregistration.md and PIPELINE.md, and W10 requires each revision to be audited before E-09 is called READY; W2, as extended on 18 October 2026, rules the open-play design for all three shot candidates, and ROOT 2.2's parentheses for shot_volume and shot_location_value are amended to match (the second in commit 58be68b); no question waits for a root ruling",
+  "root_rulings_rule": "ROOT-DECISIONS 2.10 (18 October 2026) ruled every question the audit's revision put to the root (REVIEW-RECORD, \"For a root ruling\"); W1 to W9 are applied in this file, preregistration.md and PIPELINE.md; W10 required the revision applying W1 to W9 to be audited again, and by the E-10 precedent each later revision is audited, or its edits verified, before E-09 is called READY; W2, as extended on 18 October 2026, rules the open-play design for all three shot candidates, and ROOT 2.2's parentheses for shot_volume and shot_location_value are amended to match (the second in commit 58be68b); no question waits for a root ruling",
 
   "season": "2017/18",
   "leagues": ["Spain", "England", "Italy", "Germany", "France"],
@@ -29,6 +29,7 @@
   "regulation_minutes_cap": 90,
   "minutes_floor": 900,
   "match_set_minutes_floor": 300,
+  "match_set_minutes_share_quantiles": [0.05, 0.95],
   "share_floor_season_shots": 30,
   "share_floor_match_set_shots": 10,
   "share_floor_counts": "box_shot_share denominator rows: every neutral shot row of the player that survives the period filter, in the season or in the match set",
@@ -307,6 +308,7 @@
   "mce_rule": "largest absolute gap between mean probability and observed rate over the bins",
   "ece_null_draws": 1000,
   "ece_null_seed": 20261011,
+  "ece_null_percentiles": [50, 95, 99],
   "descriptive_subgroups": ["counter_attack"],
 
   "expected_shot_rows": {"Spain": 7979, "England": 8451, "Italy": 8806, "Germany": 6898, "France": 8327},
@@ -448,8 +450,8 @@
   "sb_position_rule": "the group of sb_position_groups with most regulation minutes over the player's season spells, each spell's regulation minutes taken from galactico.validation.sb_reader._spell (imported as a private member, never reimplemented) with cap regulation_minutes_cap and sb_regulation_periods; a tie goes to the group first in GK, DF, MD, FW order; a player whose group is GK is a goalkeeper and is excluded; a position name outside sb_position_groups stops the leg before any statistic",
   "sb_battery_rule": "compute_baselines on the leg's own frames built by sb_event_row_rule and sb_frame_columns_rule, with the leg's minutes; opp_half_on_ball_per_90 by opp_half_on_ball_rule on the same frames; the leg's battery columns are that provider's and are not compared with the public run's",
   "sb_reader_source_sha256_in_e11_acceptance": "ce0bc5cba334e412da63bb39b83cd70987d5b682de280d67714185b2e00b9f29",
-  "sb_reader_pin_rule": "lf_sha256(galactico/validation/sb_reader.py) equals the galactico/validation/sb_reader.py entry of source_hashes in experiments/preregistered/E-11-provider-agreement/acceptance.json, and equals this value",
-  "sb_code_pin_rule": "--external, in both modes, refuses unless the source_hashes of the current files (the list of PIPELINE 7.2) equal provenance.source_hashes of the committed results.json, so the leg runs only on the code that produced the public results, fixed before any public outcome was known; a self-check stamp made after the results commit does not unlock it; the leg runs from a checkout whose pinned files are those of the results commit; a failed execution of the leg whose repair changes a pinned file ends the leg with no label, which analysis.md states, and is not a failed execution of the public run",
+  "sb_reader_pin_rule": "lf_sha256(galactico/validation/sb_reader.py) equals the galactico/validation/sb_reader.py entry of source_hashes in experiments/preregistered/E-11-provider-agreement/acceptance.json, and equals this value; and no commit reachable from any ref of the repository and not from the protocol commit changes galactico/validation/sb_reader.py (git log --all --format=%H ^<protocol_commit> -- galactico/validation/sb_reader.py prints nothing; refused when git is unavailable), a clause read on every ref, so a checkout of the results commit does not reopen the leg after a later repair of the reader",
+  "sb_code_pin_rule": "--external, in both modes, refuses unless the source_hashes of the current files (the list of PIPELINE 7.2) equal provenance.source_hashes of the committed results.json, so the leg runs only on the code that produced the public results, fixed before any public outcome was known; a self-check stamp made after the results commit does not unlock it; the leg runs from a checkout whose pinned files are those of the results commit, which does not lift sb_reader_pin_rule (its last clause reads every ref); a failed execution of the leg whose repair changes a pinned file ends the leg with no label, which analysis.md states, and is not a failed execution of the public run",
   "sb_box_spec": {"candidate_id": "box_shot_share", "fingerprint": "23bf9214db9b", "sentence": "count over shots starting in the penalty area as the second provider draws it, per shot", "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": "penalty_area_sb"}], "denominator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": null}], "rule": "defined in candidate_sb.py, never in CANDIDATES, which keeps its four keys"},
   "sb_leg_candidates": ["shot_volume", "shot_location_value", "box_shot_share"],
   "sb_gate_s_count": {"minimum_training_shots": 15000, "minimum_training_goals": 1500, "minimum_heldout_shots": 5000, "minimum_heldout_goals": 500},
@@ -637,7 +639,7 @@
     "reliability_reached_with_probability_080": {"band_n300": 0.631, "number_n300": 0.779, "band_n66": 0.744, "number_n66": 0.847}
   },
   "selfcheck_feasibility": {
-    "by": "the reviser of 14 October 2026, event-level throwaway script on synthetic numbers only, the generator, gauntlet, rule and instrument gates of this config as they then stood, with 2000 bootstrap replicates; 40 replicates per world and scenario, seeds by selfcheck_seed_rule from replicate 0; not this exact generator and estimator: which reading of the lognormal multiplier the script used is not recorded (every multiplier is now exp(N(-s^2/2, s)), second audit 4-11), and the IRLS was revised after it (second audit 2-1, coefficients agreeing to about 1e-9); the third audit's synthetic check of both multiplier readings left every EFFECT candidate's smallest league lower bound far above reliability_number (third_audit_multiplier_check), and the binding check is the pipeline's own self-check on the frozen generator",
+    "by": "the reviser of 14 October 2026, event-level throwaway script on synthetic numbers only, the generator, gauntlet, rule and instrument gates of this config as they then stood, with 2000 bootstrap replicates; 40 replicates per world and scenario, seeds by selfcheck_seed_rule from replicate 0; not this exact generator and estimator: which reading of the lognormal multiplier the script used is not recorded (every multiplier is now exp(N(-s^2/2, s)), second audit 4-11), and the IRLS was revised after it (second audit 2-1, coefficients agreeing to about 1e-9); the third audit's synthetic check of both multiplier readings left the smallest league lower bound in EFFECT of each of the three candidates it checked far above reliability_number (third_audit_multiplier_check; shot_location_value was not checked), and the binding check is the pipeline's own self-check on the frozen generator",
     "third_audit_multiplier_check": {"world": "EFFECT", "method": "a simplified player-level simulation of the position-centred split-half bound (Poisson counts per player-match), not the event-level generator; rerun by the reviser of the third audit", "synthetic_leagues_per_reading": 25, "smallest_half_low_unit_mean_reading": {"shot_volume": 0.832, "box_shot_share": 0.885, "opp_half_defensive_actions": 0.939}, "smallest_half_low_mean_exp_half_s_squared_reading": {"shot_volume": 0.832, "box_shot_share": 0.895, "opp_half_defensive_actions": 0.958}},
     "replicates": 40,
     "worlds": {
@@ -702,6 +704,7 @@
   },
   "run_output_root": "data/public/research/E-09-player-candidates",
   "failed_run_log": "failed_runs.json",
+  "failed_execution_exit_code": 3,
   "determinism_rerun_file": "results.rerun.json",
   "raw_manifest_entries": ["events.zip", "matches.zip", "players.json"],
 

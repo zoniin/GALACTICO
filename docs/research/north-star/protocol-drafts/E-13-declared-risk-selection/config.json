@@ -6,7 +6,7 @@
   "experiment_directory": "experiments/preregistered/E-13-declared-risk-selection",
   "draft_dir": "docs/research/north-star/protocol-drafts/E-13-declared-risk-selection",
   "protocol_files": ["preregistration.md", "config.json", "PIPELINE.md"],
-  "pipeline_spec_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "pipeline_spec_sha256": "c2b6dbde06c586df8fe13af33de4ac51ca0c48664c97fcd3a58a7d87ce8b4d97",
   "verified_by_root_before_registration": [
     "pipeline_spec_sha256: lf_sha256 of PIPELINE.md as registered",
     "risk_solver_oracle_expected: the counts the oracle gate requires, read from a POSIX run of the risk_solver_oracle_tests files as they stand at registration",
@@ -38,7 +38,7 @@
     {"worlds": 40, "WORST_WORLD": 1, "TAIL_10": 4, "TAIL_25": 10, "TAIL_50": 20},
     {"worlds": 200, "WORST_WORLD": 1, "TAIL_10": 20, "TAIL_25": 50, "TAIL_50": 100}
   ],
-  "encoding_base_rule": "BIG = max(2, 2 * W * T_bound + 1), T_bound = the sum over requirements of the targets t_r (no deficit exceeds its target, the coefficients being non-negative rates; Part B's synthetic structure check may have negative coefficients, so there T_bound = the largest T of the batch over the point, world and reference values), W the tier's world count: above any sum of T over W worlds and above twice one T (ROOT 2.7 X3)",
+  "encoding_base_rule": "BIG = max(2, 2 * W * T_bound + 1), W the tier's world count and T_bound the larger of the sum of the targets and the largest T in the batch over its point, world and reference values (synthetic values can be negative, so a deficit can exceed its target): above any sum of T over W worlds and above twice one T (ROOT-DECISIONS 2.7 X3)",
   "subject_arms": {
     "risk_rule:WORST_WORLD": ["WORST_WORLD"],
     "risk_rule:TAIL": ["TAIL_10", "TAIL_25", "TAIL_50"],
