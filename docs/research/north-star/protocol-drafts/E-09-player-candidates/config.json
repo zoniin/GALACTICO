@@ -8,12 +8,12 @@
   "committed_experiment_dir": "experiments/preregistered/E-09-player-candidates",
   "draft_dir": "docs/research/north-star/protocol-drafts/E-09-player-candidates",
 
-  "pipeline_spec_sha256": "e9531f28b0412ca575a69f720614bb9275a39150c11ad5c1ae3dab789743fb69",
+  "pipeline_spec_sha256": "51ab5d5cdd39447b69193713ffb3d076788cede1f334ebeec1f59a256c957d78",
   "verified_by_root_before_registration": ["pipeline_spec_sha256", "frozen_rule_decide_source_sha256", "frozen_rule_constants", "frozen_correlation_source_sha256", "sidecar_schema_version", "sidecar_tag_mapping_version", "e11_config_sha256", "sb_reader_source_sha256_in_e11_acceptance"],
   "counted_by_root_before_registration": ["expected_shot_rows", "expected_in_domain_shot_rows", "expected_sentinel_start_shot_rows", "expected_behind_halfway_shot_rows", "expected_goal_rows_on_shots", "expected_matches", "expected_body_part_coverage_on_shots", "expected_clause_overlap_rows", "expected_shot_family_disagreements", "sb_folder_digests"],
   "counted_by_root_rule": "the root runs one committed structure-only script over the five leagues (and sb_reader.folder_manifest over the three local folders whose digest is null) after the audit and before the registration commit; a null is filled, a value that differs from the draft is replaced and the difference is stated in the registration commit and in REVIEW-RECORD.md; these keys are the only edits to this file after the audit, and the file is then registered byte for byte",
-  "root_rulings_required_before_registration": ["OPEN_QUESTION_1_ARCH_D1", "DISSENT_6_OPEN_QUESTION_6", "DISSENT_2_AND_E11_DUPLICATE"],
-  "root_rulings_optional_frozen_values_stand": ["OPEN_QUESTION_2", "DISSENT_5"],
+  "root_rulings_applied": ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8", "W9"],
+  "root_rulings_rule": "ROOT-DECISIONS 2.10 (18 October 2026) ruled every question the audit's revision put to the root (REVIEW-RECORD, \"For a root ruling\"); W1 to W9 are applied in this file, preregistration.md and PIPELINE.md, and W10 requires this revision to be audited again before E-09 is called READY; no question waits for a root ruling",
 
   "season": "2017/18",
   "leagues": ["Spain", "England", "Italy", "Germany", "France"],
@@ -686,72 +686,6 @@
   "failed_run_log": "failed_runs.json",
   "determinism_rerun_file": "results.rerun.json",
   "raw_manifest_entries": ["events.zip", "matches.zip", "players.json"],
-
-  "root_2_2_design": {
-    "status": "the design that satisfies ROOT 2.2 as written (non-penalty shots); the open-play design in candidates is DISSENT 6's. The root's ruling on DISSENT 6 (root_rulings_required_before_registration) selects one; the reviser then moves the selected design into the main keys, deletes this block, recomputes pipeline_spec_sha256, and the revision is audited again; the registered config holds one design",
-    "subject_ids": "ROOT 2.2's ids shot_volume and shot_location_value; if the root names the volume subject non_penalty_shot_volume instead, its fingerprint is 18f3a5bb9e89",
-    "describe_nouns_changes": {"types": {"shot": "open-play shots"}, "types_singular": {"shot": "open-play shot"}, "subtypes": {"free_kick_shot": "direct free-kick shots"}},
-    "house_battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion", "mean_x", "mean_y", "mean_pass_length", "shots_per_90"],
-    "declared_battery_additions": ["shot_volume", "opp_half_on_ball_per_90", "duel_or_interception_per_90"],
-    "baseline_prose_changes": {"shots_per_90": "open-play shot volume", "shot_volume": "non-penalty shot volume"},
-    "candidates_changes": {
-      "shot_volume": {
-        "fingerprint": "57ed7aea86d9",
-        "display_name": "Non-penalty shots per 90 (open-play and direct free-kick shots)",
-        "sentence": "count over open-play shots or direct free-kick shots, per 90 minutes",
-        "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": null},
-                      {"types": ["set_piece"], "subtypes": ["free_kick_shot"], "flags": [], "zone": null}],
-        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
-                    "mean_x", "mean_y", "mean_pass_length", "opp_half_on_ball_per_90"],
-        "identity_exclusions": ["shot_volume", "shots_per_90"],
-        "e11_subject": "non_penalty_shot_volume",
-        "e11_definition": "aggregated_player_quantities.non_penalty_shot_volume: non_penalty_shots / minutes_regulation x 90, non_penalty_shot = Wyscout type shot or set_piece with subtype in wy_free_kick_shot_subtypes",
-        "e11_label_rule": "E-11's non_penalty_shot_volume record grades this definition and is its cross-provider label; E-11's shot_volume record grades open-play shots and does not apply",
-        "claim": {
-          "construct": "How often the player shoots, from open play or a direct free kick. Not that the shots are good ones.",
-          "observable_implication": "A player who shoots more in one match set shoots more in the other, among players of the same broad position.",
-          "negative_control": "Must not be a near-copy of touch volume or of mean field position.",
-          "incremental_claim": "None beyond the house open-play shot column, which it contains; that column leaves its battery as an identity-family column."
-        }
-      },
-      "shot_location_value": {
-        "fingerprint": "fcc26575bdf8",
-        "display_name": "Location-only conversion value of non-penalty shots from the opponent half per 90 (not provider xG)",
-        "sentence": "sum of location-only conversion value over open-play shots or direct free-kick shots, starting in the opponent half, per 90 minutes",
-        "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": "opponent_half"},
-                      {"types": ["set_piece"], "subtypes": ["free_kick_shot"], "flags": [], "zone": "opponent_half"}],
-        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
-                    "mean_x", "mean_y", "mean_pass_length", "shots_per_90", "shot_volume", "opp_half_on_ball_per_90"],
-        "redundancy_comparator": "shot_volume, the non-penalty volume, is in its battery, so ROOT 2.2's test of incremental information over shot_volume is the baseline ceiling against it"
-      },
-      "box_shot_share": {
-        "fingerprint": "af2b2b118e73",
-        "sentence": "count over open-play shots starting in the penalty area, per open-play shot",
-        "rule": "stays on open-play shots: a direct free kick starts where the foul was given, and inside the area the award is a penalty; numerator, denominator and share floor count open-play shot rows",
-        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
-                    "mean_x", "mean_y", "mean_pass_length", "shots_per_90", "shot_volume", "opp_half_on_ball_per_90"],
-        "nuisance_columns": ["touches", "shots_per_90"],
-        "confound_kinds": {"touch_volume": "nuisance", "open_play_shot_volume": "nuisance", "team": "context", "position": "constitutive"}
-      },
-      "opp_half_defensive_actions": {
-        "fingerprint": "72619cd8130b",
-        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
-                    "mean_x", "mean_y", "mean_pass_length", "shots_per_90", "shot_volume", "opp_half_on_ball_per_90",
-                    "duel_or_interception_per_90"]
-      }
-    },
-    "identity_family_departure": "shots_per_90 leaves shot_volume's battery because shot_volume = shots_per_90 + direct free-kick shots per 90 (the auditors' synthetic check: correlation 0.994 to 0.997, above baseline_ceiling by construction); lenient, flagged as identity_family_column in departures_active",
-    "identity_test": "shot_volume minus compute_baselines(...)['shots_per_90'] equals direct free-kick shot rows per 90 on the same frame and minutes to 1e-12, and the rows of shot_volume's numerator are exactly the rows E-11's harmonise_wyscout flags non_penalty_shot; baseline_battery asserts the first",
-    "model_domain": "neutral type shot, or set_piece with subtype free_kick_shot, starting in zone opponent_half (start_x > 0.50 strictly, not a location sentinel); the model is fitted, evaluated and used for valuation on that one set; location-only, so no shot-family term",
-    "shot_columns_addition": "direct_free_kick = (shot_family == free_kick) as int, read only by the descriptive subgroup",
-    "descriptive_subgroups": ["counter_attack", "direct_free_kick"],
-    "gate_r4_subgroups": "unchanged",
-    "structure_pins": {"expected_free_kick_shot_rows": null, "expected_goal_rows_on_free_kick_shots": null, "rule": "both join counted_by_root_before_registration; expected_in_domain_shot_rows, expected_behind_halfway_shot_rows and expected_sentinel_start_shot_rows count non-penalty shot rows; expected_shot_rows and expected_goal_rows_on_shots stay open-play counts; structure_identity reads non-penalty shot rows = in-domain + behind-halfway + sentinel-start"},
-    "planning": "England 2017/18 holds 8,801 non-penalty shots (E-11 prior exposure) against 8,451 open-play shots (expected_shot_rows): 350 direct free-kick shots, 4.0% of its non-penalty shots",
-    "sb_leg_changes": {"sb_non_penalty_shot_types": ["Open Play", "Free Kick"], "rule": "shot_volume and shot_location_value read Shot rows of sb_non_penalty_shot_types and box_shot_share those of sb_open_play_shot_types; sb_event_row_rule keeps Shot rows of sb_non_penalty_shot_types and sets shot_family free_kick on Free Kick rows"},
-    "synthetic_changes": "the planted trap's direct free-kick shot of each team is counted by shot_volume and, when its start is in the opponent half, by the model domain and shot_location_value; the penalty is never counted; selfcheck_feasibility was simulated on the open-play design and is simulated again on this design before the re-audit if the ruling selects it",
-    "tests_changes": "the 'a direct free-kick shot is never counted' test becomes 'counted by shot_volume, never by box_shot_share'; the shots_per_90 identity becomes identity_test; the E-11 tie reads the non_penalty_shot flag for shot_volume"
-  },
 
   "data_license": "CC BY 4.0 (Pappalardo et al. 2019)",
   "reuse_disclosure": "prospective analysis plan on reused historical data; see preregistration.md section 2",

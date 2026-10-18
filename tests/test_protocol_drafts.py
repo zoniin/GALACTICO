@@ -1,4 +1,5 @@
-"""The registered E-11 protocol holds together with itself and with the shipped guards.
+"""The registered E-11 protocol and the E-09 draft hold together with themselves and with
+the shipped guards.
 
 Data-free. The third audit of the E-11 draft found three defects by reading: a frozen
 registry sentence the response boundary would refuse, three config keys that named a
@@ -7,12 +8,21 @@ Each check below is a function of the protocol's files and runs twice: on the re
 files, where it must find nothing, and on a copy with the defect planted, where it must
 find it (M-06).
 
-Claim: on these three points the registered files agree with each other and with
-``domain.verdicts``, ``api.runtime.finalize`` and the key rule of ``tests/test_licensing.py``.
-Non-claim: nothing here says the protocol is sound, and nothing reads data. ``DRAFT`` named
-the draft folder until the registration commit, which pointed it at the registered
-directory (PIPELINE.md section 13); until the pipeline exists nothing else ties the files
-to each other.
+The E-09 draft guard (ROOT-DECISIONS 2.10 W9) runs the same kinds of check on the E-09
+draft: the pipeline hash its config pins, every registry record under every token through
+the response boundary, its served texts through the copy guard, and three key walks (the
+results denylist, the banned keys with their parts, provider names) over the config echo
+and over every key E-09's PIPELINE.md section 7.1 and the section 6 dataclasses name for
+``results.json``. An E-09 audit applied the same checks from a scratch script; here they
+run with the suite.
+
+Claim: on these points the files agree with each other and with ``domain.verdicts``,
+``api.runtime.finalize``, ``domain.labels``, ``domain.thesis`` and the key rule of
+``tests/test_licensing.py``. Non-claim: nothing here says either protocol is sound, and
+nothing reads data. ``DRAFT`` named the E-11 draft folder until its registration commit,
+which pointed it at the registered directory (PIPELINE.md section 13); ``E09`` names the
+E-09 draft folder until E-09's registration commit does the same. Until a pipeline exists
+nothing else ties a protocol's files to each other.
 """
 
 from __future__ import annotations
@@ -27,6 +37,8 @@ import pytest
 
 from galactico.api.runtime import HOSTED_PROVIDERS, BoundaryViolation, finalize
 from galactico.domain import verdicts as V
+from galactico.domain.labels import scan_labels
+from galactico.domain.thesis import BANNED_KEY_PARTS, banned_key_paths
 from galactico.domain.verdicts import PENDING, Outcome, Tier, VerdictRecord, VerdictStatus
 from galactico.validation.digests import lf_sha256, lf_sha256_text
 
@@ -156,3 +168,251 @@ def test_no_key_of_the_config_names_a_provider() -> None:
         "registry_outcomes.cell.WYSCOUT_ONLY",
         "pappalardo_raw_root",
     ]
+
+
+# --- E-09: the draft guard (ROOT-DECISIONS 2.10 W9) -----------------------------------------
+
+E09 = ROOT / "docs/research/north-star/protocol-drafts/E-09-player-candidates"
+E09_KINDS = ("candidate", "instrument")
+QUOTED = re.compile(r'"([^"]*)"')
+FIELD = re.compile(r"\s*([A-Za-z_]\w*)\s*:")
+DIGIT_FREE = ("player_lab_text.", "baseline_prose.", "nuisance_prose.", "registry_outcomes.")
+
+
+def e09_config() -> dict:
+    return json.loads((E09 / "config.json").read_text(encoding="utf-8"))
+
+
+def fenced_block(text: str, heading: str) -> str:
+    """The first fenced block after ``heading``."""
+    opening = text.index("```", text.index(heading))
+    body = text.index("\n", opening) + 1
+    return text[body:text.index("```", body)]
+
+
+def shape_keys(block: str) -> set[str]:
+    """The quoted names a shape sketch uses as keys: a name before a colon, or one listed bare
+    between braces (``{"passed", "detail"}``). Values and placeholders (``"<league>"``,
+    ``"..."``) are not keys."""
+    keys: set[str] = set()
+    for match in QUOTED.finditer(block):
+        name = match.group(1)
+        before = block[:match.start()].rstrip()[-1:]
+        after = block[match.end():].lstrip()[:1]
+        listed = before != "" and before in "{," and after != "" and after in ",}"
+        if (after == ":" or listed) and name not in ("", "...") and "<" not in name:
+            keys.add(name)
+    return keys
+
+
+def dataclass_fields(block: str) -> set[str]:
+    """Every field name of the dataclasses a Python sketch declares."""
+    fields: set[str] = set()
+    inside = False
+    for line in block.splitlines():
+        if re.match(r"class \w+", line):
+            inside = True
+        elif not line.startswith(" "):
+            inside = False
+        elif inside:
+            for part in line.split("#")[0].split(";"):
+                match = FIELD.match(part)
+                if match:
+                    fields.add(match.group(1))
+    return fields
+
+
+def e09_results_skeleton(config: Mapping) -> dict:
+    """``results.json`` as E-09's PIPELINE.md sketches it: one key per name section 7.1
+    uses and per field of the section 6 dataclasses, with the verbatim config echo under
+    ``provenance``."""
+    text = (E09 / "PIPELINE.md").read_text(encoding="utf-8")
+    gauntlet = fenced_block(text, "## 6. `galactico/validation/candidate_gauntlet.py`")
+    names = (shape_keys(fenced_block(text, "### 7.1 `results.json` shape"))
+             | shape_keys(gauntlet) | dataclass_fields(gauntlet))
+    skeleton: dict = dict.fromkeys(sorted(names))
+    skeleton["provenance"] = {"config": copy.deepcopy(dict(config))}
+    return skeleton
+
+
+def denylisted_keys(node: object, denylist: frozenset[str], path: str = "") -> list[str]:
+    """Every key, at any depth, that is exactly one of ``denylist``."""
+    found: list[str] = []
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            here = f"{path}.{key}" if path else str(key)
+            if key in denylist:
+                found.append(here)
+            found += denylisted_keys(value, denylist, here)
+    elif isinstance(node, list):
+        for position, value in enumerate(node):
+            found += denylisted_keys(value, denylist, f"{path}[{position}]")
+    return found
+
+
+def e09_key_findings(payload: object, config: Mapping) -> dict[str, list[str]]:
+    """The three walks phase 7 of E-09's runner makes before a byte is written."""
+    return {
+        "denylist": denylisted_keys(
+            payload, frozenset(config["results_identifier_key_denylist"])),
+        "banned": banned_key_paths(payload, parts=BANNED_KEY_PARTS),
+        "provider": provider_named_keys(payload),
+    }
+
+
+def e09_records(config: Mapping, kind: str, token: str) -> dict[str, VerdictRecord]:
+    """The records E-09's PIPELINE.md section 11.1 builds for one kind, every subject at
+    ``token``."""
+    vocabulary = tuple(config["verdict_vocabulary"][kind])
+    outcomes = {
+        name: Outcome(VerdictStatus[outcome["status"]], outcome["limits"],
+                      outcome["statement"], outcome["registry_move"])
+        for name, outcome in config["registry_outcomes"][kind].items()
+    }
+    executed = {} if token == PENDING else {
+        "token": token, "protocol_commit": COMMIT, "results_hash": HASH}
+    built = {}
+    for subject in config[f"registry_{kind}_subjects"]:
+        record = VerdictRecord(
+            experiment_id=config["registry_experiment_id"],
+            subject_id=subject,
+            scope=config[f"registry_{kind}"]["scope"],
+            tier=Tier[config["tier"]],
+            directory=config["committed_experiment_dir"],
+            claim_token=config[f"registry_{kind}"]["claim_token"],
+            non_claim=config[f"registry_{kind}"]["non_claim"],
+            not_run_statement=config["registry_common"]["not_run_statement"],
+            vocabulary=vocabulary,
+            outcomes=outcomes,
+            protocol_hash=HASH,
+            config_hash=HASH,
+            **executed,
+        )
+        built[record.claim_id] = record
+    return built
+
+
+def e09_boundary_refusals(config: Mapping, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """What the registry constructor or the verdicts endpoint's boundary refuses, every
+    subject of each kind served under PENDING and under every token of its vocabulary."""
+    refused: list[str] = []
+    for kind in E09_KINDS:
+        for token in (PENDING, *config["verdict_vocabulary"][kind]):
+            try:
+                registry = e09_records(config, kind, token)
+            except ValueError as error:
+                refused.append(f"{kind} {token}: {error}")
+                continue
+            monkeypatch.setattr(V, "VERDICTS", registry)
+            payload = {"verdicts": V.all_payloads(),
+                       "provenance": {"providers": list(HOSTED_PROVIDERS)}}
+            try:
+                finalize(payload)
+            except BoundaryViolation as error:
+                refused.append(f"{kind} {token}: {error}")
+    return refused
+
+
+def e09_served_texts(config: Mapping) -> dict[str, str]:
+    """Every sentence E-09 freezes for a page: display names, sentences and claims of the
+    candidates, the Player Lab texts and the two prose maps that fill them, the planning
+    sentences and the registry statements."""
+    texts: dict[str, str] = {}
+    for candidate in config["candidates"]:
+        here = f"candidates.{candidate['candidate_id']}"
+        texts[f"{here}.display_name"] = candidate["display_name"]
+        texts[f"{here}.sentence"] = candidate["sentence"]
+        texts.update({f"{here}.claim.{key}": text for key, text in candidate["claim"].items()})
+    for token, entry in config["player_lab_text"].items():
+        texts.update({f"player_lab_text.{token}.{key}": text for key, text in entry.items()})
+    for name in ("baseline_prose", "nuisance_prose"):
+        texts.update({f"{name}.{key}": text for key, text in config[name].items()})
+    texts.update({f"planning_after_run.{key}": text
+                  for key, text in config["planning_after_run"].items()
+                  if not key.endswith("_rule")})
+    for kind in E09_KINDS:
+        texts.update({f"registry_outcomes.{kind}.{token}.statement": outcome["statement"]
+                      for token, outcome in config["registry_outcomes"][kind].items()})
+    return texts
+
+
+def e09_copy_failures(config: Mapping) -> list[str]:
+    """Banned words in any served text, and digits where the registry contract refuses one
+    (the Player Lab texts and the prose that fills their headlines) or the protocol does
+    (registry statements)."""
+    texts = e09_served_texts(config)
+    found = scan_labels(texts, keys=False)
+    found += [f"{path}: digit" for path, text in texts.items()
+              if path.startswith(DIGIT_FREE) and any(ch.isdigit() for ch in text)]
+    return found
+
+
+def test_e09_the_pipeline_hash_the_config_pins_is_the_pipeline_file() -> None:
+    pinned = e09_config().get("pipeline_spec_sha256")
+    assert pinned, "E-09 PIPELINE.md section 0: the config pins the pipeline file"
+    assert lf_sha256(E09 / "PIPELINE.md") == pinned, (
+        "E-09 PIPELINE.md changed: recompute pipeline_spec_sha256 with lf_sha256")
+    text = (E09 / "PIPELINE.md").read_text(encoding="utf-8")
+    assert lf_sha256_text(text + " ") != pinned
+    assert lf_sha256_text(text.replace("\n", "\r\n")) == pinned
+
+
+def test_e09_every_registry_sentence_is_served_under_every_token(monkeypatch) -> None:
+    config = e09_config()
+    assert e09_boundary_refusals(config, monkeypatch) == []
+
+    planted = copy.deepcopy(config)
+    planted["registry_outcomes"]["candidate"]["INCONCLUSIVE"]["statement"] += (
+        " The probability of a goal was not estimated.")
+    refused = e09_boundary_refusals(planted, monkeypatch)
+    assert len(refused) == 1 and refused[0].startswith("candidate INCONCLUSIVE: ")
+    assert "probability" in refused[0]
+
+    planted = copy.deepcopy(config)
+    planted["registry_outcomes"]["candidate"]["ESTABLISHED_NUMBER"]["registry_move"] = "REJECTED"
+    refused = e09_boundary_refusals(planted, monkeypatch)
+    assert len(refused) == 1 + len(config["verdict_vocabulary"]["candidate"])
+    assert all(reason.startswith("candidate ") and "V6" in reason for reason in refused)
+
+
+def test_e09_every_served_text_passes_the_copy_guard() -> None:
+    config = e09_config()
+    assert len(e09_served_texts(config)) >= 40
+    assert e09_copy_failures(config) == []
+
+    planted = copy.deepcopy(config)
+    planted["candidates"][0]["display_name"] = "Shot quality per 90"
+    planted["player_lab_text"]["NOT_ESTABLISHED_MIXED"]["headline"] = "Survived in 2 leagues"
+    assert sorted(e09_copy_failures(planted)) == [
+        "candidates.shot_volume.display_name: quality",
+        "player_lab_text.NOT_ESTABLISHED_MIXED.headline: digit",
+    ]
+
+
+def test_e09_no_key_of_the_config_or_the_results_shape_is_refused() -> None:
+    config = e09_config()
+    skeleton = e09_results_skeleton(config)
+    assert {"experiment", "verdicts", "rule_row", "source_hashes", "lf_sha256", "frozen_rule",
+            "selfcheck", "structure", "instrument", "S_fit", "candidates", "registry_effect",
+            "player_lab_headline", "predictions", "interpretation_limits", "half_low",
+            "top_k_tied_raw", "departures_active", "gating", "house_replication_label",
+            } <= set(skeleton)
+    clean = {"denylist": [], "banned": [], "provider": []}
+    assert e09_key_findings({"provenance": {"config": config}}, config) == clean
+    assert e09_key_findings(skeleton, config) == clean
+
+    planted = copy.deepcopy(config)
+    planted["candidates"][0]["id"] = planted["candidates"][0].pop("candidate_id")
+    planted["rank_ties"] = planted.pop("tie_policy")
+    planted["zones"][0]["wyscout_x"] = planted["zones"][0].pop("min_start_x_exclusive")
+    assert e09_key_findings({"provenance": {"config": planted}}, config) == {
+        "denylist": ["provenance.config.candidates[0].id"],
+        "banned": ["provenance.config.rank_ties"],
+        "provider": ["provenance.config.zones[0].wyscout_x"],
+    }
+    skeleton = e09_results_skeleton(planted)
+    skeleton.update(dict.fromkeys(("id", "rank_ties", "wyscout_x")))
+    found = e09_key_findings(skeleton, config)
+    assert sorted(found["denylist"]) == ["id", "provenance.config.candidates[0].id"]
+    assert sorted(found["banned"]) == ["provenance.config.rank_ties", "rank_ties"]
+    assert sorted(found["provider"]) == ["provenance.config.zones[0].wyscout_x", "wyscout_x"]

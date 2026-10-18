@@ -1,6 +1,6 @@
 # E-09 — four player candidates and a location-only shot conversion model
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding and its disposition); audited independently in four scopes, every claimed blocker rebuilt by a refuter on synthetic numbers, and revised on 18 October 2026 (REVIEW-RECORD, "Audit"). No scope of that audit was READY. The audit's revision has not itself been audited, and E-09 is not registered until the root rules on the questions `PIPELINE.md` section 13 names, among them which of the two shot designs (open play, DISSENT 6; or ROOT 2.2's non-penalty shots, written in full beside it) is frozen. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding and its disposition); audited independently in four scopes, every claimed blocker rebuilt by a refuter on synthetic numbers, and revised on 18 October 2026 (REVIEW-RECORD, "Audit"). No scope of that audit was READY. The root then ruled on every question the audit's revision put to it (ROOT 2.10, W1 to W10), and a further revision of the same day applies W1 to W9, among them the open-play shot design (W2) and an explicit, empty promotion set for `product_admissible` (W1); no question waits for a root ruling. The further revision has not been audited, and by W10 it is audited again before E-09 is called READY. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 **Commit this plan, `config.json` and `PIPELINE.md` before any E-09 outcome is computed.
 Nothing in the three may change once the first outcome is observed.** This is a
@@ -43,16 +43,10 @@ registered E-11 definitions unchanged (`e11_subject`, `e11_definition`, `e11_con
 `opp_half_defensive_actions` is E-11's ground duel or interception in the opponent half over
 regulation minutes. E-11's token for the same subject id therefore applies to them as a
 cross-provider label. `shot_location_value` and `box_shot_share` are not graded by E-11.
-`shot_volume` and `shot_location_value` depart from ROOT 2.2's "non-penalty shots" by
-leaving out direct free kicks; `PIPELINE.md` DISSENT 6 gives the evidence. The design that
-satisfies ROOT 2.2 as written is specified in full beside this one (`root_2_2_design`:
-clauses, fingerprints, batteries, the model domain, the box denominator, pins, the external
-leg and the tests). Under it `shot_volume` imports E-11's `non_penalty_shot_volume`
-definition, whose E-11 record, not E-11's `shot_volume` record, is its cross-provider label;
-the house open-play shot column leaves its battery as an identity-family column; and the
-non-penalty volume enters `shot_location_value`'s battery, so ROOT 2.2's redundancy test
-is against it. The root's ruling selects one design before registration (`PIPELINE.md`
-section 13); the other is deleted and the revision is audited again.
+Both shot candidates count open-play shots, leaving out penalties and direct free kicks:
+ROOT 2.10 W2 rules this design (`PIPELINE.md` DISSENT 6, closed) and amends ROOT 2.2's
+`shot_volume` parenthesis to match. The non-penalty design once written beside it is removed
+and kept in REVIEW-RECORD as the design not chosen.
 
 Not claimed, by any verdict:
 
@@ -269,8 +263,9 @@ The tokens are `verdict_vocabulary.instrument`.
 ## 5. Candidate measurements — frozen
 
 Definitions are `CandidateSpec` objects in `galactico/features/candidates.py`, outside
-`spec.SPECS` (ROOT 2.5 O3). Their fingerprints are in `config.json`; a run whose computed
-fingerprints differ stops before any outcome. A fingerprint identifies numerator, measure,
+`spec.SPECS` (ROOT 2.5 O3); ROOT 2.10 W3 rules that a `ConstructSpec` is generated from one
+at promotion, never written beside it. Their fingerprints are in `config.json`; a run whose
+computed fingerprints differ stops before any outcome. A fingerprint identifies numerator, measure,
 scaling, denominator and instrument; the minutes rule is `minutes_rule`, hashed with the
 config. The claim record of each candidate (`AxisSpec`) is built from the config: its
 construct, observable implication, negative control and incremental claim are
@@ -574,13 +569,13 @@ built from the config's own entries (`registry_candidate_subjects`,
 digit and no placeholder, and passes the copy guard; numbers stay in `results.json` and
 `analysis.md`. No `ESTABLISHED` outcome moves a construct (rule V6).
 
-| Candidate token | Status | Player Lab registry |
-|---|---|---|
-| `ESTABLISHED_NUMBER` | ESTABLISHED | no `registry_move` (rule V6); entered in `TESTED_NOT_PROMOTED` by the declared hand edit `tested_not_promoted_edit` (ARCH D1: tested, not promoted) |
-| `ESTABLISHED_BAND` | ESTABLISHED, with limits | the same |
-| `NOT_ESTABLISHED_REDUNDANT`, `_CONFOUNDED`, `_UNRELIABLE` | NOT_ESTABLISHED | `registry_move` `REJECTED` |
-| `NOT_ESTABLISHED_MIXED` | NOT_ESTABLISHED | `registry_move` `RESEARCH_ONLY` |
-| `INCONCLUSIVE`, `INCONCLUSIVE_INSTRUMENT` | INCONCLUSIVE | no `registry_move`; the candidate id is added to `UNTESTED` by the declared hand edit `untested_edit` |
+| Candidate token | Status | Player Lab registry | `product_admissible` |
+|---|---|---|---|
+| `ESTABLISHED_NUMBER` | ESTABLISHED | no `registry_move` (rule V6); entered in `TESTED_NOT_PROMOTED` by the declared hand edit `tested_not_promoted_edit` (ARCH D1: tested, not promoted) | false: the registration commit gives it an explicit, empty promotion set (ROOT 2.10 W1) |
+| `ESTABLISHED_BAND` | ESTABLISHED, with limits | the same | false, the same |
+| `NOT_ESTABLISHED_REDUNDANT`, `_CONFOUNDED`, `_UNRELIABLE` | NOT_ESTABLISHED | `registry_move` `REJECTED` | false |
+| `NOT_ESTABLISHED_MIXED` | NOT_ESTABLISHED | `registry_move` `RESEARCH_ONLY` | false |
+| `INCONCLUSIVE`, `INCONCLUSIVE_INSTRUMENT` | INCONCLUSIVE | no `registry_move`; the candidate id is added to `UNTESTED` by the declared hand edit `untested_edit` | false |
 
 The instrument's four tokens move no registry entry. Under `ACCEPTED` or
 `ACCEPTED_WITHIN_LEAGUE` alone, the results commit adds a note beside the xG / xA row of
@@ -591,10 +586,11 @@ edited.
 **`product_admissible` stays false.** `verdicts.product_admissible(c)` is true today for any
 construct with a PUBLIC, executed, ESTABLISHED E-09 record, which would open the gate the
 moment a candidate is established; ARCH D1 says it stays false until a later, separate
-promotion. The registration commit therefore also changes `product_admissible` to require
-membership in a promotion set that is empty in this release (`promotion_set_in_this_release`,
-`product_admissible_in_this_release`), with a test over every E-09 subject under every
-token. E-09 is not registered without that change. The instrument subject is never a
+promotion. ROOT 2.10 W1 rules the form: the registration commit gives `product_admissible` an
+explicit, empty promotion set (`promotion_set_in_this_release`,
+`product_admissible_in_this_release`), so a PUBLIC, executed, established E-09 record admits
+nothing until a later promotion, which is its own change set with its own ADR; a test covers
+every E-09 subject under every token. E-09 is not registered without that change. The instrument subject is never a
 construct id and never enters the promotion set. An established E-09 record still derives
 `may_gate` true; the same commit amends the `verdicts.py` docstring to say that for E-09 a
 panel is unlocked through `product_admissible` only, and adds a test that no route or page
@@ -616,8 +612,10 @@ are proposed 13, tested 13 minus the ids in `UNTESTED`, surviving 5
 pages' research sentence becomes `planning_after_run.research_sentence`, and the `shots`
 not-measured entry becomes one of the two frozen `planning_after_run` sentences by
 `shots_entry_rule`; no sentence is written after the outcome is known. These edits change
-served Player Lab and planning output, which R13 and ADR-0011 pin; they are applied by the
-root with an ADR note that names them (`PIPELINE.md` 11.1).
+served Player Lab and planning output, which R13 and ADR-0011 pin; ROOT 2.10 W8 makes them,
+with the gap-matrix note, the results commit's consequences, overriding R13 and ADR-0011 for
+exactly those edits, and the results commit carries an ADR that names them, as ADR-0025 and
+ADR-0027 did (`PIPELINE.md` 11.1).
 
 Fixed regardless of token:
 
@@ -698,7 +696,7 @@ file or a hosted surface. The leg writes under `sb_output_root` (gitignored); it
 findings appear only in the research note `sb_report`, with the logo and attribution; the
 commit that adds it puts it on `FORMED_FROM_STATSBOMB` in `tests/test_licensing.py`, and an
 `analysis.md` that names the provider goes on the list that fits it. No registry record is
-created for the leg (`PIPELINE.md` DISSENT 7, ROOT 2.9 Z5); a hosted label from it would
+created for the leg (`PIPELINE.md` DISSENT 7, ROOT 2.9 Z5, ROOT 2.10 W6); a hosted label from it would
 need a LOCAL record that a later protocol creates. The leg's code is built and pinned with
 the pipeline, before any public outcome (`PIPELINE.md` section 10).
 
@@ -788,8 +786,11 @@ registration supersedes the protocol, and a correct pipeline should not fail it 
 Tests required (named in `PIPELINE.md`): hand-computable definition contracts for all four
 candidates and their sentences; fingerprints equal `config.json`; zone edges exact at the
 lattice; sentinel and unattributed rows never credited; goalkeepers excluded; `shot_volume`
-equals `compute_baselines(...)["shots_per_90"]` on the same frame and minutes (under the
-ROOT 2.2 design, `root_2_2_design.identity_test`); `decide()` and the correlation helper
+equals `compute_baselines(...)["shots_per_90"]` on the same frame and minutes; the rows of
+`shot_volume` and `opp_half_defensive_actions` equal E-11's flags, computed by the imported
+`galactico.validation.provider_inputs` (pinned in the source hashes), on every row type,
+subtype and flag combination of the public adapter's closed vocabulary (ROOT 2.10 W3);
+`decide()` and the correlation helper
 pinned by their source hashes, `decide()` also by its constants and a truth table written
 from this document at every threshold edge; every reject reason and every token row reachable, including the
 cases of 9.1 and `r_half = -0.4` giving `REJECT` with reason `UNRELIABLE`; each departure of

@@ -309,3 +309,53 @@ Scratch scripts under the session scratchpad, `E-09-review/audit-rev/`:
    be added to `tests/test_protocol_drafts.py` now, as E-11's were; that file is the root's.
 8. The revision has not been audited. After the rulings, the house order audits it again
    (ROOT 2.9 Z4).
+
+## 18 October 2026 — The root's rulings applied (ROOT-DECISIONS 2.10)
+
+The root ruled W1 to W10 on the audit's revision (ROOT-DECISIONS 2.10). This revision applies
+W1 to W9 and nothing else, and no question in the draft waits for a root ruling. By W10 it is
+audited again before E-09 is called READY. No file under `data/` was opened and nothing here
+is an outcome.
+
+| Ruling | Applied where |
+|---|---|
+| W1 (OPEN QUESTION 1): an explicit, empty promotion set for `product_admissible` | preregistration 10 (a `product_admissible` column in the product-consequence table; the paragraph names the form); PIPELINE 11.1 (at registration, and the `ESTABLISHED_*` row), 11.2 row 15, 13 (the rulings row and the `verdicts.py` row); OPEN QUESTION 1 closed. The config already held `promotion_set_in_this_release` `[]` and `product_admissible_in_this_release` false |
+| W2 (DISSENT 6, OPEN QUESTION 6): open-play shots | `root_2_2_design` deleted from `config.json`; preregistration 1 and 15 lose the alternative; PIPELINE 6 (`departures_active` loses `identity_family_column`) and 13; DISSENT 6 and OPEN QUESTION 6 closed. The open-play keys and fingerprints, and the feasibility simulated on them, are unchanged. The design not chosen is summarised below |
+| W3 (DISSENT 2): `CandidateSpec`; the tie to E-11 exhaustive | PIPELINE 3: the E-11 tie test now imports `galactico.validation.provider_inputs` and asserts equal masks on every row type, subtype and flag combination of the public adapter's closed vocabulary, with the frame's row count asserted; PIPELINE 7.2: `provider_inputs.py` in `source_hashes` (its `lf_sha256` today, `94844119...`, equals its entry in E-11's `acceptance.json`); PIPELINE 2 and 13; DISSENT 2 closed; preregistration 5 and 15 |
+| W4 (DISSENT 3) | DISSENT 3 closed; PIPELINE 11.2 row 14 |
+| W5 (DISSENT 5, OPEN QUESTION 2) | both closed; frozen values unchanged |
+| W6 (DISSENT 7) | DISSENT 7 closed; preregistration 11 cites W6 |
+| W7 | PIPELINE 7 (failed executions): the log under `run_output_root`, gitignored by `data/public/*` (checked with `git check-ignore`, which reads `.gitignore` only) |
+| W8 | preregistration 10, PIPELINE 11.1 and 13: the results commit carries an ADR naming the post-run product edits, overriding R13 and ADR-0011 for exactly those edits, as ADR-0025 and ADR-0027 did |
+| W9 | `tests/test_protocol_drafts.py` gains the E-09 draft guard: the pinned pipeline hash; the five records under `PENDING` and every token through `runtime.finalize`; the served texts through `labels.scan_labels`, digit-free where required; the denylist, banned-key (with parts) and provider-name walks over the config echo and over a skeleton of every key PIPELINE 7.1 and the section 6 dataclasses name. Each check also runs on a planted copy and finds the defect. PIPELINE 13's row says the guard is in place |
+| W10 | the DRAFT banner and PIPELINE 13: this revision is audited again |
+
+Also changed: the config keys `root_rulings_required_before_registration` and
+`root_rulings_optional_frozen_values_stand` are replaced by `root_rulings_applied` and
+`root_rulings_rule`; the DRAFT banner no longer says registration waits for a ruling; and
+`pipeline_spec_sha256` is recomputed with `lf_sha256` after the last `PIPELINE.md` edit
+(`51ab5d5c...`). The other pinned hashes (`e11_config_sha256`, the `decide` and
+`_safe_abs_corr` source hashes, the `sb_reader` hash) were recomputed from the tracked files
+and are unchanged. `tests/test_protocol_drafts.py` and `tests/test_licensing.py` pass, and
+`scripts/check_licensing.py` is clean.
+
+For the next audit, not changed here because it lies outside this folder: ROOT 2.2's
+parenthesis for `shot_location_value` still reads "non-penalty shots per 90". W2 amended
+only `shot_volume`'s parenthesis, although it removes the non-penalty design for both shot
+candidates.
+
+### The design not chosen (W2)
+
+`root_2_2_design`, removed from `config.json`. The full block is in commit 8e4f4cf. Both
+shot candidates counted open-play and direct free-kick shots, through a second clause
+(`set_piece` with subtype `free_kick_shot`). The fingerprints were `57ed7aea86d9` for
+`shot_volume` (`18f3a5bb9e89` under the id `non_penalty_shot_volume`) and `fcc26575bdf8` for
+`shot_location_value`. `shot_volume` imported E-11's `non_penalty_shot_volume` definition,
+whose record would have been its label. The house open-play `shots_per_90` left its battery
+as an identity-family column, lenient and flagged. The non-penalty volume joined every other
+battery, so ROOT 2.2's redundancy test was against it. The model domain became non-penalty
+shots in the opponent half, location-only, with a descriptive direct free-kick subgroup.
+`box_shot_share` stayed on open-play shots, with the open-play column as its nuisance. Two
+structure pins (free-kick shot rows and their goals) joined the root's count. The leg read
+the Open Play and Free Kick shot types for the two shot candidates, and the planted trap and
+the tests changed to match. Its self-check feasibility was never simulated.

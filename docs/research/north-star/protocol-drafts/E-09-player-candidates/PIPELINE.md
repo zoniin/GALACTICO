@@ -104,7 +104,8 @@ Not reused, deliberately: `fit_league_xt` / `fit_xt` (no candidate uses xT); `ru
 (v1 estimator, goalkeeper-inclusive, joint R-squared); `ConfoundVerdict.passed` (a different
 rule); `AxisReliability.lower_bound`; the `ConstructSpec` machinery of `spec.py` (ROOT 4: a
 definition and its implementation are one object, so `shot_volume` exists once, as a
-`CandidateSpec`; section 11.2 generates any `ConstructSpec` form from it at promotion).
+`CandidateSpec`; section 11.2 generates any `ConstructSpec` form from it at promotion, ROOT
+2.10 W3).
 
 `experiments/` is a namespace package. The runner and the tests put the repository root on
 `sys.path` (anchored to `Path(__file__)`), then `from experiments.run_replication import
@@ -218,14 +219,27 @@ interception; a penalty and a direct free-kick shot (`type == "set_piece"`) neve
 raises on an invented spec, and several zone-less clauses word without a trailing comma;
 per-90 scales with minutes and the share does not; a player with no shots has share NaN and
 volume 0.0; `shot_volume` equals `compute_baselines(...)["shots_per_90"]` on the same frame
-with the same minutes; the E-11 tie: on a synthetic Wyscout frame of one invented linked
-match passed through E-11's `harmonise_wyscout` (a test may import `provider_inputs`; product
-code may not), the rows flagged `open_play_shot` are exactly `rows(shot_volume.numerator)` and
-the rows flagged `duel_or_interception` with a finite start x above
-`opponent_half_x_minimum_exclusive` are exactly `rows(opp_half_defensive_actions.numerator)`,
-sentinel and flagged-clearance rows included in the frame (E-11's own slow test ties its
-Wyscout `minutes_regulation` to `lineups.parquet` minutes clipped at the cap, which is
-`capped_minutes`); a missing `event_id` in `shot_values` raises; `CANDIDATES.keys()` is
+with the same minutes; the E-11 tie, exhaustive and not a sampled parity test (ROOT 2.10
+W3: E-11's registered `provider_inputs.py` is the one duplicate that remains, a recorded
+exception to Z3): the test imports `galactico.validation.provider_inputs` (a test may import
+it; product code may not) and builds one synthetic neutral frame holding every combination
+of the public adapter's closed vocabulary (`galactico/providers/pappalardo.py`): every neutral
+`type` of `_TYPE_BY_EVENT_ID` and `other`; under every type, every `subtype` that a rule on
+either side reads (the `_SET_PIECE_SUBTYPE` values, the subtypes of E-09's clauses and of
+E-11's `wy_*_subtypes` lists), the empty string and one invented string; every combination of
+the boolean columns the adapter writes (`goal`, `assist`, `key_pass`, `counter_attack`,
+`interception`, `clearance`, `dangerous_loss` true or false, and `success` true, false or
+null); and the starts (0.50, 0.5), (0.51, 0.5), one own-half start, one opponent-half start
+and both `location_sentinels`; every row in a regulation period of one invented linked match,
+passed through E-11's `harmonise_wyscout` with E-11's registered config. The frame's row count
+is asserted equal to the product of those sizes, so no combination is dropped. On every row,
+E-11's `open_play_shot` flag equals the mask of `rows(shot_volume.numerator)`, and E-11's
+`duel_or_interception` flag with a finite start x above `opponent_half_x_minimum_exclusive`
+equals the mask of `rows(opp_half_defensive_actions.numerator)`. `provider_inputs.py` is
+pinned in `source_hashes` (section 7.2), so an edit on either side is visible to the protocol
+(E-11's own slow test ties its Wyscout `minutes_regulation` to `lineups.parquet` minutes
+clipped at the cap, which is `capped_minutes`); a missing `event_id` in `shot_values` raises;
+`CANDIDATES.keys()` is
 disjoint from `spec.SPECS` and `CONSTRUCTS` (membership of `REJECTED`, `RESEARCH_ONLY`,
 `TESTED_NOT_PROMOTED` and `UNTESTED` is tied to the committed token by the tests of 11.1,
 since the results commit puts every candidate in one of them); `spec.SPECS` has exactly its
@@ -471,7 +485,7 @@ def run_gauntlet(frames: Mapping[str, LeagueFrames], shot_values: Mapping[str, p
 | guard | each vector of `degenerate_vectors` tested on its own: sd below `degenerate_sd`, or zero share above `maximum_zero_share`; then any non-finite rule input or a None `half_low`: status `INCONCLUSIVE`, `inconclusive_reason` names the vector or input, rule not called |
 | rule call | `rule(half_low, nuisance_r2 if not None else 0.0, baseline_r, bool(nuisance_columns))` |
 | `reject_reason` | `REDUNDANT` if `rule(1.0, 0.0, baseline_r, False)` rejects; else `CONFOUNDED` if `rule(1.0, nuisance_r2, 0.0, kind_is_nuisance)` rejects; else `UNRELIABLE` if `rule(reliability_low, 0.0, 0.0, False)` rejects; else `None`. Thresholds therefore live only in the frozen rule |
-| `departures_active` | the departures of preregistration 6.1 that are flagged, in force for this league and candidate: the lenient `identity_column` (`shot_volume`; under the ROOT 2.2 design also `identity_family_column`), `presence_column_without_candidate_rows`, `nuisance_only_r2` (candidates with a nuisance column), `goalkeepers_excluded`, and the two-sided `position_centred_reliability` (every league and candidate) |
+| `departures_active` | the departures of preregistration 6.1 that are flagged, in force for this league and candidate: the lenient `identity_column` (`shot_volume`), `presence_column_without_candidate_rows`, `nuisance_only_r2` (candidates with a nuisance column), `goalkeepers_excluded`, and the two-sided `position_centred_reliability` (every league and candidate) |
 | within position, context limits | `reliability_estimate` on one position's players in R, uncentred, `g = 1` (`within_position_rule`), when that position has at least `within_position_report_minimum` players; `context_limits` by `context_limit_rule` over the five leagues |
 | `candidate_verdict` | the eight rows of preregistration 9.1, in order; E is the leagues whose status is in `evaluable_statuses`; `rule_row` records which fired; `house_replication_label = classify_replication(...)` over evaluable leagues, reported, each built as `LeagueResult(league, axis=candidate_id, n_players=centred.n, reliability=centred.r_sb, reliability_low=centred.half_low, reliability_high=centred.house_high if not None else centred.half_low, confound_r2=nuisance_r2 or 0.0, ordering_rho=ordering_rho if not None else nan, top12_kept=top_k_kept, closest_baseline="+".join(closest_baselines), baseline_r=baseline_r, status=Status[status])`; `None` when E is empty (the house returns `UNREPLICATED` for one league) |
 | order in `run_gauntlet` | all `count_gates` for all candidates and leagues first; a candidate with fewer than `minimum_evaluable_leagues` passing gets no statistic computed, and each of its leagues that passed its gates is `INCONCLUSIVE` with `league_not_computed_reasons.too_few_evaluable_leagues`; `shot_location_value` gets none unless the instrument token is `ACCEPTED` or `ACCEPTED_WITHIN_LEAGUE`, its leagues then `INCONCLUSIVE` with `league_not_computed_reasons.instrument_not_accepted` |
@@ -557,7 +571,8 @@ except progress on stderr and, at the end, the sha256 of the file written.
 Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8", newline="\n")`. Never stdout redirection.
 
 **A failed execution.** Any exception after the refusal checks of phase 1, and a refusal in
-phase 7, append one record to `<run_output_root>/<failed_run_log>` (gitignored): the
+phase 7, append one record to `<run_output_root>/<failed_run_log>` (gitignored by
+`data/public/*`; the location is ROOT 2.10 W7's): the
 exception type or the refusal's check name, the phase, the file and line of the innermost
 frame in the E-09 source files, and `source_hashes`; never the exception message, which can
 hold a count or a value. The runner exits 3; every file the execution wrote is removed. No
@@ -648,7 +663,7 @@ the eight parts), or naming a provider (section 0); a missing value is
 | Hash | Of | How |
 |---|---|---|
 | `protocol_hash`, `config_hash`, `pipeline_hash` | the three registered files | `lf_sha256(path)` |
-| `source_hashes` | `experiments/run_candidate_gauntlet.py`, `experiments/run_replication.py`, `galactico/features/{candidates,spec,axes}.py`, `galactico/models/shots/*.py` (the glob expanded and sorted), `galactico/validation/{candidate_gauntlet,shot_model_evaluation,candidate_synthetic,candidate_sb,sb_reader,lifecycle,replication,digests}.py`, `galactico/reliability/{core,confound}.py`, `galactico/ingestion/sidecar.py`, `galactico/providers/pappalardo.py` (it sets type, subtype, the flags and the coordinates of every neutral column read), `galactico/providers/base.py` (`assert_may_host`), `galactico/storage/public.py`, `galactico/domain/thesis.py` (phase 7 gates on it), `galactico/domain/provenance.py` (`EvidenceClass`) | a list of `{"path": <posix path relative to the root>, "lf_sha256": <hex>}` objects, one per file, sorted by `path`, so `sort_keys` leaves it byte-stable and no key names a provider (section 0); the self-check stamp and the LOCAL file of the external leg carry the same list |
+| `source_hashes` | `experiments/run_candidate_gauntlet.py`, `experiments/run_replication.py`, `galactico/features/{candidates,spec,axes}.py`, `galactico/models/shots/*.py` (the glob expanded and sorted), `galactico/validation/{candidate_gauntlet,shot_model_evaluation,candidate_synthetic,candidate_sb,sb_reader,provider_inputs,lifecycle,replication,digests}.py` (`provider_inputs.py` is E-11's registered module that the tie test of section 3 imports, ROOT 2.10 W3), `galactico/reliability/{core,confound}.py`, `galactico/ingestion/sidecar.py`, `galactico/providers/pappalardo.py` (it sets type, subtype, the flags and the coordinates of every neutral column read), `galactico/providers/base.py` (`assert_may_host`), `galactico/storage/public.py`, `galactico/domain/thesis.py` (phase 7 gates on it), `galactico/domain/provenance.py` (`EvidenceClass`) | a list of `{"path": <posix path relative to the root>, "lf_sha256": <hex>}` objects, one per file, sorted by `path`, so `sort_keys` leaves it byte-stable and no key names a provider (section 0); the self-check stamp and the LOCAL file of the external leg carry the same list |
 | `frozen_rule` | `decide`, `_safe_abs_corr` and their module | `source_sha256` = `lf_sha256_text(inspect.getsource(decide))` and `correlation_source_sha256` = `lf_sha256_text(inspect.getsource(_safe_abs_corr))` (both gating, phase 1); `file_lf_sha256` = `lf_sha256(frozen_rule_path)` (recorded only) |
 | `selfcheck_hash` | `committed_experiment_dir/selfcheck.json` | `lf_sha256`; phase 1 has tied the stamp to the current hashes |
 | `frame_hashes` | the frames actually used | `frame_digest`: select the listed columns in the listed order, cast `success` to nullable boolean and ids to int64, sort by the key (`event_id`; lineups by `game_id, player_id`; players by `player_id`), `reset_index(drop=True)`, `sha256(pd.util.hash_pandas_object(frame, index=False).values.tobytes())`. Parquet file bytes are **not** hashed: the footer embeds the pandas version |
@@ -890,7 +905,9 @@ entry of `source_hashes` in E-11's `acceptance.json` and `sb_reader_source_sha25
 `outcomes` from `registry_outcomes.candidate` (status, limits, statement, registry_move); the
 instrument record (`registry_instrument_subjects`) likewise from `registry_instrument` and the
 `instrument` entries; `protocol_hash`, `config_hash` = `lf_sha256` of the registered files. In
-the same commit `product_admissible` gains the promotion-set condition (protocol section 10).
+the same commit `product_admissible` gains an explicit, empty promotion set (ROOT 2.10 W1;
+protocol section 10; section 13): a PUBLIC, executed, established E-09 record admits nothing
+until a later promotion, which is its own change set with its own ADR (11.2).
 
 **After the run** (root, the results commit):
 
@@ -900,7 +917,7 @@ the same commit `product_admissible` gains the promotion-set condition (protocol
 | `INCONCLUSIVE`, `INCONCLUSIVE_INSTRUMENT` | add the candidate id to `UNTESTED` (`untested_edit`; a declared hand edit tied to the token by a test, not a `registry_move`) |
 | `NOT_ESTABLISHED_REDUNDANT`, `_CONFOUNDED`, `_UNRELIABLE` | `REJECTED[id] = (headline, detail)` from `player_lab_text[token]`, the headline filled by `baseline_fill_rule` through `baseline_prose`, or through `nuisance_prose`; add `test_<id>_stays_rejected` asserting absence from `CONSTRUCTS` and `spec.SPECS` |
 | `NOT_ESTABLISHED_MIXED` | `RESEARCH_ONLY[id] = (headline, detail)` from `player_lab_text[token]` |
-| `ESTABLISHED_*` | no `registry_move` (rule V6 refuses one on an ESTABLISHED outcome, and V6 is not changed; ARCH D1); `TESTED_NOT_PROMOTED[id] = (headline, detail)` from `player_lab_text[token]` (`tested_not_promoted_edit`, a declared hand edit tied to the token by a test); `product_admissible` stays false through the empty promotion set |
+| `ESTABLISHED_*` | no `registry_move` (rule V6 refuses one on an ESTABLISHED outcome, and V6 is not changed; ARCH D1); `TESTED_NOT_PROMOTED[id] = (headline, detail)` from `player_lab_text[token]` (`tested_not_promoted_edit`, a declared hand edit tied to the token by a test); `product_admissible` stays false through the explicit, empty promotion set of the registration commit (ROOT 2.10 W1) |
 | every candidate in a list | `DISPLAY_NAMES[id]` = its config `display_name` (`display_name_edit`); `/api/constructs` serves it as the label, and `_display_name` keeps the id rule for ids it does not hold |
 | any E-09 record whose badge reads TESTED | `galactico/api/planning.py`: the sentence that replaces `REGISTERED_NOT_TESTED_STATEMENT` once `verdict_reading` returns `None` is `planning_after_run.research_sentence`, after any sentence written for another experiment (`research_sentence_rule`); the tests that assert `REGISTERED_NOT_TESTED_STATEMENT` change with it: `tests/test_planning_render.py`, `tests/test_squad_api.py`, `tests/test_transfer_api.py`, `tests/test_planning_api.py` |
 | any | the `shots` entry of `NOT_MEASURED_EXTRA` becomes `planning_after_run.shots_entry_tested` or `shots_entry_untested` by `shots_entry_rule`; its tests change with it |
@@ -925,8 +942,11 @@ planning output, and each consumer of the lists changes in the same commit:
 | `tests/test_served_credit.py`, `tests/test_docs_consistency.py` (`test_the_hero_states_the_documented_counts`), `tests/test_web_render.py` fixtures, `e2e/smoke.spec.js` constructs shape, `tests/test_player_lab.py` | the new key, the new clause and the counts |
 | the planning tests named above | the two sentences |
 
-R13 and ADR-0011 pin that output, ROOT 2.2 authorises the placeholder replacement, and the
-root records the override in an ADR note in the results commit that names each file above.
+R13 and ADR-0011 pin that output, and ROOT 2.2 authorises the placeholder replacement. ROOT
+2.10 W8 makes the post-run product edits (the Player Lab lists `TESTED_NOT_PROMOTED` and
+`DISPLAY_NAMES`, the frozen planning sentences, the gap-matrix note) the results commit's
+consequences, overriding R13 and ADR-0011 for exactly those edits, and the results commit
+carries an ADR that names them and each file above, as ADR-0025 and ADR-0027 did.
 The headlines and details hold no digit; they and the display names pass the copy guard
 (`tests/test_registry_contract.py`); a display name may hold "per 90", as the served estimator denominators ("per 90 minutes") do.
 
@@ -950,8 +970,8 @@ its own ADR, gated on the PUBLIC E-09 token only:
 | 11 | `scripts/generate_docs.py`, README.md, METRICS.md | regenerate `constructs`, `claims`, `rejected`, `counts`, `fingerprints` |
 | 12 | `galactico/providers/statsbomb.py::MAPPING_AUDIT` | correct the existing "shot" row (it maps eventId 10 plus free-kick shots); add the defensive row with E-11's mapping |
 | 13 | `galactico/domain/metrics.py` | the legacy `REGISTRY` seeds `defensive_action_profile`; `tests/test_domain.py` asserts it. Leave or retire deliberately |
-| 14 | `galactico/domain/metrics.py::Family` | a per-90 count has no member other than the one named with a word this build does not put on an unvalidated label; see DISSENT 3 |
-| 15 | `galactico/domain/verdicts.py` | the promotion set gains the promoted id |
+| 14 | `galactico/domain/metrics.py::Family` | a per-90 count has no member other than the one named with a word this build does not put on an unvalidated label; `family="volume"` is internal for this release, and a neutral `Family` member is added at this promotion (ROOT 2.10 W4, DISSENT 3) |
+| 15 | `galactico/domain/verdicts.py` | the promotion set, explicit and empty from the registration commit (ROOT 2.10 W1), gains the promoted id |
 | 16 | `galactico/api/decision_lab.py` | **not changed.** The shipped requirement dict stays three keys |
 
 ### 11.3 Requirement dimensions
@@ -988,15 +1008,15 @@ who else plays.
 ## 13. Order of operations and shared-file requests to the root
 
 One order, the house order (north-star README, E-11 PIPELINE section 13), with E-09's root
-rulings first: root rulings, independent audit to READY, structure counts, registration, the
-pipeline, the self-check stamp, the run.
+rulings first: root rulings (ROOT 2.10, ruled and applied), independent audit to READY,
+structure counts, registration, the pipeline, the self-check stamp, the run.
 
 **Before registration** (nothing below is an outcome):
 
 | Step | Detail |
 |---|---|
-| Root rulings | recorded in ROOT-DECISIONS as a new section (2.10, "Root rulings on the E-09 draft", after the form of 2.6, 2.7 and 2.9) before anything below; E-09 is not registered without each of `root_rulings_required_before_registration`: (1) OPEN QUESTION 1, ARCH D1 against `product_admissible`: the promotion-set change below, or a ruling that replaces it; (2) DISSENT 6 and OPEN QUESTION 6: which shot design is frozen, open play (the design in `candidates`) or ROOT 2.2's non-penalty shots (`root_2_2_design`), and under the second which subject id the volume candidate carries; (3) DISSENT 2 and the E-11 duplicate: that candidates are `CandidateSpec`, not ROOT 3b's "candidate ConstructSpecs", and that `shot_volume` and `opp_half_defensive_actions` are implemented here beside E-11's registered `provider_inputs.py`, tied by a parity test, which ROOT 4 and 2.9 Z3 would otherwise refuse (E-11's code is registered and pinned, so the duplicate cannot be removed). OPEN QUESTION 2 and DISSENT 5 (`root_rulings_optional_frozen_values_stand`): the frozen values stand unless the root rules otherwise before registration. After the rulings the reviser applies them (for (2): moves the selected design into the main keys, deletes the other block, recomputes the fingerprints and this file's hash), and the revision is audited again |
-| Audit | an independent audit of the ruled revision that walks every branch of 4.5, 9.1 and 11, until one finds no blocker (E-11 and E-10 precedent; ROOT 2.9 Z4) |
+| Root rulings | done: ROOT-DECISIONS 2.10 (18 October 2026) rules W1 to W10 on this draft, and no question waits for a ruling (`root_rulings_applied`, `root_rulings_rule`). Applied in this revision: W1, the explicit, empty promotion set of `product_admissible` (protocol section 10, 11.1, the registration commit below; OPEN QUESTION 1 closed); W2, open-play shots under the subject id `shot_volume`, the non-penalty design removed from the config and kept in REVIEW-RECORD as the design not chosen (DISSENT 6 and OPEN QUESTION 6 closed); W3, candidates are `CandidateSpec`, and E-11's registered `provider_inputs.py` is the one recorded exception to Z3, tied by the exhaustive test of section 3 and pinned in `source_hashes` (DISSENT 2 closed); W4, `family="volume"` internal for this release (DISSENT 3); W5, the two acceptance tiers and the R1 thresholds stand (DISSENT 5, OPEN QUESTION 2); W6, no registry record for the LOCAL leg (DISSENT 7); W7, the failed-run log under `run_output_root` (section 7); W8, the results commit's ADR naming the post-run product edits (11.1); W9, the draft guard in `tests/test_protocol_drafts.py` (below) |
+| Audit | an independent audit of the ruled revision that walks every branch of 4.5, 9.1 and 11, until one finds no blocker (E-11 and E-10 precedent; ROOT 2.9 Z4; ROOT 2.10 W10) |
 | Structure counts | after the audit, the root runs one committed structure-only script over the five leagues and writes every key of `counted_by_root_before_registration` (`counted_by_root_rule`): the null pins are filled, every pinned count carried over from working notes is recounted and replaced where it differs, with the difference stated; the three `sb_folder_digests` that are null are computed with `sb_reader.folder_manifest` on the local folders. These keys are the only edits to `config.json` after the audit |
 | Verified values | `verified_by_root_before_registration`: `pipeline_spec_sha256` is `lf_sha256` of this file as it stands (an edit before registration means recomputing it); the `decide` and `_safe_abs_corr` source hashes and `decide`'s constants; the two sidecar versions against `galactico.ingestion.sidecar`; `e11_config_sha256` against the registered E-11 config; `sb_reader_source_sha256_in_e11_acceptance` against E-11's `acceptance.json` and the file |
 
@@ -1005,9 +1025,9 @@ pipeline, the self-check stamp, the run.
 | File | Change |
 |---|---|
 | `experiments/preregistered/E-09-player-candidates/` | the three registered files (section 0); `experiments/preregistered/README.md` row `E-09 player candidates`, `preregistered, not run` |
-| `galactico/domain/verdicts.py` | the five `PENDING` records of section 11.1; `product_admissible(c)` returns `verdict_for("E-09", c).may_gate and c in PROMOTED`, `PROMOTED` an empty frozenset (`promotion_set_in_this_release`); the docstring's paragraph naming E-09 a draft and saying `product_admissible` is false while E-09 is not registered; and its sentence that `may_gate` is the only value that may unlock a number-bearing panel gains that for E-09 a panel is unlocked through `product_admissible` only |
+| `galactico/domain/verdicts.py` | the five `PENDING` records of section 11.1; `product_admissible(c)` returns `verdict_for("E-09", c).may_gate and c in PROMOTED`, `PROMOTED` an explicit, empty frozenset (`promotion_set_in_this_release`; ROOT 2.10 W1), so a PUBLIC, executed, established E-09 record admits nothing until a later promotion, its own change set with its own ADR; the docstring's paragraph naming E-09 a draft and saying `product_admissible` is false while E-09 is not registered; and its sentence that `may_gate` is the only value that may unlock a number-bearing panel gains that for E-09 a panel is unlocked through `product_admissible` only |
 | `tests/test_verdict_registry.py` | the shipped-registry test (it lists E-11's sixteen records); the `product_admissible` test gains the promotion set; a test that `product_admissible` is false for every E-09 subject under every token of the config; a test that no route or page unlocks anything on an E-09 `may_gate` in this release (`web/labs-shared.js` `mayGate` is not consulted for E-09) |
-| `tests/test_protocol_drafts.py` (or a sibling) | ties the E-09 files, each check run on the files, where it finds nothing, and on a copy with the defect planted, where it finds it (M-06): `lf_sha256` of `PIPELINE.md` equals `pipeline_spec_sha256`; every record built from the config under `PENDING` and under every token constructs and its `as_payload` passes `runtime.finalize`; every `player_lab_text`, `baseline_prose`, `nuisance_prose`, `planning_after_run` sentence, display name, sentence and `claim` text passes `labels.scan_labels` and holds no digit where `tests/test_registry_contract.py` requires none; on `{"provenance": {"config": config}}` and on a synthetic skeleton of the full 7.1 shape (every `GateCount`, `LeagueEvaluation` and `CandidateVerdict` field name, the instrument, structure, selfcheck and registry keys): the exact-key denylist walk, `banned_key_paths(..., parts=BANNED_KEY_PARTS)` and the provider-name walk each find nothing, and each finds a planted `id`, `rank_ties` or `wyscout_x` key. The reviser of the audit ran these checks in a scratch script (REVIEW-RECORD); adding the test now, as E-11's draft guard was added, is the root's choice |
+| `tests/test_protocol_drafts.py` | the E-09 draft guard is already there (ROOT 2.10 W9, added with the revision that applied the rulings, as E-11's was) and ties the E-09 files, each check run on the files, where it finds nothing, and on a copy with the defect planted, where it finds it (M-06): `lf_sha256` of `PIPELINE.md` equals `pipeline_spec_sha256`; every record built from the config under `PENDING` and under every token constructs and its `as_payload` passes `runtime.finalize`; every `player_lab_text`, `baseline_prose`, `nuisance_prose`, `planning_after_run` sentence, display name, sentence and `claim` text passes `labels.scan_labels`, and the Player Lab texts, the two prose maps and every `registry_outcomes` statement hold no digit; on `{"provenance": {"config": config}}` and on a skeleton of the full 7.1 shape (every key section 7.1 names and every field of the section 6 dataclasses, read from this file): the exact-key denylist walk, `banned_key_paths(..., parts=BANNED_KEY_PARTS)` and the provider-name walk each find nothing, and each finds a planted `id`, `rank_ties` or `wyscout_x` key. The registration commit points the guard at `committed_experiment_dir`, as E-11's registration did |
 | `tests/test_preregistration_order.py` | nothing: `PROTOCOL` already holds `PIPELINE.md` |
 | `tests/test_licensing.py` | remove the draft `preregistration.md` and `PIPELINE.md` from their lists (they become one-line pointers) and add the registered pair to `NO_FIGURE_FORMED_FROM_STATSBOMB`; the registered `preregistration.md` draws the logo by the registration-time path |
 | `LICENSING.md` | its sentence that "the draft protocols E-09, E-11 and E-12" print analysis formed from StatsBomb data is false for E-09, which is on `NO_FIGURE_FORMED_FROM_STATSBOMB`; the root's wording |
@@ -1024,8 +1044,9 @@ pipeline, the self-check stamp, the run.
 | Review and stamp | the checklist of section 9; then `--selfcheck` on the frozen config writes `selfcheck.json` (section 7.3, `selfcheck_stamp_rule`), committed beside the protocol unchanged in a commit of its own after the pipeline and before the results. A failed stamp stops E-09 before any outcome (section 8.3). Any later change to a pinned source file means a new stamp, and phase 1 refuses an old one |
 
 **After the run:** the results commit (`results.json`, `analysis.md`, `MODEL-CARD.md`, the
-record tokens and hashes, the registry, planning and gap-matrix edits of 11.1 with the ADR
-note). `analysis.md` goes on the `tests/test_licensing.py` list that fits it if it names the
+record tokens and hashes, the registry, planning and gap-matrix edits of 11.1, and the ADR
+that names them, ROOT 2.10 W8). `analysis.md` goes on the `tests/test_licensing.py` list that
+fits it if it names the
 provider; the external leg's `sb_report` goes on `FORMED_FROM_STATSBOMB` in the commit that
 adds it.
 
@@ -1042,13 +1063,16 @@ adds it.
    tested equal to the house `shots_per_90` column; a `ConstructSpec` form is generated from
    it at promotion, never written beside it (ROOT 4, ROOT 2.9 Z3). One duplicate remains and
    cannot be removed: E-11's registered `provider_inputs.py` computes the same two imported
-   definitions for its own purpose, and E-09 ties its masks to E-11's flags by a parity test,
-   which Z3 refused for E-10. E-11's code is registered and pinned, and product code may not
-   import it. Both points are rulings the root makes before registration (section 13).
+   definitions for its own purpose. E-11's code is registered and pinned, and product code may
+   not import it. ROOT 2.10 W3 ruled both points: candidates are `CandidateSpec`, and the
+   duplicate is a recorded exception to Z3, tied not by a sampled parity test but by the test
+   of section 3, which imports `provider_inputs` and asserts equal masks on every row type,
+   subtype and flag combination of the public adapter's closed vocabulary, with
+   `provider_inputs.py` pinned in `source_hashes` (section 7.2). Closed.
 3. **The registry's only family for a per-90 magnitude is named with a banned word.** `Family`
    has QUALITY, STYLE, PHYSICAL, TEAM; shipped per-90 constructs use the first. Candidates
-   carry `family="volume"` here. Before any promotion the root should add a neutral member or
-   accept the enum name as internal.
+   carry `family="volume"` here. ROOT 2.10 W4 accepted the name as internal for this release;
+   a neutral `Family` member is added at promotion (11.2 row 14). Closed.
 4. **The frozen `decide()` is reused unchanged, but not with Stage 1B's inputs.** Its battery
    contains shots per 90 (the candidate itself); `decide(0.9, 0.0, float("nan"), False)`
    returns `SHIP`; the house R-squared is joint with team although the rule's docstring
@@ -1059,10 +1083,8 @@ adds it.
 5. **Two-tier instrument acceptance.** The root asked for frozen acceptance thresholds; this
    design freezes them and adds a scope tier (`ACCEPTED_WITHIN_LEAGUE`). A single tier would
    most likely reject the instrument on Italy's level (planning figure 0.897), a property no
-   within-league candidate uses. If the root prefers one tier, delete the L/R distinction and
-   treat every gate as R; the expected result is then `NOT_ESTABLISHED` for the instrument
-   and `INCONCLUSIVE_INSTRUMENT` for `shot_location_value`. Unless the root rules before
-   registration, the two tiers stand (section 13).
+   within-league candidate uses. ROOT 2.10 W5 accepted the two tiers and the R1 thresholds.
+   Closed.
 6. **`shot_volume` counts open-play shots, not all non-penalty shots (ROOT 2.2).** Evidence: the
    registered E-11 defines `shot_volume` as open-play shots and `non_penalty_shot_volume`
    separately, and its token applies to an E-09 candidate only if E-09 imports its definition
@@ -1070,50 +1092,32 @@ adds it.
    identity of 5.1 holds; a direct free kick's origin is set by where the foul was given, not
    chosen by the shooter, and its conversion follows another process, which the location-only
    model would value as an open-play shot from that spot. The display name says "open-play"
-   and "no direct free kicks". The ROOT preamble asks a dissenter to deliver a design that
-   satisfies the root as well, and ROOT 2.6 says the root file wins where a draft contradicts
-   it, so the ROOT 2.2 design is written in full beside this one in `root_2_2_design`: both
-   shot candidates count open-play and direct free-kick shots (`free_kick_shot` set pieces;
-   fingerprints `57ed7aea86d9` and `fcc26575bdf8`, or `18f3a5bb9e89` for the volume if the
-   root names it `non_penalty_shot_volume`); `shot_volume` imports E-11's
-   `non_penalty_shot_volume` definition, whose E-11 record is its label; the house open-play
-   `shots_per_90` leaves its battery as an identity-family column (lenient, flagged), since
-   its correlation with the non-penalty volume is near 1 by construction; the non-penalty
-   volume joins every other battery, `shot_location_value`'s included, so ROOT 2.2's
-   redundancy test is against it; the model domain becomes non-penalty shots in the opponent
-   half, location-only with a descriptive free-kick subgroup; `box_shot_share` stays on
-   open-play shots, its nuisance the open-play column; and the structure pins, the external
-   leg's shot types, the planted traps and the tests change as listed there. The open-play
-   design stays the primary text because the reviser's event-level feasibility was simulated
-   on it; if the root selects the ROOT 2.2 design, that simulation is repeated on it before
-   the re-audit. E-09 is not registered until the root rules (section 13).
+   and "no direct free kicks". ROOT 2.10 W2 ruled for open-play shots on this evidence and
+   amended ROOT 2.2's parenthesis to match; the non-penalty design once written beside this
+   one is removed from the config and kept in REVIEW-RECORD as the design not chosen. Closed.
 7. **No registry record for the external leg.** ROOT 2.9 Z5 has since ruled the same way for
    E-10's LOCAL arm: a hosted label from such an arm needs its own LOCAL record, created by a
    later protocol. A LOCAL `VerdictRecord` in E-09's directory
    would make `tests/test_verdict_registry.py::local_estimate_failures` read E-09's PUBLIC
    `results.json`, whose aggregate floats it refuses, and would require its `analysis.md` to
    carry the StatsBomb logo. The leg's token is therefore a label in its credited note only,
-   and moves nothing. If the root wants it in the registry, it needs a directory of its own
-   with its own protocol files, or a registry convention for a LOCAL leg of a PUBLIC
-   experiment; the E-10 revision raised the same question.
+   and moves nothing. ROOT 2.10 W6 accepted this, as Z5 for E-10. Closed.
 
 ## OPEN QUESTIONS
 
-1. ARCH D1 against `product_admissible`: is the promotion-set change of section 13 the root's
-   chosen form, or does the root rule another (for example, that `product_admissible` may turn
-   true while promotion stays separate)? E-09 waits for the ruling.
+1. ARCH D1 against `product_admissible`: closed by ROOT 2.10 W1. No candidate is promoted in
+   this release, and the registration commit gives `product_admissible` an explicit, empty
+   promotion set (section 13); a later promotion is its own change set with its own ADR.
 2. Thresholds R1 (0.08 pooled, 0.03 per-league lower bound) differ from the reconnaissance
    proposal (0.08 point and 0.05 lower bound in every league). By derived sampling error
    (`planning_figures.r1_league_brier_skill_se`) the proposal fails a model whose true skill
    is 0.10 in about one run in five (`planning_figures.open_question_2_proposal_failure_rate_at_true_skill_0_10`).
-   The council no longer exists (ROOT 2.6); the draft owns these thresholds, and they stand
-   unless the root rules otherwise before registration.
+   ROOT 2.10 W5 accepted the frozen thresholds. Closed.
 3. A per-shot mean of the instrument was left out in favour of `box_shot_share`. If the
    root wants it, it is a fifth candidate and needs its own protocol.
 4. Should Euro 2016 and World Cup 2018 be an external transport test of the instrument? Not
    in this protocol.
 5. Whether E-10 uses `shot_location_v1` for conceded shot value; if so its protocol must cite
    the instrument token.
-6. ROOT 2.2 against DISSENT 6: open-play shots, as E-11 registered, or every non-penalty shot
-   (`root_2_2_design`, written in full), and under the second, the subject id `shot_volume`
-   or `non_penalty_shot_volume`? E-09 waits for the ruling (section 13).
+6. ROOT 2.2 against DISSENT 6: closed by ROOT 2.10 W2. `shot_volume` counts open-play shots,
+   as E-11 registered, and the non-penalty design is removed (DISSENT 6).
