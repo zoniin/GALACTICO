@@ -236,13 +236,15 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
         "no figure formed from its data; it draws the logo for the leg's report",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/PIPELINE.md":
         "the field mapping, the coordinate scale, an orientation rule, how events are read in "
-        "batches, the replication's gates and statuses, and where replication statuses, "
-        "numbers and folder digests will be written, none of them in results.json",
+        "batches, the replication's gates and statuses, where replication statuses, "
+        "numbers and folder digests will be written, none of them in results.json, and when "
+        "analysis.md carries the credit",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/preregistration.md":
         "that the corpus was seen before and that 40 of its files were inspected, with no "
         "result of the inspection; the replication rule, its gates and statuses, the "
         "provider's coordinate scale, which date field it records and that the arm's result "
-        "is reported in analysis.md only",
+        "is reported in analysis.md only, with the credit whenever a status or number was "
+        "formed from the provider's files",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/REVIEW-RECORD.md":
         "the reviews' findings on key names, the replication rule and its gates, the "
         "provider mapping, the reader's memory, the attribution plan and where the arm's "

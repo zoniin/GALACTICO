@@ -860,7 +860,8 @@ Details not already in the protocol:
   schedule whose venues alternate, put every home meeting in one half. On the
   Berger tables at 18 and 20 teams, mirrored and with the second leg's rounds permuted, each
   half holds half (within one) of each leg and the two halves' home counts differ by at most
-  one. Team value per half: `basis @ ln((counts + s) /
+  one; the home bound needs `schedule_rule`'s rotation toward the front of the rotating list
+  (rotated the other way, the same split gives a difference of three). Team value per half: `basis @ ln((counts + s) /
   (counts.sum() + s K))`. Teams with fewer than `minimum_half_matches` rows in a half are
   dropped and counted. League mean removed per half and coordinate. Returns `coordinates`, per
   coordinate `half_r`, `spearman_brown`, `lower_bound` (protocol formula, `critical_value`),
@@ -992,7 +993,8 @@ log-ratio coordinates and on a log rate; the engine shrinks counts.
 
 ```python
 def berger_tables(n_teams: int) -> list[list[tuple[int, int]]]
-    # schedule_rule; 2 (n - 1) rounds; second half = first half with venues swapped
+    # schedule_rule; 2 (n - 1) rounds; in round r < n - 1 the rotating list is
+    # rotating[i] = (i + r) mod (n - 1); second half = first half with venues swapped
 def synthetic_season(seed: int, scenario: Mapping[str, object], overdispersion: float,
                      settings: Mapping) -> dict[str, dict[str, pd.DataFrame]]
     # league name -> {descriptor key: frame in the TABLE SCHEMA of 2.2 (that descriptor's
@@ -1201,9 +1203,14 @@ or G3 being `SAMPLE`. When at least one comparable descriptor reached step 3 of 
 replication's machine record, which ROOT 2.9 Z5 keeps out of `results.json`); `descriptors`,
 per descriptor that reached step 3, `{gates, events, shape_ladder, p1, m1, status, reason}`,
 where `gates` is `{gate: {passed, detail}}` for G1 and G3 (the shape of the top-level
-`gates[subject]` of section 8), `events`, `shape_ladder` (B4, candidate, B6), `p1` and `m1`
-have the shapes of the same keys of `descriptors[key]` in section 8, and a key whose quantity
-was not computed (a failed gate, a check that stopped the run) is `null`; and
+`gates[subject]` of section 8); `events` is `{evaluation, by_league}` (every row of this arm is
+an evaluation row, so there is no development part); `shape_ladder` is `{rung: {pooled,
+by_league}}` over the rungs `B4`, `candidate` and `B6`; `p1` is `{pooled: ClusterEstimate,
+by_league {league: ClusterEstimate}}` over `replication.leagues`, with no `unexposed` (the
+Pappalardo `unexposed_leagues` are not among them); `m1` has the shape of `p1` for a descriptor
+of `descriptor_mirror_pairs` and is `null` otherwise; `ClusterEstimate` serialises as in
+section 8; and a key whose quantity was not computed (a failed gate, a check that stopped the
+run) is `null`; and
 `folder_digests`, the `folder_manifest` digest of each folder of `replication.leagues` whose
 match index exists, and `null` for one whose folder or index is absent (ADR-0027 allows a
 digest of a provider's files, and this one is never committed). Otherwise `artifact` is `None`
@@ -1450,7 +1457,8 @@ descriptors[key]:
   # when gates_passed is false, of the keys below only token, reasons and lifecycle_status
   # are present (G6 included: a non-finite selection loss is never serialised)
   events {development, evaluation, by_league},
-  selection {k_context, k_unit, context_losses {k: loss}, unit_losses {k | "context_only": loss}},
+  selection {k_context, k_unit, context_losses {str(k): loss},
+             unit_losses {str(k) | "context_only": loss}},
   shape_ladder {rung: {pooled, by_league}}            # B0_B2, B1_B4, B3, B5, B6, candidate
   p1 {pooled: ClusterEstimate, by_league {league: ClusterEstimate}, unexposed: ClusterEstimate},
   m1 ClusterEstimate | null,
@@ -1477,7 +1485,8 @@ level:
   gates_passed,
   # when gates_passed is false, of the keys below only token, reasons and lifecycle_status
   # are present (LG6 included: a non-finite selection deviance is never serialised)
-  selection {k_context, k_unit, context_deviances, unit_deviances},
+  selection {k_context, k_unit, context_deviances {str(k): deviance},
+             unit_deviances {str(k) | "context_only": deviance}},
   deviance_ladder {rung: {pooled, by_league}},       # B0, B1, B2, B3, B5
   l1 {pooled, by_league, unexposed},                 # unexposed: over unexposed_leagues, in
                                                      # the shared world, reported only
@@ -1497,9 +1506,12 @@ interpretation, uncertainty_limit, product_effect     # results_strings, verbati
 holes}`. A selected unit constant is written as its number when it is a value of
 `shrinkage_grid` and as the string `"context_only"` when the boundary candidate is selected,
 never `null` (which would read as not computed): in `descriptors[key].selection.k_unit`,
-`level.selection.k_unit`, each entry of `identity_stress.placebo_k_unit`, the keys of
-`unit_losses` and `unit_deviances`, and the keys of `selected_k_unit_counts` in
-`synthetic_gate.json` (there the grid values as `str(value)` and `"context_only"`).
+`level.selection.k_unit` and each entry of `identity_stress.placebo_k_unit`;
+`selection.k_context` is always a grid number. A JSON key is a string, and the writer's
+`sort_keys=True` cannot order an int beside a str (it raises `TypeError`), so the keys of
+`context_losses`, `context_deviances`, `unit_losses` and `unit_deviances` are `str(value)` of the
+grid value (`"25"`, ...) and `"context_only"` for the boundary candidate, as are the keys of
+`selected_k_unit_counts` in `synthetic_gate.json`.
 Coordinate names: three parts `side_balance`, `wide_versus_centre` for the two
 conceded-channel descriptors and `first_versus_last`, `ends_versus_middle` otherwise; two parts
 `first_versus_second`. A subject whose gates failed has `token` `INCONCLUSIVE` and its failed
@@ -1549,7 +1561,7 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | `test_conceded_shape_engine.py` | `test_hand_computed_two_date_example` | the rung assembly of 4.2 on the estimator's example (B0 to B7 and the candidate, the B3 and B5 level means included, the mirror swap, the peers' pooled `(O, E)`, the P2 inputs), against `fractions.Fraction` arithmetic written in the test |
 | | `test_engine_reads_the_one_estimator` | AST: `conceded_shape.py` imports the module as `from galactico.features.team import estimator` and holds no `from galactico.features.team.estimator import` (so every monkeypatch below reaches the engine, 3.8), and none of the three research modules defines a function or class named in the estimator's `__all__`; `conceded_shape_synthetic.py` imports from the estimator at most `descriptor_rows`, and only `run_gate` calls it (the generator of section 5 reads none of the estimator). Behaviour, on the estimator's two-date example. Every perturbation moves a composition or a rate; a constant added to every part of `delta` would not, since it cancels in the normalisation and in `basis @ delta`, whose rows sum to zero. With `b = log_ratio_basis(K)[0]`, each monkeypatch is applied alone, and the engine's pooled quantity named beside it must change by more than `1e-6` in absolute value: `estimator.unit_deviation` adding `b` to every row of its result (the candidate loss and the P2 inputs); `estimator.unit_level_ratio` multiplying its result by 2 (the B2 deviance); `estimator.shape_estimate` returning its estimate with one field replaced, in turn `context` by `normalise(context * exp(b))` (the B1 and B4 losses), `nu` by `nu + b` (the B1 loss), `expected` by `expected * exp(b)` (the candidate loss) and `expected_share` by `normalise(expected_share * exp(b))` (the P2 inputs); `estimator.shape_estimate` returning its estimate with `pi_venue` replaced by `normalise(pi_venue * exp(b))` (the B0 and B2 shape losses) or `observed` by `observed * exp(b)` (the candidate loss and the peers' loss); `estimator.level_estimate` returning its estimate with `rate_venue` (the B0 deviance), `context_ratio` (B1), `unit_expected` (B2), `unit_observed` (B2 and B3) or `rate` (the B5 deviance) multiplied by 2. So an engine that holds a copy of any formula of 4.2 under another name, the level ratios, the venue shape `pi_v` and the B5 rate `lam` included, fails |
 | | `test_context_only_is_exactly_b4_and_b1`, `test_delta_is_zero_without_history` | under `context_only` the candidate, mirror, peers and permuted arrays are the B4 array, and the level's B2 and B3 arrays are B1's |
-| | `test_context_only_selection_against_grid_selecting_placebos` | a planted history where the real `kD` is `context_only` and every placebo selects a grid value with positive evaluation P1: (a), (b), (f) are `False`; (d) is `False` for a mirror descriptor and `True` otherwise; (c) is `True`; the pooled P1 `p_one_sided` is exactly 1.0; the token is `ADDED_INFORMATION_NOT_SHOWN` and the reasons are exactly the criteria that are not `True`; the serialised `selection.k_unit` is the string `"context_only"` and each `identity_stress.placebo_k_unit` is a grid number (section 8) |
+| | `test_context_only_selection_against_grid_selecting_placebos` | a planted history where the real `kD` is `context_only` and every placebo selects a grid value with positive evaluation P1: (a), (b), (f) are `False`; (d) is `False` for a mirror descriptor and `True` otherwise; (c) is `True`; the pooled P1 `p_one_sided` is exactly 1.0; the token is `ADDED_INFORMATION_NOT_SHOWN` and the reasons are exactly the criteria that are not `True`; the serialised `selection.k_unit` is the string `"context_only"`, each `identity_stress.placebo_k_unit` is a grid number, and the keys of `unit_losses` are `"context_only"` and `str` of each grid value (section 8), so the payload serialises with `sort_keys=True` |
 | | `test_raw_five_level_is_positive_with_no_recent_event` | a unit with no conceded event in its last `raw_persistence_matches` rows has a finite deviance |
 | | `test_future_and_same_day_rows_cannot_change_a_prediction` | poison rows on or after the date |
 | | `test_invalid_rows_never_update_state_but_count_on_the_sheet`, `test_row_order_invariance` | invalid rows built as 2.2 emits them (`window_seconds` NaN, so `exposure` NaN, counts 0): every state array, prediction, loss and deviance equals the run without them and is finite, and the sheet counters count them |
@@ -1578,7 +1590,7 @@ recovered_sign_with_mirror, recovered_sign_without_mirror, passed}, passed}`.
 | | `test_strength_validity_is_invariant_to_negating_a_coordinate` | negating any coordinate (and, for the primary's side balance, exchanging `def_left` and `def_right` in the counts) leaves `passed` and the token unchanged and swaps the per-tail counts. Two 98-value vectors (coordinate and four covariates, five leagues of 20, 20, 20, 18 and 20) are written out in the test, and the test first asserts the properties they were built for: (a) unadjusted `R2` below `strength_variance_explained_ceiling`, Spearman at least `strength_spearman_floor`, 6 of 12 survivors in the upper tail and 5 in the lower, so the one-tail rule passes and this rule fails; (b) the upper tail has no tie and the lower tail a tied twelfth raw place, so this rule fails by name. Hand-built vectors, never draws of a scratch generator |
 | | `test_pair_interaction_recovers_a_planted_pair_term_and_zero` | |
 | | `test_every_registry_sentence_is_served_under_every_token` | the seven records built from the config pass `finalize` under `PENDING` and every token, with figures under the established ones; a planted `line height` in a non-claim is refused; the proposal sentences, `planning_research_sentence` and `s5_ratio_name` pass the copy guard |
-| `test_conceded_shape_synthetic.py` | `test_berger_tables_shape` | every directed pair once, every unordered pair twice with venues swapped, for 18 and 20 teams; the rule of `schedule_rule` |
+| `test_conceded_shape_synthetic.py` | `test_berger_tables_shape` | every directed pair once, every unordered pair twice with venues swapped, for 18 and 20 teams; the rule of `schedule_rule`, its rotation direction included: at 6 teams rounds 0 and 1 are exactly `[(0, 5), (1, 4), (3, 2)]` and `[(5, 1), (2, 0), (4, 3)]` (home, away), written in the test, where a rotation toward the back of the rotating list gives `[(5, 4), (0, 3), (2, 1)]` for round 1, so the test can fail |
 | | `test_generator_is_seeded_and_emits_the_table_schema` | with and without the secondaries; a two-part secondary draws one-dimensional terms; `NULL_NOTHING` and `EFFECT_STRONG` run with one seed emit the same `goals_for` and `goals_against` in every league of `leagues`, not only the first (the first pass draws every league's strength and goals before any scenario-dependent draw, section 5); built with the one-pass order (each league's rows drawn before the next league's goals) the same assertion fails, so the test can fail; under `STRENGTH_MEASURED_0_15` the season builds, and `points_per_match_code`, which the generator calls as a module attribute, is replaced by a wrapper that records its arguments and result: it is called once per league, with the fixtures and the goals the season emits as `goals_for` and `goals_against`. `latent_tercile_code` and `points_per_match_code` on hand examples: at 20 teams the tercile code has seven `+1`, seven `0` and six `-1` (mean 0.05, population standard deviation 0.805 before standardisation), and both return mean 0 and population standard deviation 1 |
 | | `test_synthetic_season_feeds_every_league_subset` | one seeded `EFFECT_STRONG` season at overdispersion 0.1: its keys equal `leagues`, in order, each with `expected_teams_per_league` teams; every per-league subset of P1 and L1 has rows; the `unexposed` estimates of P1 and L1 have rows and non-`None` estimates; criteria (b), (f) and (Lb) are not `None`; G1 to G3 read non-empty league counts; the world's strata follow `leagues` |
 | | `test_season_configuration_differs_in_two_keys_only` | the configuration a season's evaluation reads differs from `config.json` in `seed` and `bootstrap_replicates` only |
@@ -1779,8 +1791,9 @@ record's figures:
   with the record's figures. **Shrink weight**: its second value, `E'_u / (E'_u + kD')`.
 - **Interval**: `league_world_weights(game ids, served_panel.worlds,
   served_panel.world_seed, scheme=served_panel.world_scheme)` (I12), the game ids being those
-  of the league's valid matches dated before `D` (an invalid match adds nothing to the state,
-  3.8, and takes no draw): every quantity above is
+  of the league's valid matches dated, by calendar day, before the normalised `D`
+  (`pd.Timestamp(D).normalize()`, as `state_at`, 3.8; an invalid match adds nothing to the
+  state, 3.8, and takes no draw): every quantity above is
   recomputed in each world by the same calls, with `weights` the world's match weight of each
   row's match (ones for the point), and the interval is the
   `served_panel.interval_quantiles` pair by `interval_quantile_method`. A world in which the
@@ -1801,9 +1814,10 @@ record's figures:
 
 The Opponent Lab module holds `served_panel`, `product_rules` and `registry_non_claims` as
 constants; a test asserts they equal the registered config and that the panel's world draw
-receives exactly the ids of the league's valid matches dated before `D` (an invalid match and
-a match on `D` planted in the input are not among them), and that the state `state_at` builds
-holds neither of them when `D` is given with a time of day later than the planted match's
+receives exactly the ids of the league's valid matches dated, by calendar day, before the
+normalised `D` (an invalid match and a match on `D`'s calendar day planted in the input are not
+among them), and that the state `state_at` builds holds neither of them; both assertions run
+with `D` given as a date and with `D` given with a time of day later than the planted match's
 kick-off (3.8 normalises `D`). The non-claim of its group is printed
 in every state, before registration included, when `verdict_for` returns no record and so no
 `non_claim` (`verdicts._unregistered` gives `""`); once a record exists, the test also asserts
@@ -1818,16 +1832,21 @@ record's statement and non-claim.
 
 ### 12.4 Attribution
 
-`analysis.md` prints replication numbers only when a replication ran. Then it starts with the
-block E-11's PIPELINE section 12 gives, with the image path
+Under ROOT 2.9 Z5 `analysis.md` is the only committed file that reports the arm's result: it
+states every descriptor's replication status and reason, read from the local artifact when it
+exists, from `replication_failure_log` after a replication exception, and otherwise (no
+comparable descriptor reached step 3 and nothing raised) `NOT_COMPARABLE` or `NOT_RUN` by
+`replication.status_rule` from the PUBLIC tokens. It prints replication numbers only when a
+replication computed them. Its attribution follows which of those files exist, not whether it
+prints numbers. When `replication.local_artifact` or `replication_failure_log` exists, it starts
+with the block E-11's PIPELINE section 12 gives, with the image path
 `../../../docs/assets/statsbomb/statsbomb-logo.png`, and goes on `FORMED_FROM_STATSBOMB` in
-`tests/test_licensing.py` in the commit that adds it. If no replication ran and it mentions
-StatsBomb only as a plan, it goes on `NO_FIGURE_FORMED_FROM_STATSBOMB` instead. Under ROOT 2.9
-Z5 `analysis.md` is the only committed file that reports the arm's result: it states every
-descriptor's replication status and reason, read from the local artifact when it exists, from
-`replication_failure_log` after a replication exception, and otherwise (no comparable
-descriptor reached step 3) `NOT_COMPARABLE` or `NOT_RUN` by `replication.status_rule` from the
-PUBLIC tokens.
+`tests/test_licensing.py` in the commit that adds it, whether it prints numbers or statuses
+only: a status such as `REPLICATION_INCONCLUSIVE (VOCABULARY)`, `(ORIENTATION)` or `(SAMPLE)`
+with no number is formed from StatsBomb files (ROOT 2.5 O1, LICENSING.md Clause 1.4), and the
+rule reads the files' existence so that no one has to judge which status was. When neither
+exists, its `NOT_COMPARABLE` and `NOT_RUN` statuses come from the PUBLIC tokens, it mentions
+StatsBomb only as a plan, and it goes on `NO_FIGURE_FORMED_FROM_STATSBOMB`.
 
 ## 13. Order of operations and shared-file requests
 
