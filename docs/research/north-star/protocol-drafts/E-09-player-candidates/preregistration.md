@@ -1,6 +1,6 @@
 # E-09 — four player candidates and a location-only shot conversion model
 
-> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding and its disposition); audited independently in four scopes, every claimed blocker rebuilt by a refuter on synthetic numbers, and revised on 18 October 2026 (REVIEW-RECORD, "Audit"). No scope of that audit was READY. The root then ruled on every question the audit's revision put to it (ROOT 2.10, W1 to W10), and a further revision of the same day applies W1 to W9, among them the open-play shot design (W2) and an explicit, empty promotion set for `product_admissible` (W1). That revision was audited a second time in four scopes on 18 October 2026 (REVIEW-RECORD, "Second audit, 18 October 2026"): scopes 2 and 3 had no blocker, scopes 1 and 4 one each, both confirmed by refuters (the product module of the definitions was to read the experiment's config; ROOT 2.2 still says non-penalty shots for `shot_location_value`), and a revision of the same day applies both blockers and every major and minor that held. No question waits for a root ruling, except the textual amendment of ROOT 2.2's `shot_location_value` parenthesis that the root makes before the registration commit (`PIPELINE.md` section 13). This revision has not been audited, and by W10 it is audited again before E-09 is called READY. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
+> **DRAFT. Not frozen, not registered, not run.** Written by one designer during the north-star build; attacked on 14 October 2026 by three adversarial reviewers (statistics, football data, constitution) and revised the same day ([REVIEW-RECORD.md](REVIEW-RECORD.md) lists every finding and its disposition); audited independently in four scopes, every claimed blocker rebuilt by a refuter on synthetic numbers, and revised on 18 October 2026 (REVIEW-RECORD, "Audit"). No scope of that audit was READY. The root then ruled on every question the audit's revision put to it (ROOT 2.10, W1 to W10), and a further revision of the same day applies W1 to W9, among them the open-play shot design (W2) and an explicit, empty promotion set for `product_admissible` (W1). That revision was audited a second time in four scopes on 18 October 2026 (REVIEW-RECORD, "Second audit, 18 October 2026"): scopes 2 and 3 had no blocker, scopes 1 and 4 one each, both confirmed by refuters (the product module of the definitions was to read the experiment's config; ROOT 2.2 still said non-penalty shots for `shot_location_value`), and a revision of the same day applies both blockers and every major and minor that held; in the same commit the root extended W2 to `shot_location_value` and amended ROOT 2.2's parenthesis for it. A third audit read that revision in four scopes on 18 October 2026 (REVIEW-RECORD, "Third audit, 18 October 2026"): it claimed no blocker, so every scope was READY as audited, and a revision of the same day applies every major and minor that held, among them the record that the amendment of ROOT 2.2 is made. No question waits for a root ruling. This revision has not been audited, and by W10 and the E-10 precedent an audit that confirms no blocker in it is needed before E-09 is called READY. No outcome named here has been computed. It becomes a protocol only when an audited version is committed under `experiments/preregistered/` in a single commit that precedes any run (`PIPELINE.md` section 13). Section and file references such as ROOT 2.5 point to [ROOT-DECISIONS.md](../../ROOT-DECISIONS.md); see [README](../../README.md) for the working notes it cites.
 
 **Commit this plan, `config.json` and `PIPELINE.md` before any E-09 outcome is computed.
 Nothing in the three may change once the first outcome is observed.** This is a
@@ -45,20 +45,19 @@ registered E-11 definitions unchanged (`e11_subject`, `e11_definition`, `e11_con
 regulation minutes. E-11's token for the same subject id therefore applies to them as a
 cross-provider label. "Imported unchanged" holds for the row masks (the exhaustive tie of
 `PIPELINE.md` section 3) and for the ratio of sums; it does not hold for E-11's unit rule,
-which drops a player-match with no regulation minute (a substitute who came on at or after the
-90th minute), while E-09's season sum keeps that player-match's rows with no minutes added
-(section 3, "Known and uncorrected"). `shot_location_value` and `box_shot_share` are not
+which drops a player-match with no regulation minute or no team-sheet row (a substitute who
+came on at or after the 90th minute; a player-match the adapter's lineups do not hold), while
+E-09's season sum keeps that player-match's rows with no minutes added (section 3, "Known and
+uncorrected"). `shot_location_value` and `box_shot_share` are not
 graded by E-11.
 
 The three shot candidates count open-play shots, leaving out penalties and direct free kicks.
-ROOT 2.10 W2 rules this design: for `shot_volume` by its text, which amends ROOT 2.2's
-`shot_volume` parenthesis to match, and for `shot_location_value` by removing
-`root_2_2_design`, whose `shot_location_value` weighted non-penalty shots (`PIPELINE.md`
-DISSENT 6). W2's text did not amend ROOT 2.2's `shot_location_value` parenthesis, which
-still reads non-penalty shots; the root amends it, or records that W2 covers both shot
-candidates, before the registration commit, and E-09 is not registered before then
-(`root_amendment_before_registration`, `PIPELINE.md` section 13). The non-penalty design once
-written beside this one is removed and kept in REVIEW-RECORD as the design not chosen.
+ROOT 2.10 W2, as extended on 18 October 2026, rules this design for all three: for
+`shot_volume` by its text, for `shot_location_value` (open-play shots from the opponent half)
+by its extension, and `box_shot_share` was already on open-play shots. ROOT 2.2's parentheses
+for `shot_volume` and `shot_location_value` are amended to match (`root_rulings_rule`,
+`PIPELINE.md` DISSENT 6). The non-penalty design once written beside this one is removed and
+kept in REVIEW-RECORD as the design not chosen.
 
 Not claimed, by any verdict:
 
@@ -142,7 +141,7 @@ named `head_or_body`, never "header" (ROOT 2.5 H14).
 
 | Rule | Key | Note |
 |---|---|---|
-| Periods | `periods` | the leagues contain no other; the filter is asserted to drop zero rows |
+| Periods | `periods`, `expected_rows_outside_periods` | the leagues contain no other; the filter is asserted to drop zero rows. The count is an assumption pin the root recounts before registration (`rows_outside_periods_rule`), so a departure stops registration rather than every run |
 | Shot set | neutral `type == "shot"` | the provider's Shot event, which E-11 calls `open_play_shot`. Penalties and direct free-kick shots are `set_piece` rows and are excluded by construction. Shots after a set-piece delivery are included. The sidecar's `shot_family` is pinned to the neutral type (`shot_family_pins`, `expected_shot_family_disagreements`) |
 | Model domain | `model_domain`, `structure_identity` | a shot row starting in zone `opponent_half`: `start_x` strictly above 0.50 and not a location sentinel. Outside it are shot rows at a sentinel start (either pair of `location_sentinels`) and non-sentinel shot rows recorded at or behind the halfway line (`start_x <= 0.50`); the two sets are disjoint, and per league shot rows = in-domain + behind-halfway + sentinel-start, asserted before any outcome. Their recorded location is not trusted. They are excluded from model fitting, evaluation and `shot_location_value`, counted per league (`expected_behind_halfway_shot_rows`, `expected_sentinel_start_shot_rows`), and stay in `shot_volume` and in the denominator of `box_shot_share` |
 | Minutes | `minutes_rule`, `regulation_minutes_cap` | per player-match the lineup minutes capped at 90, which is E-11's `minutes_regulation` on this provider, imported unchanged. The house sums nominal lineup minutes, which credit a starter substituted after the 90th minute with more than 90; capping can only lower a player's minutes, so no evidence gate is lowered (R6) |
@@ -155,30 +154,36 @@ named `head_or_body`, never "header" (ROOT 2.5 H14).
 | No exclusion | | on team, age, club strength or league |
 
 Known and uncorrected, recorded so that it is not later presented as a discovery: the
-minutes floor conditions on selection; lineup minutes ignore stoppage time; a mid-season
-mover is one player with pooled minutes and is assigned the team of most minutes
-(`player_team_rule`); the share floor conditions on shooting; a substitute who came on at or
-after the 90th minute gets no capped minute from the adapter, so a shot or a defensive
-action of his in that match enters the season numerator with no minute added to the
+minutes floor conditions on selection; lineup minutes ignore stoppage time; a starter sent off
+before the 90th minute is credited minutes to the 90th (KNOWN_LIMITATIONS), as E-11's rule
+does, where a dismissal changes nothing, which lowers his per-90 values; a mid-season mover is one player with pooled minutes and is
+assigned the team of most minutes (`player_team_rule`); the share floor conditions on
+shooting; a player-match with no regulation minute or no team-sheet row adds rows with no
+minute: a substitute who came on at or after the 90th minute gets no capped minute from the
+adapter, and a player-match the adapter's lineups do not hold (a player absent from the
+match's lineup and substitution records, or any substitute of a match whose substitution
+record is not a list, for which the adapter writes no substitute row) has none, so a shot or a
+defensive action of his in that match enters the season numerator with no minute added to the
 denominator, where E-11's `player_match` unit (at least `minimum_regulation_minutes_player_match`
-regulation minutes on both sides) drops the row. Those rows are counted per league in
-`results.json` (`structure`, `PIPELINE.md` 7.1) and are not removed.
+regulation minutes on both sides, on a team-sheet row) drops the row. Those rows are counted
+per league in `results.json` (`structure`, `PIPELINE.md` 7.1) and are not removed.
 
 Structural pins in `config.json` (`expected_*`, the shot-family pins, the sidecar manifest's
 `actions_event_ids_equal` and versions) are checked before any outcome is computed. A
 mismatch stops the run with nothing written; that is a pipeline defect, not an outcome, and
 a corrected run is disclosed in `analysis.md` under the failed-execution rule of `PIPELINE.md`
-section 7. Every structural pin, the body-part coverage, the clause overlap and the
-shot-family disagreements included, is recounted by the root after the audit and before the
+section 7. Every structural pin, the rows outside the periods, the body-part coverage, the
+clause overlap and the shot-family disagreements included, is recounted by the root after the audit and before the
 registration commit with one committed structure-only script (`counted_by_root_before_registration`).
 Counts that parameterise nothing (`counted_by_root_rule`: shot rows, in-domain,
 behind-halfway and sentinel-start shot rows, goals, matches, the folder digests) are filled
 where null or replaced where they differ, with the difference stated, and those keys are the
 only edits to `config.json` after the audit; the file is then registered byte for byte. The
-three assumption pins (`counted_by_root_assumption_pins`: body-part coverage on shots, clause
-overlap rows, shot-family disagreements) are different: the frozen text depends on their
-values (the model refuses a shot with no body part, section 5.4 states that the two clauses
-do not overlap, a disagreement stops phase 2), so a count that departs from the draft's value
+four assumption pins (`counted_by_root_assumption_pins`: rows outside the periods, body-part
+coverage on shots, clause overlap rows, shot-family disagreements) are different: the frozen
+text depends on their values (the Periods row above states that the leagues hold no other
+period and a dropped row stops phase 2, the model refuses a shot with no body part, section
+5.4 states that the two clauses do not overlap, a disagreement stops phase 2), so a count that departs from the draft's value
 is never written into the config. Registration stops and the draft returns to a revision that
 freezes a rule for those rows, then to an audit (`counted_by_root_assumption_rule`). The pins
 carried over from working notes that were not kept are therefore never trusted unchecked. The planning count of shot rows at or behind
@@ -249,7 +254,7 @@ the five leagues' resampled sums.
 | Gate | Statistic | Passes if (config keys) | Basis |
 |---|---|---|---|
 | S-count | sample, before any fit | each training fold and each held-out league meets `gate_s_count` | logistic-basic converges near 6,000 shots (Robberechts & Davis 2020; `planning_figures.literature`) |
-| S-fit | convergence, after the fits | every model of `gate_s_fit_models`, and the instrument, converged in every fold (`gate_s_fit_rule`); on the public run a challenger that did not converge in every fold is not selectable and fails nothing, so the rule there equals the earlier one; on the external leg the refitted instrument must converge in every fold | |
+| S-fit | convergence, after the fits | every model of `gate_s_fit_models`, and the instrument, converged in every fold (`gate_s_fit_rule`); on the public run a challenger that did not converge in every fold is not selectable and fails nothing, so the rule there equals convergence of every model of `gate_s_fit_models` in every fold, because `MFLEX` is selected only when it converged in every fold; on the external leg the refitted instrument must converge in every fold | |
 | R1 | Brier skill against the training rate | pooled point at least `gate_r1_pooled_brier_skill_minimum`, pooled lower bound at least `gate_r1_pooled_brier_skill_lower_minimum`; lower bound above `gate_r1_league_brier_skill_lower_exclusive_minimum` in `gate_r1_leagues_required` of 5 held-out leagues | published 0.10 to 0.13 for this feature set; planning standard error per league in `planning_figures` |
 | R2 | pooled relative log-loss gain of the instrument over `MD` (`gate_r2_gain`) | lower bound above `gate_r2_log_loss_gain_over_comparator_lower_exclusive_minimum` | angle and head-or-body must earn their parameters |
 | R3 | calibration slope (logistic recalibration) | within `gate_r3_calibration_slope_range` in `gate_r3_leagues_required` of 5 | planning spread per league about 0.05 (`planning_figures.r3_league_calibration_slope_sd`; the earlier 0.04 understated it) |
@@ -412,12 +417,15 @@ Per league and candidate, in this order. The count gates of section 8 are evalua
    league `INCONCLUSIVE` (practically unreachable; stated, not repaired). The house interval
    (`AxisReliability.interval` on `r_sb`) is reported, never gating (`house_interval_role`);
    it is `None` when `|r_sb| >= 1`.
-4. **Baseline.** For each column of the candidate's battery with sd over A at least
-   `degenerate_sd` (a column below it is dropped and recorded), the absolute Pearson
-   correlation with the value is computed twice over A: on the raw values, and on values and
-   column both centred by broad position over A (`position_centring_set`). The column's
-   correlation is the larger of the two (`baseline_centring`). `baseline_r` is the largest
-   over the battery; every column that attains it is listed (`baseline_tie_rule`).
+4. **Baseline.** For each column of the candidate's battery whose sd over A is finite and at
+   least `degenerate_sd` (a column whose sd is not finite or is below it is dropped and
+   recorded), the absolute Pearson correlation with the value is computed twice over A: on the
+   raw values, and on values and column both centred by broad position over A
+   (`position_centring_set`). The column's correlation is the larger of the two, NaN if
+   either is (`baseline_centring`). `baseline_r` is the largest over the remaining columns,
+   NaN if any of them is NaN or none remains, and the guard of step 6 then makes the league
+   `INCONCLUSIVE` naming `baseline_r`; every column that attains it is listed
+   (`baseline_tie_rule`).
 5. **Nuisance.** `nuisance_r2` is the unadjusted R-squared, over A, of the value on the
    candidate's nuisance-kind columns only, computed raw and position-centred, the larger
    kept (`nuisance_centring`). A candidate with no nuisance column has none.
@@ -477,8 +485,10 @@ league in `results.json` and named in `analysis.md` for any candidate that survi
 was active), or **neither** (it can move survival in either direction). Of the "neither"
 departures, position centring of reliability is flagged as well
 (`position_centred_reliability` in `departures_active`), because its house counterpart, the
-uncentred pooled reliability, is computed and reported beside it; T22 and the minutes rule
-are not flagged, because no house counterpart of them is computed on these data.
+uncentred pooled reliability, is computed and reported beside it, and the goalkeeper
+exclusion stays flagged (`goalkeepers_excluded`), because it is lenient on the baseline
+correlations; T22, the minutes rule and the share floor are not flagged, because no house
+counterpart of them is computed on these data.
 
 | Trap | Choice | Direction | Why |
 |---|---|---|---|
@@ -495,11 +505,13 @@ are not flagged, because no house counterpart of them is computed on these data.
 | T24 degenerate vectors | **Departs.** Step 6 | stricter | the house helper returns 0.0 for a constant, and the rule passes a NaN baseline |
 | Position centring of reliability | **Departs.** Reliability is gated on position-centred values | neither: lower when position means are stable between match sets, which the alternating split makes likely; higher when they move (a planted case shows both) | pooled reliability of a shot count is mostly the statement that forwards shoot more than defenders |
 | Baseline and nuisance centring | **Departs.** The larger of the raw and the position-centred statistic | stricter than the raw statistic on the same set | a near-copy within every position must not pass because positions dilute the pooled correlation |
-| Goalkeepers | **Departs.** Excluded (ADR-0025) | lenient on baseline correlations: goalkeeper rows can extend a line between a candidate and a battery column | goalkeepers are outside every candidate's declared context |
+| Goalkeepers | **Departs.** Excluded (ADR-0025) | neither: lenient on baseline correlations (goalkeeper rows can extend a line between a candidate and a battery column), stricter on the reliability bound (under position centring goalkeepers would form one more group of near-centroid points, adding about their number to n - 2 - g and raising `half_low`); flagged; a planted case shows both | goalkeepers are outside every candidate's declared context |
+| Share floor (`box_shot_share`) | **Departs.** `share_floor_season_shots` and `share_floor_match_set_shots` on top of the house's minutes-only eligibility | neither: dropping the noisiest shares tends to raise `r_half`, and the smaller n lowers the bound; not flagged (no house counterpart computed) | a share over a handful of shots is noise (section 3) |
 | Minutes | **Departs.** `minutes_rule` (E-11's regulation minutes) | stricter on the floor; neither on the statistics | one definition with E-11 for the two shared subjects |
 
-Required test: each departure's direction is shown on a planted frame and each lenient one
-is flagged in `results.json` (`departures_active` per league and candidate).
+Required test: each departure's direction is shown on a planted frame (both directions for a
+"neither" departure) and each flagged one is listed in `results.json` (`departures_active` per
+league and candidate).
 
 ## 7. Models and baselines, summarised
 
@@ -571,9 +583,10 @@ is ROOT 2.2's requirement that the location-weighted value show incremental info
 shot volume or be rejected as redundant; for the other three candidates a redundant league
 is weighed by rows 7 and 8. `NOT_ESTABLISHED_CONFOUNDED` is reachable only for a candidate
 with nuisance columns, and rows 1 and 2 only for `shot_location_value`. Rows 4 and 5 come
-before row 6, so an established token can carry one league closed as redundant; the
-established statements therefore say "in those leagues", and `analysis.md` names such a
-league. The reason recorded beside each token is `verdict_reason_codes` (rows 1 to 3).
+before row 6, so an established token can carry one league closed as redundant, whose
+reliability bound may still reach a threshold; the established statements therefore count
+only the leagues where the candidate passed the frozen rule, never every league whose bound
+reaches a threshold, and `analysis.md` names such a league. The reason recorded beside each token is `verdict_reason_codes` (rows 1 to 3).
 
 Required truth-table cases include: five leagues with three `SHIP` and two `INCONCLUSIVE`
 (one degenerate, one non-finite) give row 3; four `SHIP` and one degenerate give row 4;
@@ -609,8 +622,9 @@ built from the config's own entries (`registry_candidate_subjects`,
 `registry_instrument`, `registry_outcomes`). After the run each record takes its token from
 `results.json`. Every outcome statement a record prints is frozen in `registry_outcomes`,
 holds no digit and no placeholder, and passes the copy guard; the not-run statement and the
-non-claims hold no digit other than the experiment id's, as rule V7 words it, and the scope
-names the season; numbers stay in `results.json` and `analysis.md`. No outcome statement
+non-claims hold no digit other than the experiment id's, in rule V7's words (V7 binds LOCAL
+records only, so for these PUBLIC records the draft guard checks it, a check the root adds
+before the registration commit, `PIPELINE.md` section 13), and the scope names the season; numbers stay in `results.json` and `analysis.md`. No outcome statement
 says what holds "in this release", which a later promotion would make false while the
 registered statement could not change: the established statements say instead that the
 experiment itself promotes nothing. No `ESTABLISHED` outcome moves a construct (rule V6).
@@ -750,7 +764,9 @@ commit that adds it puts it on `FORMED_FROM_STATSBOMB` in `tests/test_licensing.
 `analysis.md` that names the provider goes on the list that fits it. No registry record is
 created for the leg (`PIPELINE.md` DISSENT 7, ROOT 2.9 Z5, ROOT 2.10 W6); a hosted label from it would
 need a LOCAL record that a later protocol creates. The leg's code is built and pinned with
-the pipeline, before any public outcome (`PIPELINE.md` section 10).
+the pipeline, before any public outcome (`PIPELINE.md` section 10), and the leg runs only on
+the code that produced the public results: its command refuses unless the current source
+hashes equal those recorded in the committed `results.json` (`sb_code_pin_rule`).
 
 ## 12. Predictions, written before the run
 
@@ -785,14 +801,16 @@ These are predictions, not hypotheses with a test. A miss changes nothing.
 
 The sentences are `interpretation_language` in `config.json`; `analysis.md` uses them.
 
-- Redundant, `shot_location_value` closed with `shot_volume` among the closest baselines of
-  a league closed as redundant: "Weighting shots by a location-only conversion model did not
-  separate players that counting shots does not, in the leagues where the frozen rule closed
-  it, in this corpus." (Row 6 closes it on one such league, so the sentence is limited to
-  those leagues, as the other redundant sentence is.) Redundant, every other
-  closure (another candidate, or `shot_location_value` closed against another column, such
-  as `mean_x`, which row 6 also reads): "The statistic was a near-copy of the named declared
-  baseline statistic in the leagues where the frozen rule closed it, in this corpus."
+- Redundant, applied league by league (`redundant_rule`). For a league of
+  `shot_location_value` closed as redundant with `shot_volume` among its closest baselines:
+  "Weighting shots by a location-only conversion model did not separate players that counting
+  shots does not, in the leagues where the frozen rule closed it against open-play shot
+  volume, in this corpus." (Row 6 closes it on one such league, so the sentence is limited to
+  those leagues.) For every other league closed as redundant (another candidate, or
+  `shot_location_value` closed against another column only, such as `mean_x`, which row 6
+  also reads): "The statistic was a near-copy of the named declared baseline statistic in the
+  leagues where the frozen rule closed it against that statistic, in this corpus." A candidate
+  closed in several leagues can carry both sentences, each limited to its own leagues.
   **Not**: "shot location does not matter", "xG is useless".
 - Instrument not accepted, for the token `NOT_ESTABLISHED` only: "This location-only model
   did not meet its frozen out-of-league criteria." **Not**: "conversion cannot be modelled".
@@ -835,8 +853,12 @@ within-position effect (`NULL`, with the assertion that the raw pooled reliabili
 `shot_volume` is high while its centred bound is below the band), a nuisance attribution
 effect (`NUISANCE`), and a defensive candidate that is a fixed share of all defensive
 activity within every position (`REDUNDANT_WITHIN_POSITION`). The reviser's event-level
-simulation of this exact generator and rule, before registration, met every predicate with
-the margins recorded in `selfcheck_feasibility` (synthetic numbers only, no real row read).
+simulation of 14 October, before registration, met every predicate with the margins recorded
+in `selfcheck_feasibility` (synthetic numbers only, no real row read). It ran a generator whose
+reading of the lognormal multiplier is not recorded, and the estimator before its revision;
+the third audit's check of both readings barely moved the bounds of the planted effect
+(`selfcheck_feasibility.third_audit_multiplier_check`), and the binding check is the
+pipeline's own self-check on the frozen generator.
 The audit revision lowered the minimums (9 of 12, and 8 of 12 for `PLANTED`'s `ACCEPTED`)
 so that all seventeen minimum conditions hold together with probability 0.994 at
 conservative miss rates (`joint_minimum_pass_probability`); a failed self-check after
@@ -847,8 +869,10 @@ candidates and their sentences; fingerprints equal `config.json`; the definition
 of `candidates.py` equal `config.json`, and the module opens no file; zone edges exact at the
 lattice; sentinel and unattributed rows never credited; goalkeepers excluded; `shot_volume`
 equals `compute_baselines(...)["shots_per_90"]` exactly on the same frame and minutes; the rows of
-`shot_volume` and `opp_half_defensive_actions` equal E-11's flags, computed by the imported
-`galactico.validation.provider_inputs` (pinned in the source hashes), on every row type,
+`shot_volume` and `opp_half_defensive_actions` equal the rows E-11's own quantities count
+(`open_play_shots`, `opp_half_duel_or_interception`), computed by the imported
+`galactico.validation.provider_inputs` (pinned in the source hashes), with no predicate
+restated by the test, on every row type,
 subtype and flag combination of the public adapter's closed vocabulary (ROOT 2.10 W3);
 `decide()` and the correlation helper
 pinned by their source hashes, `decide()` also by its constants and a truth table written
