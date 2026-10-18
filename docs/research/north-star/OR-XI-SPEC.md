@@ -2410,6 +2410,24 @@ breaking, different limits) can return different XIs with one integer value (4.1
 `solve_xi`. CONFLICT is the separate, certified answer, and the page prints it beside the
 shipped diagnostic, never in its place.
 
+## 14. As built (18 October 2026)
+
+The four tools, the router and the page parts were built from this file (commits `b744512`,
+`a23c5c0`, `5ae2402`) and reviewed against section 11 by three reviewers, whose findings were
+fixed and verified (`e24e67f`). Where the code departs from the text above, the code is the
+record and the departure is accepted by the root:
+
+| Section | As built |
+|---|---|
+| 0, 6 | The oracle was written whole by one author who built none of the four tools, from sections 1 to 5 alone, not in four parts by the tool builders. This is the stricter form of the same independence (ROOT 4). Its records are `collections.namedtuple` subclasses and its generator a hand-written SplitMix64 stream, because it may import only `itertools`, `math`, `fractions` and `collections`; it carries `from __future__ import annotations`, a compiler directive its AST test allows |
+| 6 | The oracle functions the table abbreviates take the instance, the worlds and the declarations as keywords (`world_pairs(instance, x, *, worlds, excluded)`, `tail_optimum(instance, k, *, worlds, locked, excluded)` and the like) |
+| 1.5, 10 | Deterministic times are recorded at ten significant digits by all four tools through one helper in `ceilings.py`; times are diagnostic and enter no input contract, so `frontier.py` and `risk.py` do not list `ceilings.py` among their source fingerprints |
+| 5.7 | A risk stage that was not run after a decided stage has its own `NOT_RUN` record; the risk input contract names its search `selection_search` |
+| 7.5 | Empty membership groups are omitted from a risk reply; the menu reply carries `world_count_texts`, the labels of the world menu; text fields the page prints and the table did not name (`attained_note`, `bound_note`, `minimum_reached_text`, `minimum_missed_text`, `dimension_labels`) are served so the page never picks an entry out of a list |
+| 7.6 | Declared rows follow `planning.declared_rows` order; a one-member conflict set reads "1 declaration" |
+| 8 | The section's lead sentence names the model each panel answers on; the page's listeners write any fault into the section's status line instead of raising into a shipped flow |
+| 11 item 15 | The 40-world risk option is not offered (`OFFERED_WORLDS = (12,)`) until its solves are timed on the corpus |
+
 ## DISSENT
 
 The root ruled every item on 14 October 2026 (ROOT-DECISIONS 2.7). Each item keeps its
