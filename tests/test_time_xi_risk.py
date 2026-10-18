@@ -290,14 +290,32 @@ def test_the_tool_runs_inside_the_routes_long_job(harness, snapshots, recorded,
     assert inside == [("xi.risk.tail",), ("xi.risk.regret",)]
 
 
+def test_each_memory_reading_lands_in_its_own_field(harness, snapshots, monkeypatch) -> None:
+    """The size before the call is VmRSS after the reset, the peak is the high-water mark read
+    after it, and the scope says whether the reset took; readers faked, so nothing depends on
+    what else the process frees."""
+    readings = iter([100 * MEGABYTE])
+    monkeypatch.setattr(harness, "current_rss_bytes", lambda: next(readings))
+    monkeypatch.setattr(harness, "peak_rss_bytes", lambda: 300 * MEGABYTE)
+    for took, scope in ((True, "call"), (False, "process")):
+        readings = iter([100 * MEGABYTE])
+        monkeypatch.setattr(harness, "reset_peak", lambda took=took: took)
+        row = harness.time_entry(snapshots[12], harness.menu(12)[0], scenario_id=SCENARIO,
+                                 world_count=12, formation="4-3-3", opt_in=False)
+        assert (row.rss_before_bytes, row.peak_rss_bytes, row.rss_scope) == (
+            100 * MEGABYTE, 300 * MEGABYTE, scope)
+
+
 def test_the_measured_fields_hold_what_they_name(harness, snapshots, recorded,
                                                  monkeypatch) -> None:
     """A tool that sleeps and holds 64 MB: tool_s holds the call, the peak the memory, and the
     solve columns the sums and maxima of the tool's own recorded times."""
     original = risk.tail_selection
+    held = []
 
     def heavy(*args, **kwargs):
         block = b"\x01" * (64 * MEGABYTE)  # every page written: resident
+        held.append(harness.current_rss_bytes())
         time.sleep(0.3)
         del block
         return original(*args, **kwargs)
@@ -306,8 +324,14 @@ def test_the_measured_fields_hold_what_they_name(harness, snapshots, recorded,
     row = harness.time_entry(snapshots[40], harness.menu(40)[2], scenario_id=SCENARIO,
                              world_count=40, formation="4-3-3", opt_in=False)
     assert row.tool_seconds >= 0.3 and row.route_seconds >= row.tool_seconds
-    if harness.current_rss_bytes() is not None:
-        assert row.peak_rss_bytes >= row.rss_before_bytes + 48 * MEGABYTE
+    if held[0] is not None:
+        # The peak is the high-water mark since the call began, so at least the resident size
+        # while the block was held. Not the size before the call plus the block: the process
+        # can free memory between the reset and the allocation, and in CI it freed more than
+        # the block (peak equal to the size before, to the byte). The kernel's resident
+        # counters are approximate (per-CPU batches), and the high-water mark it records can
+        # trail a direct VmRSS read by a few pages, hence 4 MB of slack against a 64 MB block.
+        assert row.peak_rss_bytes >= held[0] - 4 * MEGABYTE
     (result,) = [call.result for call in recorded]
     run = [r for r in result.certificate.records
            if r.purpose in ("SELECTION", "MEMBERSHIP") and r.status != "NOT_RUN"]
