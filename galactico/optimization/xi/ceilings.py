@@ -225,6 +225,16 @@ class CeilingResult:
     provenance: dict
 
 
+def _recorded_time(spent: float) -> float:
+    """A solve's deterministic time as the four tools record it: ten significant digits.
+
+    CP-SAT's float sum can differ by one ulp between identical solves (ortools 9.15.6755: 9 of
+    40 repeats of one seeded frontier solve), which would make two identical replies differ.
+    The ten digits repeat; every limit test reads the unrounded time.
+    """
+    return float(f"{spent:.10g}")
+
+
 class _Calls:
     """The CP-SAT calls of one tool call, in order, each with how it ended (OR-XI-SPEC 1.5).
 
@@ -260,7 +270,8 @@ class _Calls:
             return "NOT_RUN", None
         within = time.monotonic() < self._deadline
         spent = float(solver.deterministic_time)
-        self.deterministic_times.append({"status": name, "deterministic_time": spent})
+        self.deterministic_times.append(
+            {"status": name, "deterministic_time": _recorded_time(spent)})
         self.wall_times.append(float(solver.wall_time))
         self.statuses.append(name)
         if name == "MODEL_INVALID":
@@ -307,7 +318,8 @@ def _validated_floors(
         raise ValueError(FLOOR_REQUIREMENT_ERROR)
     for value in floors.values():
         _finite(value, "a floor")
-    return {rid: floors[rid] for rid in sorted(floors)}
+    # As floats, so one declaration has one fingerprint (exact: every floor is within 1e12).
+    return {rid: float(floors[rid]) for rid in sorted(floors)}
 
 
 def _refuse_hard(active: Sequence[TacticalRequirement]) -> None:

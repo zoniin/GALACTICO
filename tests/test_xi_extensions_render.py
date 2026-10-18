@@ -24,6 +24,7 @@ import re
 import shutil
 import subprocess
 from collections.abc import Iterator
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -70,12 +71,23 @@ OPT_IN = api.OPT_IN
 WORLD_CELL = re.compile(r'data-label="World"><div class="xi-cell">(\d+)<')
 RENDERERS = {"conflict": "conflict", "ceilings": "ceilings", "frontier": "frontier",
              "tail": "risk", "regret": "risk"}
-# Server number fields the page may print as sent (OR-XI-SPEC 8.3).
-ALLOWED_NUMBERS = frozenset({
-    "world_id", "solves", "final_set_proof_solve", "points", "world_count", "world_seed",
-    "used_world_ids", "per_solve_deterministic_limit", "selection_deterministic_limit",
-    "world_least_deterministic_limit",
-})
+# Every digit of every server string, as a letter: what is left of the digits in a drawing
+# of the marked reply is a number field printed as sent, or a number the page made.
+MARKS = str.maketrans("0123456789", "ABCDEFGHIJ")
+# The server number fields the page may print as sent (OR-XI-SPEC 8.3), each at its own
+# place: a certificate value under its term.
+CERTIFICATE_NUMBERS = {
+    "Solves": lambda c: [c.get("solves")],
+    "Points": lambda c: [c.get("points")],
+    "Proof of the set": lambda c: [c.get("final_set_proof_solve")],
+    "Worlds": lambda c: [c.get("world_count")],
+    "Used": lambda c: list(c.get("used_world_ids") or []),
+    "Worlds set aside": lambda c: [w["world_id"] for w in c.get("discarded_worlds") or []],
+    "World seed": lambda c: [c.get("world_seed")],
+    "Deterministic limit per solve": lambda c: [c.get("per_solve_deterministic_limit")],
+    "Deterministic limit per selection solve": lambda c: [c.get("selection_deterministic_limit")],
+    "Deterministic limit per world least": lambda c: [c.get("world_least_deterministic_limit")],
+}
 
 
 def run_js(tmp_path: Path, snippet: str, *, between: str = "", **data: object) -> str:
@@ -121,23 +133,121 @@ def js_number(value: object) -> str:
     return str(value)
 
 
+def kit_badge(attrs: dict) -> bool:
+    """A span the kit's Shell.evidenceBadge or verdictBadge wrote."""
+    classes = set((attrs.get("class") or "").split())
+    return attrs.get("_tag") == "span" and ({"badge", "ev"} <= classes or classes == {"verdict"})
+
+
 def visible(markup: str) -> str:
-    """What a reader sees, without the kit's own badge descriptions (its ladder sentence
-    holds the kit constants 7 and 1, not reply numbers)."""
-    stripped = re.sub(r' (aria-label|title)="[^"]*"', "", markup)
-    return shell.visible_text(stripped)
+    """What a reader sees or hears (``shell.visible_text``), without the aria-label and title of
+    the kit's evidence and verdict badges: the ladder sentence holds the kit constants 7 and 1,
+    not reply numbers. Every other aria-label and title is read."""
+    return re.sub(r"\s+", " ", " ".join(text for _, _, text in places(markup))).strip()
+
+
+class _Places(HTMLParser):
+    """Each visible chunk with the place it is printed at, as ``shell.visible_text`` reads
+    chunks: a World cell, a certificate value under its term, or elsewhere."""
+
+    VOID = frozenset({"input", "br", "img", "hr", "meta", "link", "source", "col", "wbr"})
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.stack: list[dict] = []
+        self.chunks: list[tuple[tuple, int, str]] = []  # (place, element number, text)
+        self.term, self.count, self.hidden = "", 0, 0
+
+    def _open(self, tag: str, attributes, void: bool) -> None:
+        attrs = {"_tag": tag, **{k: v or "" for k, v in attributes}}
+        self.count += 1
+        attrs["_n"] = self.count
+        if tag in ("script", "style") and not void:
+            self.hidden += 1
+        if not kit_badge(attrs):
+            for name in ("aria-label", "title"):
+                if attrs.get(name):
+                    self.chunks.append((("attribute",), self.count, attrs[name]))
+        if tag == "dt":
+            self.term = ""
+        if not void and tag not in self.VOID:
+            self.stack.append(attrs)
+
+    def handle_starttag(self, tag, attrs):
+        self._open(tag, attrs, False)
+
+    def handle_startendtag(self, tag, attrs):
+        self._open(tag, attrs, True)
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style") and self.hidden:
+            self.hidden -= 1
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i]["_tag"] == tag:
+                del self.stack[i:]
+                break
+
+    def handle_data(self, data):
+        if self.hidden or not data.strip():
+            return
+        place, number = ("other",), self.stack[-1]["_n"] if self.stack else 0
+        for attrs in reversed(self.stack):
+            if attrs["_tag"] == "dt":
+                self.term += data
+                break
+            if attrs["_tag"] == "dd":
+                place, number = ("value", self.term.strip()), attrs["_n"]
+                break
+            if attrs["_tag"] == "td" and attrs.get("data-label") == "World":
+                place, number = ("world",), attrs["_n"]
+                break
+        self.chunks.append((place, number, data))
+
+
+def places(markup: str) -> list[tuple[tuple, int, str]]:
+    parser = _Places()
+    parser.feed(markup)
+    parser.close()
+    return parser.chunks
+
+
+def marked(node):
+    """The reply with every digit of every string turned into a letter."""
+    if isinstance(node, dict):
+        return {key: marked(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [marked(value) for value in node]
+    return node.translate(MARKS) if isinstance(node, str) else node
+
+
+def runs_of(values) -> list[str]:
+    return [run for v in values if v is not None for run in re.findall(r"\d+", js_number(v))]
 
 
 def assert_digits_are_served(markup: str, reply: dict) -> None:
-    """Every digit run of the visible text lies inside a server string printed there, or is a
-    server number on the allow-list printed as sent."""
-    text = visible(markup)
-    for served in sorted({s for s in strings_of(reply) if s.strip() and s in text},
-                         key=len, reverse=True):
-        text = text.replace(served, " ")
-    allowed = {js_number(v) for key, v in numbers_of(reply) if key in ALLOWED_NUMBERS}
-    left = [run for run in re.findall(r"\d+", text) if run not in allowed]
-    assert left == [], (left, text[:600])
+    """``markup`` is the drawing of ``marked(reply)``: no server string holds a digit, so every
+    digit a reader sees is a number the page printed. Each must be a server number field on
+    the allow-list, at the place the renderer reads it (OR-XI-SPEC 8.3): a World cell, in the
+    order of the row list it prints, or a certificate value, equal to its own field. Anywhere
+    else no digit is allowed: a count or position the page made fails here."""
+    result = reply.get("result") or {}
+    certificate = result.get("certificate") or {}
+    grouped: dict[tuple, list[str]] = {}
+    worlds: list[str] = []
+    for place, number, text in places(markup):
+        runs = re.findall(r"\d+", text)
+        if place[0] == "world":
+            worlds += runs
+        elif place[0] == "value":
+            grouped.setdefault((place, number), []).extend(runs)
+        else:
+            assert runs == [], (place, text[:200])
+    for ((_, term), _), runs in grouped.items():
+        field = CERTIFICATE_NUMBERS.get(term)
+        assert runs == (runs_of(field(certificate)) if field else []), (term, runs)
+    rows = (result.get("tail_rows") if result.get("tail_sum")
+            else (result.get("binding_rows") or []) + (result.get("world_rows") or []))
+    assert worlds == runs_of(row["world_id"] for row in rows or [])
 
 
 def reply_for(make_client, route: str, body: dict | None = None, **options) -> dict:
@@ -160,12 +270,15 @@ def make_client(lab_client):
 
 
 def drawn(tmp_path: Path, route: str, reply: dict) -> str:
+    """The panel's drawing of ``reply``, after the copy guard and the digit rule: the second
+    drawing, of the marked reply, holds only the digits the page printed itself."""
     panel = RENDERERS[route]
-    markup = json.loads(run_js(
-        tmp_path, f"console.log(JSON.stringify(clean('{panel}', R.{panel}(REPLY))));",
-        REPLY=reply))
+    markup, digits = json.loads(run_js(
+        tmp_path, f"console.log(JSON.stringify([clean('{panel}', R.{panel}(REPLY)), "
+                  f"clean('{panel}', R.{panel}(MARKED))]));",
+        REPLY=reply, MARKED=marked(reply)))
     assert scan_labels(visible(markup)) == [], scan_labels(visible(markup))
-    assert_digits_are_served(markup, reply)
+    assert_digits_are_served(digits, reply)
     return markup
 
 
@@ -192,6 +305,44 @@ def test_the_file_is_one_global_beside_the_page_names_and_touches_no_document(tm
     assert "%" not in re.sub(r"/\*.*?\*/", "", source, flags=re.S).replace("'%'", "")
 
 
+def test_the_file_declares_nothing_in_script_scope():
+    # The harness evaluates the files inside one module, where a top-level declaration would
+    # not reach the page's classic-script scope; so the program itself is checked: after its
+    # leading comment it is one call of one function expression, and nothing else.
+    source = KIT.read_text(encoding="utf-8")
+    code = re.sub(r"\A/\*.*?\*/\s*", "", source, count=1, flags=re.S)
+    assert code.startswith("(function (root) {\n")
+    assert code.rstrip().endswith("})(window);") and code.count("})(window);") == 1
+    # Where node exposes its own parser, the program's top level is that one statement.
+    probe = (
+        "let acorn; try { acorn = require('internal/deps/acorn/acorn/dist/acorn'); }"
+        " catch (error) { console.log('null'); process.exit(0); }"
+        " const ast = acorn.parse(require('fs').readFileSync(process.argv[1], 'utf8'),"
+        " {ecmaVersion: 'latest', sourceType: 'script'});"
+        " console.log(JSON.stringify(ast.body.map(n => n.type + ':' +"
+        " (n.expression ? n.expression.type + ':' + n.expression.callee.type : ''))));"
+    )
+    found = subprocess.run([NODE, "--expose-internals", "-e", probe, str(KIT)],
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
+    if found.returncode == 0 and found.stdout.strip() != "null":
+        assert json.loads(found.stdout) == [
+            "ExpressionStatement:CallExpression:FunctionExpression"]
+
+
+def test_visible_text_is_the_shells_less_only_the_kit_badge_descriptions(tmp_path, client):
+    reply = api.ok(client, "tail", {**api.TAIL, **api.OPT_IN})
+    markup = drawn(tmp_path, "tail", reply)
+    assert 'class="badge ev' in markup and 'class="verdict"' in markup
+    unbadged = markup
+    for _ in range(4):  # each badge has an aria-label, a title or both
+        unbadged = re.sub(r'(<span class="(?:badge ev[^"]*|verdict)"[^>]*?) (?:aria-label|title)='
+                          r'"[^"]*"', r"\1", unbadged)
+    assert visible(markup) == shell.visible_text(unbadged)
+    # Every other aria-label is read: the plot's, on a frontier drawing.
+    plot = drawn(tmp_path, "frontier", api.ok(client, "frontier"))
+    assert "The listed points of the first two declared requirements" in visible(plot)
+
+
 def test_the_frame_has_four_panels_in_their_order_with_every_button_disabled(tmp_path):
     markup = json.loads(run_js(tmp_path, "console.log(JSON.stringify(clean('frame', R.frame())));"))
     ids = re.findall(r'id="([^"]+)"', markup)
@@ -208,6 +359,12 @@ def test_the_frame_has_four_panels_in_their_order_with_every_button_disabled(tmp
         in markup
     assert 'id="conflict-panel" class="panel xi-panel hidden"' in markup
     assert visible(markup).count("Re-solve the main XI first.") == 4
+    # The lead claims only what holds in every state: without the opt-in the ceilings and risk
+    # panels answer on a model that is not the main solve's, and their replies say so.
+    lead = re.search(r'<p class="small subtle xi-lead">([^<]+)</p>', markup).group(1)
+    assert "model solved above" not in lead and "of the XI model" not in lead
+    assert "Where an answer holds other requirements in force than the solve above, it says " \
+        "so." in lead
     assert "Explain, including the two EXPERIMENTAL requirements the solve above used" in markup
     assert scan_labels(visible(markup)) == [] and not re.search(r"\d", visible(markup))
     # Names the shipped specs select without a scope are never used here.
@@ -241,6 +398,7 @@ def test_the_ledger_rewrite_gives_each_panel_its_own_ids_in_both_kit_forms(tmp_p
 
 @pytest.mark.parametrize("change", [
     "markup.replace('id=\"ledger-declared\"', 'id=\"ledger-declared-2\"')",
+    "markup.replace('id=\"evidence-ledger\"', 'id=\"evidence-ledger-2\"')",
     "markup.replace('class=\"ledger evidence-ledger\" id=\"evidence-ledger\"', "
     "'id=\"evidence-ledger\" class=\"ledger evidence-ledger\"')",
     "markup + '<div class=\"unavailable\" id=\"evidence-ledger\"></div>'",
@@ -306,6 +464,52 @@ def test_hostile_server_strings_are_escaped_everywhere(tmp_path, client):
         tmp_path, "console.log(JSON.stringify(clean('c', R.conflict(REPLY))));", REPLY=reply))
     assert "<img" not in markup and "<script>" not in markup
     assert "&lt;img src=x onerror=alert(1)&gt;" in markup
+
+
+def test_hostile_server_strings_are_escaped_in_the_other_three_panels(tmp_path, client):
+    ranges = api.ok(client, "ceilings", OPT_IN)
+    for g in ranges["result"]["ranges"]:
+        g["label"] = g["minimum_text"] = g["minimum_reached_text"] = HOSTILE
+        g["largest"]["attained_text"] = g["least"]["bound_text"] = HOSTILE
+    points = api.ok(client, "frontier")
+    result = points["result"]
+    result["dimension_labels"] = [HOSTILE, HOSTILE]
+    result["status_text"] = result["point_order"] = result["witness_text"] = HOSTILE
+    for point in result["points"]:
+        point["plot_x"] = point["plot_y"] = HOSTILE  # SVG attributes
+        point["point_texts"] = point["raw_sum_texts"] = point["allowance_texts"] = [HOSTILE] * 2
+        for row in point["lineup_rows"]:
+            row["slot_label"] = row["player_text"] = HOSTILE
+    chosen = {}
+    for route, body in (("tail", {**api.TAIL, **api.OPT_IN}), ("regret", api.REGRET)):
+        reply = api.ok(client, route, body)
+        r = reply["result"]
+        for row in r["tail_rows"] + r["boundary_rows"]:
+            row["maximum_shortfall_text"] = row["total_shortfall_text"] = HOSTILE
+        for row in r["binding_rows"] + r["world_rows"]:
+            row["selected_texts"]["total_shortfall_text"] = HOSTILE
+            if row["least_texts"]:
+                row["least_texts"]["maximum_shortfall_text"] = HOSTILE
+        for item in r["point_sum_texts"]:
+            item["label"] = item["sum_text"] = HOSTILE
+        for group in r["membership"]["groups"]:
+            group["heading"] = HOSTILE
+            for row in group["rows"]:
+                row["player_text"] = HOSTILE
+        r["boundary_ties_text"] = r["draw_text"] = r["discarded_text"] = HOSTILE
+        r["certificate"]["growth"] = r["certificate"]["world_fingerprint"] = HOSTILE
+        if r["tail_sum"]:
+            r["tail_sum"]["summed_total_shortfall_text"] = HOSTILE
+        reply["verdicts"]["risk_rule"]["badge"] = HOSTILE
+        chosen[route] = reply
+    out = json.loads(run_js(tmp_path, """
+      console.log(JSON.stringify([clean('c', R.ceilings(RANGES)), clean('f', R.frontier(POINTS)),
+        clean('t', R.risk(TAIL)), clean('r', R.risk(REGRET))]));
+    """, RANGES=ranges, POINTS=points, TAIL=chosen["tail"], REGRET=chosen["regret"]))
+    for markup in out:
+        assert "<img" not in markup and "<script>" not in markup
+        assert "&lt;img src=x onerror=alert(1)&gt;" in markup
+    assert 'cx="&lt;img src=x onerror=alert(1)&gt;&quot;' in out[1]
 
 
 def test_conflict_panel_prints_the_served_claim_sentence_and_member_rows_in_order(
@@ -451,10 +655,35 @@ def test_frontier_rows_and_circles_are_drawn_alike_in_reply_order(tmp_path, clie
     assert 'id="frontier-evidence-ledger"' in markup and 'data-evidence="EXPERIMENTAL"' in markup
     if reply["result"]["certificate"]["completeness"] != "COMPLETE":
         assert x.FRONTIER_COMPLETE.format(xi="XI") not in text and "Complete:" not in text
-    # The solver's status token OPTIMAL in the certificate's status fields is exempt (4).
-    words = text.replace("OPTIMAL", " ")
-    for word in ("best", "optimal", "trade-off", "tradeoff", "knee", "dominant", "recommended"):
+    # The solver's status token OPTIMAL is exempt in a status field of the certificate and
+    # nowhere else (4).
+    status_fields = {"Status", "Statuses", "Final region"}
+    words = " ".join(
+        chunk.replace("OPTIMAL", " ") if place[0] == "value" and place[1] in status_fields
+        else chunk for place, _, chunk in places(markup))
+    for word in ("best", "optimal", "trade-off", "tradeoff", "trade off", "knee", "dominant",
+                 "recommended"):
         assert not re.search(rf"\b{word}\b", words, re.I), word
+
+
+def test_a_three_dimension_frontier_prints_three_columns_and_no_plot(tmp_path, client):
+    dims = ["progression", "left_pass_origins", "right_pass_origins"]
+    reply = api.ok(client, "frontier", {"dimensions": dims, **OPT_IN})
+    points = reply["result"]["points"]
+    assert len(points) >= 2 and all(p["plot_x"] is None for p in points)
+    markup = drawn(tmp_path, "frontier", reply)
+    assert "<svg" not in markup.split('id="frontier-ledger-declared"')[0].replace(
+        '<svg class="ev-rung"', "") and "<circle" not in markup
+    head, *rows = markup.split("xi-frontier-table")[1].split('<tr class="xi-point-row">')
+    headers = re.findall(r"<th>([^<]*)</th>", head)
+    assert headers[:3] == [f"{label} · rounded sum, in club medians"
+                           for label in reply["result"]["dimension_labels"]]
+    assert len(rows) == len(points)
+    for inner, point in zip(rows, points, strict=True):
+        cells = re.findall(r'<td data-label="([^"]*)"><div class="xi-cell"><span class="mono">'
+                           r"([^<]*)</span>", inner)
+        assert [text for _, text in cells] == point["point_texts"]  # three, in declared order
+        assert [label for label, _ in cells] == headers[:3]
 
 
 @pytest.mark.parametrize("plan, body, sentence", [
@@ -588,6 +817,16 @@ def test_every_selector_of_the_sheet_is_scoped_to_the_page_parts():
         own = all(re.fullmatch(r"[.#]xi-[\w-]+", part)
                   for part in re.findall(r"[.#][\w-]+|\b[a-z]+\b", selector))
         assert scoped or own, selector
+        # A sibling combinator outside parentheses, or :has() on the scope root, reaches a
+        # shipped element beside the mount (the provenance <details> after it, xi.html).
+        top = re.sub(r"\([^()]*\)", "", selector)
+        assert "~" not in top and "+" not in top, selector
+        assert not re.match(r"#xi-extensions\s*:(has|is|where)\(", selector), selector
+    # The rule rejects what it is for.
+    for reaching in ("#xi-extensions ~ details pre", "#xi-extensions + details",
+                     "#xi-extensions:has(.xi-panel) ~ pre"):
+        top = re.sub(r"\([^()]*\)", "", reaching)
+        assert "~" in top or "+" in top
     assert "#xi-extensions .xi-ledger-declared td{overflow-wrap:anywhere}" in sheet
     assert "rgb(201" not in sheet and "--gold" not in sheet
     assert "@media(max-width:600px)" in sheet and "attr(data-label)" in sheet

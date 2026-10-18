@@ -18,6 +18,7 @@ import copy
 import dataclasses
 import inspect
 import json
+import math
 import os
 import re
 import subprocess
@@ -341,10 +342,13 @@ def test_the_router_copy_of_the_requirements_equals_decision_inputs():
 # ------------------------------------------------------------------------- the GET
 
 
-def test_the_menus_are_corpus_free_finalized_and_offer_no_tail_of_one(lab_client, monkeypatch):
+def test_the_menus_are_corpus_free_finalized_and_offer_no_tail_of_one(lab_client, monkeypatch,
+                                                                       tmp_path):
     def no_corpus(*_args, **_kwargs):
         raise FileNotFoundError("competition=Spain/actions.parquet")
 
+    # No corpus by any path: the public root is an empty directory as well.
+    monkeypatch.setattr(public, "PUBLIC", tmp_path)
     client = lab_client(x.router, patches={
         "galactico.api.xi_extensions._match_snapshot": no_corpus,
         "galactico.api.xi_extensions.corpus_token": no_corpus,
@@ -356,6 +360,7 @@ def test_the_menus_are_corpus_free_finalized_and_offer_no_tail_of_one(lab_client
     assert runtime.finalize(menus) == menus and scan_labels(menus) == []
     assert menus["provenance"] == {"providers": ["pappalardo"]}
     assert menus["world_counts"] == [12] and menus["tail_counts"] == {"12": [2, 3, 6]}
+    assert menus["world_count_texts"] == {"12": "12 worlds"}
     options = menus["rule_options"]["12"]
     assert [o["rule"] for o in options] == ["WORST_WORLD", "TAIL", "TAIL", "TAIL",
                                             "MINIMAX_REGRET"]
@@ -471,22 +476,22 @@ def assert_refused(reply, *secrets) -> None:
     ("ceilings", {"minimums": {"chance_creation": 4.25}}, ("4.25",)),
     ("ceilings", {"floors": {"progression": 1000.5}}, ("1000.5",)),
     ("ceilings", {"formation": "3-5-2"}, ("3-5-2",)),
-    ("tail", {"bootstrap_worlds": 12.0, "rule": "WORST_WORLD"}, ()),
-    ("tail", {"bootstrap_worlds": "12", "rule": "WORST_WORLD"}, ()),
-    ("tail", {"bootstrap_worlds": True, "rule": "WORST_WORLD"}, ()),
-    ("tail", {"bootstrap_worlds": 0, "rule": "WORST_WORLD"}, ()),
-    ("tail", {"bootstrap_worlds": 40, "rule": "WORST_WORLD"}, ()),
+    ("tail", {"bootstrap_worlds": 12.0, "rule": "WORST_WORLD"}, ("12.0",)),
+    ("tail", {"bootstrap_worlds": "12", "rule": "WORST_WORLD"}, ('"12"',)),
+    ("tail", {"bootstrap_worlds": True, "rule": "WORST_WORLD"}, ("true", "True")),
+    ("tail", {"bootstrap_worlds": 0, "rule": "WORST_WORLD"}, ("0",)),
+    ("tail", {"bootstrap_worlds": 40, "rule": "WORST_WORLD"}, ("40",)),
     ("tail", {"bootstrap_worlds": 80, "rule": "WORST_WORLD"}, ("80",)),
     ("tail", {"rule": "WORST_WORLD"}, ()),
     ("tail", {"bootstrap_worlds": 12}, ()),
     ("tail", {"bootstrap_worlds": 12, "rule": "TAIL"}, ()),
-    ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 1}, ()),
-    ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 4}, ()),
-    ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 3.0}, ()),
-    ("tail", {"bootstrap_worlds": 12, "rule": "WORST_WORLD", "tail_count": 1}, ()),
-    ("tail", {"bootstrap_worlds": 12, "rule": "MINIMAX_REGRET"}, ()),
-    ("regret", {"bootstrap_worlds": 12, "tail_count": 2}, ()),
-    ("regret", {"bootstrap_worlds": 40}, ()),
+    ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 1}, ("1",)),
+    ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 4}, ("4",)),
+    ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 3.0}, ("3.0",)),
+    ("tail", {"bootstrap_worlds": 12, "rule": "WORST_WORLD", "tail_count": 1}, ("1",)),
+    ("tail", {"bootstrap_worlds": 12, "rule": "MINIMAX_REGRET"}, ("MINIMAX",)),
+    ("regret", {"bootstrap_worlds": 12, "tail_count": 2}, ("2",)),
+    ("regret", {"bootstrap_worlds": 40}, ("40",)),
     ("conflict", {"explains": "solve", "mode": "SATISFY", "floors": {}, **OPT_IN}, ()),
     ("conflict", {"explains": "floors", "mode": "SATISFY"}, ()),
     ("conflict", {"explains": "solve", **OPT_IN}, ()),
@@ -494,13 +499,13 @@ def assert_refused(reply, *secrets) -> None:
                   "minimums": {"progression": 0.75}}, ("0.75", "0.25")),
     ("conflict", {"mode": "SATISFY"}, ()),
     ("conflict", {"explains": "why", "mode": "SATISFY"}, ("why",)),
-    ("frontier", {"dimensions": ["progression", "progression"], **OPT_IN}, ()),
+    ("frontier", {"dimensions": ["progression", "progression"], **OPT_IN}, ("progression",)),
     ("frontier", {"dimensions": ["progression"], **OPT_IN}, ()),
     ("frontier", {**OPT_IN}, ()),
-    ("frontier", {**DIMS, **OPT_IN, "max_points": 0}, ()),
-    ("frontier", {**DIMS, **OPT_IN, "max_points": 65}, ()),
-    ("frontier", {**DIMS, **OPT_IN, "max_points": True}, ()),
-    ("frontier", {**DIMS, **OPT_IN, "max_points": 2.0}, ()),
+    ("frontier", {**DIMS, **OPT_IN, "max_points": 0}, ("0",)),
+    ("frontier", {**DIMS, **OPT_IN, "max_points": 65}, ("65",)),
+    ("frontier", {**DIMS, **OPT_IN, "max_points": True}, ("true", "True")),
+    ("frontier", {**DIMS, **OPT_IN, "max_points": 2.0}, ("2.0",)),
 ])
 def test_a_malformed_request_is_a_422_that_echoes_no_value(client, route, body, secrets):
     assert_refused(ask(client, route, body), *secrets)
@@ -599,15 +604,38 @@ def test_identical_requests_are_one_computation_and_locks_one_key(client, monkey
     assert opted == ["declared-scenario", "declared-template", "declared-experimental-opt-in"]
 
 
+def state_of(payload: dict) -> str:
+    """CEILING's feasible set, or any other tool's status."""
+    result = payload["result"]
+    return result["certificate"]["feasible_set"] if payload["tool"] == "xi.ceilings" \
+        else result["status"]
+
+
 def test_a_deadline_reply_is_not_stored_and_a_proved_terminal_reply_is(client, monkeypatch):
     unfieldable = {"locks": [7], "excludes": [7]}
     for route, body in (("ceilings", unfieldable),
                         ("frontier", {**BODIES["frontier"], **unfieldable}),
                         ("tail", {**TAIL, **unfieldable}), ("regret", {**REGRET, **unfieldable}),
-                        ("conflict", {"explains": "floors"})):
+                        ("conflict", {"explains": "floors"}),
+                        # NOT_SATISFIABLE, proved by an INFEASIBLE solve and its cause solve.
+                        ("ceilings", {"floors": {"progression": 1000.0}}),
+                        ("frontier", {**BODIES["frontier"], "floors": {"progression": 1000.0}})):
         first, second = ask(client, route, body), ask(client, route, body)
         assert (cache(first), cache(second)) == ("miss", "hit"), route
         assert runtime.is_complete(first.json())
+        if body.get("floors"):
+            assert state_of(first.json()) == "NOT_SATISFIABLE", route
+    # FLOORS_UNMET: no XI meets the floors (proved), whether one exists without them is not
+    # decided, so it is never stored. Another floor, so the stored reply above is not read.
+    for route, body in (("ceilings", {"floors": {"progression": 999.0}}),
+                        ("frontier", {**BODIES["frontier"], "floors": {"progression": 999.0}})):
+        with monkeypatch.context() as patch:
+            plant(patch, {2: {"status": cp_model.UNKNOWN}, 4: {"status": cp_model.UNKNOWN}})
+            first, second = ask(client, route, body), ask(client, route, body)
+        payload = first.json()
+        assert state_of(payload) == "FLOORS_UNMET", route
+        assert (cache(first), cache(second)) == ("miss", "miss"), route
+        assert not runtime.is_complete(payload)
     passed_deadline(monkeypatch)
     for route in PATHS:
         body = {**BODIES[route], "locks": [3563]}
@@ -625,7 +653,10 @@ def test_not_evaluable_risk_is_exact_with_an_empty_exact_membership_and_stored(m
     result = payload["result"]
     assert result["status"] == "NOT_EVALUABLE"
     assert result["membership"] == {"rows": [], "completeness": "EXACT", "groups": []}
-    assert x.RISK_NOT_EVALUABLE in payload["statements"]
+    labels = "Positive completed-pass xT per 90"
+    assert payload["statements"] == [
+        x.RISK_BALANCE, x.RISK_DISCARDED.format(d=12, B=12, labels=labels),
+        x.RISK_SAME_DRAW.format(B=12), x.RISK_NOT_EVALUABLE]
     assert (cache(first), cache(second)) == ("miss", "hit")
     rows = {row["row_id"]: row for row in payload["ledger"]}
     assert rows["risk-tail-sums"]["value_text"] is None
@@ -775,13 +806,18 @@ def test_an_end_not_certified_and_an_end_without_a_bound_print_no_number(client,
 
 
 def test_ceiling_reached_not_certified_on_an_unproved_largest_end(client, monkeypatch):
+    # A minimum above the least witness's sum, so that witness cannot decide "reached": with
+    # the LARGEST end undecided nothing does, and the reason sentence must be served.
+    least = ok(client, "ceilings")["result"]["ranges"][0]["least"]["attained_text"]
+    minimum = math.floor(float(least)) + 1.5
     plant(monkeypatch, {1: {"status": cp_model.UNKNOWN}})
-    g = ok(client, "ceilings")["result"]["ranges"][0]
-    assert g["minimum_reached_reason"] == "NOT_CERTIFIED"
-    # The least end's witness can still decide reached; when it does not, the reason sentence.
-    if g["minimum_reached_by_some_xi"] is None:
-        assert g["minimum_reached_text"] == x.CEILING_REACHED_NOT_CERTIFIED.format(
-            label=g["label"], minimum="≈ 10.0000")
+    g = ok(client, "ceilings", {"minimums": {"progression": minimum}})["result"]["ranges"][0]
+    assert g["largest"]["certification"] == "NO_SOLUTION"
+    assert (g["minimum_reached_by_some_xi"], g["minimum_reached_reason"]) == (
+        None, "NOT_CERTIFIED")
+    assert g["minimum_text"] == f"{minimum}"
+    assert g["minimum_reached_text"] == x.CEILING_REACHED_NOT_CERTIFIED.format(
+        label=g["label"], minimum=g["minimum_text"])
 
 
 def test_ceiling_allowance_sentence_on_a_quantized_optimal_end(client):
@@ -893,6 +929,28 @@ def test_floors_absent_and_floors_empty_never_share_a_declared_ledger(client):
     assert {r["label"]: r["value_text"] for r in empty["declared"]}["Floors"] == "none"
 
 
+def test_a_feasible_model_is_explained_by_one_xi_shown_and_no_set(client):
+    # Every requirement at its minimum, conservatively: the default snapshot holds an XI.
+    first = ask(client, "conflict", {"explains": "floors"})
+    second = ask(client, "conflict", {"explains": "floors"})
+    payload = first.json()
+    result = payload["result"]
+    assert result["status"] == "MODEL_FEASIBLE"
+    assert payload["claim"] == result["claim"] == conflict.CONFLICT_FEASIBLE
+    assert payload["statements"] == [x.CONFLICT_CONSERVATIVE]
+    # The claim says one such XI is shown: it is, one row per slot, and no member is.
+    assert len(result["feasible_rows"]) == len(payload["slots"]) == 11
+    assert [r["slot_label"] for r in result["feasible_rows"]] == [
+        s["label"] for s in payload["slots"]]
+    assert (result["member_rows"], result["conflict"], result["tests"],
+            result["restore_tests"]) == ([], [], [], [])
+    row = {r["row_id"]: r for r in payload["ledger"]}["conflict-set"]
+    assert row["value_text"] == "0 declarations"
+    assert row["solver"] == "MODEL_FEASIBLE · EXACT · 1/100000"
+    assert runtime.is_complete(payload)
+    assert (cache(first), cache(second)) == ("miss", "hit")
+
+
 @pytest.mark.parametrize("plan, status, value", [
     ({1: {"status": cp_model.MODEL_INVALID}}, "MODEL_INVALID", None),
     ({1: {"status": cp_model.UNKNOWN}}, "UNDECIDED", None),
@@ -967,7 +1025,9 @@ def test_an_undecided_member_never_reads_needed(client, monkeypatch):
 
 
 def frontier_reply(client, monkeypatch=None, plan=None, **body) -> dict:
-    if plan is not None:
+    if plan == "deadline":
+        passed_deadline(monkeypatch)
+    elif plan is not None:
         plant(monkeypatch, plan)
     return ok(client, "frontier", {**BODIES["frontier"], **body})
 
@@ -977,29 +1037,37 @@ def completeness_words(payload) -> list[str]:
             or text.startswith("Every combination")]
 
 
-@pytest.mark.parametrize("plan, body, status, status_text, value", [
-    (None, {}, "FRONTIER", "COMPLETE", "8 points"),
+@pytest.mark.parametrize("plan, body, status, status_text, value, stopped_by", [
+    (None, {}, "FRONTIER", "COMPLETE", "8 points", None),
     (None, {"max_points": 1}, "INCOMPLETE", "LIMIT",
-     "1 point listed; the list is not complete"),
+     "1 point listed; the list is not complete", "POINT_LIMIT"),
     (None, {"max_points": 3}, "INCOMPLETE", "LIMIT",
-     "3 points listed; the list is not complete"),
+     "3 points listed; the list is not complete", "POINT_LIMIT"),
     ({6: {"status": cp_model.UNKNOWN}}, {}, "INCOMPLETE", "STOPPED",
-     "2 points listed; the list is not complete"),
-    ({1: {"status": cp_model.UNKNOWN, "spent": 10.0}}, {}, "INCOMPLETE", "STOPPED_NONE", None),
-    ({1: {"status": cp_model.MODEL_INVALID}}, {}, "MODEL_INVALID", "REFUSED", None),
+     "2 points listed; the list is not complete", "WALL_CLOCK"),
+    # A deterministic stop after points is a stop, never the point limit.
+    ({6: {"status": cp_model.UNKNOWN, "spent": 10.0}}, {}, "INCOMPLETE", "STOPPED",
+     "2 points listed; the list is not complete", "DETERMINISTIC_LIMIT"),
+    ({1: {"status": cp_model.UNKNOWN, "spent": 10.0}}, {}, "INCOMPLETE", "STOPPED_NONE", None,
+     "DETERMINISTIC_LIMIT"),
+    # The deadline passed at entry: no solve, no point, and never "0 points".
+    ("deadline", {}, "INCOMPLETE", "STOPPED_NONE", None, "WALL_CLOCK"),
+    ({1: {"status": cp_model.MODEL_INVALID}}, {}, "MODEL_INVALID", "REFUSED", None, None),
     ({3: {"status": cp_model.MODEL_INVALID}}, {}, "MODEL_INVALID", "REFUSED",
-     "1 point listed; the list is not complete"),
-    (None, {"locks": [7], "excludes": [7]}, "UNFIELDABLE", None, "0 points"),
-    (None, {"floors": {"progression": 1000.0}}, "NOT_SATISFIABLE", None, "0 points"),
+     "1 point listed; the list is not complete", None),
+    (None, {"locks": [7], "excludes": [7]}, "UNFIELDABLE", None, "0 points", None),
+    (None, {"floors": {"progression": 1000.0}}, "NOT_SATISFIABLE", None, "0 points", None),
     ({2: {"status": cp_model.UNKNOWN}}, {"floors": {"progression": 1000.0}}, "FLOORS_UNMET",
-     None, None),
+     None, None, "WALL_CLOCK"),
 ])
 def test_frontier_status_text_ledger_and_completeness_by_state(client, monkeypatch, plan, body,
-                                                              status, status_text, value):
+                                                              status, status_text, value,
+                                                              stopped_by):
     payload = frontier_reply(client, monkeypatch, plan, **body)
     result = payload["result"]
     n = len(result["points"])
     assert result["status"] == status
+    assert result["certificate"]["stopped_by"] == stopped_by
     expected = {
         "COMPLETE": x.FRONTIER_COMPLETE.format(xi="XI"),
         "LIMIT": x.FRONTIER_LIMIT.format(n=result["certificate"]["max_points"]),
@@ -1293,7 +1361,9 @@ def test_risk_states_carry_their_statements(make_client, monkeypatch):
     labels = ("Positive completed-pass xT per 90, Left wide-channel pass origins per 90 and "
               "Right wide-channel pass origins per 90")
     sentence = x.RISK_DISCARDED.format(d=1, B=12, labels=labels)
-    assert sentence in discarded["statements"]
+    same_draw = x.RISK_SAME_DRAW.format(B=12)
+    # Exactly the 7.5 table's constants for each state, in its order, none repeated.
+    assert discarded["statements"] == [x.RISK_BALANCE, x.RISK_WITNESS, sentence, same_draw]
     rows = {row["row_id"]: row for row in discarded["ledger"]}
     assert (rows["risk-discarded"]["value_text"], rows["risk-discarded"]["sample"]) \
         == ("1 of 12", sentence)
@@ -1302,9 +1372,18 @@ def test_risk_states_carry_their_statements(make_client, monkeypatch):
     plant(monkeypatch, {1: {"status": cp_model.MODEL_INVALID}}, module=risk)
     refused = ok(client, "tail", {**TAIL, **OPT_IN, "locks": [3563]})
     assert refused["result"]["status"] == "MODEL_INVALID"
-    assert x.SOLVER_REFUSED in refused["statements"]
+    assert refused["statements"] == [x.RISK_BALANCE, same_draw, x.SOLVER_REFUSED]
     assert refused["result"]["lineup_rows"] == [] and refused["result"]["tail_rows"] == []
     assert {r["row_id"]: r for r in refused["ledger"]}["risk-tail-sums"]["value_text"] is None
+    for route, body in (("tail", TAIL), ("regret", REGRET)):
+        empty = ok(client, route, {**body, "locks": [7], "excludes": [7]})
+        assert empty["result"]["status"] == "UNFIELDABLE", route
+        assert empty["statements"] == [x.RISK_BALANCE, same_draw], route
+    passed_deadline(monkeypatch)
+    for route, body in (("tail", TAIL), ("regret", REGRET)):
+        late = ok(client, route, {**body, "locks": [8]})
+        assert late["result"]["status"] == "UNKNOWN", route
+        assert late["statements"] == [x.RISK_BALANCE, same_draw], route
 
 
 def test_a_regret_reply_prints_two_pairs_per_binding_world_and_never_a_difference(client):
@@ -1366,12 +1445,19 @@ def test_no_encoding_of_a_pair_leaves_in_a_served_reply(client):
         result = payload["result"]
         q = result["certificate"]["quantization"]
         used = result["certificate"]["used_world_ids"]
-        # With non-negative rates L = 0, so T_bound is the summed half-even targets.
-        in_force = [r["requirement_id"] for r in payload["requirements_in_force"]]
-        total = sum(round(10.0 / 10.0 * q) for _ in in_force)
+        # T_bound from the reply's own declarations (the hashed model in its provenance): every
+        # rate of the fixture is non-negative, so L = 0 and T_bound is the summed half-even
+        # targets of the requirements in force.
+        in_force = {r["requirement_id"] for r in payload["requirements_in_force"]}
+        declared = payload["provenance"]["tool"]["input_contract"]["kernel"]
+        assert all(v is None or v >= 0 for c in declared["candidates"]
+                   for v in c["values"].values())
+        total = sum(round(r["minimum"] / r["normalizer"] * q)
+                    for r in declared["requirements"] if r["requirement_id"] in in_force)
+        assert total >= 1
         big = 2 * len(used) * total + 1
         found = {big}
-        encoded = []
+        encoded, gaps = [], []
         for row in result["world_losses"]:
             pair = row["selected"]
             encoded.append(big * pair["maximum_shortfall"] + pair["total_shortfall"])
@@ -1380,16 +1466,36 @@ def test_no_encoding_of_a_pair_leaves_in_a_served_reply(client):
             least = row["world_least"]
             if least and least["maximum_shortfall"] >= 1:
                 found.add(big * least["maximum_shortfall"] + least["total_shortfall"])
+            if least:
+                gaps.append((pair["maximum_shortfall"] - least["maximum_shortfall"],
+                             encoded[-1] - big * least["maximum_shortfall"]
+                             - least["total_shortfall"]))
         if result["tail_sum"]:
             found.add(sum(sorted(encoded, reverse=True)[: result["tail_count"]]))
+        if gaps and max(gaps)[0] >= 1:  # rho*, the largest encoded gap of the XI shown
+            found.add(max(gaps)[1])
+        assert route != "regret" or max(gaps)[1] in found  # not vacuous on the regret reply
         allowed = {v for key, v in walk_numbers(payload) if key in ALLOWED_NUMBER_KEYS}
         forbidden = found - allowed
         assert forbidden
         for key, number in walk_numbers(payload):
             assert number not in forbidden, (route, key)
-        for path, text in strings(payload):
+        # Every served string, provenance included.
+        for path, text in every_string(payload):
             assert not {int(t) for t in token.findall(text)} & forbidden, path
         assert not [k for k in keys_of(payload) if re.search("encod|big|base|objective", k, re.I)]
+
+
+def every_string(node, path: str = "") -> Iterator[tuple[str, str]]:
+    """(path, text) of every string of a reply, provenance included."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            yield from every_string(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for i, value in enumerate(node):
+            yield from every_string(value, f"{path}[{i}]")
+    elif isinstance(node, str):
+        yield path, node
 
 
 def keys_of(node) -> list[str]:
@@ -1403,26 +1509,76 @@ def keys_of(node) -> list[str]:
 # --------------------------------------------------------------- every terminal state
 
 
-def test_every_completeness_token_is_one_of_section_one_and_caching_follows_it(client,
-                                                                             monkeypatch):
-    allowed = {"EXACT", "COMPLETE", "LIMIT_REACHED", "DEADLINE", "MODEL_INVALID"}
-    for route in PATHS:
-        payload = ok(client, route)
+BOTH = {"locks": [7], "excludes": [7]}
+HIGH = {"floors": {"progression": 1000.0}}
+INVALID = {"status": cp_model.MODEL_INVALID}
+UNDECIDED = {"status": cp_model.UNKNOWN}
+# Terminal states of every tool: (route, body, plan, planted module, client options, state,
+# stored). ``plan`` "deadline" passes the deadline at entry.
+TERMINAL_STATES = [
+    ("ceilings", {}, None, kernel, {}, "FIELDABLE", True),
+    ("ceilings", BOTH, None, kernel, {}, "UNFIELDABLE", True),
+    ("ceilings", HIGH, None, kernel, {}, "NOT_SATISFIABLE", True),
+    ("ceilings", HIGH, {2: UNDECIDED}, kernel, {}, "FLOORS_UNMET", False),
+    ("ceilings", {}, {1: INVALID}, kernel, {}, "MODEL_INVALID", False),
+    ("ceilings", {}, "deadline", kernel, {}, "UNKNOWN", False),
+    ("frontier", {}, None, kernel, {}, "FRONTIER", True),
+    ("frontier", BOTH, None, kernel, {}, "UNFIELDABLE", True),
+    ("frontier", HIGH, None, kernel, {}, "NOT_SATISFIABLE", True),
+    ("frontier", HIGH, {2: UNDECIDED}, kernel, {}, "FLOORS_UNMET", False),
+    ("frontier", {}, {3: INVALID}, kernel, {}, "MODEL_INVALID", False),
+    ("frontier", {}, "deadline", kernel, {}, "INCOMPLETE", False),
+    ("conflict", {"explains": "floors"}, None, kernel, {}, "MODEL_FEASIBLE", True),
+    ("conflict", {"explains": "floors", "floors": {}, **BOTH}, None, kernel, {},
+     "MINIMAL_CERTIFIED", True),
+    ("conflict", {"explains": "floors", "floors": {}, **BOTH}, {13: INVALID}, kernel, {},
+     "NOT_PROVEN_MINIMAL", False),
+    ("conflict", {"explains": "floors"}, "deadline", kernel, {}, "UNDECIDED", False),
+    ("tail", {}, None, risk, {}, "CERTIFIED", True),
+    ("tail", BOTH, None, risk, {}, "UNFIELDABLE", True),
+    ("tail", {}, {1: INVALID}, risk, {}, "MODEL_INVALID", False),
+    ("tail", {}, {2: INVALID}, risk, {}, "CERTIFIED", False),  # a refused membership solve
+    ("tail", {}, None, risk, {"holes": {w: (2, "progression") for w in range(12)}},
+     "NOT_EVALUABLE", True),
+    ("regret", BOTH, None, risk, {}, "UNFIELDABLE", True),
+    ("regret", {}, "deadline", risk, {}, "UNKNOWN", False),
+]
 
-        def tokens(node):
-            if isinstance(node, dict):
-                for key, value in node.items():
-                    if key == "completeness":
-                        yield value
-                    else:
-                        yield from tokens(value)
-            elif isinstance(node, list):
-                for value in node:
+
+def terminal_reply(make_client, monkeypatch, route, body, plan, module, options) -> dict:
+    client = make_client(**options)
+    if plan == "deadline":
+        passed_deadline(monkeypatch)
+    elif plan is not None:
+        plant(monkeypatch, plan, module)
+    base = {} if route == "conflict" else BODIES[route]  # each conflict body is whole
+    return ok(client, route, {**base, **body})
+
+
+@pytest.mark.parametrize("route, body, plan, module, options, state, stored", TERMINAL_STATES)
+def test_every_completeness_token_is_one_of_section_one_and_caching_follows_it(
+        make_client, monkeypatch, route, body, plan, module, options, state, stored):
+    payload = terminal_reply(make_client, monkeypatch, route, body, plan, module, options)
+    assert state_of(payload) == state
+
+    def tokens(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key == "completeness":
+                    yield value
+                else:
                     yield from tokens(value)
+        elif isinstance(node, list):
+            for value in node:
+                yield from tokens(value)
 
-        seen = set(tokens(payload))
-        assert seen <= allowed, route
-        assert runtime.is_complete(payload) == (seen <= {"EXACT", "COMPLETE"})
+    seen = list(tokens(payload))
+    # Every block that carries a completeness carries a token of 1.5, and the reply's own.
+    assert seen and set(seen) <= {"EXACT", "COMPLETE", "LIMIT_REACHED", "DEADLINE",
+                                  "MODEL_INVALID"}, route
+    assert payload["budget"]["completeness"] in seen
+    # Stored exactly on the replies whose state is proved (1.5), by the state, not the tokens.
+    assert runtime.is_complete(payload) is stored
 
 
 # ------------------------------------------------------------------- loader and gate
@@ -1480,7 +1636,14 @@ def test_two_routes_on_one_snapshot_build_it_once_behind_the_gate(tmp_path, monk
                    threading.Thread(target=post, args=("conflict", {"explains": "floors"}))]
         for t in threads:
             t.start()
-        time.sleep(0.3)
+        # Release the build only once both requests are inside the one flight of the gate:
+        # one building, the other waiting on it. Sequential caching never gets here.
+        waiting, until = [], time.monotonic() + 10
+        while waiting != [2] and time.monotonic() < until:
+            with planning._BUILDS._guard:
+                waiting = [f.waiters for f in planning._BUILDS._flights.values()]
+            time.sleep(0.005)
+        assert waiting == [2] and len(built) == 1
         gate.set()
         for t in threads:
             t.join(30)
@@ -1611,12 +1774,15 @@ def test_the_page_parts_are_served_as_static_files():
     assert source.count("'/api/xi/extensions'") == 1
 
 
-def test_a_reply_ledger_row_is_built_through_the_shell_in_every_state(client, monkeypatch):
-    # The states above each built their rows; here every row a reply holds is rebuilt by
-    # shell.ledger_row and is the same object, so no field was written around it.
-    for route in PATHS:
-        for row in ok(client, route)["ledger"]:
-            assert shell.ledger_row(**row) == row
+@pytest.mark.parametrize("route, body, plan, module, options, state, stored", TERMINAL_STATES)
+def test_a_reply_ledger_row_is_built_through_the_shell_in_every_state(
+        make_client, monkeypatch, route, body, plan, module, options, state, stored):
+    # Each terminal state builds its computed rows, and every row is the one shell.ledger_row
+    # makes from its own fields, so no field was written around it.
+    payload = terminal_reply(make_client, monkeypatch, route, body, plan, module, options)
+    assert state_of(payload) == state and payload["ledger"]
+    for row in payload["ledger"]:
+        assert shell.ledger_row(**row) == row
 
 
 def test_the_tool_results_are_served_as_the_tools_return_them(client):

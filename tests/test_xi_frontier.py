@@ -1007,6 +1007,15 @@ def test_frontier_reexports_the_ceilings_sentences() -> None:
     assert (MAX_FRONTIER_POINTS, DIMENSION_COUNTS) == (64, (2, 3))
 
 
+def test_deterministic_times_are_recorded_at_ten_significant_digits(monkeypatch) -> None:
+    # 1.5: the solver's deterministic_time, from the response, recorded by one rule in all four
+    # tools: ten significant digits, because identical solves can differ in the last ulp.
+    plant(monkeypatch, spent={1: 1.2345678901234567})
+    result = solve(one_slot_case(), ("r1", "r2"))
+    times = result.provenance["frontier_solve_deterministic_times"]
+    assert times[0]["deterministic_time"] == 1.23456789
+
+
 def test_the_module_calls_no_shipped_solver_and_reads_no_objective_float() -> None:
     tree = ast.parse(Path(frontier.__file__).read_text(encoding="utf-8"))
     names = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)

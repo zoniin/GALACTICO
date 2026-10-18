@@ -15,7 +15,7 @@
    a server integer (ids, solve counts, the proof's position, world counts, seeds) or a
    deterministic limit, printed as sent. No point, row or rule is preferred, marked or
    preselected. The one selection it makes is the server's own: without the experimental
-   opt-in, the minima and requirements the server flags experimental are left out.
+   opt-in, only the minima and requirements the server lists as not experimental are kept.
 
    How it is wired. The page dispatches two events and this file reads the page through
    them only: xi:invalidated when a solve starts or a main minimum is edited, and xi:solved
@@ -36,7 +36,9 @@
 
   const COPY = Object.freeze({
     section: 'Exact questions on the declared model',
-    lead: 'Each panel asks one exact question of the XI model solved above, with its locks and exclusions, and sends nothing until its own button is pressed. Every answer is arithmetic on the prior rates under the declared rules, not a forecast and not a ranking.',
+    // True in every state: without the opt-in the ceilings and risk panels hold progression
+    // alone while the solve above holds three requirements, and their replies say so.
+    lead: 'Each panel asks one exact question with the decision point, formation, locks and exclusions of the XI solved above, and sends nothing until its own button is pressed. Where an answer holds other requirements in force than the solve above, it says so. Every answer is arithmetic on the prior rates under the declared rules, not a forecast and not a ranking.',
     wait: 'Re-solve the main XI first.',
     menus: 'Loading the menus',
     computing: 'Computing on the declared model',
@@ -44,6 +46,7 @@
     chooseWorlds: 'Choose a world count',
     chooseRule: 'Choose a rule',
     menusFailed: 'The menus of these panels',
+    failed: 'These panels',
     pointDetail: 'Choose a point to see one XI that reaches it.',
     forShown: 'For the XI shown',
     oneXi: 'One XI',
@@ -428,9 +431,10 @@
       }
     }
 
-    function guard(work) {
+    // A fault in a handler, named as one of the panels and not of the menus they loaded.
+    function guard(work, thing = COPY.failed) {
       try { work(); } catch (error) {
-        $('#xi-ext-status').innerHTML = S.errorText(COPY.menusFailed, error);
+        $('#xi-ext-status').innerHTML = S.errorText(thing, error);
       }
     }
 
@@ -456,16 +460,17 @@
         excludes: list(input.excludes).slice(), experimental_opt_in: opted};
     }
 
-    // The main solve's minima, without the ones the server flags experimental unless the
-    // reader opted in. The one selection this page makes, and it decides nothing in force.
+    // The main solve's minima, unless the reader opted in only those whose requirement the
+    // server lists with its experimental flag false; any other id is set aside, the note
+    // printed. The one selection this page makes, and it decides nothing in force.
     function minima(opted) {
       const all = object(st.solved.input.minimums) ? st.solved.input.minimums : {};
       if (opted) return {minimums: {...all}, note: ''};
-      const experimental = list(st.menus.requirements).filter(r => object(r) && r.experimental === true).map(r => r.requirement_id);
+      const measured = list(st.menus.requirements).filter(r => object(r) && r.experimental === false).map(r => r.requirement_id);
       const kept = {};
       let leftOut = false;
       for (const [id, value] of Object.entries(all)) {
-        if (experimental.includes(id)) leftOut = true; else kept[id] = value;
+        if (measured.includes(id)) kept[id] = value; else leftOut = true;
       }
       return {minimums: kept, note: leftOut ? para(st.menus.side_minima_text, 'small xi-side-minima') : ''};
     }
@@ -518,15 +523,18 @@
 
     // The one request on load: corpus-free, for the menus and the fixed sentences.
     S.api('/api/xi/extensions').then(menus => guard(() => {
-      st.menus = object(menus) ? menus : null;
-      $('#xi-opt-in-label').textContent = String(st.menus?.opt_in_label || '');
-      $('#xi-experimental-opt-in').disabled = !st.menus;
-      $('#risk-worlds').innerHTML = options(COPY.chooseWorlds, list(st.menus?.world_counts).map((b, i) => [String(i), `${b} worlds`]));
+      // A reply that is not an object is a failure, said as one: the panels stay disabled.
+      if (!object(menus)) throw new Error('the reply is not a menu');
+      st.menus = menus;
+      $('#xi-opt-in-label').textContent = String(st.menus.opt_in_label || '');
+      $('#xi-experimental-opt-in').disabled = false;
+      const labels = object(st.menus.world_count_texts) ? st.menus.world_count_texts : {};
+      $('#risk-worlds').innerHTML = options(COPY.chooseWorlds, list(st.menus.world_counts).map((b, i) => [String(i), String(labels[String(b)] ?? '')]));
       frontierOptions();
       riskRules();
       $('#xi-ext-status').textContent = '';
       refresh();
-    })).catch(error => {
+    }, COPY.menusFailed)).catch(error => {
       $('#xi-ext-status').innerHTML = S.errorText(COPY.menusFailed, error);
     });
   }

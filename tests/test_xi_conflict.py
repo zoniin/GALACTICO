@@ -190,6 +190,7 @@ class Script:
         self.calls = 0
         self.plan: dict[int, dict] = {}
         self.every: dict = {}
+        self.reads = 0  # reads of objective_value or best_objective_bound
         original = kernel._solver
         script = self
 
@@ -214,11 +215,13 @@ class Script:
 
             @property
             def objective_value(self):
+                script.reads += 1
                 shift = 2**-20 if self.rules.get("ulp") and self.status == cp_model.OPTIMAL else 0
                 return self.actual.objective_value - shift
 
             @property
             def best_objective_bound(self):
+                script.reads += 1
                 shift = 2**-20 if self.rules.get("ulp") and self.status == cp_model.OPTIMAL else 0
                 return self.actual.best_objective_bound - shift
 
@@ -233,6 +236,7 @@ class Script:
 
     def reset(self, plan: dict | None = None, every: dict | None = None) -> None:
         self.calls, self.plan, self.every = 0, dict(plan or {}), dict(every or {})
+        self.reads = 0
 
 
 @pytest.fixture
@@ -384,6 +388,53 @@ def test_explain_solve_equals_the_oracle_in_half_even_and_solve_xi_on_feasibilit
     assert seen[("locked and excluded", True)]
     assert any(isinstance(k, tuple) and k[0] == "MODEL_FEASIBLE" for k in seen)
     assert any(isinstance(k, tuple) and k[0] == "MINIMAL_CERTIFIED" for k in seen)
+
+
+def boundary_draw(seed: int) -> oracle.Instance:
+    """A seeded instance on the rounding boundary (X2): q = 10, n = 1, every value (i + 0.6) / 10,
+    so ``_q`` gives the coefficient i + 1 and the conservative rule i; the minimum is the largest
+    half-even sum an XI reaches, so the conservative model can never meet it. Locks and
+    exclusions are drawn, so some draws conflict in both arithmetics with other filter rows."""
+    rng = random.Random(seed)
+    slots = tuple(oracle.OracleSlot(f"s{j}", ("MF",), f"Place {j}")
+                  for j in range(rng.randint(2, 3)))
+    units = [rng.randint(0, 4) for _ in range(len(slots) + rng.randint(1, 2))]
+    candidates = tuple(oracle.OracleCandidate(pid, "MF", {"r": (unit + 0.6) / 10},
+                                              name=f"Player {pid}")
+                       for pid, unit in enumerate(units, start=1))
+    best = sum(sorted((unit + 1 for unit in units), reverse=True)[: len(slots)])
+    requirement = oracle.OracleRequirement("r", "r", best / 10, 1.0, (), False, "Requirement r")
+    ids = range(1, len(units) + 1)
+    locked = tuple(p for p in ids if rng.random() < 0.25)
+    excluded = tuple(p for p in ids if rng.random() < 0.2)
+    return oracle.Instance(slots, candidates, (requirement,), 10, locked=locked,
+                           excluded=excluded, mode="SATISFY")
+
+
+def test_explain_solve_on_boundary_draws_is_half_even_and_not_conservative():
+    # The seeded instances of the test above never put a filter row on the rounding boundary,
+    # so these draws show that explain_solve's arithmetic is the solve's and not the floors'.
+    seen = Counter()
+    for seed in SEEDS[:60]:
+        instance = boundary_draw(seed)
+        half_even = oracle.conflict_model(instance, arithmetic=SOLVE_HALF_EVEN, mode="SATISFY",
+                                          locked=instance.locked, excluded=instance.excluded)
+        hard = oracle.conflict_model(instance, arithmetic=HARD_FLOOR_CONSERVATIVE,
+                                     locked=instance.locked, excluded=instance.excluded)
+        inputs = domain(instance)
+        result = explain_solve(inputs.candidates, inputs.requirements, inputs.formation,
+                               mode="SATISFY", locked=instance.locked,
+                               excluded=instance.excluded, quantization=10, deadline=far())
+        check(result)
+        compare(result, half_even, seen)
+        floors = oracle.deletion_filter(hard.declarations, hard)
+        assert floors.status == "MINIMAL_CERTIFIED"  # no XI meets the minimum conservatively
+        # Read as the conservative filter, the reply would be wrong exactly here.
+        differs = (result.status, result.conflict, [r.outcome for r in result.tests]) != (
+            floors.status, floors.conflict, [r.outcome for r in floors.rows])
+        seen[("differs", result.status)] += differs
+    assert seen[("differs", "MODEL_FEASIBLE")]
+    assert seen[("differs", "MINIMAL_CERTIFIED")]
 
 
 def test_explain_floors_without_floors_is_feasible_exactly_when_the_kernel_floors_are():
@@ -846,11 +897,31 @@ def test_a_tampered_filter_witness_and_a_tampered_restore_witness_each_raise(mon
     assert len(calls) == 2  # the filter witness, then the restore witness
 
 
+def test_an_integer_floor_and_its_float_are_one_declaration():
+    candidates, requirements, formation = three_slots()
+    whole, real = (explain_floors(candidates, requirements, formation,
+                                  floors={"progression": value}, excluded=(2,), deadline=far())
+                   for value in (4, 4.0))
+    assert stable(whole) == stable(real)
+    (floor,) = [d for d in whole.declarations if d.family == "REQUIREMENT_FLOOR"]
+    assert type(floor.raw_floor) is float
+
+
+def test_deterministic_times_are_recorded_at_ten_significant_digits(script):
+    # 1.5: the solver's deterministic_time, from the response, recorded by one rule in all four
+    # tools: ten significant digits, because identical solves can differ in the last ulp.
+    script.reset({0: {"deterministic_time": 1.2345678901234567}})
+    result = floors_three_slots()
+    times = result.provenance["conflict_solve_deterministic_times"]
+    assert times[0]["deterministic_time"] == 1.23456789
+
+
 def test_integers_from_the_solver_are_never_read_off_objective_value(script, monkeypatch):
     plain = floors_three_slots()
     script.reset(every={"ulp": True})
     shifted = floors_three_slots()
     assert stable(shifted) == stable(plain)
+    assert script.reads == 0  # a feasibility test has no objective: neither float is read
     monkeypatch.setattr(conflict._Model, "holds", lambda self, assignment, tested: False)
     with pytest.raises(RuntimeError):
         floors_three_slots()

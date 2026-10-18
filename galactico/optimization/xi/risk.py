@@ -61,7 +61,7 @@ from ..squad.kernel import (
     scrub_lineage,
     source_fingerprints,
 )
-from .ceilings import UNFIELDABLE_PROVED
+from .ceilings import UNFIELDABLE_PROVED, _recorded_time
 from .domain import FORMATIONS, Candidate, Formation, Slot, TacticalRequirement
 from .solver import QUANTIZATION, _applies, _eligible, _fingerprint, _q
 from .tradeoffs import MAX_MAGNITUDE
@@ -115,6 +115,9 @@ TAIL_MENU: Mapping[int, tuple[int, ...]] = MappingProxyType({12: (2, 3, 6), 40: 
 SELECTION_DETERMINISTIC_LIMIT = 40.0
 EXACT_OBJECTIVE_LIMIT = 2**53
 COMPARISON = "largest shortfall first, then summed shortfall"
+# The one search setting _solver adds to the shipped settings, recorded in the input contract so
+# that a certificate can be reproduced from it (it moves deterministic times and stops).
+_SELECTION_SEARCH = "objective lower-bound probing"
 DISCARD_REASON = "missing shared-world exposure"  # the shipped string, solver.py:562
 
 # The served sentences (OR-XI-SPEC 7.7). The labels are formatted here with B and k; the router
@@ -209,8 +212,9 @@ class DiscardedWorld:
 @dataclass(frozen=True)
 class SolveRecord:
     # WORLD_LEAST: one record per kernel stage kernel.value ran for that world, from its
-    # stage_statuses (Z, S1, S2 as run), and one NOT_RUN record for a call that ran no solve
-    # (a deadline passed); never the value status CERTIFIED
+    # stage_statuses (Z, S1, S2 as run), and one NOT_RUN record for a call that ran no solve or
+    # whose next stage the deadline skipped after a decided one (an UNKNOWN value whose last
+    # stage is decided); never the value status CERTIFIED
     purpose: str  # WORLD_LEAST | SELECTION | MEMBERSHIP
     world_id: int | None
     player_id: int | None
@@ -292,6 +296,7 @@ def _solver(deadline: float, seed: int) -> cp_model.CpSolver:
     single worker did not close the gap. Probing the objective's lower bound proved every
     seeded selection with at most 0.5 deterministic seconds. It changes the search, never the
     model, the optimum or what a status certifies, and with one worker it is deterministic.
+    The input contract records it (``selection_search``).
     """
     solver = cp_model.CpSolver()
     solver.parameters.num_search_workers = 1
@@ -345,10 +350,9 @@ class _Calls:
         within = time.monotonic() < self.deadline
         spent = float(solver.deterministic_time)
         self.solves += 1
-        # CP-SAT's float sum can differ by one ulp between identical solves (ortools 9.15), so
-        # the record keeps ten significant digits; the limit test reads ``spent``.
-        recorded = float(f"{spent:.10g}")
-        self.deterministic_times.append({"status": name, "deterministic_time": recorded})
+        # Ten significant digits, the rule of all four tools; the limit test reads ``spent``.
+        self.deterministic_times.append(
+            {"status": name, "deterministic_time": _recorded_time(spent)})
         self.wall_times.append(float(solver.wall_time))
         if name == "MODEL_INVALID":
             stop = "MODEL_INVALID"
@@ -551,8 +555,12 @@ def _declared_risk(
         raise ValueError(RISK_HARD)
     if type(world_count) is not int or world_count < 1 or world_count != len(declared.worlds):
         raise ValueError(WORLDS_ERROR)
-    regret = tail_count is None
-    if not regret and (type(tail_count) is not int or not 1 <= tail_count <= world_count):
+    # The rule chooses the algorithm; a tail count never does (5.7).
+    regret = rule == "MINIMAX_REGRET"
+    if regret:
+        if tail_count is not None:
+            raise ValueError(TAIL_COUNT_ERROR)
+    elif type(tail_count) is not int or not 1 <= tail_count <= world_count:
         raise ValueError(TAIL_COUNT_ERROR)
     if (
         type(world_seed) is not int
@@ -580,6 +588,7 @@ def _declared_risk(
         "shortfall_policy": SHORTFALL_POLICY,
         "comparison": COMPARISON,
         "selection_deterministic_limit": SELECTION_DETERMINISTIC_LIMIT,
+        "selection_search": _SELECTION_SEARCH,
         "source_fingerprints": sources,
     }
     calls = _Calls(deadline, seed)
@@ -689,8 +698,6 @@ def _declared_risk(
         if own.variables.keys() != background.variables.keys():
             raise RuntimeError("two used worlds admit different keys (the lemma of 1.4)")
         tables[w] = kernel._tables(own, conservative=False)
-    point = kernel._background(declared.excluded, declared.locked, None, (), None)
-    point_tables = kernel._tables(point, conservative=False)
     # U^w_r = max(0, t_r - L^w_r), L^w_r the sum of the negative coefficients over the keys.
     deficit_bounds = {
         w: [
@@ -784,11 +791,7 @@ def _declared_risk(
         tail=tail,
         tail_sum=tail_sum,
         binding=binding,
-        point_loss=(
-            _pair(kernel._shortfalls(point_tables, lineup))
-            if all((pid, sid) in point.variables for sid, pid in lineup)
-            else None
-        ),
+        point_loss=_point_loss(kernel, declared, lineup),
         point_sums=_point_sums(declared, lineup),
     )
 
@@ -917,6 +920,21 @@ def _membership(
         else:
             rows.append(MembershipRow(pid, None if decided is None else not decided, False))
     return tuple(rows)
+
+
+def _point_loss(kernel: ShortfallKernel, declared: _Declared, lineup: Lineup) -> LossPair | None:
+    """The selected XI's pair at the candidates' own vectors (``_q`` tables), built only after
+    the selection: ``None`` where the lineup uses a key the point vectors forbid, or where a
+    point coefficient is past the kernel's magnitude bound. Neither refuses the selection,
+    which rests on the worlds alone (5.6)."""
+    point = kernel._background(declared.excluded, declared.locked, None, (), None)
+    if not all((pid, sid) in point.variables for sid, pid in lineup):
+        return None
+    try:
+        tables = kernel._tables(point, conservative=False)
+    except ValueError:  # the world tables already passed: a point coefficient is too large
+        return None
+    return _pair(kernel._shortfalls(tables, lineup))
 
 
 def _point_sums(

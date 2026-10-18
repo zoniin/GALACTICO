@@ -733,7 +733,8 @@ def test_refusals_name_no_value() -> None:
         with pytest.raises(ValueError) as refused:
             run(inst, "TAIL", 1, **extra)
         assert str(refused.value) == sentence, extra
-    for k in (0, 3, True, 1.0):
+    # None included: the rule, not a missing count, chooses the algorithm.
+    for k in (0, 3, True, 1.0, None):
         with pytest.raises(ValueError) as refused:
             run(inst, "TAIL", k)
         assert str(refused.value) == risk.TAIL_COUNT_ERROR
@@ -1007,6 +1008,31 @@ def test_shortfalls_use_the_float_rule_of_the_shipped_solver() -> None:
                              quantization=100_000)[0].selected == expected
 
 
+def test_a_point_value_past_the_magnitude_bound_refuses_nothing() -> None:
+    """5.6: the ValueErrors of step 2 are the world tables'; ``point_loss`` is a field that can
+    be None. A point coefficient past MAX_MAGNITUDE leaves the selection on the worlds and gives
+    no point pair; ``point_sums`` stays exact."""
+    inst = Instance(
+        (OracleSlot("s", ("MF",), "Slot s"),),
+        (OracleCandidate(1, "MF", {"a": 1e12}, name="Player 1"),
+         OracleCandidate(2, "MF", {"a": 1.0}, name="Player 2")),
+        (OracleRequirement("r1", "a", 2.0, 1.0, (), False, "Requirement a"),),
+        100,
+        worlds={0: {1: {"a": 1.0}, 2: {"a": 0.5}}, 1: {1: {"a": 1.0}, 2: {"a": 0.5}}},
+    )
+    for rule, k in (("TAIL", 1), ("WORST_WORLD", 1), ("MINIMAX_REGRET", None)):
+        result = run(inst, rule, k)
+        check_reply(result)
+        assert result.status == "CERTIFIED" and result.lineup == (("s", 1),)
+        assert result.world_losses[0].selected == risk.LossPair(100, 100)
+        assert result.point_loss is None
+        assert result.point_sums == (("r1", 1e12),)
+    # Without the large value the same lineup has its point pair.
+    plain = inst._replace(candidates=(inst.candidates[0]._replace(values={"a": 1.0}),
+                                      inst.candidates[1]))
+    assert run(plain, "TAIL", 1).point_loss == risk.LossPair(100, 100)
+
+
 # --------------------------------------------------------------------------- the certificate
 
 
@@ -1157,6 +1183,9 @@ def test_provenance_keeps_lineage_and_hashes_the_declarations() -> None:
     assert (contract["world_seed"], contract["bootstrap_version"]) == (WORLD_SEED, VERSION)
     assert contract["world_fingerprint"] == result.certificate.world_fingerprint
     assert contract["kernel"]["kernel_version"] == engine.KERNEL_VERSION
+    # The search setting risk._solver adds to 1.5's settings is part of what reproduces a run.
+    assert contract["selection_search"] == "objective lower-bound probing"
+    assert risk._solver(far(), 1).parameters.use_objective_lb_search
     assert record["input_fingerprint"] == engine.fingerprint(
         {"version": risk.RISK_VERSION, "contract": contract})
     assert not {"deadline", WALL, "risk_solve_deterministic_times"} & set(contract)
@@ -1176,6 +1205,15 @@ def test_provenance_keeps_lineage_and_hashes_the_declarations() -> None:
 
 
 # --------------------------------------------------------------------------- the module
+
+
+def test_deterministic_times_are_recorded_at_ten_significant_digits(monkeypatch) -> None:
+    # 1.5: the solver's deterministic_time, from the response, recorded by one rule in all four
+    # tools: ten significant digits, because identical solves can differ in the last ulp.
+    plant(monkeypatch, spent={1: 1.2345678901234567})
+    result = run(carry_tail(), "TAIL", 2)
+    times = result.provenance["risk_solve_deterministic_times"]
+    assert times[0] == {"status": "OPTIMAL", "deterministic_time": 1.23456789}
 
 
 def test_the_module_calls_no_shipped_solver_and_reads_no_objective_float() -> None:

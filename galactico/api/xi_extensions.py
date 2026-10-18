@@ -1485,6 +1485,8 @@ def menus() -> dict:
     """What the page needs before any button can be enabled (OR-XI-SPEC 7.5)."""
     return {
         "world_counts": list(OFFERED_WORLDS),
+        # The label of each world count, so the page prints a server string (8.3, R10).
+        "world_count_texts": {str(b): f"{b} worlds" for b in OFFERED_WORLDS},
         "tail_counts": {str(b): list(TAIL_MENU[b]) for b in OFFERED_WORLDS},
         "rule_options": {str(b): _rule_options(b) for b in OFFERED_WORLDS},
         "requirements": [{key: row[key] for key in ("requirement_id", "label", "experimental")}

@@ -1,5 +1,7 @@
-"""Nondominated rounded sums of two or three declared requirements, one XI each, proved complete.
-Not a ranking and not a forecast: no point is preferred, and a sum is arithmetic on prior rates.
+"""Nondominated rounded sums of two or three declared requirements, one XI each. A complete list
+carries the proof that none is missing; a list cut by a limit, a deadline or a refused solve is a
+true prefix and never reads as complete. Not a ranking and not a forecast: no point is preferred,
+and a sum is arithmetic on prior rates.
 
 Claim: for the declared requirements, in the declared order, every vector of their sums in the
 shipped rounding (``OBJECTIVE_POLICY`` integers, ``round(Fraction(v) / Fraction(n) * q)``) that
@@ -56,7 +58,7 @@ from ..squad.kernel import (
     scrub_lineage,
     source_fingerprints,
 )
-from .ceilings import FLOORS_CONSERVATIVE, UNFIELDABLE_PROVED
+from .ceilings import FLOORS_CONSERVATIVE, UNFIELDABLE_PROVED, _recorded_time
 from .domain import FORMATIONS, Candidate, Formation, TacticalRequirement
 from .solver import QUANTIZATION, _applies
 from .tradeoffs import (
@@ -200,10 +202,9 @@ class _Calls:
             return "NOT_RUN", None
         spent = float(solver.deterministic_time)
         self.statuses.append(name)
-        # CP-SAT's float sum can differ by one ulp between identical solves (ortools 9.15), so
-        # the record keeps ten significant digits, which repeat; the limit test reads ``spent``.
-        recorded = float(f"{spent:.10g}")
-        self.deterministic_times.append({"status": name, "deterministic_time": recorded})
+        # Ten significant digits, the rule of all four tools; the limit test reads ``spent``.
+        self.deterministic_times.append(
+            {"status": name, "deterministic_time": _recorded_time(spent)})
         self.wall_times.append(float(solver.wall_time))
         # Load-independent only when the deterministic limit stopped it before the wall clock.
         self._last_reached_limit = (

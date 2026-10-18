@@ -127,12 +127,6 @@ _SOURCES = (
     "conflict.py", "ceilings.py", "../squad/kernel.py", "solver.py", "tradeoffs.py", "domain.py"
 )
 _WITNESS = ("OPTIMAL", "FEASIBLE")
-_PREFIX = {
-    "SLOT_COVERAGE": "slot",
-    "EXCLUSION": "exclusion",
-    "REQUIREMENT_FLOOR": "floor",
-    "LOCK": "lock",
-}
 
 
 @dataclass(frozen=True)

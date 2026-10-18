@@ -188,6 +188,7 @@ class Script:
         self.calls = 0
         self.plan: dict[int, dict] = {}
         self.every: dict = {}
+        self.reads: list[tuple[str, int]] = []  # (objective float read, status of that solve)
         original = kernel._solver
         script = self
 
@@ -213,6 +214,7 @@ class Script:
 
             @property
             def best_objective_bound(self):
+                script.reads.append(("best_objective_bound", self.status))
                 bound = self.actual.best_objective_bound
                 if self.rules.get("ulp") and self.status == cp_model.OPTIMAL:
                     return bound - 2**-20
@@ -220,6 +222,7 @@ class Script:
 
             @property
             def objective_value(self):
+                script.reads.append(("objective_value", self.status))
                 value = self.actual.objective_value
                 if self.rules.get("ulp") and self.status == cp_model.OPTIMAL:
                     return value - 2**-20
@@ -237,6 +240,7 @@ class Script:
     def reset(self, plan: dict | None = None, every: dict | None = None) -> None:
         """A new plan, counted from the next tool call's first solve."""
         self.calls, self.plan, self.every = 0, dict(plan or {}), dict(every or {})
+        self.reads = []
 
 
 @pytest.fixture
@@ -308,6 +312,14 @@ def test_ends_brackets_witnesses_and_facts_equal_the_oracle_on_seeded_instances(
             assert result.ranges == () and result.claim == CEILING_EMPTY, seed
             continue
         assert result.claim == CEILING_CLAIM
+        # The features section 9 names, counted where a range exists.
+        metrics = {r.metric for r in instance.requirements}
+        values = [p.values.get(m) for p in instance.candidates for m in metrics]
+        seen["locks"] += bool(instance.locked)
+        seen["exclusions"] += bool(instance.excluded)
+        seen["None values"] += any(v is None for v in values)
+        seen["zero minutes"] += any(p.minutes == 0 for p in instance.candidates)
+        seen["negative rates"] += any(v is not None and v < 0 for v in values)
         outer = bracket(result)
         floored = dict(floors or {})
         for item, want in zip(result.ranges, truth.ranges, strict=True):
@@ -339,6 +351,7 @@ def test_ends_brackets_witnesses_and_facts_equal_the_oracle_on_seeded_instances(
                 if fact is None:
                     # Only a QUANTIZED_OPTIMAL end, whose band holds the minimum.
                     assert reason == "ALLOWANCE" and witness is None, seed
+                    seen[("reason", reason)] += 1
                     end = item.largest if sign == 1 else item.least
                     width = abs(Fraction(end.raw_bound) - Fraction(end.attained))
                     assert width <= 2 * Fraction(item.raw_rounding_error_bound) + Fraction(
@@ -357,6 +370,9 @@ def test_ends_brackets_witnesses_and_facts_equal_the_oracle_on_seeded_instances(
     assert expected <= set(seen)
     assert seen[("fact", True)] and seen[("fact", False)]
     assert seen[("witness", "LARGEST")] and seen[("witness", "LEAST")]
+    assert seen[("fact", None)] == seen[("reason", "ALLOWANCE")] > 0
+    for feature in ("locks", "exclusions", "None values", "zero minutes", "negative rates"):
+        assert seen[feature], feature
 
 
 def test_both_witnesses_decide_and_an_end_without_a_solution_leaves_the_other_deciding(script):
@@ -824,6 +840,19 @@ def test_a_reordered_floor_mapping_and_shuffled_inputs_give_one_answer():
         assert stable(again) == reference
 
 
+def test_an_integer_floor_and_its_float_are_one_declaration():
+    # 10: the same declaration has one fingerprint; floors are kept as floats, as the frontier
+    # keeps them.
+    candidates, requirements, formation = pair_of_places()
+    whole = requirement_ranges(candidates, requirements, formation, floors={"r1": 1},
+                               deadline=far())
+    real = requirement_ranges(candidates, requirements, formation, floors={"r1": 1.0},
+                              deadline=far())
+    assert stable(whole) == stable(real)
+    assert [type(value) for _, value in whole.floors] == [float]
+    assert whole.provenance["input_fingerprint"] == real.provenance["input_fingerprint"]
+
+
 def test_determinism():
     for seed in (0, 1, 2, 3):
         instance = oracle.instances(seed).ceiling
@@ -914,6 +943,16 @@ def test_an_infeasible_solve_after_a_verified_witness_is_a_fault_not_an_answer(s
         requirement_ranges(candidates, requirements, formation, deadline=far())
 
 
+def test_deterministic_times_are_recorded_at_ten_significant_digits(script):
+    # 1.5: the solver's deterministic_time, from the response, recorded by one rule in all four
+    # tools: ten significant digits, because identical solves can differ in the last ulp.
+    script.reset({0: {"deterministic_time": 1.2345678901234567}})
+    candidates, requirements, formation = pair_of_places()
+    result = requirement_ranges(candidates, requirements, formation, deadline=far())
+    times = result.provenance["ceiling_solve_deterministic_times"]
+    assert times[0]["deterministic_time"] == 1.23456789
+
+
 def test_integers_come_from_the_expression_never_from_objective_value(script, monkeypatch):
     instance = fieldable()
     plain = run(instance, floors=instance.floors)
@@ -921,6 +960,13 @@ def test_integers_come_from_the_expression_never_from_objective_value(script, mo
     shifted = run(instance, floors=instance.floors)
     assert stable(shifted) == stable(plain)
     assert shifted.certificate.feasible_set == "FIELDABLE"
+    # The shift could change nothing if neither float were read: count the reads. Neither is
+    # read on an OPTIMAL end; the bound only on a FEASIBLE one, rounded outward (2.3 step 7).
+    assert script.reads == []
+    script.reset(plan={0: {"status": cp_model.FEASIBLE}}, every={"ulp": True})
+    feasible = run(instance, floors=instance.floors)
+    assert feasible.ranges[0].largest.certification == "FEASIBLE_NOT_PROVEN"
+    assert script.reads == [("best_objective_bound", cp_model.FEASIBLE)]
     original = kernel.ShortfallKernel._witness
     monkeypatch.setattr(kernel.ShortfallKernel, "_witness",
                         staticmethod(lambda b, s: tuple(reversed(original(b, s)))))
