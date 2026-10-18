@@ -154,3 +154,158 @@ Several findings are one defect seen by two or three lenses; each is listed unde
 
 The revision has not been audited. The house order requires an independent audit that walks
 every branch of the verdict rules before E-09 is called READY.
+
+## 18 October 2026 — Audit, and the audit's revision
+
+An independent audit read the revised draft in four scopes against ROOT-DECISIONS (R1 to R13,
+2.2, 2.4 to 2.9, 3b), ADR-0001 to ADR-0029, KNOWN_LIMITATIONS, LICENSING, VALIDATION, the house
+lifecycle and the registered E-11 protocol: A-1 measurement, frames and football data; A-2
+statistics and the instrument; A-3 claims, product consequence and registry; A-4 pipeline,
+runner and reproducibility. Every claimed blocker was given to a refuter, who rebuilt it on
+synthetic numbers or on the shipped code; none was refuted, and every one came back with a
+corrected proposal, which is the one applied. One reviser then verified every major and
+minor against the draft, the shipped code and the rules and applied it, or applied a variant
+with the reason stated. No file under `data/` was opened; every number below is synthetic or
+arithmetic, a hash of code, or a structure count already disclosed.
+
+Scope readiness as audited: none was READY. Each scope had at least one confirmed blocker
+(A-1: A-1-1 to A-1-4; A-2: A-2-1; A-3: A-3-1 to A-3-3; A-4: A-4-1 to A-4-5). A-2's one blocker
+is the runner defect the other three scopes also found; its auditor found no blocker in the
+instrument rules themselves. After this revision every finding is applied, but the revision
+has not itself been audited, and E-09 now waits for three root rulings before the next audit
+(PIPELINE section 13).
+
+| Severity | Findings | Applied | Applied with a variant or a part changed | Rejected | Refuted |
+|---|---|---|---|---|---|
+| blocker | 13 | 13 | 2 (A-4-1, A-4-5), each within its refuter's corrected proposal | 0 | 0 |
+| major | 10 | 10 | 3 (A-2-2, A-4-7, A-4-9) | 0 | 0 |
+| minor | 35 | 35 | 3 (A-1-13, A-2-9, A-2-11) | 0 | 0 |
+
+Duplicates, each listed under its own id: A-1-1 = A-2-1 = A-3-1 = A-4-1 (the config echo
+against phase 7); A-1-3 = A-4-5 (ROOT 2.2), with A-1-10 and A-4-18 on the same ruling row;
+A-1-4 overlaps A-4-2 (where `run_selfcheck` lives); A-1-11 (c) = A-2-5; A-2-6 = A-3-13;
+A-2-7 is part of A-1-6; A-3-14 overlaps A-4-17; A-4-8 overlaps A-4-3 (when `candidate_sb.py`
+is built).
+
+### Blockers
+
+| Id | Finding | Disposition |
+|---|---|---|
+| A-1-1 | `results.json` echoes the config verbatim, and phase 7 refuses its 15 denylisted keys (`candidates[*].id`, `zones[*].name`, `synthetic_worlds[*].name`, `synthetic_instrument_scenarios[*].name`) and `rank_ties` (part `rank`), so no run could write a file | Applied, refuter's version. Keys renamed `candidate_id`, `zone`, `world`, `scenario`, `tie_policy` (the house term, `_TIE_POLICIES`; value `average` unchanged); prose references updated (preregistration 6 step 8, PIPELINE 2 and 6); the loader reads by the new keys (PIPELINE 3 and 8); phase 7 also stops on a provider-named key; 7.1 says the walk covers `provenance.config` with no exemption; the draft guard of PIPELINE 13 runs the three walks on `{"provenance": {"config": config}}` and on a 7.1 skeleton, and on planted copies (M-06). The fingerprints hash `candidate_id` values, not key names, so all four are unchanged. Reviser's check (scratch `audit-rev/full_check.py`): the three walks find nothing on the config echo, on a skeleton of the full 7.1 shape, on the stamp and on the LOCAL file shape, and find the planted `id`, `rank_ties` and `wyscout_x` |
+| A-1-2 | `source_hashes` held `galactico/providers/pappalardo.py` as a key, against section 0's key rule and its own runner test | Applied, refuter's form (a): `source_hashes` is a list of `{"path", "lf_sha256"}` objects sorted by `path`, the `models/shots` glob expanded and sorted; the same form in the stamp and the LOCAL file; section 0's `candidate_sb.py` sentence reworded; three runner checks (no name at any depth; the adapter's path and true hash present; the list sorted with one entry per file) |
+| A-1-3 | The shot candidates depart from ROOT 2.2's "non-penalty shots", the compliant design was one sentence, and registration did not wait for a ruling | Applied, refuter's version, in both branches: the ROOT 2.2 design is written in full in `root_2_2_design` (clauses, fingerprints `57ed7aea86d9` and `fcc26575bdf8`, or `18f3a5bb9e89` under the id `non_penalty_shot_volume`; sentences; display names; E-11's `non_penalty_shot_volume` imported and named as its label; the house open-play column out of the volume's battery as an identity-family column; the non-penalty volume in every other battery, so ROOT 2.2's redundancy test is against it; model domain, descriptive free-kick subgroup, box denominator kept on open play with its nuisance named, structure pins, leg shot types, traps and tests), and DISSENT 6 summarises it; the root's ruling on DISSENT 6 / OQ6 and the subject id is a condition of registration (`root_rulings_required_before_registration`, PIPELINE 13), recorded as a new ROOT section; OQ2 and DISSENT 5 stand unless ruled, "council" removed; DISSENT 2 and the E-11 duplicate are on the same row |
+| A-1-4 | `candidate_gauntlet.py` must use `_safe_abs_corr` but may not import `experiments`, and no signature carried the helper | Applied, refuter's version: `Correlation` type; `correlation` beside `rule` in `evaluate_league`, `run_gauntlet` and `run_external` (which also gains `rule`); `run_selfcheck` moved to the runner (option (a)); the reuse row "injected, never copied"; `frozen_correlation_function` and `frozen_correlation_source_sha256` (`f19c0a86...`, recomputed from the shipped source), verified by the root, gating in phase 1, recorded in `provenance.frozen_rule`; tests (spy, no other Pearson in the module, T24 and the pure position effect with the house helper); checklist item 4. The import alternative is rejected: `pyproject.toml` packages only `galactico` |
+| A-2-1 | As A-1-1, seen from the instrument verdict that could never be written | Applied with A-1-1. The precedent sentence is corrected: E-11 passed the denylist walk and called `banned_key_paths` without `parts`; E-09 keeps the stricter call by choice |
+| A-3-1 | As A-1-1, seen from the registry tokens that could never reach the records | Applied with A-1-1; the echo is kept (`tests/test_digests.py` compares it) and nothing is exempted |
+| A-3-2 | An established candidate fell out of every served count and list: proposed 9 and tested 8 where the protocol said 13 and 12, in 2,800 of 4,096 token assignments | Applied, refuter's version. Registry move stays NONE (V6 unchanged); `tested_not_promoted_edit` writes `TESTED_NOT_PROMOTED` in `profiles/build.py` whatever the tokens; frozen digit-free `player_lab_text.ESTABLISHED_NUMBER` and `ESTABLISHED_BAND`; the consumers named in 11.1 (Player Lab route and counts, the docs generator's counts and table, `renderWhy`, the fixtures and the five tests, the disjointness test that keeps the new list out of `assert all(...)`); section 10's table and its "and nothing else" sentence widened; counts restated for every token class (`player_lab_counts_after_run`). Reviser's check: over all 4,096 assignments proposed is 13 and tested 13 minus the untested ids |
+| A-3-3 | The frozen model card printed tag audit counts that no output holds | Applied, refuter's deletion option: item 4 names the excluded tags (the counter-attack tag added) and the enforcing check; `structure`, `sidecar_columns`, I1 and the hashes unchanged. Adding a `tags` column is rejected: `frame_digest` cannot hash a list column, and accuracy and blocked counts per league would be avoidable exposure |
+| A-4-1 | As A-1-1, with the determinism and schema tests that could not pass | Applied with A-1-1, with a variant inside the refuter's options: the key names are A-1-1's and A-3-1's (`candidate_id`, `zone`, `world`, `scenario`, `tie_policy`), not this refuter's `candidate`, `key` and `tie_method`, which would also pass; `candidate_id` matches the `CandidateSpec` field and `tie_policy` the house term. The subtree exemption is rejected (thesis `allow` does not cover keys beneath a path) |
+| A-4-2 | `run_selfcheck` had to run the pipeline from a module that may import none of it | Applied, refuter's preferred option: `run_selfcheck` and the league assertions move to `experiments/run_candidate_gauntlet.py`; `candidate_synthetic.py` keeps the generators and `generator_sanity`, under an `ast` scan written as the house firewall scan (whole tree, `import_module` and `__import__` with a string); 8.4 calls it from the runner |
+| A-4-3 | The external leg's frames could not compute the battery, so its REDUNDANT branch and token were fixed in advance; the box zone, team-sheet arguments and spell minutes were missing | Applied, refuter's version: `sb_event_row_rule`, `sb_kind_type_map`, `sb_frame_columns_rule` (success, goal, counter-attack, E-11's interception family, body part, shot family, renamed ids, string event ids, sentinels counted), `sb_frame_refusal` for a shots-only or pass-less frame; `penalty_area_sb` as the third entry of `zones` with its fingerprint and phrase, read only by the leg-only `sb_box_spec` (fingerprint `23bf9214db9b`); `sb_goalkeeper_position`, `sb_dismissal_card_types_exclude` and `sb_spell_end_reason_contains` copied from E-11; goalkeepers the GK group; spell minutes from `sb_reader._spell` under a pin (Z3); the five tests. The shipped `StatsBombProvider` mapping is not used |
+| A-4-4 | On the leg, an unconverged selected `MFLEX` was judged anyway | Applied, refuter's version: one rule, `gate_s_fit_rule` checks `gate_s_fit_models` and the instrument, evaluated in `instrument_report` where the instrument is known; identical on the public run; text in preregistration 4.4 and 11 and PIPELINE 5 and 10; the two tests |
+| A-4-5 | As A-1-3 | Applied with A-1-3, with a variant: this refuter preferred the ROOT 2.2 design as the primary text. It is written in full (part A) and the ruling row is added (part B), as required, but the open-play design stays the primary text, because the reviser's event-level feasibility of the self-check was simulated on it; if the ruling selects the ROOT 2.2 design, that simulation is repeated on it and the revision is audited again. Nothing can be frozen against the root, since registration waits for the ruling |
+
+### Majors
+
+| Id | Finding | Disposition |
+|---|---|---|
+| A-1-5 | `CLAIMS` was "text of section 5", whose negative-control bullet fails the copy guard | Applied: `candidates[*].claim` holds construct, observable implication, negative control and incremental claim; `CLAIMS` is built from it by a stated mapping; the "Algebra says ... prediction" sentence moved to the section 12 reason (`predictions`); the draft guard scans the claims. Reviser's check: every claim passes `scan_labels` |
+| A-2-2 | The symbol test had no word list and, read plainly, refused the required `predict` and `predict_probability` and the required docstring | Applied with a variant: renamed `conversion_values` and `logistic_values`; the test defined (identifiers the package defines, split on `_` and case, against the one-word `BANNED_LABEL_TOKENS` and `xg`; docstrings, comments and library attributes such as `reset_index` not read). The variant: the reviser found that `fit` is also a banned token, so `fit_logistic`, `LogisticFit` and `fit_shot_model` became `estimate_logistic`, `LogisticEstimate` and `estimate_shot_model`; the required names were checked against the list |
+| A-3-4 | Row 2 gave `NOT_ESTABLISHED` to a candidate of which nothing was computed | Applied: token `INCONCLUSIVE_INSTRUMENT` (status INCONCLUSIVE, move NONE, untested edit, reason `INSTRUMENT_NOT_ACCEPTED`), its statement, the 9.1 definitions, DISSENT 5, section 10 and 11.1 |
+| A-3-5 | The REDUNDANT language called two new battery columns "a statistic the project already has", and section 14 assumed shot weighting | Applied: "a declared baseline statistic" in the statement, the detail and `headline_tied`; section 14 has one sentence for `shot_location_value` closed against `shot_volume` and one for every other closure (`interpretation_language`) |
+| A-3-6 | The served planning sentences after the run were not frozen | Applied: `planning_after_run` freezes the research sentence and two `shots` entries (tested or untested), copy-guard clean and digit-free, with their rules; `planning.py` and the four planning test files are in 11.1 |
+| A-3-7 | A listed candidate was served under an id-derived label, not its H14 display name | Applied: `display_name_edit` (`DISPLAY_NAMES` in `profiles/build.py`, served by `/api/constructs`), covered by the copy-guard test |
+| A-4-6 | The self-check stamp was tied to nothing | Applied: `--selfcheck` writes `selfcheck.json` with `passed` and the three hashes; phase 1 refuses an untracked, failed or stale stamp; phase 3 must reproduce its block; `selfcheck_hash` in provenance; checklist item 17; runner tests |
+| A-4-7 | A failed execution after outcomes were computed had no rule | Applied with a variant: E-11's failed-execution rule (record without the message, exit 3, written files removed, repair limited to the failing phase, re-review and re-stamp, disclosure in `analysis.md` before the next start, a phase-1 refusal otherwise); the variant is where the log lives: `run_output_root` = `data/public/research/E-09-player-candidates`, gitignored by `data/public/*`, a public location for a PUBLIC experiment (E-10 used the licensed tree and asked the root) |
+| A-4-8 | The external leg had no build, pin, review or run lifecycle | Applied: `candidate_sb.py` built and pinned in the pipeline commit; it and `sb_reader.py` in `source_hashes`; the LOCAL file's keys and provenance; `--external` refusals, overwrite refusal, determinism re-run, output-root check, failed-run log; checklist item 18 |
+| A-4-9 | The runner tests could not pass phases 1 and 2 on a synthetic corpus | Applied with a variant: the seam is `evaluate` (phases 4 to 6) and `serialise` (phase 7), with `verify` and `run_selfcheck` separate; a test may override `selfcheck_replicates` only, in `run_selfcheck`. The variant: phase 3 is outside `evaluate`, because a smoke override of the replicate count cannot meet the predicate's minimums |
+
+### Minors
+
+| Id | Finding | Disposition |
+|---|---|---|
+| A-1-6 | The two out-of-domain sets overlapped, and most structural pins were not recounted | Applied: behind-halfway counts non-sentinel rows only; `structure_identity` asserted in phase 2; every pin, coverage, overlap and family disagreement in `counted_by_root_before_registration`, with `counted_by_root_rule` |
+| A-1-7 | Match Lab's prior exposure was understated | Applied: per player-match and per team-match counts of shots and tagged interceptions (verified in `match_lab/model.py`) |
+| A-1-8 | `MetricEvaluation.exploratory` is never built | Applied: the sentence now rests on the non-claim and `interpretation_limits` |
+| A-1-9 | A disjointness test was falsified by the results commit | Applied: disjoint from `SPECS` and `CONSTRUCTS` only; list membership tied to the token |
+| A-1-10 | DISSENT 2 and the E-11 duplicate were not in the root ruling | Applied: both on the ruling row; DISSENT 2 states the duplicate |
+| A-1-11 | Split wording, display name, prose-only planning figures | Applied: "parity of a match's position among sorted game ids"; "from the opponent half" in the display name; `planning_figures` with their bases, and the opening rule names the three kinds of figure allowed in prose |
+| A-1-12 | `describe` and `Zone.fingerprint` underspecified | Applied: `Zone.fingerprint` read from config; zone-less unions worded without a comma; `describe_refusals` |
+| A-1-13 | The disclosure of the opponent-half quantiles did not say what they informed | Applied with a variant: the eligibility and share-set sizes set `power_planning` and the share floor's reach, every sample gate sits below them, and `degenerate_sd` is the helper's tolerance; for `maximum_zero_share` the record of the design pass does not show what informed it, so it is disclosed as frozen after the quantiles were seen, and its zero shares are reported, rather than asserted not to be set from them |
+| A-1-14 | Manifest entries, a draft config pointer, LICENSING.md | Applied: `raw_manifest_entries` (events.zip, matches.zip, players.json); the draft config is deleted at registration; the LICENSING.md sentence is a section 13 request (outside the draft folder) |
+| A-2-3 | Positions, ECE cuts and `n_matches` underspecified | Applied: `position_indexing` (0-based; LEVEL_SHIFT's 2 is Italy), the cut formula, `n_matches` from the held-out in-domain shot frame |
+| A-2-4 | L3 is not purely a level statistic | Applied, reword option: the two instrument statements and 4.4 say "level or calibration across value bins"; no gate moves, so no rate changes |
+| A-2-5 | Prose-only figures, one understated | Applied with A-1-11: `planning_figures`; R3's planning spread corrected to about 0.05 |
+| A-2-6 | The card typed numbers | Applied: season from config; the literature range in words |
+| A-2-7 | Body-part coverage not recounted | Applied with A-1-6 |
+| A-2-8 | INCONCLUSIVE paths underspecified | Applied: `instrument_inconclusive_rule` (null fields, `["S_count"]` or `["S_fit"]`, reasons, precedence), "not fitted" on the card, tests |
+| A-2-9 | `predict` can return exactly 0 or 1 | Applied in part: a stable logistic that may return 0.0 or 1.0, clipped where a logit or log is taken; no test asserts the open interval. The optional rule (a fit with an exact 0 or 1 is not converged) is not adopted: it changes which TOO_SHARP folds converge, and the simulated rates were taken without it |
+| A-2-10 | The scenario generator was not fully written | Applied: `synthetic_shot_coordinate_rule`, `synthetic_logit_median_rule`, `synthetic_instrument_frame_rule` |
+| A-2-11 | The gap-matrix edit called the instrument xG under every token | Applied with a variant: under `ACCEPTED` and `ACCEPTED_WITHIN_LEAGUE` only, a note beside the xG / xA row naming a location-only conversion model and no provider xG; the cell is not relabelled; section 10 states the exception |
+| A-3-8 | Established statements ignored a redundant league | Applied: "and, in those leagues, not a near-copy"; `analysis.md` names the league |
+| A-3-9 | An established token could carry an empty scope | Applied, second option: context limits are reported beside the claim and do not narrow it; the scope sentence and section 10 changed |
+| A-3-10 | "Neither" and the flags overlapped | Applied: "neither" is either direction; `position_centred_reliability` is flagged, T22 and the minutes rule are not, with the reason |
+| A-3-11 | Section 6 underspecified | Applied: `Status.name`; the `LeagueResult` construction; `np.column_stack`; uncomputed leagues `INCONCLUSIVE` with `league_not_computed_reasons`; "all four instrument tokens" |
+| A-3-12 | `half_low` can underflow to NaN | Applied, qualify option: the sentence names the 1e-12 band where the guard makes the league INCONCLUSIVE |
+| A-3-13 | As A-2-6 | Applied with A-2-6 |
+| A-3-14 | Loose later-use licences | Applied: the licensing tokens named; the follow-up's criterion frozen in its own protocol; a label only from a LOCAL record (Z5) |
+| A-3-15 | An established E-09 record still serves `may_gate` true | Applied: the `verdicts.py` docstring amendment and a route test in the registration commit. Reviser's check: `derive` gives `may_gate` true for established candidate records |
+| A-4-10 | Predictions and interpretation limits had no config source | Applied: `predictions`, `predictions_matched_rule`, `interpretation_limits`; the team clause moved into the reason |
+| A-4-11 | Two leg sentences false in reachable branches | Applied: both reworded, copy-guard clean |
+| A-4-12 | Hash and run discipline gaps | Applied: `raw_file_sha256` in 7.1; `thesis.py`, `providers/base.py`, `domain/provenance.py` pinned; all three protocol files first added in `<sha>`, an ancestor of `HEAD`; BLAS and machine recorded; the re-run's comparison file and the card's output path named |
+| A-4-13 | The level shift's public input unobtainable | Applied: `LeagueEvaluation.mean` over A wherever the count gates passed; the shift null when any of the eight means is null; `Mapping[str, float \| None]` |
+| A-4-14 | Byte for byte against the counted pins | Applied: the root writes the counted keys into the draft, the only post-audit edits, then registers byte for byte |
+| A-4-15 | Joint pass probability unstated, the adjustment window empty, the smoke assertion undefined | Applied, raise-the-margins option: minimums 9 of 12 and 8 of 12 for `PLANTED`'s `also`, joint 0.9941 against 0.9296 at the conservative rates (scratch `audit-rev/joint.py`; never lists unchanged and not bounded by this arithmetic); the window applies to the reviser's simulation only; `selfcheck_smoke_rule` |
+| A-4-16 | The `sb_reader` pin could not fail once an edit is committed | Applied: the test compares with E-11's `acceptance.json` entry, which equals the file's `lf_sha256` today (`ce0bc5cb...`, `sb_reader_source_sha256_in_e11_acceptance`) |
+| A-4-17 | Label permission and licence lists against Z5 | Applied: Z5's wording in section 10 and DISSENT 7; `sb_report` and `analysis.md` list rules in section 11 and PIPELINE 13 |
+| A-4-18 | Council questions had no step | Applied with A-1-3: on the ruling row; frozen values stand unless ruled |
+
+Refuted claims: none.
+
+### Checks run by the reviser (synthetic or data-free)
+
+Scratch scripts under the session scratchpad, `E-09-review/audit-rev/`:
+
+- `full_check.py`: a reference implementation of PIPELINE 3 recomputes the four fingerprints
+  and sentences from the config's clauses, the three of `root_2_2_design` (and
+  `18f3a5bb9e89` under the id `non_penalty_shot_volume`) and the leg's box spec, all equal;
+  the five records built from the config are served by `runtime.finalize` under `PENDING`
+  and every token (41 records); the Player Lab counts hold over all 4,096 assignments; the
+  denylist, `banned_key_paths(..., parts=BANNED_KEY_PARTS)` and provider-name walks find
+  nothing on the config echo, a skeleton of the full 7.1 shape, the stamp and the LOCAL
+  file shape, and find planted keys.
+- `keys_and_copy.py`: every display name, sentence, claim, statement, Player Lab text,
+  prose map, planning sentence, leg sentence, interpretation sentence and token spelled as
+  words passes `scan_labels` (three statements failed it on "overall" and "fit" in a first
+  draft and were reworded); no served statement holds a digit.
+- `fp_rev.py`, `joint.py`: the fingerprints and the self-check pass probabilities above.
+- The `decide` and `_safe_abs_corr` source hashes and the `sb_reader` and E-11 config hashes
+  recomputed from the tracked files.
+- `pipeline_spec_sha256` recomputed after the last `PIPELINE.md` edit.
+- `tests/test_licensing.py` passes and `scripts/check_licensing.py` is clean; the list
+  entries for this folder's three files now name the leg's frame rules, refusals and pinned
+  reader hash.
+
+### For a root ruling (PIPELINE section 13; E-09 is not registered without the first three)
+
+1. OPEN QUESTION 1, ARCH D1 against `product_admissible`: the empty promotion set, or another
+   form.
+2. DISSENT 6 and OPEN QUESTION 6: open-play shots (the primary text) or ROOT 2.2's
+   non-penalty shots (`root_2_2_design`), and under the second the subject id
+   (`shot_volume`, ROOT 2.2's, or `non_penalty_shot_volume`, E-11's). The reviser then moves
+   the selected design into the main keys and deletes the other.
+3. DISSENT 2 and the E-11 duplicate: `CandidateSpec` against ROOT 3b's "candidate
+   ConstructSpecs", and a second implementation of E-11's two definitions tied by a parity
+   test, which Z3 refused for E-10 and which cannot be removed while E-11's code is pinned.
+4. Optional (frozen values stand): OPEN QUESTION 2 (R1 thresholds) and DISSENT 5 (two tiers).
+5. Product edits the results commit makes under any token: `TESTED_NOT_PROMOTED` and
+   `DISPLAY_NAMES` in Player Lab, the frozen planning sentences, and the gap-matrix note under
+   an accepted instrument; each overrides R13 and ADR-0011 for named output and needs the
+   root's ADR note.
+6. `run_output_root` for the failed-run log and the re-run file is
+   `data/public/research/E-09-player-candidates` (gitignored, public tier), where E-10 used
+   the licensed tree.
+7. The draft guard checks of PIPELINE 13 (key walks, copy guard, records, pipeline hash) can
+   be added to `tests/test_protocol_drafts.py` now, as E-11's were; that file is the root's.
+8. The revision has not been audited. After the rulings, the house order audits it again
+   (ROOT 2.9 Z4).

@@ -8,9 +8,12 @@
   "committed_experiment_dir": "experiments/preregistered/E-09-player-candidates",
   "draft_dir": "docs/research/north-star/protocol-drafts/E-09-player-candidates",
 
-  "pipeline_spec_sha256": "11b574e4f629b782b2bee02c72fe47bbd544d2e80f4f3492709e6e66212359f9",
-  "verified_by_root_before_registration": ["pipeline_spec_sha256", "frozen_rule_decide_source_sha256", "frozen_rule_constants", "sidecar_schema_version", "sidecar_tag_mapping_version", "e11_config_sha256"],
-  "counted_by_root_before_registration": ["expected_in_domain_shot_rows", "expected_sentinel_start_shot_rows", "expected_behind_halfway_shot_rows", "sb_folder_digests"],
+  "pipeline_spec_sha256": "e9531f28b0412ca575a69f720614bb9275a39150c11ad5c1ae3dab789743fb69",
+  "verified_by_root_before_registration": ["pipeline_spec_sha256", "frozen_rule_decide_source_sha256", "frozen_rule_constants", "frozen_correlation_source_sha256", "sidecar_schema_version", "sidecar_tag_mapping_version", "e11_config_sha256", "sb_reader_source_sha256_in_e11_acceptance"],
+  "counted_by_root_before_registration": ["expected_shot_rows", "expected_in_domain_shot_rows", "expected_sentinel_start_shot_rows", "expected_behind_halfway_shot_rows", "expected_goal_rows_on_shots", "expected_matches", "expected_body_part_coverage_on_shots", "expected_clause_overlap_rows", "expected_shot_family_disagreements", "sb_folder_digests"],
+  "counted_by_root_rule": "the root runs one committed structure-only script over the five leagues (and sb_reader.folder_manifest over the three local folders whose digest is null) after the audit and before the registration commit; a null is filled, a value that differs from the draft is replaced and the difference is stated in the registration commit and in REVIEW-RECORD.md; these keys are the only edits to this file after the audit, and the file is then registered byte for byte",
+  "root_rulings_required_before_registration": ["OPEN_QUESTION_1_ARCH_D1", "DISSENT_6_OPEN_QUESTION_6", "DISSENT_2_AND_E11_DUPLICATE"],
+  "root_rulings_optional_frozen_values_stand": ["OPEN_QUESTION_2", "DISSENT_5"],
 
   "season": "2017/18",
   "leagues": ["Spain", "England", "Italy", "Germany", "France"],
@@ -29,6 +32,7 @@
   "share_floor_counts": "box_shot_share denominator rows: every neutral shot row of the player that survives the period filter, in the season or in the match set",
   "split": "league_game_id_parity",
   "split_rule": "a match is in match set h (0 or 1) when the position of its game_id among the league's sorted unique game_ids of actions.parquet is h modulo 2",
+  "position_indexing": "league_position, world_position, scenario_position and replicate are 0-based indices into leagues, synthetic_worlds, synthetic_instrument_scenarios and range(selfcheck_replicates)",
   "player_team_rule": "most_regulation_minutes_then_smallest_team_id",
 
   "reliability_number": 0.70,
@@ -51,7 +55,7 @@
   "position_centring_set": "A, by broad position, value and column alike",
   "baseline_tie_rule": "every column whose correlation equals baseline_r is listed in closest_baselines, in battery order",
   "top_k": 12,
-  "rank_ties": "average",
+  "tie_policy": "average",
   "top_k_tied_statement": "The twelfth and thirteenth values are tied, so the twelve largest values do not name a set of players and no survivor count exists.",
 
   "frozen_rule_path": "experiments/run_replication.py",
@@ -62,6 +66,9 @@
   "frozen_rule_nuisance_literal": 0.60,
   "frozen_rule_file_lf_sha256_at_revision": "e58b90d682974313a3c5bc9a3a038b75063b5264a34037a8705f5988b81a1873",
   "frozen_rule_file_hash_role": "provenance_only",
+  "frozen_correlation_function": "_safe_abs_corr",
+  "frozen_correlation_source_sha256": "f19c0a86b1bc406038f3a3afbd16767c85eed072403f31273c8765fbbfd4797d",
+  "frozen_correlation_source_hash_rule": "galactico.validation.digests.lf_sha256_text(inspect.getsource(run_replication._safe_abs_corr)); its three-pair minimum and its 1e-12 are part of the pinned source, not config values; degenerate_sd still guards first",
 
   "minimum_reliability_units": 40,
   "minimum_audit_units": 40,
@@ -76,10 +83,13 @@
   "redundancy_closes_first": ["shot_location_value"],
 
   "zones": [
-    {"name": "opponent_half", "min_start_x_exclusive": 0.50, "fingerprint": "opponent_half[x>0.5]", "phrase": "starting in the opponent half"},
-    {"name": "penalty_area", "min_start_x_inclusive": 0.84, "min_start_y_inclusive": 0.19,
-     "max_start_y_inclusive": 0.81, "fingerprint": "penalty_area[x>=0.84;0.19<=y<=0.81]", "phrase": "starting in the penalty area"}
+    {"zone": "opponent_half", "min_start_x_exclusive": 0.50, "fingerprint": "opponent_half[x>0.5]", "phrase": "starting in the opponent half"},
+    {"zone": "penalty_area", "min_start_x_inclusive": 0.84, "min_start_y_inclusive": 0.19,
+     "max_start_y_inclusive": 0.81, "fingerprint": "penalty_area[x>=0.84;0.19<=y<=0.81]", "phrase": "starting in the penalty area"},
+    {"zone": "penalty_area_sb", "min_start_x_inclusive": 0.85, "min_start_y_inclusive": 0.225,
+     "max_start_y_inclusive": 0.775, "fingerprint": "penalty_area_sb[x>=0.85;0.225<=y<=0.775]", "phrase": "starting in the penalty area as the second provider draws it"}
   ],
+  "zone_use": "opponent_half and penalty_area are read by the four public candidates; penalty_area_sb (E-11's quotients 102/120, 18/80 and 62/80, bounds inclusive) is read only by the external leg's box spec in candidate_sb.py",
   "location_sentinels": [[0.0, 0.0], [1.0, 1.0]],
   "describe_nouns": {
     "types": {"shot": "shots", "duel": "duel records", "pass": "passes", "touch": "touches"},
@@ -89,6 +99,7 @@
     "measures": {"count": "count", "sum of location-only conversion value": "sum of location-only conversion value"},
     "scalings": {"per 90 minutes": "per 90 minutes", "per action in the denominator set": "per {singular noun of the denominator clause}"}
   },
+  "describe_refusals": "CandidateSpec refuses a shape describe() cannot word: a clause with both types and flags, a clause with more than one type, subtype or flag, numerator clauses with different zones, a denominator of more than one clause, a denominator type without a singular noun, a noun missing from describe_nouns",
 
   "house_battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
                     "mean_x", "mean_y", "mean_pass_length", "shot_volume"],
@@ -102,7 +113,7 @@
 
   "candidates": [
     {
-      "id": "shot_volume",
+      "candidate_id": "shot_volume",
       "fingerprint": "1c6517c2be31",
       "display_name": "Open-play shots per 90 (no penalties, no direct free kicks)",
       "sentence": "count over shots, per 90 minutes",
@@ -119,15 +130,21 @@
       "identity_exclusions": ["shot_volume"],
       "confound_kinds": {"touch_volume": "context", "team": "context", "position": "constitutive"},
       "nuisance_columns": [],
+      "claim": {
+        "construct": "How often the player shoots in open play. Not that the shots are good ones.",
+        "observable_implication": "A player who shoots more in one match set shoots more in the other, among players of the same broad position.",
+        "negative_control": "Must not be a near-copy of touch volume or of mean field position.",
+        "incremental_claim": "None. This is the house baseline column itself, proposed under its own name, as pass completion was after E-03; its own column is removed from its battery and from no other."
+      },
       "resolves": "shot_profile",
       "e11_subject": "shot_volume",
       "e11_definition": "aggregated_player_quantities.shot_volume: open_play_shots / minutes_regulation x 90, open_play_shot = Wyscout type shot",
       "in_sb_leg": true
     },
     {
-      "id": "shot_location_value",
+      "candidate_id": "shot_location_value",
       "fingerprint": "537cef62eb4e",
-      "display_name": "Location-only conversion value of open-play shots per 90 (not provider xG)",
+      "display_name": "Location-only conversion value of open-play shots from the opponent half per 90 (not provider xG)",
       "sentence": "sum of location-only conversion value over shots starting in the opponent half, per 90 minutes",
       "family": "volume",
       "evidence_class": "PREDICTIVE",
@@ -142,13 +159,19 @@
       "identity_exclusions": [],
       "confound_kinds": {"touch_volume": "context", "team": "context", "position": "constitutive"},
       "nuisance_columns": [],
+      "claim": {
+        "construct": "Shot volume weighted by where the shots came from; shot volume is a declared component. Not the opportunity as the shooter met it: defenders, goalkeeper, pressure and shot type are not in the number.",
+        "observable_implication": "Two players with equal shot volume separate if one shoots from closer and more central positions.",
+        "negative_control": "Must not be a near-copy of shot_volume, at the frozen baseline_ceiling.",
+        "incremental_claim": "The location weighting separates players that counting does not. ROOT 2.2 requires it to show that or be rejected as redundant (redundancy_closes_first)."
+      },
       "resolves": "shot_profile",
       "e11_subject": null,
       "e11_definition": "not graded by E-11 (its model is E-09's)",
       "in_sb_leg": true
     },
     {
-      "id": "box_shot_share",
+      "candidate_id": "box_shot_share",
       "fingerprint": "af2b2b118e73",
       "display_name": "Share of open-play shots starting in the provider-drawn penalty area",
       "sentence": "count over shots starting in the penalty area, per shot",
@@ -166,13 +189,19 @@
       "confound_kinds": {"touch_volume": "nuisance", "shot_volume": "nuisance", "team": "context",
                          "position": "constitutive"},
       "nuisance_columns": ["touches", "shot_volume"],
+      "claim": {
+        "construct": "Where the player's shots originate. Not a preference: the share includes deployment and team-mates.",
+        "observable_implication": "A player whose shots come from inside the area in one match set shows the same in the other, among players of his position.",
+        "negative_control": "Must not be a near-copy of mean field position or of shot volume.",
+        "incremental_claim": "None beyond location. It is the model-free location descriptor, so the location half of shot_profile is tested even if the conversion model is not accepted."
+      },
       "resolves": "shot_profile",
       "e11_subject": null,
       "e11_definition": "not graded by E-11 at the player level (E-11 preregistration, what it cannot show)",
       "in_sb_leg": true
     },
     {
-      "id": "opp_half_defensive_actions",
+      "candidate_id": "opp_half_defensive_actions",
       "fingerprint": "72619cd8130b",
       "display_name": "Opponent-half ground defending duels and interception-flagged events per 90",
       "sentence": "count over ground defending duel records or interception-flagged events, starting in the opponent half, per 90 minutes",
@@ -194,6 +223,12 @@
       "confound_kinds": {"unattributed_duel_share": "nuisance", "touch_volume": "context",
                          "team": "context", "position": "constitutive"},
       "nuisance_columns": ["unattributed_duel_share"],
+      "claim": {
+        "construct": "How often the player is recorded contesting or cutting out the ball in the opponent half. Not a record of pressing, of winning the ball or of defending ability.",
+        "observable_implication": "Repeatable between match sets among players of the same position, and not reducible to how much the player is in that half at all.",
+        "negative_control": "Must not be a near-copy of ground defending duels and interceptions over the whole pitch, of on-ball presence in the opponent half, or of mean field position.",
+        "incremental_claim": "Location of defensive activity, separate from its amount."
+      },
       "resolves": "defensive_action_profile",
       "e11_subject": "opp_half_defensive_actions",
       "e11_definition": "aggregated_player_quantities.opp_half_defensive_actions: opp_half_duel_or_interception / minutes_regulation x 90, a ground defending duel or an interception-flagged row with a finite start x above 0.5 and no sentinel start",
@@ -230,12 +265,13 @@
 
   "gate_s_count": {"minimum_training_shots": 20000, "minimum_training_goals": 2000, "minimum_heldout_shots": 5000, "minimum_heldout_goals": 500},
   "gate_s_fit_models": ["MD", "M1"],
-  "gate_s_fit_rule": "every model of gate_s_fit_models converged in every fold; M0 is the training goal rate and is not fitted; a challenger that did not converge in every fold is not selectable and fails nothing",
+  "gate_s_fit_rule": "every model of gate_s_fit_models, and the instrument, converged in every fold; M0 is the training goal rate and is not fitted; on the public run a challenger that did not converge in every fold is not selectable and fails nothing; on the external leg the instrument is fixed by the public selection, and its non-convergence in any fold fails S-fit",
+  "instrument_inconclusive_rule": "S-count fails: no fit, select_instrument is not called, selection, fits, leagues, pooled and shot values are null, failed_gates is [S_count], reason S_COUNT; S-count passes and S-fit fails: the fits and the R and L statistics are reported, their gates are not evaluated (passed null), failed_gates is [S_fit], reason S_FIT; S_COUNT precedes S_FIT; otherwise every failed R and L gate is listed",
   "calibration_fit_failure": "a calibration slope or intercept fit that does not converge is None, and None fails its gate in that league",
 
   "bootstrap_unit": "match_within_heldout_league",
   "bootstrap_replicates": 2000,
-  "bootstrap_rule": "np.random.default_rng([seed, league_position]).multinomial(n_matches, [1/n_matches] * n_matches, size=bootstrap_replicates) over the league's sorted game_ids; statistics recomputed from per-match sums; pooled statistics add the five leagues' resampled sums, replicate by replicate",
+  "bootstrap_rule": "np.random.default_rng([seed, league_position]).multinomial(n_matches, [1/n_matches] * n_matches, size=bootstrap_replicates), n_matches the number of unique game_ids in the held-out league's in-domain shot frame, in sorted game_id order; statistics recomputed from per-match sums; pooled statistics add the five leagues' resampled sums, replicate by replicate",
   "interval_quantiles": [0.025, 0.975],
   "interval_quantile_method": "linear",
   "seed": 20261009,
@@ -262,7 +298,7 @@
   "gate_l_leagues_required": 5,
   "ece_bins": 10,
   "ece_binning": "equal_mass_cut_at_value_boundaries",
-  "ece_binning_rule": "sort by probability; for k = 1..ece_bins-1 the k-th cut is the first index at or after k*n/ece_bins at which the probability changes value; repeated cuts merge; rows with equal probability are never split between bins",
+  "ece_binning_rule": "sort by probability (stable); c_0 = 0, c_ece_bins = n; for k = 1..ece_bins-1, c_k is the smallest i with i >= ceil(k*n/ece_bins), i < n and p[i] != p[i-1], else n; bins are [c_(k-1), c_k); empty bins are dropped; rows with equal probability are never split between bins",
   "ece_weighting": "bin_count",
   "mce_rule": "largest absolute gap between mean probability and observed rate over the bins",
   "ece_null_draws": 1000,
@@ -276,6 +312,7 @@
   "planning_shot_rows_at_or_behind_halfway_by_x_only": {"Spain": 21, "England": 11, "Italy": 26, "Germany": 23, "France": 19},
   "expected_goal_rows_on_shots": {"Spain": 884, "England": 914, "Italy": 853, "Germany": 747, "France": 873},
   "expected_matches": {"Spain": 380, "England": 380, "Italy": 380, "Germany": 306, "France": 380},
+  "structure_identity": "per league shot_rows = in_domain_shot_rows + behind_halfway_shot_rows + sentinel_start_shot_rows: a sentinel start is either location_sentinels pair; behind_halfway counts non-sentinel shot rows with start_x <= 0.50; in_domain counts non-sentinel shot rows with start_x > 0.50; asserted in phase 2",
   "expected_body_part_coverage_on_shots": 1.0,
   "expected_clause_overlap_rows": 0,
   "expected_shot_family_disagreements": 0,
@@ -288,17 +325,18 @@
   "sidecar_requires_actions_event_ids_equal": true,
 
   "verdict_vocabulary": {
-    "candidate": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_INSTRUMENT", "NOT_ESTABLISHED_MIXED", "INCONCLUSIVE"],
+    "candidate": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "INCONCLUSIVE_INSTRUMENT", "NOT_ESTABLISHED_MIXED", "INCONCLUSIVE"],
     "instrument": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE", "NOT_ESTABLISHED", "INCONCLUSIVE"]
   },
-  "verdict_reason_codes": {"candidate_row_1": "INSTRUMENT_NOT_JUDGED", "candidate_row_3": "TOO_FEW_EVALUABLE_LEAGUES", "instrument_s_count": "S_COUNT", "instrument_s_fit": "S_FIT"},
+  "verdict_reason_codes": {"candidate_row_1": "INSTRUMENT_NOT_JUDGED", "candidate_row_2": "INSTRUMENT_NOT_ACCEPTED", "candidate_row_3": "TOO_FEW_EVALUABLE_LEAGUES", "instrument_s_count": "S_COUNT", "instrument_s_fit": "S_FIT"},
+  "league_not_computed_reasons": {"too_few_evaluable_leagues": "NOT_COMPUTED:TOO_FEW_EVALUABLE_LEAGUES", "instrument_not_accepted": "NOT_COMPUTED:INSTRUMENT"},
   "registry_candidate_subjects": ["shot_volume", "shot_location_value", "box_shot_share", "opp_half_defensive_actions"],
   "registry_instrument_subjects": ["shot_location_v1"],
   "registry_common": {
     "not_run_statement": "E-09 is registered and not run. No candidate statistic and no estimate of the conversion model has been computed."
   },
   "registry_candidate": {
-    "scope": "Outfield players with at least the frozen regulation minutes in the 2017/18 first divisions of Spain, England, Italy, Germany and France, public Wyscout event data (Pappalardo et al. 2019); player-season values; reliability within broad position, each league separately; positions listed under context_limits in results.json are outside the claim.",
+    "scope": "Outfield players with at least the frozen regulation minutes in the 2017/18 first divisions of Spain, England, Italy, Germany and France, public Wyscout event data (Pappalardo et al. 2019); player-season values; reliability within broad position, each league separately; positions listed under context_limits in results.json are those where reliability within the position alone was not shown, reported beside the claim.",
     "claim_token": "SURVIVES",
     "non_claim": "A descriptor of how often or where a player's recorded events occur, repeatable within one season among players of the same broad position. It does not say how well a player shoots or defends, it is not comparable across leagues or seasons, and the data were seen before the protocol was written, so the result is exploratory."
   },
@@ -309,32 +347,45 @@
   },
   "registry_outcomes": {
     "candidate": {
-      "ESTABLISHED_NUMBER": {"status": "ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Repeatable between the two match sets of one season among players of the same broad position, with a reliability lower bound at or above the number threshold in at least four of the five leagues, and not a near-copy of any declared baseline statistic. It is not promoted and is not shown beside players in this release."},
-      "ESTABLISHED_BAND": {"status": "ESTABLISHED", "limits": true, "registry_move": "NONE", "statement": "Repeatable between the two match sets of one season among players of the same broad position, with a reliability lower bound at or above the band threshold in at least four of the five leagues but at or above the number threshold in fewer than four, and not a near-copy of any declared baseline statistic. A band, never a point value; it is not promoted and is not shown beside players in this release."},
-      "NOT_ESTABLISHED_REDUNDANT": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Closed as redundant by the frozen rule: in at least one league where it was evaluated, a statistic the project already has correlated with it above the ceiling declared before the test."},
+      "ESTABLISHED_NUMBER": {"status": "ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Repeatable between the two match sets of one season among players of the same broad position, with a reliability lower bound at or above the number threshold in at least four of the five leagues, and, in those leagues, not a near-copy of any declared baseline statistic. It is not promoted and is not shown beside players in this release."},
+      "ESTABLISHED_BAND": {"status": "ESTABLISHED", "limits": true, "registry_move": "NONE", "statement": "Repeatable between the two match sets of one season among players of the same broad position, with a reliability lower bound at or above the band threshold in at least four of the five leagues but at or above the number threshold in fewer than four, and, in those leagues, not a near-copy of any declared baseline statistic. A band, never a point value; it is not promoted and is not shown beside players in this release."},
+      "NOT_ESTABLISHED_REDUNDANT": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Closed as redundant by the frozen rule: in at least one league where it was evaluated, a declared baseline statistic correlated with it above the ceiling declared before the test."},
       "NOT_ESTABLISHED_CONFOUNDED": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Rejected in more than half of the leagues where it was evaluated, and closed as confounded: a declared nuisance variable explained more of its variance than the ceiling declared before the test allows, the reason the frozen closure rule selects."},
       "NOT_ESTABLISHED_UNRELIABLE": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "REJECTED", "statement": "Compared and not established. Rejected in more than half of the leagues where it was evaluated, and closed as not repeatable: between the two match sets of a season, among players of the same broad position, its reliability lower bound fell below the band threshold, the reason the frozen closure rule selects."},
-      "NOT_ESTABLISHED_INSTRUMENT": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "RESEARCH_ONLY", "statement": "Not evaluated as a candidate: the location-only conversion model it depends on did not meet its frozen out-of-league criteria."},
+      "INCONCLUSIVE_INSTRUMENT": {"status": "INCONCLUSIVE", "limits": false, "registry_move": "NONE", "statement": "Not evaluated as a candidate: the location-only conversion model it depends on was judged and did not meet its frozen out-of-league criteria. Nothing was compared at the candidate level."},
       "NOT_ESTABLISHED_MIXED": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "RESEARCH_ONLY", "statement": "Compared and not established. It passed in fewer leagues than the frozen rule needs and was rejected in no more than half of the leagues where it was evaluated."},
       "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "registry_move": "NONE", "statement": "A frozen sample or data gate was not met in too many leagues, or the conversion model it depends on was not judged. Nothing was compared at the candidate level."}
     },
     "instrument": {
-      "ACCEPTED": {"status": "ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Fitted out of league on the public event data of five leagues, the location-only conversion model met every frozen criterion on relative value within a league and on level."},
-      "ACCEPTED_WITHIN_LEAGUE": {"status": "ESTABLISHED", "limits": true, "registry_move": "NONE", "statement": "Fitted out of league on the public event data of five leagues, the location-only conversion model met every frozen criterion on relative value within a league and failed at least one on level. Its values carry no goal unit and are never compared across leagues."},
+      "ACCEPTED": {"status": "ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Fitted out of league on the public event data of five leagues, the location-only conversion model met every frozen criterion on relative value within a league, on level and on calibration across value bins."},
+      "ACCEPTED_WITHIN_LEAGUE": {"status": "ESTABLISHED", "limits": true, "registry_move": "NONE", "statement": "Fitted out of league on the public event data of five leagues, the location-only conversion model met every frozen criterion on relative value within a league and failed at least one on level or on calibration across value bins. Its values carry no goal unit and are never compared across leagues."},
       "NOT_ESTABLISHED": {"status": "NOT_ESTABLISHED", "limits": false, "registry_move": "NONE", "statement": "Fitted out of league, the location-only conversion model failed at least one frozen criterion on relative value within a league. No candidate that depends on it was evaluated."},
       "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "registry_move": "NONE", "statement": "A frozen sample gate of the model was not met, or a required model estimation did not converge. The model was not judged."}
     }
   },
   "product_admissible_in_this_release": false,
   "promotion_set_in_this_release": [],
-  "untested_edit": {"after_any_verdict_remove": ["shot_profile", "defensive_action_profile"], "kept": ["carrying_value"], "inconclusive_adds_candidate_id": true},
+  "untested_edit": {"after_any_verdict_remove": ["shot_profile", "defensive_action_profile"], "kept": ["carrying_value"], "tokens_that_add_candidate_id": ["INCONCLUSIVE", "INCONCLUSIVE_INSTRUMENT"]},
+  "tested_not_promoted_edit": {"tokens": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"], "registry": "TESTED_NOT_PROMOTED", "rule": "a declared hand edit tied to the token by a test, not a registry_move (rule V6 forbids a move on an ESTABLISHED outcome): the results commit writes TESTED_NOT_PROMOTED = {candidate id: (headline, detail)} in galactico/profiles/build.py whatever the tokens, empty when no candidate is established, with headline and detail from player_lab_text[token]"},
+  "registry_lists_after_run": {"REJECTED": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE"], "RESEARCH_ONLY": ["NOT_ESTABLISHED_MIXED"], "TESTED_NOT_PROMOTED": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"], "UNTESTED": ["INCONCLUSIVE", "INCONCLUSIVE_INSTRUMENT"]},
+  "player_lab_counts_after_run": "proposed = shipped constructs + |REJECTED| + |RESEARCH_ONLY| + |TESTED_NOT_PROMOTED| + |UNTESTED| = 13 under every assignment of the eight candidate tokens to the four candidates; tested = proposed - |UNTESTED|; surviving = shipped constructs = 5",
+  "display_name_edit": {"registry": "DISPLAY_NAMES", "rule": "the results commit writes DISPLAY_NAMES = {candidate id: display_name of candidates} in galactico/profiles/build.py for every candidate it enters in REJECTED, RESEARCH_ONLY or TESTED_NOT_PROMOTED; galactico/api/player_lab.py serves that name as the label and falls back to the id rule only for ids it does not hold"},
   "player_lab_text": {
-    "NOT_ESTABLISHED_REDUNDANT": {"headline": "Too similar to {baseline}", "headline_tied": "Too similar to statistics the project already has", "detail": "Correlated with a statistic the project already has above the ceiling declared before the test, in the leagues where the frozen rule closed it. The analysis names the statistic and the leagues."},
+    "ESTABLISHED_NUMBER": {"headline": "Tested and established, not promoted in this release", "detail": "Repeatable between two sets of a season's matches among players of the same broad position, and not a near-copy of a declared baseline statistic in the leagues where it passed. It is not promoted and is not shown beside players in this release."},
+    "ESTABLISHED_BAND": {"headline": "Tested and established with limits, not promoted in this release", "detail": "Repeatable between two sets of a season's matches among players of the same broad position at the band threshold, not the number threshold, and not a near-copy of a declared baseline statistic in the leagues where it passed. A band, never a point value; it is not promoted and is not shown beside players in this release."},
+    "NOT_ESTABLISHED_REDUNDANT": {"headline": "Too similar to {baseline}", "headline_tied": "Too similar to declared baseline statistics", "detail": "Correlated with a declared baseline statistic above the ceiling declared before the test, in the leagues where the frozen rule closed it. The analysis names the statistic and the leagues."},
     "NOT_ESTABLISHED_CONFOUNDED": {"headline": "Mostly explained by {nuisance}", "detail": "A variable declared before the test as one it must not be measuring explained more of its variance than the ceiling allows; that was the reason the frozen rule closed it."},
     "NOT_ESTABLISHED_UNRELIABLE": {"headline": "Not repeatable between two sets of a season's matches within a position", "detail": "Among players of the same broad position, its values in the odd- and even-numbered matches of the season did not agree closely enough; that was the reason the frozen rule closed it."},
-    "NOT_ESTABLISHED_INSTRUMENT": {"headline": "Its conversion model was not accepted out of league", "detail": "The location-only model it depends on did not meet its frozen criteria on leagues it was not estimated on, so the candidate was not evaluated."},
     "NOT_ESTABLISHED_MIXED": {"headline": "Survived in too few leagues", "detail": "It passed the frozen rule in some leagues and not in enough of them, and was rejected in no more than half."}
   },
+  "planning_after_run": {
+    "research_sentence": "E-09 tested whether four player statistics and a location-only shot conversion model meet frozen criteria on public event data. That is not validity and not decision use, and no E-09 statistic is shown beside players.",
+    "research_sentence_rule": "written by the results commit into galactico/api/planning.py once any E-09 record's badge reads TESTED (status ESTABLISHED or NOT_ESTABLISHED); when a sentence written for another experiment is already in force, this sentence follows it; while no E-09 record reads TESTED nothing in planning.py changes for E-09",
+    "shots_entry_tested": "No shot construct is shown. E-09 tested shot statistics and a location-only conversion model on public event data; its verdicts are research labels, not validity or decision use, and none is promoted in this release.",
+    "shots_entry_untested": "No shot construct is shown. E-09 was run, and its frozen gates left its shot statistics untested; none is promoted in this release.",
+    "shots_entry_rule": "the results commit replaces the shots entry of NOT_MEASURED_EXTRA with shots_entry_tested when shot_location_v1, shot_volume, shot_location_value or box_shot_share holds a token whose badge reads TESTED, else with shots_entry_untested; a clause about another experiment that is in force is kept after it"
+  },
+  "gap_matrix_edit": {"tokens": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "rule": "under these instrument tokens only, the results commit adds to docs/LIVE-DATA-GAP-MATRIX.md, beside the xG / xA row, a note that the free corpus supports a location-only conversion model (shot_location_v1, PREDICTIVE) and no provider xG; under ACCEPTED_WITHIN_LEAGUE the note adds that its values are not compared across leagues; under NOT_ESTABLISHED or INCONCLUSIVE the matrix is not edited"},
   "baseline_fill_rule": "the battery column that is a closest baseline in the most leagues closed as REDUNDANT; when two or more columns share that count, headline_tied",
   "baseline_prose": {
     "minutes": "minutes played",
@@ -364,20 +415,32 @@
   "sb_location_scale": [120, 80],
   "sb_regulation_periods": [1, 2],
   "sb_period_labels": {"1": "1H", "2": "2H"},
-  "sb_minutes_rule": "galactico.validation.sb_reader.read_team_sheets minutes_regulation (E-11 rule 2) with cap regulation_minutes_cap, summed over the season",
+  "sb_minutes_rule": "galactico.validation.sb_reader.read_team_sheets minutes_regulation (E-11 rule 2) with cap regulation_minutes_cap, regulation_periods sb_regulation_periods, goalkeeper_position sb_goalkeeper_position, dismissal_card_types_exclude sb_dismissal_card_types_exclude and spell_end_reason_contains sb_spell_end_reason_contains, summed over the season; is_goalkeeper, dismissed and permanent_off are not read",
+  "sb_goalkeeper_position": "Goalkeeper",
+  "sb_dismissal_card_types_exclude": ["Yellow Card"],
+  "sb_spell_end_reason_contains": "Permanent",
   "sb_open_play_shot_types": ["Open Play"],
   "sb_known_shot_types": ["Open Play", "Free Kick", "Penalty", "Corner", "Kick Off"],
-  "sb_head_or_body_parts": ["Head", "Other"],
-  "sb_foot_parts": ["Left Foot", "Right Foot"],
-  "penalty_area_sb": {"min_x": 0.85, "min_y": 0.225, "max_y": 0.775},
+  "sb_body_part_map": {"Head": "head_or_body", "Other": "head_or_body", "Left Foot": "left_foot", "Right Foot": "right_foot"},
+  "sb_event_row_rule": "rows of sb_reader.read_events(scale=sb_location_scale) whose sb_player_id is not null, whose start_x and start_y are finite and whose period is in sb_regulation_periods; a row whose kind is not a key of sb_kind_type_map is dropped; a Shot row whose shot_type is not in sb_open_play_shot_types is dropped, never remapped",
+  "sb_kind_type_map": {"Pass": "pass", "Shot": "shot", "Duel": "duel", "Interception": "touch", "Clearance": "touch", "Miscontrol": "touch", "Dispossessed": "touch", "Block": "touch"},
+  "sb_interception_kinds": ["Interception"],
+  "sb_interception_pass_types": ["Interception"],
+  "sb_frame_columns_rule": "game_id, team_id, player_id from sb_game_id, sb_team_id, sb_player_id; event_id the provider's string, never cast; period by sb_period_labels; type by sb_kind_type_map; subtype null on every row (no leg clause or battery column reads it); start and end from read_events, an absent end NaN; success on a Pass row = not has_outcome (E-11's completed), null on every other row; goal = a Shot row whose outcome is in sb_goal_outcomes; counter_attack = play_pattern in sb_counter_attack_play_patterns; interception = kind in sb_interception_kinds or a Pass whose pass_type is in sb_interception_pass_types (E-11's family, which matches the interception tag the public rule reads on passes); body_part by sb_body_part_map on Shot rows, null elsewhere; shot_family open_play on kept Shot rows, null elsewhere; location_sentinels are applied by Zone.mask as on the public run and the leg's sentinel-start shot rows are counted",
+  "sb_goal_outcomes": ["Goal"],
+  "sb_counter_attack_play_patterns": ["From Counter"],
+  "sb_frame_refusal": "a leg frame with no pass row, or with no row of any type other than shot, is refused before any statistic",
   "sb_position_groups": {
     "GK": ["Goalkeeper"],
     "DF": ["Right Back", "Right Center Back", "Center Back", "Left Center Back", "Left Back", "Right Wing Back", "Left Wing Back"],
     "MD": ["Right Defensive Midfield", "Center Defensive Midfield", "Left Defensive Midfield", "Right Midfield", "Right Center Midfield", "Center Midfield", "Left Center Midfield", "Left Midfield", "Right Attacking Midfield", "Center Attacking Midfield", "Left Attacking Midfield"],
     "FW": ["Right Wing", "Left Wing", "Right Center Forward", "Striker", "Left Center Forward", "Center Forward", "Secondary Striker"]
   },
-  "sb_position_rule": "the group of sb_position_groups with most regulation minutes over the player's season spells; a tie goes to the group first in GK, DF, MD, FW order; a position name outside sb_position_groups stops the leg before any statistic",
-  "sb_battery_rule": "compute_baselines on the leg's own frames, in which only shots of sb_open_play_shot_types carry type shot and other shots are dropped; the leg's battery columns are that provider's and are not compared with the public run's",
+  "sb_position_rule": "the group of sb_position_groups with most regulation minutes over the player's season spells, each spell's regulation minutes taken from galactico.validation.sb_reader._spell (imported as a private member, never reimplemented) with cap regulation_minutes_cap and sb_regulation_periods; a tie goes to the group first in GK, DF, MD, FW order; a player whose group is GK is a goalkeeper and is excluded; a position name outside sb_position_groups stops the leg before any statistic",
+  "sb_battery_rule": "compute_baselines on the leg's own frames built by sb_event_row_rule and sb_frame_columns_rule, with the leg's minutes; opp_half_on_ball_per_90 by opp_half_on_ball_rule on the same frames; the leg's battery columns are that provider's and are not compared with the public run's",
+  "sb_reader_source_sha256_in_e11_acceptance": "ce0bc5cba334e412da63bb39b83cd70987d5b682de280d67714185b2e00b9f29",
+  "sb_reader_pin_rule": "lf_sha256(galactico/validation/sb_reader.py) equals the galactico/validation/sb_reader.py entry of source_hashes in experiments/preregistered/E-11-provider-agreement/acceptance.json, and equals this value",
+  "sb_box_spec": {"candidate_id": "box_shot_share", "fingerprint": "23bf9214db9b", "sentence": "count over shots starting in the penalty area as the second provider draws it, per shot", "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": "penalty_area_sb"}], "denominator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": null}], "rule": "defined in candidate_sb.py, never in CANDIDATES, which keeps its four keys"},
   "sb_leg_candidates": ["shot_volume", "shot_location_value", "box_shot_share"],
   "sb_gate_s_count": {"minimum_training_shots": 15000, "minimum_training_goals": 1500, "minimum_heldout_shots": 5000, "minimum_heldout_goals": 500},
   "sb_gate_leagues_required": 4,
@@ -389,11 +452,13 @@
     "REPLICATED": "On the second provider's earlier season of four leagues, the candidate passed the same frozen rule in at least three of them. Provider and season changed together.",
     "NOT_REPLICATED": "On the second provider's earlier season of four leagues, the candidate was rejected by the same frozen rule in at least three of them. Provider and season changed together.",
     "MIXED": "On the second provider's earlier season of four leagues, the candidate neither passed nor was rejected in three of them.",
-    "INCONCLUSIVE": "Fewer than three of the second provider's four leagues passed the frozen sample gates; nothing was compared.",
-    "INSTRUMENT_NOT_ACCEPTED": "The location-only conversion model, refitted on the second provider's four leagues, did not meet its frozen criteria there; the candidate was not evaluated."
+    "INCONCLUSIVE": "Fewer than three of the second provider's four leagues were evaluated by the frozen rule: a frozen sample or data gate was not met in too many of them. Nothing was compared at the candidate level.",
+    "INSTRUMENT_NOT_ACCEPTED": "The location-only conversion model, refitted on the second provider's four leagues, was not accepted there: it failed its frozen criteria, or a frozen sample or convergence gate was not met. The candidate was not evaluated."
   },
-  "sb_level_shift_rule": "reported in the LOCAL file only, never a token: for each league the mean over A of the full-season value; m_sb and m_wy the unweighted means of the four sb_folders leagues and of their wy_league_of_sb_folder leagues; shift = (m_sb - m_wy) / m_wy; null when a league has an empty A or m_wy is 0; not computed for shot_location_value",
+  "sb_level_shift_rule": "reported in the LOCAL file only, never a token: for each league the mean over A of the full-season value, computed for every league whose count gates passed (LeagueEvaluation.mean, null otherwise); m_sb and m_wy the unweighted means of the four sb_folders leagues and of their wy_league_of_sb_folder leagues; shift = (m_sb - m_wy) / m_wy; null when any of the eight league means is null or m_wy is 0; not computed for shot_location_value",
   "sb_output_root": "data/licensed/research/E-09-player-candidates",
+  "sb_results_file": "external_results.local.json",
+  "sb_failed_run_log": "failed_runs.local.json",
   "sb_report": "docs/research/E-09-EXTERNAL-LEG.md",
 
   "followup_as_of_minimum_training_shots": 6000,
@@ -402,6 +467,9 @@
   "selfcheck_seed": 20261010,
   "selfcheck_seed_rule": "worlds: np.random.default_rng([selfcheck_seed, world_position, replicate, league_position]); instrument scenarios: np.random.default_rng([selfcheck_seed, 100 + scenario_position, replicate, league_position]); resampling inside the self-check as in the real run (bootstrap_rule)",
   "selfcheck_predicate": "for each world or scenario and each subject it names: the number of replicates whose token is in expected is at least minimum_replicates_matching, the number whose token is in never is zero, where an also entry exists, the number whose token is in also.tokens is at least also.minimum_replicates_matching; where failing_gate is named, a replicate counts as matching only if that gate is among its failed gates; each league assertion holds in every replicate league; each generator sanity bound holds",
+  "selfcheck_smoke_rule": "the always-run test variant at selfcheck_replicates = 2 (the only key a test may override) asserts that every never list holds in both replicates, that each world and scenario gives a token in expected for each subject it names in at least one of the two replicates, and that two runs give byte-identical blocks; it does not apply the predicate's minimums",
+  "selfcheck_stamp": "selfcheck.json",
+  "selfcheck_stamp_rule": "written by the runner's --selfcheck command with passed, config_hash, pipeline_hash, source_hashes and the selfcheck block; committed beside the protocol in a commit of its own after the pipeline commit and before the run; phase 1 refuses unless it is tracked at HEAD, its working LF hash equals that of git show HEAD:<path>, passed is true and its three hashes equal the current ones; phase 3 recomputes the block and stops unless it equals the stamp's block",
   "synthetic_teams": 20,
   "synthetic_rounds": 38,
   "synthetic_position_counts": {"DF": 5, "MD": 5, "FW": 5},
@@ -424,7 +492,7 @@
                                    "head_or_body": -0.55, "head_or_body*distance_m": -0.03},
   "synthetic_worlds": [
     {
-      "name": "EFFECT",
+      "world": "EFFECT",
       "shot_rate_per_90": {"DF": 1.2, "MD": 1.5, "FW": 1.8},
       "shot_rate_log_sd": 0.45,
       "distance_scale_m": {"distribution": "uniform", "low": 8.0, "high": 28.0},
@@ -442,13 +510,13 @@
         "box_shot_share": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
       },
-      "minimum_replicates_matching": 10,
+      "minimum_replicates_matching": 9,
       "never": {
         "shot_location_v1": ["INCONCLUSIVE"]
       }
     },
     {
-      "name": "NULL",
+      "world": "NULL",
       "shot_rate_per_90": {"DF": 0.5, "MD": 1.2, "FW": 2.5},
       "shot_rate_log_sd": 0.0,
       "distance_scale_m": {"distribution": "constant", "value": 17.0},
@@ -465,7 +533,7 @@
         "box_shot_share": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"],
         "opp_half_defensive_actions": ["NOT_ESTABLISHED_REDUNDANT", "NOT_ESTABLISHED_CONFOUNDED", "NOT_ESTABLISHED_UNRELIABLE", "NOT_ESTABLISHED_MIXED"]
       },
-      "minimum_replicates_matching": 10,
+      "minimum_replicates_matching": 9,
       "never": {
         "shot_volume": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
         "shot_location_value": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"],
@@ -478,7 +546,7 @@
       }
     },
     {
-      "name": "NUISANCE",
+      "world": "NUISANCE",
       "shot_rate_per_90": {"DF": 0.5, "MD": 1.2, "FW": 2.5},
       "shot_rate_log_sd": 0.0,
       "distance_scale_m": {"distribution": "constant", "value": 17.0},
@@ -492,7 +560,7 @@
       "expected": {
         "opp_half_defensive_actions": ["NOT_ESTABLISHED_CONFOUNDED"]
       },
-      "minimum_replicates_matching": 10,
+      "minimum_replicates_matching": 9,
       "never": {
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND", "INCONCLUSIVE"]
       },
@@ -501,7 +569,7 @@
       }
     },
     {
-      "name": "REDUNDANT_WITHIN_POSITION",
+      "world": "REDUNDANT_WITHIN_POSITION",
       "shot_rate_per_90": {"DF": 1.2, "MD": 1.5, "FW": 1.8},
       "shot_rate_log_sd": 0.45,
       "distance_scale_m": {"distribution": "uniform", "low": 8.0, "high": 28.0},
@@ -515,7 +583,7 @@
       "expected": {
         "opp_half_defensive_actions": ["NOT_ESTABLISHED_REDUNDANT"]
       },
-      "minimum_replicates_matching": 10,
+      "minimum_replicates_matching": 9,
       "never": {
         "opp_half_defensive_actions": ["ESTABLISHED_NUMBER", "ESTABLISHED_BAND"]
       }
@@ -534,12 +602,15 @@
   "synthetic_instrument_matches_per_league": 380,
   "synthetic_instrument_distance_scale_m": 17.0,
   "synthetic_instrument_match_rule": "each shot's game_id drawn uniformly from the league's synthetic_instrument_matches_per_league match ids",
+  "synthetic_shot_coordinate_rule": "from distance d and lateral offset c (c <= d by construction): X = sqrt(d^2 - c^2), start_x = 1 - X / pitch_length_m, start_y = 0.5 - c / pitch_width_m on the attacker's left (y = 0 is the attacker's left) and 0.5 + c / pitch_width_m on his right, both rounded to synthetic_coordinate_decimals; every feature, the truth model's included, is computed from the rounded coordinates",
+  "synthetic_logit_median_rule": "TOO_SHARP and SLOPE_SHIFT take the median of the truth logit over the league's own synthetic shots, after rounding",
+  "synthetic_instrument_frame_rule": "scenario shot frames carry SHOT_COLUMNS: event_id 1..n in draw order within the league, game_id by synthetic_instrument_match_rule, team_id 1 and player_id 1 on every row (the instrument reads neither), counter_attack false, head_or_body by synthetic_head_or_body_probability, goal from the scenario's truth",
   "synthetic_instrument_scenarios": [
-    {"name": "PLANTED", "expected": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 10, "never": ["INCONCLUSIVE"], "also": {"tokens": ["ACCEPTED"], "minimum_replicates_matching": 9}},
-    {"name": "NO_SIGNAL", "goal_rate": 0.105, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 10, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"]},
-    {"name": "TOO_SHARP", "logit_multiplier": 4.0, "logit_shift": -3.0, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 10, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R5"},
-    {"name": "LEVEL_SHIFT", "league_position": 2, "odds_multiplier": 0.80, "expected": ["ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 10, "never": ["ACCEPTED"]},
-    {"name": "SLOPE_SHIFT", "league_position": 2, "logit_slope_multiplier": 0.5, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 10, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R3"}
+    {"scenario": "PLANTED", "expected": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 9, "never": ["INCONCLUSIVE"], "also": {"tokens": ["ACCEPTED"], "minimum_replicates_matching": 8}},
+    {"scenario": "NO_SIGNAL", "goal_rate": 0.105, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 9, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"]},
+    {"scenario": "TOO_SHARP", "logit_multiplier": 4.0, "logit_shift": -3.0, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 9, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R5"},
+    {"scenario": "LEVEL_SHIFT", "league_position": 2, "odds_multiplier": 0.80, "expected": ["ACCEPTED_WITHIN_LEAGUE"], "minimum_replicates_matching": 9, "never": ["ACCEPTED"]},
+    {"scenario": "SLOPE_SHIFT", "league_position": 2, "logit_slope_multiplier": 0.5, "expected": ["NOT_ESTABLISHED"], "minimum_replicates_matching": 9, "never": ["ACCEPTED", "ACCEPTED_WITHIN_LEAGUE"], "failing_gate": "R3"}
   ],
 
   "power_planning": {
@@ -573,7 +644,113 @@
       "LEVEL_SHIFT": {"ACCEPTED_WITHIN_LEAGUE": 39, "NOT_ESTABLISHED": 1},
       "SLOPE_SHIFT": {"NOT_ESTABLISHED": 40, "with_R3_failed": 40}
     },
-    "minimum_set_from": "each minimum leaves at least a 0.98 chance that one subject passes when its miss rate is (observed misses + 1) / 40: 0.9971 for 10 of 12 at one miss in 40, 0.9804 for 10 of 12 at two (LEVEL_SHIFT), 0.9904 for 9 of 12 at three (PLANTED, ACCEPTED); never lists hold only tokens that would classify a planted truth as its opposite, none of which occurred"
+    "minimum_set_from": "audit revision of 18 October 2026: with miss rate (observed misses + 1) / 40 per subject, 9 of 12 passes with 0.9998 at one miss in 40 (fifteen subjects), 0.9978 at two (LEVEL_SHIFT), and 8 of 12 with 0.9988 at three (PLANTED, ACCEPTED), so all seventeen minimum conditions hold together with 0.9941 if independent (the earlier minimums, 10, 10 and 9 of 12, gave 0.9296); never lists hold only tokens that would classify a planted truth as its opposite, none of which occurred in any simulated replicate, and this arithmetic does not bound them",
+    "joint_minimum_pass_probability": 0.9941,
+    "joint_minimum_pass_probability_before_audit": 0.9296
+  },
+
+  "planning_figures": {
+    "rule": "figures the protocol states in prose as planning figures, with their basis; none gates anything",
+    "italy_o_e_if_location_mix_identical": 0.897,
+    "italy_o_e_basis": "Italy's disclosed goal rate 9.69% over the unweighted mean 10.80% of the other four leagues' (section 2)",
+    "r1_league_brier_skill_se": 0.012,
+    "r1_league_brier_skill_sd_synthetic_planted": 0.009,
+    "r3_league_calibration_slope_sd": 0.05,
+    "r3_basis": "the draft's derived 0.04 understated it: 0.053 on the auditor's synthetic PLANTED scenario, 12 replicates x 5 leagues",
+    "r4_subgroup_o_e_se_range": [0.016, 0.043],
+    "l1_league_o_e_se": 0.033,
+    "l1_league_o_e_sd_synthetic_planted": 0.030,
+    "sum_to_count_noise_ratio": 1.5,
+    "unattributed_ground_duel_share_disclosed": 0.10,
+    "share_noise_below_shots": 5,
+    "open_question_2_proposal_failure_rate_at_true_skill_0_10": 0.2,
+    "literature": {"brier_skill_range": [0.10, 0.13], "auroc_range": [0.75, 0.79], "logistic_convergence_shots": 6000, "striker_year_to_year_shot_r": 0.66}
+  },
+  "predictions": {
+    "shot_location_v1": {"token": "ACCEPTED_WITHIN_LEAGUE", "reason": "Italy's level (planning_figures.italy_o_e_if_location_mix_identical)."},
+    "shot_volume": {"token": "ESTABLISHED_NUMBER", "reason": "A published year-to-year correlation of about 0.66 for strikers; the raw correlation with mean pitch position is the likeliest closure if it fails."},
+    "shot_location_value": {"token": "NOT_ESTABLISHED_REDUNDANT", "reason": "The identity value = volume x mean value: the sum is about 1.5 times noisier than the count and the count dominates its variance."},
+    "box_shot_share": {"token": "ESTABLISHED_BAND", "reason": "66 to 88 players per league in the share set; no published figure exists."},
+    "opp_half_defensive_actions": {"token": "ESTABLISHED_NUMBER", "reason": "Team instruction is context here; team is expected to explain a large share of its variance in the reported joint audit, which does not gate."}
+  },
+  "predictions_matched_rule": "matched is true when the subject's token equals the predicted token; reasons are not scored; a miss changes nothing",
+  "interpretation_limits": "Exploratory: the data were seen before this protocol was written. Repeatability within one season among players of the same broad position is not validity and not decision use, and no E-09 statistic is shown beside players in this release.",
+  "interpretation_language": {
+    "redundant_location_value_against_volume": "Weighting shots by a location-only conversion model did not separate players that counting shots does not, in this corpus.",
+    "redundant_other": "The statistic was a near-copy of the named declared baseline statistic in the leagues where the frozen rule closed it, in this corpus.",
+    "redundant_rule": "redundant_location_value_against_volume only for shot_location_value closed as redundant with shot_volume among the closest baselines of a league closed as REDUNDANT; redundant_other for every other redundant closure, naming the column",
+    "instrument_not_accepted": "This location-only model did not meet its frozen out-of-league criteria.",
+    "established": "Repeatable within a season among players of the same broad position, and, in the leagues where it passed, not a copy of the declared baselines."
+  },
+  "run_output_root": "data/public/research/E-09-player-candidates",
+  "failed_run_log": "failed_runs.json",
+  "determinism_rerun_file": "results.rerun.json",
+  "raw_manifest_entries": ["events.zip", "matches.zip", "players.json"],
+
+  "root_2_2_design": {
+    "status": "the design that satisfies ROOT 2.2 as written (non-penalty shots); the open-play design in candidates is DISSENT 6's. The root's ruling on DISSENT 6 (root_rulings_required_before_registration) selects one; the reviser then moves the selected design into the main keys, deletes this block, recomputes pipeline_spec_sha256, and the revision is audited again; the registered config holds one design",
+    "subject_ids": "ROOT 2.2's ids shot_volume and shot_location_value; if the root names the volume subject non_penalty_shot_volume instead, its fingerprint is 18f3a5bb9e89",
+    "describe_nouns_changes": {"types": {"shot": "open-play shots"}, "types_singular": {"shot": "open-play shot"}, "subtypes": {"free_kick_shot": "direct free-kick shots"}},
+    "house_battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion", "mean_x", "mean_y", "mean_pass_length", "shots_per_90"],
+    "declared_battery_additions": ["shot_volume", "opp_half_on_ball_per_90", "duel_or_interception_per_90"],
+    "baseline_prose_changes": {"shots_per_90": "open-play shot volume", "shot_volume": "non-penalty shot volume"},
+    "candidates_changes": {
+      "shot_volume": {
+        "fingerprint": "57ed7aea86d9",
+        "display_name": "Non-penalty shots per 90 (open-play and direct free-kick shots)",
+        "sentence": "count over open-play shots or direct free-kick shots, per 90 minutes",
+        "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": null},
+                      {"types": ["set_piece"], "subtypes": ["free_kick_shot"], "flags": [], "zone": null}],
+        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
+                    "mean_x", "mean_y", "mean_pass_length", "opp_half_on_ball_per_90"],
+        "identity_exclusions": ["shot_volume", "shots_per_90"],
+        "e11_subject": "non_penalty_shot_volume",
+        "e11_definition": "aggregated_player_quantities.non_penalty_shot_volume: non_penalty_shots / minutes_regulation x 90, non_penalty_shot = Wyscout type shot or set_piece with subtype in wy_free_kick_shot_subtypes",
+        "e11_label_rule": "E-11's non_penalty_shot_volume record grades this definition and is its cross-provider label; E-11's shot_volume record grades open-play shots and does not apply",
+        "claim": {
+          "construct": "How often the player shoots, from open play or a direct free kick. Not that the shots are good ones.",
+          "observable_implication": "A player who shoots more in one match set shoots more in the other, among players of the same broad position.",
+          "negative_control": "Must not be a near-copy of touch volume or of mean field position.",
+          "incremental_claim": "None beyond the house open-play shot column, which it contains; that column leaves its battery as an identity-family column."
+        }
+      },
+      "shot_location_value": {
+        "fingerprint": "fcc26575bdf8",
+        "display_name": "Location-only conversion value of non-penalty shots from the opponent half per 90 (not provider xG)",
+        "sentence": "sum of location-only conversion value over open-play shots or direct free-kick shots, starting in the opponent half, per 90 minutes",
+        "numerator": [{"types": ["shot"], "subtypes": [], "flags": [], "zone": "opponent_half"},
+                      {"types": ["set_piece"], "subtypes": ["free_kick_shot"], "flags": [], "zone": "opponent_half"}],
+        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
+                    "mean_x", "mean_y", "mean_pass_length", "shots_per_90", "shot_volume", "opp_half_on_ball_per_90"],
+        "redundancy_comparator": "shot_volume, the non-penalty volume, is in its battery, so ROOT 2.2's test of incremental information over shot_volume is the baseline ceiling against it"
+      },
+      "box_shot_share": {
+        "fingerprint": "af2b2b118e73",
+        "sentence": "count over open-play shots starting in the penalty area, per open-play shot",
+        "rule": "stays on open-play shots: a direct free kick starts where the foul was given, and inside the area the award is a penalty; numerator, denominator and share floor count open-play shot rows",
+        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
+                    "mean_x", "mean_y", "mean_pass_length", "shots_per_90", "shot_volume", "opp_half_on_ball_per_90"],
+        "nuisance_columns": ["touches", "shots_per_90"],
+        "confound_kinds": {"touch_volume": "nuisance", "open_play_shot_volume": "nuisance", "team": "context", "position": "constitutive"}
+      },
+      "opp_half_defensive_actions": {
+        "fingerprint": "72619cd8130b",
+        "battery": ["minutes", "touches", "touches_per_90", "passes_per_90", "pass_completion",
+                    "mean_x", "mean_y", "mean_pass_length", "shots_per_90", "shot_volume", "opp_half_on_ball_per_90",
+                    "duel_or_interception_per_90"]
+      }
+    },
+    "identity_family_departure": "shots_per_90 leaves shot_volume's battery because shot_volume = shots_per_90 + direct free-kick shots per 90 (the auditors' synthetic check: correlation 0.994 to 0.997, above baseline_ceiling by construction); lenient, flagged as identity_family_column in departures_active",
+    "identity_test": "shot_volume minus compute_baselines(...)['shots_per_90'] equals direct free-kick shot rows per 90 on the same frame and minutes to 1e-12, and the rows of shot_volume's numerator are exactly the rows E-11's harmonise_wyscout flags non_penalty_shot; baseline_battery asserts the first",
+    "model_domain": "neutral type shot, or set_piece with subtype free_kick_shot, starting in zone opponent_half (start_x > 0.50 strictly, not a location sentinel); the model is fitted, evaluated and used for valuation on that one set; location-only, so no shot-family term",
+    "shot_columns_addition": "direct_free_kick = (shot_family == free_kick) as int, read only by the descriptive subgroup",
+    "descriptive_subgroups": ["counter_attack", "direct_free_kick"],
+    "gate_r4_subgroups": "unchanged",
+    "structure_pins": {"expected_free_kick_shot_rows": null, "expected_goal_rows_on_free_kick_shots": null, "rule": "both join counted_by_root_before_registration; expected_in_domain_shot_rows, expected_behind_halfway_shot_rows and expected_sentinel_start_shot_rows count non-penalty shot rows; expected_shot_rows and expected_goal_rows_on_shots stay open-play counts; structure_identity reads non-penalty shot rows = in-domain + behind-halfway + sentinel-start"},
+    "planning": "England 2017/18 holds 8,801 non-penalty shots (E-11 prior exposure) against 8,451 open-play shots (expected_shot_rows): 350 direct free-kick shots, 4.0% of its non-penalty shots",
+    "sb_leg_changes": {"sb_non_penalty_shot_types": ["Open Play", "Free Kick"], "rule": "shot_volume and shot_location_value read Shot rows of sb_non_penalty_shot_types and box_shot_share those of sb_open_play_shot_types; sb_event_row_rule keeps Shot rows of sb_non_penalty_shot_types and sets shot_family free_kick on Free Kick rows"},
+    "synthetic_changes": "the planted trap's direct free-kick shot of each team is counted by shot_volume and, when its start is in the opponent half, by the model domain and shot_location_value; the penalty is never counted; selfcheck_feasibility was simulated on the open-play design and is simulated again on this design before the re-audit if the ruling selects it",
+    "tests_changes": "the 'a direct free-kick shot is never counted' test becomes 'counted by shot_volume, never by box_shot_share'; the shots_per_90 identity becomes identity_test; the E-11 tie reads the non_penalty_shot flag for shot_volume"
   },
 
   "data_license": "CC BY 4.0 (Pappalardo et al. 2019)",

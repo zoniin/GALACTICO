@@ -226,14 +226,15 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/ROOT-DECISIONS.md":
         "the tier rule, and which matches both releases hold",
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/PIPELINE.md":
-        "the external leg's readers, mappings, gates, tokens, the provider's coordinate "
-        "scale, where the leg writes and the attribution plan; synthetic figures only",
+        "the external leg's readers, mappings and frame rules, gates, tokens, refusals, the "
+        "provider's coordinate scale, the reader's pinned hash, where the leg writes and the "
+        "shape of its local file, and the attribution plan; synthetic figures only",
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/REVIEW-RECORD.md":
-        "the review's findings on the external leg, key names and attribution, with their "
-        "dispositions; synthetic figures only",
+        "the reviews' findings on the external leg (its frames, refit gate and lifecycle), "
+        "key names and attribution, with their dispositions; synthetic figures only",
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/preregistration.md":
-        "the external leg's rule, gates and tokens and the provider's coordinate scale, with "
-        "no figure formed from its data; it draws the logo for the leg's report",
+        "the external leg's rule, frame rules, gates and tokens and the provider's coordinate "
+        "scale, with no figure formed from its data; it draws the logo for the leg's report",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/PIPELINE.md":
         "the field mapping, the coordinate scale, an orientation rule, how events are read in "
         "batches, the replication's gates and statuses, where replication statuses, "

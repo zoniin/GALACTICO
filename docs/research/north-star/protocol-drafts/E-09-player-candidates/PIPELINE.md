@@ -26,22 +26,26 @@ listed. All are developed and tested on **synthetic data only**.
 | B | `galactico/models/shots/{__init__,geometry,logistic,model}.py`, `tests/test_shot_model.py` | numpy, pandas |
 | C | `galactico/validation/shot_model_evaluation.py`, `tests/test_shot_model_evaluation.py` | B |
 | D | `galactico/validation/candidate_gauntlet.py`, `tests/test_candidate_gauntlet.py` | A, C (types only), `reliability/`, `validation/{lifecycle,replication}.py`, `features/axes.py::compute_baselines` |
-| E | `galactico/validation/candidate_synthetic.py`, `experiments/run_candidate_gauntlet.py`, `tests/test_candidate_planted.py`, `tests/test_candidate_runner.py`, `tests/test_candidate_pins.py` | A to D |
-| F (conditional, lowest priority, LOCAL) | `galactico/validation/candidate_sb.py`, `tests/test_candidate_sb.py` | A to D; `validation/sb_reader.py` unchanged |
+| E | `galactico/validation/candidate_synthetic.py` (generators only), `experiments/run_candidate_gauntlet.py` (the runner and `run_selfcheck`), `tests/test_candidate_planted.py`, `tests/test_candidate_runner.py`, `tests/test_candidate_pins.py` | A to D |
+| F (LOCAL; built and pinned in the pipeline commit with the rest, its run conditional and lowest priority) | `galactico/validation/candidate_sb.py`, `tests/test_candidate_sb.py` | A to D; `validation/sb_reader.py` unchanged |
 
 Root owns: the registration commit and every shared-file edit of section 13, the real run,
 `results.json`, `analysis.md`, `MODEL-CARD.md`, every registry edit of section 11.
 
-**Registration-time edits** (section 13). `config.json` and `PIPELINE.md` are registered byte
-for byte. `preregistration.md` is registered after two edits and no other: the DRAFT banner
+**Registration-time edits** (section 13). `PIPELINE.md` is registered byte for byte.
+`config.json` is registered byte for byte after the root has written the keys of
+`counted_by_root_before_registration` into the draft (`counted_by_root_rule`): those keys are
+the only edits to it after the audit, and the root's committed script and its output are
+named in the registration commit. `preregistration.md` is registered after two edits and no other: the DRAFT banner
 (the one-line block quote under the title, which holds the only relative links but one) is
 replaced by the one line
 `> References such as ROOT 2.5 or R12 point to [ROOT-DECISIONS.md](../../../docs/research/north-star/ROOT-DECISIONS.md); the working notes they cite are described in the [README](../../../docs/research/north-star/README.md) beside it.`,
 and the logo path `../../../../assets/statsbomb/statsbomb-logo.png`, which resolves from the
 draft folder, becomes `../../../docs/assets/statsbomb/statsbomb-logo.png`, which resolves
 from `committed_experiment_dir`. `REVIEW-RECORD.md` stays in the draft folder as the record
-of review; the three protocol files there become one-line pointers to the registered
-directory.
+of review; the draft `preregistration.md` and `PIPELINE.md` become one-line pointers to the
+registered directory, and the draft `config.json` is deleted, since a pointer line is not
+JSON (E-11's draft folder holds two pointers and no config).
 
 **Key names.** No key, at any depth, of `config.json`, `results.json` or the LOCAL file of
 the external leg contains `statsbomb`, `pappalardo` or `wyscout` in any letter case, or
@@ -50,8 +54,11 @@ starts with `SB_`. A key that concerns the local-tier provider has `sb` as one o
 the public provider's side beside it has `wy` (`wy_league_of_sb_folder`); `key_naming`.
 Values may name a provider. `tests/test_licensing.py` enforces the first name and the `SB_`
 prefix on every JSON file under `experiments/`; the runner test of section 8.4 enforces all
-three names at every depth. The LOCAL module is `candidate_sb.py` for the same reason: its
-path is a key of `source_hashes`.
+three names at every depth. Source paths are values, never keys: `source_hashes` is a list
+of `{"path", "lf_sha256"}` objects (section 7.2), so `galactico/providers/pappalardo.py` is
+pinned without a key naming its provider. The LOCAL module is `candidate_sb.py` because the
+house keeps provider names out of the file paths of a protocol. The same rule holds for the
+self-check stamp `selfcheck.json`.
 
 **Licence-guard traps.** Never write, in any committed file, a double-quoted
 `possession_team`, `freeze_frame`, `obv_total_net` or `shot_statsbomb_xg`; never a
@@ -69,7 +76,7 @@ provider xG field and no freeze frame is read, at all.
 | I1 | `galactico/ingestion/sidecar.py` (ADR-0028) | `verify(league)`; `manifest(league)` (`sidecar_schema_version`, `tag_mapping_version`, `actions_event_ids_equal`); `load(league, "events", columns=sidecar_columns)` (one row per raw event that has a position: the `event_id` set of `actions.parquet`); `attach(actions, events, ["body_part", "shot_family"])`, the only sanctioned join; `provenance(league)`. `body_part` is `left_foot`, `right_foot`, `head_or_body`, or null for none or several; `shot_family` is `open_play`, `free_kick`, `penalty` or null | body part on every shot row; the shot-family pins | `SidecarMissing`, `SidecarStale`, `SidecarMismatch`, a manifest whose versions differ from `sidecar_schema_version` / `sidecar_tag_mapping_version`, or `actions_event_ids_equal` not true (`sidecar_requires_actions_event_ids_equal`): phase 2 stops. E-09 contains no tag parsing of its own |
 | I2 | `galactico/validation/digests.py` | `lf_sha256(path)`, `lf_sha256_text(text)` | every protocol, config, pipeline and source hash, and the hash of `decide`'s source | — |
 | I3 | `galactico/domain/verdicts.py` | `VerdictRecord(experiment_id, subject_id, scope, tier, directory, claim_token, non_claim, not_run_statement, vocabulary, outcomes, protocol_hash, config_hash, token, protocol_commit, results_hash, figures)`; `Outcome(status, limits, statement, registry_move)`; rules V1 to V7; `product_admissible` | five PUBLIC records, `PENDING` at registration (section 11.1) | — |
-| I4 | `galactico/domain/thesis.py` | `banned_key_paths(payload, parts=BANNED_KEY_PARTS)` | `tests/test_candidate_runner.py` checks `results.json` keys | — |
+| I4 | `galactico/domain/thesis.py` | `banned_key_paths(payload, parts=BANNED_KEY_PARTS)` | phase 7 and `tests/test_candidate_runner.py` check every key of `results.json`, `provenance.config` included; E-11 called it without `parts`, and E-09 keeps the stricter call, so no config key holds one of the eight parts (`rank_ties` became `tie_policy`) | — |
 | I5 | `tests/conftest.py` | `league_available(competition)` (skips cleanly without the league's frames); no per-league sidecar fixture exists | `tests/test_candidate_pins.py` only, plus an inline skip when `sidecar.manifest(league)` raises `SidecarMissing` | — |
 | I6 | `galactico/storage/public.py` | `load_public(league, tables=public_tables, action_columns=action_columns)`: the hosting guard and `provider == "pappalardo"` on every action row | every neutral frame | `LicenseViolation`, `FileNotFoundError`: phase 2 stops |
 | I7 | E-11 (registered) | `aggregated_player_quantities` of its config (`e11_config_sha256`); its own `provider_inputs` defines its inputs and does not read `galactico.features.candidates` | the two imported definitions (protocol section 1) | the root recomputes `lf_sha256` of E-11's config before registration (`verified_by_root_before_registration`) |
@@ -83,9 +90,9 @@ the E-09 instrument token and must say so.
 | Reused unchanged | From | For |
 |---|---|---|
 | `decide(reliability_low, confound_r2, baseline_r, kind_is_nuisance)` | `experiments/run_replication.py`, pinned by `frozen_rule_decide_source_sha256` and `frozen_rule_constants` (injected, never copied) | league status |
-| `_safe_abs_corr` | same module | battery correlations, after the guard |
+| `_safe_abs_corr` | same module, pinned by `frozen_correlation_source_sha256` (injected as `correlation`, never copied) | battery correlations, after the guard: 0.0 for a constant vector, NaN under three finite pairs, pairwise-finite rows |
 | `split_half_reliability(first, second, correct=False)`, `spearman_brown`, `AxisReliability(...).interval` | `galactico/reliability/core.py` | `r_half`, `r_sb`, the reported house interval. `split_half_reliability` takes **mappings keyed by player id**: it is called with `series.to_dict()` on the index of R, as `run_replication.py` does; a `pd.Series` passed directly is iterated by value and returns `(nan, 0)` |
-| `discriminant_validity(..., ties=rank_ties)`, `residualise` | `galactico/reliability/confound.py` | the reported joint audit. Under `ties="average"` a tied k-th place gives `top_k_survivors=None` with `top_k_tied_raw` and `top_k_tied_adjusted` |
+| `discriminant_validity(..., ties=tie_policy)`, `residualise` | `galactico/reliability/confound.py` | the reported joint audit. Under `ties="average"` a tied k-th place gives `top_k_survivors=None` with `top_k_tied_raw` and `top_k_tied_adjusted` |
 | `compute_baselines(actions, minutes)` | `galactico/features/axes.py` | eight house battery columns and `minutes`, called with the minutes of `minutes_rule` |
 | `Status`, `LeagueResult`, `classify_replication`, `ConfoundFinding`, `ConfoundKind` | `galactico/validation/{lifecycle,replication}.py` | status enum; reported labels |
 | `Scaling` | `galactico/features/spec.py` | scaling enum of a `CandidateSpec` |
@@ -101,7 +108,10 @@ definition and its implementation are one object, so `shot_volume` exists once, 
 
 `experiments/` is a namespace package. The runner and the tests put the repository root on
 `sys.path` (anchored to `Path(__file__)`), then `from experiments.run_replication import
-decide, _safe_abs_corr`. Library modules never import `experiments`: the rule is a parameter.
+decide, _safe_abs_corr`. Library modules never import `experiments` (`pyproject.toml`
+packages only `galactico`, so such an import fails outside a checkout): `decide` and
+`_safe_abs_corr` are parameters, `rule` and `correlation`, passed by the runner and the
+tests.
 
 ## 3. `galactico/features/candidates.py` (WP-A)
 
@@ -116,17 +126,16 @@ class CandidateMeasure(Enum):
 
 @dataclass(frozen=True)
 class Zone:
-    name: str
+    zone: str                              # config zones[*].zone
+    fingerprint: str                       # config zones[*].fingerprint, e.g. "opponent_half[x>0.5]"
+    phrase: str                            # config zones[*].phrase
     min_start_x_exclusive: float | None = None
     min_start_x_inclusive: float | None = None
     min_start_y_inclusive: float | None = None
     max_start_y_inclusive: float | None = None
-    phrase: str = ""                       # config zones[*].phrase
     def mask(self, actions: pd.DataFrame) -> pd.Series      # False on sentinel starts
-    @property
-    def fingerprint(self) -> str           # "opponent_half[x>0.5]"
 
-ZONES: dict[str, Zone]                     # exactly the two zones of config["zones"]
+ZONES: dict[str, Zone]                     # exactly the three zones of config["zones"], keyed by zone
 SENTINEL_STARTS: tuple[tuple[float, float], ...]   # config["location_sentinels"]
 
 @dataclass(frozen=True)
@@ -154,8 +163,8 @@ class CandidateSpec:
     @property
     def fingerprint(self) -> str
 
-CANDIDATES: dict[str, CandidateSpec]       # 4 keys, order as in config
-CLAIMS: dict[str, AxisSpec]                # same 4 keys; text of preregistration section 5
+CANDIDATES: dict[str, CandidateSpec]       # 4 keys, order as in config, read by candidate_id
+CLAIMS: dict[str, AxisSpec]                # same 4 keys, built from config candidates[*].claim
 
 def rows(clauses: tuple[Clause, ...], actions: pd.DataFrame) -> pd.DataFrame
 def capped_minutes(lineups: pd.DataFrame, *, cap: int) -> pd.Series     # minutes_rule
@@ -167,15 +176,17 @@ __all__ = [...]
 | Element | Exact behaviour |
 |---|---|
 | `Clause.mask` | AND of: `type in types` if `types`; `subtype in subtypes` if `subtypes`; each flag column truthy after `fillna(False)`; `ZONES[zone].mask` if `zone`. An empty clause raises `ValueError`; a flag named `success` or `clearance` raises |
-| `Zone.mask` | the declared comparisons on `start_x`, `start_y`, AND NOT (start equals a sentinel pair). `opponent_half` is `start_x > 0.50` strictly; `penalty_area` is `start_x >= 0.84` and `0.19 <= start_y <= 0.81` |
+| `Zone.mask` | the declared comparisons on `start_x`, `start_y`, AND NOT (start equals a sentinel pair). `opponent_half` is `start_x > 0.50` strictly; `penalty_area` is `start_x >= 0.84` and `0.19 <= start_y <= 0.81`; `penalty_area_sb` (external leg only, `zone_use`) is `start_x >= 0.85` and `0.225 <= start_y <= 0.775` |
+| loading | `ZONES` from config `zones`, keyed by `zone`, with the fingerprint string read from the config, never formatted from the bounds; `CANDIDATES` from config `candidates`, keyed by `candidate_id`; a config key `id` or `name` anywhere is a defect (section 7, phase 7) |
+| `CLAIMS` | `AxisSpec(key=candidate_id, family=family, construct=claim.construct, observable_implication=claim.observable_implication, confounds=tuple(confound_kinds), negative_control=claim.negative_control, incremental_claim=claim.incremental_claim, confound_kinds=dict(confound_kinds))`; no other text |
 | `rows` | rows matching any clause; `actions[mask_1 \| mask_2 \| ...]`; each row once |
 | `capped_minutes` | `lineups.minutes.clip(upper=cap)` per row, summed by `player_id`; `cap` is `regulation_minutes_cap` |
 | `Clause.fingerprint` | `"\|".join([",".join(sorted(types)), ",".join(sorted(subtypes)), ",".join(sorted(flags)), ZONES[zone].fingerprint if zone else "-"])` |
 | union fingerprint | `"+".join(sorted(clause fingerprints))`; `"-"` for an empty tuple |
 | `CandidateSpec.fingerprint` | `sha256("\x1f".join([candidate_id, measure.value, numerator_fp, scaling.value, denominator_fp, instrument or "-"]).encode()).hexdigest()[:12]` |
-| `Clause.noun` | from `describe_nouns`: the subtype noun if `subtypes` (one subtype); else the flag noun if `flags` and no `types`; else the plural type noun |
-| `CandidateSpec.describe` | `"{measure phrase} over {numerator phrase}, {scaling phrase}"`. Numerator phrase: one clause gives `noun + " " + zone phrase` (zone phrase omitted when there is no zone); several clauses that share one zone give their nouns joined by `" or "`, then `", "`, then the zone phrase. Scaling phrase: `per 90 minutes`, or `per ` + the singular noun of the one denominator clause's type (`types_singular`) |
-| `__post_init__` | `PER_SELECTED_ACTION` without denominator raises; `PER_90` with one raises; `SUM_CONVERSION_VALUE` without `instrument` raises; `COUNT` with one raises; empty numerator raises; several numerator clauses with different zones raise (`describe` has no rule for them) |
+| `Clause.noun` | from `describe_nouns`: the subtype noun if `subtypes` (one subtype); else the flag noun if `flags` (one flag, no `types`); else the plural type noun (one type) |
+| `CandidateSpec.describe` | `"{measure phrase} over {numerator phrase}, {scaling phrase}"`. Numerator phrase: one clause gives `noun + " " + zone phrase` (zone phrase omitted when there is no zone); several clauses that share one zone give their nouns joined by `" or "` in config order, then `", "`, then the zone phrase; several clauses with no zone give their nouns joined by `" or "` and nothing after. Scaling phrase: `per 90 minutes`, or `per ` + the singular noun of the one denominator clause's type (`types_singular`) |
+| `__post_init__` | `PER_SELECTED_ACTION` without denominator raises; `PER_90` with one raises; `SUM_CONVERSION_VALUE` without `instrument` raises; `COUNT` with one raises; empty numerator raises; and every shape `describe` cannot word raises (`describe_refusals`): a clause with both types and flags, a clause with more than one type, subtype or flag, numerator clauses with different zones, a denominator of more than one clause, a denominator type without a singular noun, a noun missing from `describe_nouns` |
 | `evaluate_candidate`, COUNT | `numerator = rows(...).groupby("player_id").size().reindex(minutes.index).fillna(0.0)` |
 | `evaluate_candidate`, SUM | `shot_values` required (Series indexed by `event_id`); every numerator row's `event_id` must be present or `KeyError` naming the count missing; sum per `player_id`, reindexed, `fillna(0.0)` |
 | scaling | `PER_90`: `numerator * 90.0 / minutes.replace(0, nan)`. `PER_SELECTED_ACTION`: `numerator / rows(denominator).groupby("player_id").size().reindex(index).replace(0, nan)`; no denominator rows gives NaN, never 0 |
@@ -203,6 +214,8 @@ two invented specs beyond the four; zone edges at 0.50 / 0.51 and 0.83 / 0.84, 0
 matching both clauses of the union counted once; a flagged clearance counted once, as an
 interception; a penalty and a direct free-kick shot (`type == "set_piece"`) never counted;
 `player_id` 0 never credited; `capped_minutes` caps a starter substituted at minute 93 at 90;
+`Zone.fingerprint` equals the config string for each zone; each refusal of `describe_refusals`
+raises on an invented spec, and several zone-less clauses word without a trailing comma;
 per-90 scales with minutes and the share does not; a player with no shots has share NaN and
 volume 0.0; `shot_volume` equals `compute_baselines(...)["shots_per_90"]` on the same frame
 with the same minutes; the E-11 tie: on a synthetic Wyscout frame of one invented linked
@@ -213,9 +226,11 @@ the rows flagged `duel_or_interception` with a finite start x above
 sentinel and flagged-clearance rows included in the frame (E-11's own slow test ties its
 Wyscout `minutes_regulation` to `lineups.parquet` minutes clipped at the cap, which is
 `capped_minutes`); a missing `event_id` in `shot_values` raises; `CANDIDATES.keys()` is
-disjoint from `spec.SPECS`, `CONSTRUCTS`, `REJECTED`, `RESEARCH_ONLY`; `spec.SPECS` has
-exactly its five shipped keys; no clause can read `success` or `clearance`; every display
-name, sentence and claim text passes `labels.scan_labels`; no key or family string is in the
+disjoint from `spec.SPECS` and `CONSTRUCTS` (membership of `REJECTED`, `RESEARCH_ONLY`,
+`TESTED_NOT_PROMOTED` and `UNTESTED` is tied to the committed token by the tests of 11.1,
+since the results commit puts every candidate in one of them); `spec.SPECS` has exactly its
+five shipped keys; no clause can read `success` or `clearance`; every display name,
+sentence and `CLAIMS` text passes `labels.scan_labels`; no key or family string is in the
 banned set.
 
 ## 4. `galactico/models/shots/` (WP-B)
@@ -234,16 +249,16 @@ def shot_geometry(start_x: np.ndarray, start_y: np.ndarray, *, pitch_length_m: f
 
 # logistic.py
 @dataclass(frozen=True)
-class LogisticFit:
+class LogisticEstimate:
     coefficients: np.ndarray
     standard_errors: np.ndarray
     log_likelihood: float
     iterations: int
     converged: bool
-def fit_logistic(design: np.ndarray, outcome: np.ndarray, *, offset: np.ndarray | None,
-                 max_iterations: int, tolerance: float, max_halvings: int) -> LogisticFit
-def predict_probability(coefficients: np.ndarray, design: np.ndarray, *,
-                        offset: np.ndarray | None) -> np.ndarray
+def estimate_logistic(design: np.ndarray, outcome: np.ndarray, *, offset: np.ndarray | None,
+                      max_iterations: int, tolerance: float, max_halvings: int) -> LogisticEstimate
+def logistic_values(coefficients: np.ndarray, design: np.ndarray, *,
+                    offset: np.ndarray | None) -> np.ndarray
 
 # model.py
 @dataclass(frozen=True)
@@ -267,18 +282,18 @@ class FittedShotModel:
     log_likelihood: float
     iterations: int
     converged: bool
-def fit_shot_model(spec: ShotModelSpec, shots: pd.DataFrame, *, max_iterations: int,
-                   tolerance: float, max_halvings: int) -> FittedShotModel
-def predict(model: FittedShotModel, shots: pd.DataFrame) -> np.ndarray
+def estimate_shot_model(spec: ShotModelSpec, shots: pd.DataFrame, *, max_iterations: int,
+                        tolerance: float, max_halvings: int) -> FittedShotModel
+def conversion_values(model: FittedShotModel, shots: pd.DataFrame) -> np.ndarray
 ```
 
 | Element | Exact behaviour |
 |---|---|
 | `shot_frame` | rows with `type == "shot"` where `in_domain` is true; the caller passes `ZONES["opponent_half"].mask(actions)`, so the model domain and the numerator of `shot_location_value` are one predicate (no sentinel start, `start_x > 0.50`); `head_or_body = (body_part == head_or_body_value)` as int; a shot row with null `body_part` raises `ValueError` with the count (coverage is pinned); includes `player_id` 0 rows (location and label are valid); `goal` as int |
 | terms | `intercept` 1; `distance_m`; `angle_rad`; `head_or_body`; `a*b` product; `hinge(v,k)` is `max(v - k, 0)` |
-| `fit_logistic` | Newton / IRLS from zero coefficients on internally standardised non-constant columns, back-transformed; step halving while the log-likelihood falls (at most `max_halvings` halvings); stop when the largest absolute coefficient change on the standardised scale is below `tolerance`; `converged=False` at `max_iterations` or on a singular information matrix, never an exception; `standard_errors = sqrt(diag(inv(X'WX)))`; no penalty |
-| `M0` | not fitted: `predict` returns the training goal rate for every row, `converged=True` by definition |
-| `predict` | probabilities in the open unit interval, unclipped |
+| `estimate_logistic` | Newton / IRLS from zero coefficients on internally standardised non-constant columns, back-transformed; step halving while the log-likelihood falls (at most `max_halvings` halvings); stop when the largest absolute coefficient change on the standardised scale is below `tolerance`; `converged=False` at `max_iterations` or on a singular information matrix, never an exception; `standard_errors = sqrt(diag(inv(X'WX)))`; no penalty |
+| `M0` | not fitted: `conversion_values` returns the training goal rate for every row, `converged=True` by definition |
+| `conversion_values`, `logistic_values` | a numerically stable logistic (`expit` written with `np.exp` of a non-positive argument only), unclipped; in float64 a value can be exactly 0.0 or 1.0 (the TOO_SHARP scenario produces both), which `log_loss` clips at `probability_clip` and `calibration_*` clip for the logit; no test asserts the open interval |
 
 `tests/test_shot_model.py`: geometry at hand-computed points (penalty spot (0.895, 0.5):
 d 11.025 m; goal-line centre: theta pi; goal-line outside the post: theta 0; symmetry in
@@ -286,8 +301,17 @@ d 11.025 m; goal-line centre: theta pi; goal-line outside the post: theta 0; sym
 is inside; design matrices term by term; recovery of planted coefficients within four
 standard errors at 40,000 synthetic shots; log-likelihood gradient at the fit below 1e-6 in
 absolute value; `M0` equals the training mean; permutation of rows changes nothing; a
-separable toy sample returns `converged=False`; offset fit recovers a known intercept; no
-symbol named after the banned words; no `xg` identifier (`grep`-style source test).
+separable toy sample returns `converged=False`; offset fit recovers a known intercept; the
+symbol test: every identifier the package defines in `galactico/models/shots/` (an `ast`
+walk over function, class and argument names, names assigned at module or function level,
+dataclass field names and dict-literal string keys; attribute names of library calls such as
+`reset_index`, docstrings and comments are not read), split on `_` and at a change of case
+and lower-cased, has no part among the one-word entries of `labels.BANNED_LABEL_TOKENS` and
+no part `xg`. The required names pass it (`logistic_values`, `conversion_values`,
+`estimate_logistic`, `LogisticEstimate`, `estimate_shot_model`, `FittedShotModel`,
+`shot_frame`, `head_or_body`, `goal`, `converged`); `fit` is a banned token, which is why
+no defined name holds it. The package docstring's "It is not xG supplied by the provider"
+is not an identifier and is not read.
 
 ## 5. `galactico/validation/shot_model_evaluation.py` (WP-C)
 
@@ -306,10 +330,10 @@ def auroc(p: np.ndarray, y: np.ndarray) -> float | None                 # averag
 class LoloResult:
     predictions: Mapping[str, pd.DataFrame]   # league -> SHOT_COLUMNS + p_M0, p_MD, p_M1, p_MFLEX
     fits: Mapping[str, Mapping[str, FittedShotModel]]   # held-out league -> model_id -> fit without it
-    sample_gate: Mapping[str, object]         # counts per fold; s_count_passed, s_fit_passed: bool | None; reasons
+    sample_gate: Mapping[str, object]         # counts per fold; s_count_passed: bool; converged per fold and model; reasons
 def leave_one_league_out(shots: Mapping[str, pd.DataFrame], config: Mapping) -> LoloResult
 def select_instrument(lolo: LoloResult, config: Mapping) -> dict        # {"instrument", "pooled_gain", "fold_gains", "folds_meeting", "challenger_converged"}
-def match_resample_weights(n_matches: int, *, replicates: int, seed: int, league_position: int) -> np.ndarray
+def match_resample_weights(n_matches: int, *, replicates: int, seed: int, league_position: int) -> np.ndarray   # 0-based position
 def instrument_report(lolo: LoloResult, instrument: str, config: Mapping) -> dict   # section 7 "instrument" block
 def instrument_verdict(report: dict, config: Mapping) -> tuple[str, tuple[str, ...]]   # token, failed gate ids
 def shot_values(lolo: LoloResult, instrument: str) -> dict[str, pd.Series]   # league -> Series indexed by event_id
@@ -318,20 +342,20 @@ def shot_values(lolo: LoloResult, instrument: str) -> dict[str, pd.Series]   # l
 | Element | Exact behaviour |
 |---|---|
 | fold f | fit `MD`, `M1`, `MFLEX` on the concatenation of the other leagues' shot frames; predict league f; `p_M0` is the training goal rate |
-| gate S-count | evaluated from counts before any fit (`gate_s_count`); on failure return a `LoloResult` with empty `predictions`, `s_count_passed=False`, `s_fit_passed=None` |
-| gate S-fit | after the fits: every model of `gate_s_fit_models` converged in every fold (`gate_s_fit_rule`); on failure the predictions are kept for the report and the token is `INCONCLUSIVE`. A challenger that did not converge in every fold is recorded and is not selectable |
+| gate S-count | evaluated from counts before any fit (`gate_s_count`); on failure return a `LoloResult` with empty `predictions` and `fits` and `s_count_passed=False`; `select_instrument`, `instrument_report`'s statistics and `shot_values` are not called, every selection, fit, league and pooled field of the instrument block is null, `failed_gates` is `["S_count"]` and the reason `S_COUNT` (`instrument_inconclusive_rule`) |
+| gate S-fit | evaluated in `instrument_report(lolo, instrument, config)`, where the instrument is known: `all(lolo.fits[f][m].converged for f in folds for m in set(gate_s_fit_models) \| {instrument})` (`gate_s_fit_rule`). On the public run this equals the earlier rule, because `MFLEX` is selected only when it converged in every fold; on the external leg it adds the instrument fixed by the public selection. On failure the fits and the R and L statistics are kept and reported with their gates not evaluated (`passed` null), `failed_gates` is `["S_fit"]`, the reason `S_FIT` and the token `INCONCLUSIVE`. A challenger that did not converge in every fold is recorded and is not selectable |
 | selection | 4.3 of the protocol; `MFLEX` only when `challenger_converged` is true in every fold |
-| resampling | `bootstrap_rule`: `np.random.default_rng([config["seed"], league_position]).multinomial(n, [1/n]*n, size=bootstrap_replicates)` over the league's sorted `game_id`s; statistics recomputed from per-match sums (`sum (p-y)^2`, `sum (p0-y)^2`, log-loss sums of the instrument and of `MD`); pooled statistics add the five leagues' replicate sums |
+| resampling | `bootstrap_rule`: `np.random.default_rng([config["seed"], league_position]).multinomial(n, [1/n]*n, size=bootstrap_replicates)`, `league_position` the 0-based index of the held-out league in `leagues` (`position_indexing`), `n` the number of unique `game_id`s of the held-out league's in-domain shot frame, in sorted order; statistics recomputed from per-match sums (`sum (p-y)^2`, `sum (p0-y)^2`, log-loss sums of the instrument and of `MD`); pooled statistics add the five leagues' replicate sums |
 | intervals | `np.quantile(..., method=interval_quantile_method)` at `interval_quantiles` of the replicate statistic |
 | R2 | `gate_r2_gain`: relative gain `(LL_MD - LL_inst) / LL_MD` of the pooled sums, per replicate |
-| bins | `ece_binning_rule`: sort by probability; for k = 1 .. `ece_bins` - 1 the cut is the first index at or after `k * n / ece_bins` at which the probability value changes; equal cuts merge; a bin never holds part of a run of tied values. No event id enters |
+| bins | `ece_binning_rule`: stable sort by probability; `c_0 = 0`, `c_ece_bins = n`; for k = 1 .. `ece_bins` - 1, `c_k` is the smallest `i` with `i >= ceil(k * n / ece_bins)`, `i < n` and `p[i] != p[i-1]`, else `n`; bins are `[c_(k-1), c_k)`, empty bins dropped; a bin never holds part of a run of tied values. No event id enters |
 | `calibration_error` | ECE `sum(n_b / n * abs(mean_probability_b - observed_rate_b))` (`ece_weighting`); MCE the largest of those absolute gaps (`mce_rule`) |
 | calibration fits | slope: logistic regression of y on `a + b * logit(p)`; intercept: of y on `a` with offset `logit(p)`; `p` clipped at `probability_clip` for the logit; a fit that does not converge returns `None`, which fails its gate in that league (`calibration_fit_failure`) |
 | subgroups (R4) | pooled over the five held-out leagues, by the predicates of `gate_r4_subgroups` |
 | AUROC | `auroc_rule`: on the concatenated out-of-league predictions; average ranks |
 | null calibration error | `ece_null_draws` draws of `y ~ Bernoulli(p)` per league with `default_rng([ece_null_seed, league_position])`; report the 50th, 95th, 99th percentile of ECE and MCE; reported, not a gate |
-| verdict | preregistration 4.5, first failing class wins; `failed` lists every failed gate id |
-| undefined statistic | any `None` in a gated statistic fails that gate and is listed |
+| verdict | preregistration 4.5, first failing class wins; `failed` lists the failed gate ids by `instrument_inconclusive_rule`: `["S_count"]`, or `["S_fit"]`, or every failed R and L gate |
+| undefined statistic | when S passes, any `None` in a gated statistic fails that gate and is listed |
 
 `tests/test_shot_model_evaluation.py`: each metric against a hand-computed six-row case;
 AUROC with ties; bins of a toy with a tied run straddling a cut: the run stays in one bin and
@@ -341,7 +365,12 @@ byte-identical and changes the other four leagues' predictions); training base r
 rate, is the reference; resample weights depend only on seed and league position; every gate
 R1 to R5, L1 to L3, S-count and S-fit reachable in both directions from a hand-built report
 dict; a non-converged challenger leaves the instrument at `M1` and S passes; a non-converged
-`M1` in one fold gives `INCONCLUSIVE`; a non-converged calibration fit fails its gate;
+`M1` in one fold gives `INCONCLUSIVE`; with a fixed instrument `MFLEX` (the external leg's
+case) that did not converge in one fold, S-fit fails and the token is `INCONCLUSIVE`; an
+S-count failure gives null selection, fits and metrics, `["S_count"]` and `S_COUNT`; an S-fit
+failure gives `["S_fit"]`, `S_FIT` and R and L gates with `passed` null; a non-converged
+calibration fit fails its gate; the bins of `ece_binning_rule` on a hand-built vector whose
+cut falls inside, at the start of and at the end of a tied run;
 verdict mapping exhaustive over the 2^10 pass/fail combinations with exactly one token each;
 the selection rule at both edges (0.0099 / 0.0100 pooled; 3 / 4 folds).
 
@@ -371,9 +400,9 @@ class ReliabilityEstimate:
 @dataclass(frozen=True)
 class LeagueEvaluation:
     league: str; candidate: str; gate: GateCount
-    status: str                       # "INCONCLUSIVE" | "SHIP" | "SHIP_WITH_BAND" | "REJECT"
+    status: str                       # "INCONCLUSIVE", or Status.name of decide()'s result: "SHIP" | "SHIP_WITH_BAND" | "REJECT"
     reject_reason: str | None         # "REDUNDANT" | "CONFOUNDED" | "UNRELIABLE"
-    inconclusive_reason: str | None   # gate reason, or "DEGENERATE:<vector>", or "NON_FINITE:<input>"
+    inconclusive_reason: str | None   # gate reason, "DEGENERATE:<vector>", "NON_FINITE:<input>", or a league_not_computed_reasons value
     centred: ReliabilityEstimate | None           # gating
     raw_pooled: ReliabilityEstimate | None        # reported
     within_position: Mapping[str, ReliabilityEstimate | None]   # reported
@@ -388,7 +417,7 @@ class LeagueEvaluation:
     house_joint_r2: float | None; house_joint_r2_exceeds_ceiling: bool | None
     damaging_confounds: tuple[str, ...]
     departures_active: tuple[str, ...]            # the lenient departures of preregistration 6.1 in force
-    mean: float | None; sd: float | None; zero_share: float | None
+    mean: float | None; sd: float | None; zero_share: float | None   # over A, for every league whose count gates passed
     match_set_minutes_share_p05_p95: tuple[float, float] | None
     rule_reasons: tuple[str, ...]
 
@@ -401,6 +430,7 @@ class CandidateVerdict:
     house_replication_label: str | None
 
 Rule = Callable[[float, float, float, bool], tuple[Status, tuple[str, ...]]]
+Correlation = Callable[[np.ndarray, np.ndarray], float]     # run_replication._safe_abs_corr, injected
 
 def match_set_of_game(actions: pd.DataFrame) -> pd.Series                 # index game_id, values 0/1
 def eligible_minutes(lineups: pd.DataFrame, players: pd.DataFrame, config: Mapping) -> pd.Series
@@ -415,11 +445,13 @@ def reliability_estimate(first: pd.Series, second: pd.Series, *, groups: pd.Seri
 def reject_reason(rule: Rule, reliability_low: float, nuisance_r2: float, baseline_r: float,
                   kind_is_nuisance: bool) -> str | None
 def evaluate_league(spec: CandidateSpec, frames: LeagueFrames, gate: GateCount,
-                    shot_values: pd.Series | None, rule: Rule, config: Mapping) -> LeagueEvaluation
+                    shot_values: pd.Series | None, rule: Rule, correlation: Correlation,
+                    config: Mapping) -> LeagueEvaluation
 def candidate_verdict(spec: CandidateSpec, evaluations: Sequence[LeagueEvaluation],
                       instrument_token: str, config: Mapping) -> CandidateVerdict
 def run_gauntlet(frames: Mapping[str, LeagueFrames], shot_values: Mapping[str, pd.Series] | None,
-                 instrument_token: str, rule: Rule, config: Mapping) -> dict
+                 instrument_token: str, rule: Rule, correlation: Correlation,
+                 config: Mapping) -> dict
 ```
 
 | Element | Exact behaviour |
@@ -433,18 +465,22 @@ def run_gauntlet(frames: Mapping[str, LeagueFrames], shot_values: Mapping[str, p
 | match-set values | `evaluate_candidate(spec, actions of match set h for players in R, match-set-h capped minutes, shot_values=...)` |
 | `centre` | value minus the mean over the same group among the units passed in |
 | `reliability_estimate` | `r_half, n = split_half_reliability(a.to_dict(), b.to_dict(), correct=False)` on the centred values keyed by player id; `g` = groups passed (1 when `groups` is None); `r_sb = spearman_brown(r_half)`; `house = AxisReliability(label, r_sb, n, minutes_floor, period).interval` (None stays None, reported); `half_low = spearman_brown(tanh(atanh(r_half) - interval_z / sqrt(n - 2 - g)))` when `r_half` is finite, `abs(r_half) < 1` and `n - 2 - g >= 1`, else None (`half_low_rule`). The gating value is `half_low` (`reliability_low_rule`) |
-| baseline | for each battery column with sd over A at least `degenerate_sd` (others dropped and recorded): `raw = _safe_abs_corr(value, column)` over A; `centred = _safe_abs_corr(centre(value, position), centre(column, position))` over A; `gating = max(raw, centred)` with NaN propagating (`baseline_centring`); `baseline_r = max(gating)`; `closest_baselines` = every column whose `gating` equals it, in battery order (`baseline_tie_rule`) |
+| baseline | for each battery column with sd over A at least `degenerate_sd` (others dropped and recorded): `raw = correlation(value, column)` over A; `centred = correlation(centre(value, position), centre(column, position))` over A, `correlation` being the injected house helper (so a constant centred column gives 0.0, not NaN, and a pure position effect is caught by `raw`); no other Pearson is computed in this module; `gating = max(raw, centred)` with NaN propagating (`baseline_centring`); `baseline_r = max(gating)`; `closest_baselines` = every column whose `gating` equals it, in battery order (`baseline_tie_rule`) |
 | nuisance | `nuisance_r2 = max(R2 raw, R2 centred)` of the value on `nuisance_columns` over A (`nuisance_centring`), by `residualise`; `None` if there are none |
-| joint audit (reported) | `discriminant_validity(value, [touches, team one-hot drop-first, position one-hot drop-first], key=id, top_k=top_k, ties=rank_ties)`; adjusted `1 - (1 - R2)(n - 1)/(n - k - 1)`; floor `k/(n - 1)`; `top_k_kept = top_k_survivors` (None on a tie, with the two tied counts and `top_k_tied_statement` in the report); `house_joint_r2` on `[touches, team one-hot]` and its comparison with `nuisance_r2_ceiling`, for candidates with a nuisance column only |
+| joint audit (reported) | `discriminant_validity(value, np.column_stack([touches, team one-hot drop-first, position one-hot drop-first]), key=candidate_id, top_k=top_k, ties=tie_policy)`, an (n, k) float array; adjusted `1 - (1 - R2)(n - 1)/(n - k - 1)`; floor `k/(n - 1)`; `top_k_kept = top_k_survivors` (None on a tie, with the two tied counts and `top_k_tied_statement` in the report); `house_joint_r2` on `[touches, team one-hot]` and its comparison with `nuisance_r2_ceiling`, for candidates with a nuisance column only |
 | guard | each vector of `degenerate_vectors` tested on its own: sd below `degenerate_sd`, or zero share above `maximum_zero_share`; then any non-finite rule input or a None `half_low`: status `INCONCLUSIVE`, `inconclusive_reason` names the vector or input, rule not called |
 | rule call | `rule(half_low, nuisance_r2 if not None else 0.0, baseline_r, bool(nuisance_columns))` |
 | `reject_reason` | `REDUNDANT` if `rule(1.0, 0.0, baseline_r, False)` rejects; else `CONFOUNDED` if `rule(1.0, nuisance_r2, 0.0, kind_is_nuisance)` rejects; else `UNRELIABLE` if `rule(reliability_low, 0.0, 0.0, False)` rejects; else `None`. Thresholds therefore live only in the frozen rule |
-| `departures_active` | the lenient departures of preregistration 6.1 in force for this league and candidate: `identity_column` (`shot_volume`), `presence_column_without_candidate_rows`, `nuisance_only_r2` (candidates with a nuisance column), `goalkeepers_excluded` |
+| `departures_active` | the departures of preregistration 6.1 that are flagged, in force for this league and candidate: the lenient `identity_column` (`shot_volume`; under the ROOT 2.2 design also `identity_family_column`), `presence_column_without_candidate_rows`, `nuisance_only_r2` (candidates with a nuisance column), `goalkeepers_excluded`, and the two-sided `position_centred_reliability` (every league and candidate) |
 | within position, context limits | `reliability_estimate` on one position's players in R, uncentred, `g = 1` (`within_position_rule`), when that position has at least `within_position_report_minimum` players; `context_limits` by `context_limit_rule` over the five leagues |
-| `candidate_verdict` | the eight rows of preregistration 9.1, in order; E is the leagues whose status is in `evaluable_statuses`; `rule_row` records which fired; `house_replication_label = classify_replication(...)` over evaluable leagues, reported |
-| order in `run_gauntlet` | all `count_gates` for all candidates and leagues first; a candidate with fewer than `minimum_evaluable_leagues` passing gets no statistic computed; `shot_location_value` gets none unless the instrument token is `ACCEPTED` or `ACCEPTED_WITHIN_LEAGUE` |
+| `candidate_verdict` | the eight rows of preregistration 9.1, in order; E is the leagues whose status is in `evaluable_statuses`; `rule_row` records which fired; `house_replication_label = classify_replication(...)` over evaluable leagues, reported, each built as `LeagueResult(league, axis=candidate_id, n_players=centred.n, reliability=centred.r_sb, reliability_low=centred.half_low, reliability_high=centred.house_high if not None else centred.half_low, confound_r2=nuisance_r2 or 0.0, ordering_rho=ordering_rho if not None else nan, top12_kept=top_k_kept, closest_baseline="+".join(closest_baselines), baseline_r=baseline_r, status=Status[status])`; `None` when E is empty (the house returns `UNREPLICATED` for one league) |
+| order in `run_gauntlet` | all `count_gates` for all candidates and leagues first; a candidate with fewer than `minimum_evaluable_leagues` passing gets no statistic computed, and each of its leagues that passed its gates is `INCONCLUSIVE` with `league_not_computed_reasons.too_few_evaluable_leagues`; `shot_location_value` gets none unless the instrument token is `ACCEPTED` or `ACCEPTED_WITHIN_LEAGUE`, its leagues then `INCONCLUSIVE` with `league_not_computed_reasons.instrument_not_accepted` |
 
-`tests/test_candidate_gauntlet.py`: `decide` pinned: `lf_sha256_text(inspect.getsource(decide))`
+`tests/test_candidate_gauntlet.py`: the imported house `_safe_abs_corr` is passed as
+`correlation`, and `lf_sha256_text(inspect.getsource(_safe_abs_corr))` equals
+`frozen_correlation_source_sha256`; a spy shows every baseline correlation goes through
+`correlation`; a source scan finds no `corrcoef`, `.corr(` or other Pearson in
+`candidate_gauntlet.py`; `decide` pinned: `lf_sha256_text(inspect.getsource(decide))`
 equals `frozen_rule_decide_source_sha256`, the three module constants equal
 `frozen_rule_constants` and equal `baseline_ceiling`, `reliability_number`,
 `reliability_band`, and a truth table written from the protocol (edges 0.85 / 0.8501,
@@ -452,8 +488,11 @@ equals `frozen_rule_decide_source_sha256`, the three module constants equal
 `frozen_rule_nuisance_literal`, 0.70 / 0.6999, 0.50 / 0.4999; NaN baseline documented as
 passing the raw rule and caught by the guard); `reject_reason` for each of the three reasons
 and for none; token rows 1 to 8 each reached, including every case listed in preregistration
-9.1, plus exhaustiveness over every multiset of five league statuses with reasons and both
-instrument states (one token each, no exception); `r_half = -0.4` at n = 66 gives `REJECT`
+9.1, plus exhaustiveness over every multiset of five league statuses with reasons and all
+four instrument tokens (one token each, no exception); the status string is `Status.name`
+(a `.value` mapping, lower case, would empty E: a test plants it and sees row 3); T24 and "a
+pure position effect is caught by the raw correlation" run with the house helper (the
+centred value is 0.0, not NaN); `r_half = -0.4` at n = 66 gives `REJECT`
 with reason `UNRELIABLE`, and `r_half = -1/3` the same; `match_set_of_game` equals the house
 expression on a shuffled frame; centring removes a planted position effect and leaves a
 planted player effect; `half_low` on hand numbers with g = 3 and the house interval on the
@@ -481,24 +520,54 @@ def load_config() -> dict
 def load_league(league: str, config: Mapping) -> LeagueFrames
 def frame_digest(frame: pd.DataFrame, *, sort_by: Sequence[str], columns: Sequence[str]) -> str
 def preflight(config: Mapping, *, protocol_commit: str | None) -> dict     # structure only
-def run(config: Mapping, *, protocol_commit: str) -> dict
+def verify(config: Mapping, *, protocol_commit: str) -> dict               # phases 1 and 2: the provenance block
+def run_selfcheck(config: Mapping, *, rule: Rule, correlation: Correlation) -> dict   # phase 3: the "selfcheck" block
+def evaluate(frames: Mapping[str, LeagueFrames], config: Mapping, *, rule: Rule,
+             correlation: Correlation) -> dict                             # phases 4 to 6, no provenance
+def serialise(result: Mapping, out: Path) -> str                           # phase 7: checks, write, sha256
+def run(config: Mapping, *, protocol_commit: str, out: Path) -> str        # verify, run_selfcheck, load, evaluate, serialise
 def render_model_card(results: Mapping) -> str
 def main(argv: Sequence[str] | None = None) -> int
 ```
 
-Phases of `run`, in order. Nothing in phases 1 to 4 reads an outcome.
+`run_selfcheck` lives here, not in `candidate_synthetic.py`: it runs the pipeline (the specs,
+`shot_frame`, `leave_one_league_out`, `select_instrument`, `instrument_report`,
+`instrument_verdict`, `shot_values`, `run_gauntlet`, `candidate_verdict`) on the generators'
+planted data, and reads the league assertions off `LeagueEvaluation` and `GateCount`. The
+seam for tests is `evaluate` and `serialise`: a runner test builds a synthetic corpus, calls
+`evaluate` with the imported `decide` and `_safe_abs_corr`, joins a synthetic provenance and
+selfcheck block it states itself, and calls `serialise` into `tmp_path`. `verify` and `run`
+are tested only for their refusals. The config a test passes is read from the frozen file;
+the only key a test may override is `selfcheck_replicates`, and only in a call of
+`run_selfcheck` (`selfcheck_smoke_rule`).
+
+Phases of `run`, in order. Nothing in phases 1 to 4 reads an outcome, and nothing is printed
+except progress on stderr and, at the end, the sha256 of the file written.
 
 | # | Phase | Stops the run with nothing written if |
 |---|---|---|
-| 1 | provenance | `lf_sha256_text(inspect.getsource(decide))` differs from `frozen_rule_decide_source_sha256`, or a constant of `frozen_rule_constants` differs from the module's; `lf_sha256(PIPELINE.md)` differs from `pipeline_spec_sha256`; any candidate fingerprint differs from config; `--protocol-commit` is not the commit that first added `preregistration.md` under `committed_experiment_dir` (read-only `git log --diff-filter=A --format=%H -- <path>`), a later commit touched one of the three protocol files, or a working-tree LF hash differs from the LF hash of `git show <commit>:<path>`; the output file already exists (unless `--determinism-rerun` to another path). The LF hash of `frozen_rule_path` is recorded in provenance and does not stop the run (`frozen_rule_file_hash_role`) |
-| 2 | structural pins | any `expected_*` of config differs or is null; the period filter drops a row; a shot has no body part; a shot-family disagreement (`shot_family_pins`); the sidecar of I1 fails |
-| 3 | self-check | section 8 predicate not met |
+| 1 | provenance | `lf_sha256_text(inspect.getsource(decide))` differs from `frozen_rule_decide_source_sha256`, a constant of `frozen_rule_constants` differs from the module's, or `lf_sha256_text(inspect.getsource(_safe_abs_corr))` differs from `frozen_correlation_source_sha256`; `lf_sha256(PIPELINE.md)` differs from `pipeline_spec_sha256`; any candidate fingerprint differs from config; `git` is unavailable (fail closed); `<sha>` (`--protocol-commit`) is not an ancestor of `HEAD`, or for any of the three protocol files under `committed_experiment_dir` `<sha>` is not the last line of `git log --diff-filter=A --format=%H -- <path>`, `git log <sha>..HEAD -- <path>` is not empty, or the working file's LF hash differs from that of `git show <sha>:<path>`; the self-check stamp `committed_experiment_dir/selfcheck.json` is not tracked at `HEAD`, its working LF hash differs from that of `git show HEAD:<path>`, its `passed` is not true, or its `config_hash`, `pipeline_hash` or `source_hashes` differ from the current ones (`selfcheck_stamp_rule`); `failed_run_log` exists under `run_output_root` and the committed `analysis.md` at `HEAD` does not contain the sha256 of its bytes; the output file already exists (a determinism re-run writes `<run_output_root>/<determinism_rerun_file>`, which must not exist either). The LF hash of `frozen_rule_path` is recorded in provenance and does not stop the run (`frozen_rule_file_hash_role`) |
+| 2 | structural pins | any `expected_*` of config differs or is null; `structure_identity` fails in a league; the period filter drops a row; a shot has no body part; a shot-family disagreement (`shot_family_pins`); the sidecar of I1 fails |
+| 3 | self-check | `run_selfcheck` with the imported `decide` and `_safe_abs_corr` does not meet `selfcheck_predicate`, or its block differs from the stamp's `selfcheck` block |
 | 4 | count gates | never stops; gates are recorded |
 | 5 | instrument | — |
 | 6 | candidates | — |
-| 7 | write | the serialised artifact exceeds `results_maximum_bytes`, contains a banned key or a key of `results_identifier_key_denylist`, or `json.dumps(..., allow_nan=False)` raises |
+| 7 | write | checks on the whole in-memory object, before any byte is written: the serialised artifact exceeds `results_maximum_bytes`; a key at any depth is in `results_identifier_key_denylist`, is refused by `banned_key_paths(..., parts=BANNED_KEY_PARTS)`, contains `statsbomb`, `pappalardo` or `wyscout` in any letter case, or starts with `SB_`; `json.dumps(..., allow_nan=False)` raises. The walk covers `provenance.config` with no exemption, which is why no config key is `id`, `name` or holds one of the eight parts |
 
 Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8", newline="\n")`. Never stdout redirection.
+
+**A failed execution.** Any exception after the refusal checks of phase 1, and a refusal in
+phase 7, append one record to `<run_output_root>/<failed_run_log>` (gitignored): the
+exception type or the refusal's check name, the phase, the file and line of the innermost
+frame in the E-09 source files, and `source_hashes`; never the exception message, which can
+hold a count or a value. The runner exits 3; every file the execution wrote is removed. No
+value from a failed execution is printed, logged or read. The repair touches only the
+failing phase's code; the changed files are reviewed again under section 9 and the self-check
+stamp is regenerated and committed (its `source_hashes` change). Before the next start the
+committed `analysis.md` at `HEAD` holds the sha256 of the log's bytes (phase 1 refuses
+otherwise), so every failure is on the record and disclosed. A gate that fails is a verdict,
+not a failure. R5 allows one real run and one determinism re-run; a failed execution counts
+against neither, and the disclosure says what phase it reached.
 
 ### 7.1 `results.json` shape (aggregate only)
 
@@ -510,13 +579,17 @@ Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_n
     "experiment": "E-09", "protocol_commit": "...", "protocol_hash": "...", "config_hash": "...",
     "pipeline_hash": "...", "providers": ["pappalardo"],
     "source_hash_policy": "sha256 of LF-normalised bytes",
-    "source_hashes": {"<posix path>": "..."},
+    "source_hashes": [{"path": "<posix path>", "lf_sha256": "..."}, ...],
     "frozen_rule": {"path": "...", "function": "decide", "source_sha256": "...", "constants": {...},
-                    "file_lf_sha256": "..."},
+                    "file_lf_sha256": "...", "correlation_function": "_safe_abs_corr",
+                    "correlation_source_sha256": "..."},
+    "selfcheck_hash": "...",
     "candidate_fingerprints": {"shot_volume": "1c6517c2be31", ...},
     "frame_hashes": {"<league>": {"actions": "...", "lineups": "...", "players": "...", "sidecar_events": "..."}},
     "sidecar": {"<league>": { ...sidecar.provenance(league)... }},
-    "raw_manifest_sha256": "...", "packages": {"numpy": "...", "pandas": "...", "pyarrow": "..."},
+    "raw_manifest_sha256": "...", "raw_file_sha256": {"events.zip": "...", "matches.zip": "...", "players.json": "..."},
+    "packages": {"python": "...", "numpy": "...", "pandas": "...", "pyarrow": "...", "blas": "...",
+                 "machine": "..."},
     "data_license": "...", "reuse_disclosure": "...", "config": { ...verbatim... }
   },
   "selfcheck": {"passed": true, "replicates": 12,
@@ -528,7 +601,7 @@ Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_n
                              "sentinel_start_shot_rows", "goal_rows_on_shots", "eligible_players",
                              "eligible_by_position": {...}, "union_rows", "union_rows_unattributed"}},
   "instrument": {
-    "sample_gate": {"s_count_passed", "s_fit_passed", "reasons", "folds": {"<held-out league>": {"train_shots",
+    "sample_gate": {"s_count_passed", "reasons", "folds": {"<held-out league>": {"train_shots",
                     "train_goals", "heldout_shots", "heldout_goals", "training_rate", "converged": {...}}}},
     "fits": {"<held-out league>": {"<model>": {"terms": [...], "coefficients": [...],
              "standard_errors": [...], "converged", "iterations", "log_likelihood"}}},
@@ -542,8 +615,8 @@ Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_n
                "log_loss_gain_over_comparator": x, "log_loss_gain_interval": [lo, hi],
                "subgroups": {"<name>": {"n", "goals", "observed_over_expected"}},
                "descriptive_subgroups": {"counter_attack": {...}}},
-    "gates": {"S_count": {"passed", "detail"}, "S_fit": ..., "R1": ..., "R5": ..., "L1": ..., "L3": ...},
-    "token": "...", "failed_gates": [...]
+    "gates": {"S_count": {"passed", "detail"}, "S_fit": {"passed", "models", "detail"}, "R1": ..., "R5": ..., "L1": ..., "L3": ...},
+    "token": "...", "reason": null | "S_COUNT" | "S_FIT", "failed_gates": [...]
   },
   "candidates": {
     "<candidate>": {
@@ -554,15 +627,19 @@ Written as `Path.write_text(json.dumps(result, indent=2, sort_keys=True, allow_n
       "context_limits": [...], "house_replication_label": "..."
     }
   },
-  "registry_effect": {"<subject>": {"registry_move": "...", "player_lab_headline": "..." | null}},
-  "predictions": { ...preregistration section 12, verbatim, with "matched": bool per subject... },
-  "interpretation_limits": "..."
+  "registry_effect": {"<subject>": {"registry_move": "...",
+                                     "registry_list": "REJECTED" | "RESEARCH_ONLY" | "TESTED_NOT_PROMOTED" | "UNTESTED" | null,
+                                     "player_lab_headline": "..." | null}},
+  "predictions": {"<subject>": {"token": "...", "reason": "...", "matched": bool}},   # config predictions
+  "interpretation_limits": "..."                                                     # config interpretation_limits, verbatim
 }
 ```
 
 Rules: no player, team or match identifier anywhere (the only ids are league names); no key
-in `results_identifier_key_denylist` or refused by `banned_key_paths(..., parts=BANNED_KEY_PARTS)`
-(no key named `rank`, `ranking`, `score`, `total`, `index` and the like); a missing value is
+at any depth, `provenance.config` included and exempted from nothing, in
+`results_identifier_key_denylist`, refused by `banned_key_paths(..., parts=BANNED_KEY_PARTS)`
+(no key named `rank`, `ranking`, `score`, `total`, `index` and the like, and no key with one of
+the eight parts), or naming a provider (section 0); a missing value is
 `null`; counts are ints; under `results_maximum_bytes` (expected about 70 KB). The top-level
 `experiment`, `tier` and `verdicts` are the contract `tests/test_verdict_registry.py` reads.
 
@@ -571,12 +648,14 @@ in `results_identifier_key_denylist` or refused by `banned_key_paths(..., parts=
 | Hash | Of | How |
 |---|---|---|
 | `protocol_hash`, `config_hash`, `pipeline_hash` | the three registered files | `lf_sha256(path)` |
-| `source_hashes` | `experiments/run_candidate_gauntlet.py`, `experiments/run_replication.py`, `galactico/features/{candidates,spec,axes}.py`, `galactico/models/shots/*.py`, `galactico/validation/{candidate_gauntlet,shot_model_evaluation,candidate_synthetic,lifecycle,replication,digests}.py`, `galactico/reliability/{core,confound}.py`, `galactico/ingestion/sidecar.py`, `galactico/providers/pappalardo.py` (it sets type, subtype, the flags and the coordinates of every neutral column read), `galactico/storage/public.py` | `lf_sha256`; keys `.as_posix()` relative to the root |
-| `frozen_rule` | `decide` and its module | `source_sha256` = `lf_sha256_text(inspect.getsource(decide))` (gating, phase 1); `file_lf_sha256` = `lf_sha256(frozen_rule_path)` (recorded only) |
+| `source_hashes` | `experiments/run_candidate_gauntlet.py`, `experiments/run_replication.py`, `galactico/features/{candidates,spec,axes}.py`, `galactico/models/shots/*.py` (the glob expanded and sorted), `galactico/validation/{candidate_gauntlet,shot_model_evaluation,candidate_synthetic,candidate_sb,sb_reader,lifecycle,replication,digests}.py`, `galactico/reliability/{core,confound}.py`, `galactico/ingestion/sidecar.py`, `galactico/providers/pappalardo.py` (it sets type, subtype, the flags and the coordinates of every neutral column read), `galactico/providers/base.py` (`assert_may_host`), `galactico/storage/public.py`, `galactico/domain/thesis.py` (phase 7 gates on it), `galactico/domain/provenance.py` (`EvidenceClass`) | a list of `{"path": <posix path relative to the root>, "lf_sha256": <hex>}` objects, one per file, sorted by `path`, so `sort_keys` leaves it byte-stable and no key names a provider (section 0); the self-check stamp and the LOCAL file of the external leg carry the same list |
+| `frozen_rule` | `decide`, `_safe_abs_corr` and their module | `source_sha256` = `lf_sha256_text(inspect.getsource(decide))` and `correlation_source_sha256` = `lf_sha256_text(inspect.getsource(_safe_abs_corr))` (both gating, phase 1); `file_lf_sha256` = `lf_sha256(frozen_rule_path)` (recorded only) |
+| `selfcheck_hash` | `committed_experiment_dir/selfcheck.json` | `lf_sha256`; phase 1 has tied the stamp to the current hashes |
 | `frame_hashes` | the frames actually used | `frame_digest`: select the listed columns in the listed order, cast `success` to nullable boolean and ids to int64, sort by the key (`event_id`; lineups by `game_id, player_id`; players by `player_id`), `reset_index(drop=True)`, `sha256(pd.util.hash_pandas_object(frame, index=False).values.tobytes())`. Parquet file bytes are **not** hashed: the footer embeds the pandas version |
 | `sidecar` | each league's sidecar | `sidecar.provenance(league)` verbatim (schema and tag-mapping versions, content hashes, raw digests) |
-| `raw_manifest_sha256`, `raw_file_sha256` | `data/public/pappalardo/MANIFEST.json` | `lf_sha256` of the manifest; plus the manifest's own SHA-256 entries for the five leagues' events and matches files and for `players.json`, echoed verbatim |
-| `protocol_commit` | git | verified in phase 1; never a literal in source; the commit that first added `preregistration.md`, as `VerdictRecord.protocol_commit` defines it |
+| `raw_manifest_sha256`, `raw_file_sha256` | `data/public/pappalardo/MANIFEST.json` | `lf_sha256` of the manifest; plus the `sha256` of the manifest's `files` entries named in `raw_manifest_entries` (`events.zip`, `matches.zip`, `players.json`: the manifest is keyed by downloaded asset, not by league), echoed verbatim |
+| `packages` | the interpreter | Python, numpy, pandas and pyarrow versions; the BLAS library and version numpy reports; `platform.platform()` and `platform.processor()` as `machine`. The determinism re-run must be byte-identical on the same machine |
+| `protocol_commit` | git | verified in phase 1; never a literal in source; the commit that first added the three protocol files, as `VerdictRecord.protocol_commit` defines it for `preregistration.md` |
 | results | `results.json` | root records `lf_sha256` of it in the five records |
 
 ### 7.3 The commands
@@ -587,26 +666,39 @@ nothing in the repository):
 
     .venv/Scripts/python.exe -B experiments/run_candidate_gauntlet.py --preflight
 
+The self-check stamp, after the pipeline commit and the review of section 9 (synthetic only;
+writes `selfcheck.json` with `passed`, `config_hash`, `pipeline_hash`, `source_hashes` and the
+`selfcheck` block, refuses to overwrite; the root commits it unchanged in a commit of its own):
+
+    .venv/Scripts/python.exe -B experiments/run_candidate_gauntlet.py --selfcheck --out experiments/preregistered/E-09-player-candidates/selfcheck.json
+
 **The single command the root runs for the real execution, once:**
 
     .venv/Scripts/python.exe -B experiments/run_candidate_gauntlet.py --protocol-commit <sha> --out experiments/preregistered/E-09-player-candidates/results.json
 
-Determinism re-run (must be byte-identical; exit code 1 otherwise):
+Determinism re-run, once (writes `<run_output_root>/<determinism_rerun_file>` and compares
+its bytes with `experiments/preregistered/E-09-player-candidates/results.json`; exit code 1
+unless byte-identical, and the re-run file is then kept for the record, never committed):
 
-    .venv/Scripts/python.exe -B experiments/run_candidate_gauntlet.py --protocol-commit <sha> --determinism-rerun --out <scratchpad>/E-09-rerun.json
+    .venv/Scripts/python.exe -B experiments/run_candidate_gauntlet.py --protocol-commit <sha> --determinism-rerun
 
-Model card, generated from the committed results, never typed:
+Model card, generated from the committed results, never typed (writes
+`experiments/preregistered/E-09-player-candidates/MODEL-CARD.md` beside them; refuses to
+overwrite):
 
     .venv/Scripts/python.exe -B experiments/run_candidate_gauntlet.py --render-card experiments/preregistered/E-09-player-candidates/results.json
 
 ## 8. Synthetic suite and the planted checks
 
-`galactico/validation/candidate_synthetic.py`. **Independent of what it checks**: it imports
-numpy and pandas only, plus `LeagueFrames` as a container. It writes its own geometry from
-the formulas in the protocol and builds neutral-schema rows directly, with `body_part` and
-`shot_family` columns as the sidecar would attach them. An `ast` test asserts it imports
-nothing from `features.candidates`, `models.shots`, `shot_model_evaluation` or the gauntlet's
-functions.
+`galactico/validation/candidate_synthetic.py` holds the generators only. **Independent of
+what it checks**: it imports numpy and pandas only, plus `LeagueFrames` as a container. It
+writes its own geometry from the formulas in the protocol and builds neutral-schema rows
+directly, with `body_part` and `shot_family` columns as the sidecar would attach them. An
+`ast` test, written as `tests/test_research_firewall.py` writes its scan (`ast.walk` over the
+whole tree, function bodies included, plus `import_module` and `__import__` called with a
+string), asserts it imports nothing from `features.candidates`, `models.shots`,
+`shot_model_evaluation` or `candidate_gauntlet` other than `LeagueFrames`. The self-check
+itself, which runs the pipeline on these data, is `run_selfcheck` in the runner (section 7).
 
 ```python
 def synthetic_league(world: Mapping, *, world_position: int, league_position: int,
@@ -615,12 +707,13 @@ def synthetic_corpus(world: Mapping, *, world_position: int, replicate: int,
                      config: Mapping) -> dict[str, LeagueFrames]
 def synthetic_shots(scenario: Mapping, *, scenario_position: int, replicate: int,
                     config: Mapping) -> dict[str, pd.DataFrame]
-def generator_sanity(config: Mapping) -> dict
-def run_selfcheck(rule: Rule, config: Mapping) -> dict          # the "selfcheck" block of results.json
+def generator_sanity(config: Mapping) -> dict                  # latent parameters and own geometry only
 ```
 
 Seeds: `selfcheck_seed_rule` (worlds and scenarios on separate streams; resampling inside the
-self-check as in the real run).
+self-check as in the real run), positions 0-based (`position_indexing`). Worlds are read from
+`synthetic_worlds` by their `world` key and scenarios from `synthetic_instrument_scenarios` by
+their `scenario` key; no entry has a `name` key.
 
 ### 8.1 Generator (per league; parameters are the `synthetic_*` keys)
 
@@ -630,7 +723,7 @@ self-check as in the real run).
 | fixtures | double round-robin by the circle method, `synthetic_rounds` rounds, 380 matches; `game_id` increases with the round |
 | appearances | a regular plays a match with probability `synthetic_regular_appearance_probability`, a fringe player with `synthetic_fringe_appearance_probability`; 90 minutes when he plays; the goalkeeper always plays |
 | passes | `synthetic_passes_per_player_match` per player-match; `type "pass"`, start and end uniform on the unit square, rounded to `synthetic_coordinate_decimals`; `success` true with probability `synthetic_pass_success_probability` |
-| shots | per player-match Poisson(rate); rate = position mean x lognormal(0, `shot_rate_log_sd`) with unit mean, drawn once per player; distance ~ Gamma(shape `synthetic_distance_gamma_shape`, scale s/shape) x (`synthetic_head_or_body_distance_factor` if head-or-body), clipped to `synthetic_distance_clip_m`, with s the player's distance scale (`distance_scale_m`); lateral offset = min(abs(Normal(0, `synthetic_lateral_sd_m`)), distance), on the attacker's left with probability `synthetic_lateral_left_probability`; head-or-body with probability `synthetic_head_or_body_probability`; coordinates rounded to `synthetic_coordinate_decimals`; goal ~ Bernoulli(logistic(`synthetic_truth_coefficients` . features of the rounded coordinates)); `shot_family` `open_play` |
+| shots | per player-match Poisson(rate); rate = position mean x lognormal(0, `shot_rate_log_sd`) with unit mean, drawn once per player; distance ~ Gamma(shape `synthetic_distance_gamma_shape`, scale s/shape) x (`synthetic_head_or_body_distance_factor` if head-or-body), clipped to `synthetic_distance_clip_m`, with s the player's distance scale (`distance_scale_m`); lateral offset = min(abs(Normal(0, `synthetic_lateral_sd_m`)), distance), on the attacker's left with probability `synthetic_lateral_left_probability`; head-or-body with probability `synthetic_head_or_body_probability`; (distance, offset) to (`start_x`, `start_y`) by `synthetic_shot_coordinate_rule` (X = sqrt(d^2 - c^2), `start_x = 1 - X / 105`, `start_y = 0.5 -/+ c / 68`, left at the smaller y), coordinates rounded to `synthetic_coordinate_decimals`; goal ~ Bernoulli(logistic(`synthetic_truth_coefficients` . features of the rounded coordinates)); `shot_family` `open_play` |
 | ground defending duels | opponent-half and own-half counts per player-match are independent Poissons with the player's two rates: position mean x unit-mean lognormal with `opp_half_duel_rate_log_sd` and `own_half_duel_rate_log_sd`, or, where `shared_duel_rate_log_sd` is set, one shared unit-mean lognormal multiplier on both; `start_x` uniform on the integer percents of `synthetic_duel_start_x_percent`; `start_y` uniform on the unit square, rounded; each record's `player_id` set to 0 with the team's unattributed probability (linear from `low` to `high` across teams) |
 | interceptions | per player-match Poisson(`interception_ratio` x duel rate) in each half region; a `touch` row with `interception` true; never unattributed |
 | goalkeeper | pass rows only |
@@ -653,7 +746,11 @@ share of the opponent-half value's variance carried by team attribution is above
 ### 8.3 Planted instrument scenarios (five leagues x `synthetic_instrument_shots_per_league`)
 
 Distance scale `synthetic_instrument_distance_scale_m` for every shot; match ids by
-`synthetic_instrument_match_rule`; otherwise the shot rule of 8.1.
+`synthetic_instrument_match_rule`; otherwise the shot rule of 8.1, coordinates by
+`synthetic_shot_coordinate_rule`. The median of `TOO_SHARP` and `SLOPE_SHIFT` is taken over
+the league's own synthetic shots after rounding (`synthetic_logit_median_rule`); the
+scenario frames' columns are `synthetic_instrument_frame_rule`; `league_position` 2 is the
+0-based index into `leagues`, Italy (`position_indexing`).
 
 | Scenario | What is planted | Must be classified |
 |---|---|---|
@@ -667,24 +764,29 @@ Distance scale `synthetic_instrument_distance_scale_m` for every shot; match ids
 implemented this generator, the gauntlet of preregistration 6, the decision rule of 9 and
 the instrument gates of 4 (with the bootstrap) in a throwaway script on synthetic numbers
 only, and ran each world and scenario for 40 replicates. The counts are in
-`selfcheck_feasibility`; every predicate held with the margins recorded there, and the
-`minimum_replicates_matching` values were set from them. The script is a working note, not
-kept; the pipeline's own self-check is the check that binds.
+`selfcheck_feasibility`; every predicate held with the margins recorded there. The audit
+revision set the `minimum_replicates_matching` values (9 of 12, and 8 of 12 for `PLANTED`'s
+`also`) so that the seventeen minimum conditions hold together with 0.9941 at the
+conservative miss rate (observed misses + 1) / 40, against 0.9296 for the earlier 10, 10 and
+9 (`joint_minimum_pass_probability`); a broken pipeline gives the opposite token in most
+replicates and still fails them, and every never list is unchanged. The script is a working
+note, not kept; the pipeline's own self-check is the check that binds.
 
-**What may be adjusted, and until when.** `synthetic_*` parameters may be edited until the
-protocol commit if a stated rate is not met, with the reason recorded in the implementer's
-report. Thresholds, gates, the decision rule and the rates themselves may not be edited to
-make a check pass. After the protocol commit nothing in `config.json` changes; a self-check
-that fails after registration stops the run, and the protocol is superseded by a new
-experiment id (ADR-0029, Reversal).
+**What may be adjusted, and until when.** The binding self-check first runs after
+registration, when the pipeline exists, so the window below applies only to the reviser's
+own simulation before the protocol commit: there `synthetic_*` parameters may be edited if a
+stated rate is not met, with the reason recorded in the review record. Thresholds, gates,
+the decision rule and the rates themselves may not be edited to make a check pass. After the
+protocol commit nothing in `config.json` changes; a self-check that fails after registration
+stops the run, and the protocol is superseded by a new experiment id (ADR-0029, Reversal).
 
 ### 8.4 Test files
 
 | File | Content | Marker |
 |---|---|---|
-| `tests/test_candidate_planted.py` | 8.2 and 8.3 at `selfcheck_replicates`; the league assertions; the generator sanity assertions; the independence `ast` test; the planted traps never credited | `slow` for the full replicate count; a 2-replicate deterministic smoke variant always runs |
-| `tests/test_candidate_runner.py` | phase order (a spy shows no value computed before phase 4 ends); each phase-1 and phase-2 stop, including a changed `decide` source, a changed constant, a changed `PIPELINE.md` and a null pin; refusal to overwrite; determinism (two runs on a synthetic corpus byte-identical); `results.json` schema, size, `allow_nan`, denylist and banned-key walk, no identifier; no key at any depth of the config or of a `results.json` built by the runner contains `statsbomb`, `pappalardo` or `wyscout` in any letter case; config read from the frozen file and only `selfcheck_replicates` overridden; every threshold in code traced to a config key (source scan of `shot_model_evaluation.py`, `candidate_gauntlet.py` and the runner for the literals 0.85, 0.70, 0.60, 0.82 finds none outside docstrings); a synthetic tree built from a runner `results.json` with the five records of section 11.1 passes every checker of `tests/test_verdict_registry.py` | — |
-| `tests/test_candidate_pins.py` | on the real corpus, **structure only**: the `expected_*` pins, period filter, body-part coverage, clause overlap, shot-family pins, fingerprints; skips per league through `league_available` and when the league's sidecar manifest is absent | `slow`; skips without data |
+| `tests/test_candidate_planted.py` | 8.2 and 8.3 at `selfcheck_replicates`, through the runner's `run_selfcheck` with the imported `decide` and `_safe_abs_corr`; the league assertions; the generator sanity assertions; the independence `ast` test on `candidate_synthetic.py`; the planted traps never credited | `slow` for the full replicate count; the 2-replicate deterministic smoke variant always runs and asserts `selfcheck_smoke_rule` (every never list holds, each world and scenario gives an expected token in at least one replicate per subject, two runs byte-identical) |
+| `tests/test_candidate_runner.py` | phase order (a spy shows no value computed before phase 4 ends); each phase-1 and phase-2 stop, including a changed `decide` source, a changed `_safe_abs_corr` source, a changed constant, a changed `PIPELINE.md`, a null pin, a broken `structure_identity`, a stamp that is missing, untracked, not passed or holds an old hash, and a failure log not disclosed in `analysis.md`; refusal to overwrite; a raised exception in phase 5 and a phase-7 refusal each append one record without the message, remove every written file and exit 3; determinism (two `evaluate` and `serialise` runs on a synthetic corpus byte-identical); `results.json` schema, size, `allow_nan`; on a `results.json` built by `serialise` from the frozen config (with `provenance.config` the verbatim echo): the denylist walk, `banned_key_paths(..., parts=BANNED_KEY_PARTS)` and the three-name walk at every depth each find nothing, and each finds a planted `id`, `rank_ties` or `wyscout_x` key placed outside and inside the echo; `galactico/providers/pappalardo.py` appears as a `path` value of `source_hashes` with its true `lf_sha256`, the list sorted by `path` with one entry per file of 7.2; config read from the frozen file and only `selfcheck_replicates` overridden; every threshold in code traced to a config key (source scan of `shot_model_evaluation.py`, `candidate_gauntlet.py` and the runner for the literals 0.85, 0.70, 0.60, 0.82 finds none outside docstrings); a synthetic tree built from a runner `results.json` with the five records of section 11.1 passes every checker of `tests/test_verdict_registry.py` | — |
+| `tests/test_candidate_pins.py` | on the real corpus, **structure only**: the `expected_*` pins, `structure_identity`, period filter, body-part coverage, clause overlap, shot-family pins, fingerprints; skips per league through `league_available` and when the league's sidecar manifest is absent | `slow`; skips without data |
 
 No test computes a candidate statistic or a model fit on real rows.
 
@@ -696,7 +798,7 @@ the self-check stamp and the run.
 1. `git status` shows no `results.json` under the E-09 folder and no cached real-data output of this pipeline anywhere.
 2. No agent report lists a real-data execution beyond `--preflight` and `tests/test_candidate_pins.py`.
 3. Fingerprints computed by the code equal `config.json` (four of four).
-4. `lf_sha256_text(inspect.getsource(decide))` equals `frozen_rule_decide_source_sha256` and the constants equal `frozen_rule_constants`; `decide` is imported, not copied; no threshold literal in WP-C, D, E code.
+4. `lf_sha256_text(inspect.getsource(decide))` equals `frozen_rule_decide_source_sha256` and the constants equal `frozen_rule_constants`; `_safe_abs_corr`'s source hash equals `frozen_correlation_source_sha256`; both are imported and injected (`rule`, `correlation`), not copied, and no library module imports `experiments`; no threshold literal in WP-C, D, E code.
 5. `candidate_gauntlet.py`, `shot_model_evaluation.py`, `candidate_synthetic.py`, `candidate_sb.py` are in the firewall tuple; nothing under `galactico/api`, `galactico/optimization`, `galactico/profiles`, `galactico/match_lab` imports them; `galactico/models/shots` imports nothing from `galactico/validation` or `experiments`.
 6. `spec.SPECS` has five keys; `CONSTRUCTS` has five; the shipped fingerprints are unchanged; the full suite is green without the corpus.
 7. The model sees only `distance_m`, `angle_rad`, `head_or_body`: `design_matrix` reads no other column; the strings `opportunity`, `success`, `blocked`, `zone` do not occur in `galactico/models/shots/`.
@@ -705,54 +807,76 @@ the self-check stamp and the run.
 10. The share floor, match-set floor, minutes floor and goalkeeper exclusion are applied before any value is computed; gate counts precede statistics (spy test).
 11. Every departure of preregistration 6.1 has its named test and its direction; lenient ones are listed in `departures_active`.
 12. Self-check passes from a clean checkout, and `--preflight` on the real corpus prints all pins matching and the count gates (planning values: eligible 319 / 306 / 306 / 270 / 306 on nominal minutes, which capped minutes can only lower; share sets about 80 / 84 / 88 / 66 / 80).
-13. `results.json` writer: UTF-8, LF, `allow_nan=False`, sorted keys, size check, denylist and banned-key walk, no identifiers, the registry contract at the top level.
-14. Phase 1 refuses a wrong commit, a dirty protocol, a changed `PIPELINE.md`, a changed `decide`, an existing output.
+13. `results.json` writer: UTF-8, LF, `allow_nan=False`, sorted keys, size check, denylist, banned-key (with `BANNED_KEY_PARTS`) and provider-name walks over the whole object, `provenance.config` included, no identifiers, `source_hashes` a sorted list of path and hash pairs, the registry contract at the top level.
+14. Phase 1 refuses a wrong commit, a commit that is not an ancestor of `HEAD`, a protocol file not first added in it, a dirty protocol, a changed `PIPELINE.md`, a changed `decide` or `_safe_abs_corr`, a missing or stale self-check stamp, an undisclosed failure log, an existing output.
 15. Protocol, config, this file and the code agree on every name in section 7.1; preregistration 9.1 has eight rows and the code has eight branches.
 16. Ruff clean; `from __future__ import annotations`; frozen dataclasses; `__all__`; docstrings state claim and non-claim.
+17. The committed self-check stamp `selfcheck.json` matches the reviewed source hashes, the config hash and the pipeline hash; it was written by `--selfcheck` after this review, not before.
+18. External leg: `candidate_sb.py` was built in the pipeline commit, before any public outcome, with every frame rule of section 10 frozen in config; `lf_sha256(sb_reader.py)` equals its entry in E-11's `acceptance.json`; no StatsBomb-derived number, coefficient or identifier is in a committed file; `sb_output_root` and `sb_root` resolve under `data/licensed/`; `candidate_sb.py` passes `check_licensing.check`.
 
-## 10. External leg (WP-F, conditional, LOCAL)
+## 10. External leg (WP-F, LOCAL; built with the pipeline, run conditionally)
 
-`galactico/validation/candidate_sb.py`; run through
-`experiments/run_candidate_gauntlet.py --external --protocol-commit <sha>`; only after
-`results.json` is committed and only for candidates of `sb_leg_candidates` at
+`galactico/validation/candidate_sb.py` is written, reviewed and pinned in the pipeline commit
+with every other source file (section 13), because `tests/test_research_firewall.py` requires
+a listed module to exist and because every frame rule below must be fixed before any public
+outcome is known; its path and `sb_reader.py`'s are in the `source_hashes` of section 7.2. It
+runs through `experiments/run_candidate_gauntlet.py --external --protocol-commit <sha>`, only
+after `results.json` is committed and only for candidates of `sb_leg_candidates` at
 `ESTABLISHED_*`. LOCAL_LICENSED end to end (`sb_leg_tier`): nothing under `galactico/api`,
 `galactico/optimization`, `galactico/profiles`, `galactico/match_lab`, `galactico/models` or
-`galactico/features` imports it.
+`galactico/features` imports it, and it imports nothing from `experiments`.
 
 ```python
-def sb_frames(folder: str, config: Mapping) -> LeagueFrames               # positions, minutes, periods, shots
+def sb_frames(folder: str, config: Mapping) -> LeagueFrames               # the neutral frame below
 def sb_shot_detail(folder: str, game_ids: Collection[int], config: Mapping) -> pd.DataFrame
     # event_id (str), shot_type, body_part, read from sb_reader.iter_events; keys reached through variables
+def sb_box_spec(config: Mapping) -> CandidateSpec                          # config sb_box_spec; never in CANDIDATES
 def sb_verdict(candidate: str, evaluations: Sequence[LeagueEvaluation],
                refit_token: str | None, config: Mapping) -> str
-def sb_level_shift(public: Mapping[str, Sequence[float]], local: Mapping[str, Sequence[float]],
+def sb_level_shift(public: Mapping[str, float | None], local: Mapping[str, float | None],
                    config: Mapping) -> float | None
-def run_external(results: Mapping, config: Mapping) -> dict
+def run_external(results: Mapping, config: Mapping, *, rule: Rule, correlation: Correlation) -> dict
 ```
 
 | Rule | Detail |
 |---|---|
 | inputs | `sb_root` only; no path under `sb_forbidden_roots` is opened. Before anything is read, `sb_reader.folder_manifest` of each of `sb_folders` equals `sb_folder_digests` (the three null digests are counted by the root before registration) |
-| readers | `galactico.validation.sb_reader` (E-11, registered) imported unchanged and pinned in `source_hashes`: `read_matches`, `read_events(scale=sb_location_scale)`, `read_team_sheets` (minutes by `sb_minutes_rule`). Body part and the position names of spells are read by `candidate_sb.py` itself from the raw lists `sb_reader.iter_events` and the lineup files yield; `sb_reader` is not extended, since its hash is in E-11's committed acceptance stamp and an edit before E-11's run would invalidate it |
-| vocabulary | a shot type outside `sb_known_shot_types`, a body part outside `sb_head_or_body_parts` + `sb_foot_parts`, or a position name outside `sb_position_groups` stops the leg before any statistic |
-| frames | `type == "shot"` only for shots of `sb_open_play_shot_types`, other shots dropped; `head_or_body` for `sb_head_or_body_parts`; periods mapped by `sb_period_labels`; positions by `sb_position_rule`; goalkeepers excluded; `event_id` kept as the provider's string and never cast to an integer (`frame_digest` hashes it as a string on this leg) |
-| battery | `sb_battery_rule` |
-| instrument | the specification selected on the public run, refitted leave-one-league-out over the four folders, with `sb_gate_s_count`, the R and L gates in `sb_gate_leagues_required` of 4, the pooled gates at the public thresholds, and no reselection |
-| gauntlet | the same functions, same rule, `minimum_evaluable_leagues = sb_minimum_evaluable_leagues` |
+| readers | `galactico.validation.sb_reader` (E-11, registered) imported unchanged: `read_matches`, `read_events(scale=sb_location_scale)`, `read_team_sheets(..., cap=regulation_minutes_cap, regulation_periods=sb_regulation_periods, goalkeeper_position=sb_goalkeeper_position, dismissal_card_types_exclude=sb_dismissal_card_types_exclude, spell_end_reason_contains=sb_spell_end_reason_contains)`, whose `minutes_regulation` is `sb_minutes_rule`; the Wyscout `goalkeeper_position` is never passed, and `is_goalkeeper`, `dismissed` and `permanent_off` are not read. Body part and the position names of spells are read by `candidate_sb.py` from the raw lists `sb_reader.iter_events` and the lineup files yield; each spell's regulation minutes come from `sb_reader._spell`, imported as a private member (one rule, never a second implementation, ROOT 2.9 Z3), under the pin `sb_reader_pin_rule`. `sb_reader` is not extended, since its hash is in E-11's committed acceptance stamp and an edit before E-11's run would invalidate it |
+| vocabulary | a shot type outside `sb_known_shot_types`, a body part outside the keys of `sb_body_part_map`, or a position name outside `sb_position_groups` stops the leg before any statistic |
+| frames | rows by `sb_event_row_rule`; columns by `sb_frame_columns_rule`: `type` by `sb_kind_type_map` (Pass, Shot, Duel; Interception, Clearance, Miscontrol, Dispossessed and Block as `touch`; every other kind dropped), `success` on passes = not `has_outcome`, `goal` = shot outcome in `sb_goal_outcomes`, `counter_attack` = `play_pattern` in `sb_counter_attack_play_patterns`, `interception` = kind in `sb_interception_kinds` or a Pass whose `pass_type` is in `sb_interception_pass_types` (E-11's family, matching the Wyscout tag that `opp_half_on_ball_rule` excludes on passes; the shipped `StatsBombProvider` mapping, which makes an Interception a duel, is not used), `subtype` null, `body_part` by `sb_body_part_map`, `shot_family` `open_play` on kept shots; ids renamed from `sb_game_id`, `sb_team_id`, `sb_player_id`; periods by `sb_period_labels`; positions by `sb_position_rule`, goalkeepers the GK group at season level; `event_id` kept as the provider's string and never cast to an integer (`frame_digest` hashes it as a string on this leg); `location_sentinels` apply through `Zone.mask` and the leg's sentinel-start shot rows are counted; a frame with no pass row is refused before any statistic (`sb_frame_refusal`) |
+| battery | `sb_battery_rule`, on the frames above |
+| box | the leg-only spec `sb_box_spec`: `box_shot_share`'s clauses with the zone `penalty_area_sb` (bounds inclusive, `zone_use`), fingerprint `23bf9214db9b`, sentence `sb_box_spec.sentence`; `CANDIDATES` keeps its four keys |
+| instrument | the specification selected on the public run, refitted leave-one-league-out over the four folders, with `sb_gate_s_count`, S-fit on `gate_s_fit_models` and the instrument in every fold (`gate_s_fit_rule`: no reselection and no fallback to `M1`), the R and L gates in `sb_gate_leagues_required` of 4, the pooled gates at the public thresholds |
+| gauntlet | the same functions with the injected `rule` and `correlation` (the runner passes `decide` and `_safe_abs_corr`), `minimum_evaluable_leagues = sb_minimum_evaluable_leagues` |
 | token | preregistration section 11, rows in order; `sb_verdict_vocabulary`; the sentence `sb_statements[token]` |
-| level shift | `sb_level_shift_rule`; reported only |
-| output | `sb_output_root` (gitignored), file `external_results.local.json`. **Never committed.** The research note `sb_report` carries aggregate findings in prose and tables with the StatsBomb logo and attribution; no coefficient table |
-| registry | none: the leg writes no `VerdictRecord` and changes no registry (DISSENT 7) |
+| level shift | `sb_level_shift_rule`: the public input is `LeagueEvaluation.mean` from the committed `results.json`, per league, null where the count gates failed; the local input the same on the leg; reported only |
+| output | `sb_output_root/sb_results_file` (gitignored). **Never committed.** Keys: `experiment`, `version`, `tier` (`LOCAL_LICENSED`), `provenance` (`protocol_commit`, `protocol_hash`, `config_hash`, `pipeline_hash`, `source_hashes` as the list of 7.2, `sb_folder_digests` as checked, `public_results_sha256` = `lf_sha256` of the committed `results.json`, `packages`), `structure` per folder, `instrument` (the 7.1 instrument block's shape), `candidates` (per candidate the 7.1 candidate block's shape plus `sb_token` and `sb_sentence`), `level_shift`. The key rules of section 0 and phase 7 apply to it. The research note `sb_report` carries aggregate findings in prose and tables with the StatsBomb logo and attribution; no coefficient table |
+| refusals | `--external` refuses, writing nothing, unless every phase-1 check of section 7 passes except the output check; `results.json` under `committed_experiment_dir` is tracked at `HEAD` with a working LF hash equal to that of `git show HEAD:<path>`; `sb_root` and `sb_output_root` resolve under `data/licensed/` and `PROVIDERS["statsbomb"].tier` is `LOCAL_LICENSED`; every `sb_folder_digests` value is non-null and equals its `folder_manifest`; `sb_reader_pin_rule` holds; `sb_results_file` does not exist; `sb_failed_run_log` exists only if `analysis.md` at `HEAD` holds the sha256 of its bytes |
+| determinism | `--external --determinism-rerun` writes `<sb_output_root>/external_results.rerun.local.json` and exits 1 unless it is byte-identical to `sb_results_file` |
+| failed execution | the rule of section 7, with the log `sb_output_root/sb_failed_run_log` |
+| registry | none: the leg writes no `VerdictRecord` and changes no registry (DISSENT 7, ROOT 2.9 Z5) |
 
 `opp_half_defensive_actions` is not in this leg; its cross-provider status is E-11's token for
 the same subject id.
 
-`tests/test_candidate_sb.py` (synthetic only, invented names and ids): the box edges on the
-provider's lattice (x = 101.9/102.0, y = 17.9/18.0/62.0/62.1, divided by 120 and 80, against
-`penalty_area_sb`); the position map and its tie rule; the period map; an unknown shot type,
-body part or position name stops the leg; every token row reached, row 1 before row 2; a
+`tests/test_candidate_sb.py` (synthetic only, invented names and ids): a hand-built synthetic
+event list and lineup pair through `sb_frames` gives the exact neutral frame (types, the
+dropped kinds and dropped non-open-play shots, `success`, `goal`, `counter_attack`, the
+interception flag on an Interception event and on a Pass of an interception type,
+`body_part`, `shot_family`, renamed ids, string `event_id`); a shots-only frame, and any frame
+with no pass row, is refused; the box edges on the provider's lattice (x = 101.9/102.0, y =
+17.9/18.0/62.0/62.1, divided by 120 and 80) through `Clause.mask` with the zone
+`penalty_area_sb`, and `sb_box_spec`'s fingerprint and sentence; `read_team_sheets` is
+called with the three `sb_` keys and never with the Wyscout goalkeeper code; the position
+map, its tie rule and spell minutes from `sb_reader._spell`; the period map; an unknown shot
+type, body part or position name stops the leg; with the selected `MFLEX` not converging in
+one fold while `MD` and `M1` converge, the token is `INSTRUMENT_NOT_ACCEPTED` through row 1
+before row 2, and no gauntlet value of `shot_location_value` is computed; every token row
+reached, row 1 before row 2; every refusal above; the LOCAL file passes the key rules; a
 string `event_id` survives hashing; the module passes `check_licensing.check`; no product
-package imports it; `sb_reader` is byte-identical to `HEAD`.
+package imports it; `lf_sha256(sb_reader.py)` equals the `galactico/validation/sb_reader.py`
+entry of `source_hashes` in E-11's `acceptance.json` and `sb_reader_source_sha256_in_e11_acceptance`
+(a test against `HEAD` alone would not fail once an edit is committed).
 
 ## 11. Registry consequences
 
@@ -772,20 +896,39 @@ the same commit `product_admissible` gains the promotion-set condition (protocol
 
 | Token | Edit |
 |---|---|
-| any | each record takes `token` from `results.json` `verdicts`, `protocol_commit` and `results_hash`; remove `shot_profile` and `defensive_action_profile` from `UNTESTED` in `galactico/profiles/build.py` (line 111; one tuple, read by `galactico/api/player_lab.py` and `scripts/generate_docs.py`); regenerate the README and METRICS blocks; add the E-09 row state to `experiments/preregistered/README.md` |
-| `INCONCLUSIVE` | add the candidate id to `UNTESTED` (`untested_edit`; a declared hand edit tied to the token by a test, not a `registry_move`) |
+| any | each record takes `token` from `results.json` `verdicts`, `protocol_commit` and `results_hash`; remove `shot_profile` and `defensive_action_profile` from `UNTESTED` in `galactico/profiles/build.py` (line 111; one tuple, read by `galactico/api/player_lab.py` and `scripts/generate_docs.py`); write `TESTED_NOT_PROMOTED` (empty unless a candidate is established) and `DISPLAY_NAMES` there; regenerate the README and METRICS blocks; add the E-09 row state to `experiments/preregistered/README.md` |
+| `INCONCLUSIVE`, `INCONCLUSIVE_INSTRUMENT` | add the candidate id to `UNTESTED` (`untested_edit`; a declared hand edit tied to the token by a test, not a `registry_move`) |
 | `NOT_ESTABLISHED_REDUNDANT`, `_CONFOUNDED`, `_UNRELIABLE` | `REJECTED[id] = (headline, detail)` from `player_lab_text[token]`, the headline filled by `baseline_fill_rule` through `baseline_prose`, or through `nuisance_prose`; add `test_<id>_stays_rejected` asserting absence from `CONSTRUCTS` and `spec.SPECS` |
-| `NOT_ESTABLISHED_INSTRUMENT`, `_MIXED` | `RESEARCH_ONLY[id] = (headline, detail)` from `player_lab_text[token]` |
-| `ESTABLISHED_*` | no registry move (rule V6, ARCH D1); the candidate is not in `REJECTED`, `RESEARCH_ONLY` or `UNTESTED`, and is counted as tested and not shipped; `product_admissible` stays false through the empty promotion set |
-| instrument, any token | `MODEL-CARD.md` rendered; `docs/LIVE-DATA-GAP-MATRIX.md` corrected from `DERIVABLE` to `MODELLED` for xG on the free corpus |
+| `NOT_ESTABLISHED_MIXED` | `RESEARCH_ONLY[id] = (headline, detail)` from `player_lab_text[token]` |
+| `ESTABLISHED_*` | no `registry_move` (rule V6 refuses one on an ESTABLISHED outcome, and V6 is not changed; ARCH D1); `TESTED_NOT_PROMOTED[id] = (headline, detail)` from `player_lab_text[token]` (`tested_not_promoted_edit`, a declared hand edit tied to the token by a test); `product_admissible` stays false through the empty promotion set |
+| every candidate in a list | `DISPLAY_NAMES[id]` = its config `display_name` (`display_name_edit`); `/api/constructs` serves it as the label, and `_display_name` keeps the id rule for ids it does not hold |
+| any E-09 record whose badge reads TESTED | `galactico/api/planning.py`: the sentence that replaces `REGISTERED_NOT_TESTED_STATEMENT` once `verdict_reading` returns `None` is `planning_after_run.research_sentence`, after any sentence written for another experiment (`research_sentence_rule`); the tests that assert `REGISTERED_NOT_TESTED_STATEMENT` change with it: `tests/test_planning_render.py`, `tests/test_squad_api.py`, `tests/test_transfer_api.py`, `tests/test_planning_api.py` |
+| any | the `shots` entry of `NOT_MEASURED_EXTRA` becomes `planning_after_run.shots_entry_tested` or `shots_entry_untested` by `shots_entry_rule`; its tests change with it |
+| instrument, any token | `MODEL-CARD.md` rendered |
+| instrument `ACCEPTED`, `ACCEPTED_WITHIN_LEAGUE` | the `docs/LIVE-DATA-GAP-MATRIX.md` note of `gap_matrix_edit`: a location-only conversion model (PREDICTIVE) on the free corpus, never provider xG; the xG / xA row itself is not relabelled. Under `NOT_ESTABLISHED` and `INCONCLUSIVE` the matrix is not edited |
 
-Counts after any outcome: 13 proposed; tested = 13 minus the candidates left in `UNTESTED`
-minus `carrying_value`. These edits change served Player Lab output (`/api/constructs`: the
-three registry lists and the hero counts) and its tests (`tests/test_registry_contract.py`,
-`tests/test_player_lab.py`); R13 and ADR-0011 pin that output, ROOT 2.2 authorises the
-placeholder replacement, and the root records the override in an ADR note in the results
-commit. The headlines and details hold no digit and pass the copy guard
-(`tests/test_registry_contract.py`).
+Counts after any outcome (`player_lab_counts_after_run`): proposed = 5 + |`REJECTED`| +
+|`RESEARCH_ONLY`| + |`TESTED_NOT_PROMOTED`| + |`UNTESTED`| = 13; tested = 13 minus the ids in
+`UNTESTED` (`carrying_value` and every inconclusive candidate); surviving = 5. A test over
+all 4,096 assignments of the eight candidate tokens to the four candidates asserts these
+counts, that each candidate is in exactly one of the four lists, and that the list is the one
+`registry_lists_after_run` names for its token. These edits change served Player Lab and
+planning output, and each consumer of the lists changes in the same commit:
+
+| File | Change |
+|---|---|
+| `galactico/profiles/build.py` | `TESTED_NOT_PROMOTED`, `DISPLAY_NAMES`; `UNTESTED` and the two text registries as above |
+| `galactico/api/player_lab.py` | serves `tested_not_promoted` (id, label, headline, detail) and `counts.tested_not_promoted`; adds the list to `proposed` and `tested`; `surviving` stays `len(shipped)`; labels from `DISPLAY_NAMES` |
+| `scripts/generate_docs.py` | `counts()` adds the list to proposed and tested and gains a "tested, not promoted" clause; `rejected_table()` gains a "tested, not promoted" row type; README and METRICS regenerated |
+| `web/index.html` | `renderWhy` gains a card type for the new list |
+| `tests/test_registry_contract.py` | `test_a_construct_has_exactly_one_status` adds `TESTED_NOT_PROMOTED` to the pairwise-disjoint check and keeps it out of `assert all(...)`, since it may be empty; the digit-free test covers it, the copy-guard test covers it and `DISPLAY_NAMES`; the token-to-list test |
+| `tests/test_served_credit.py`, `tests/test_docs_consistency.py` (`test_the_hero_states_the_documented_counts`), `tests/test_web_render.py` fixtures, `e2e/smoke.spec.js` constructs shape, `tests/test_player_lab.py` | the new key, the new clause and the counts |
+| the planning tests named above | the two sentences |
+
+R13 and ADR-0011 pin that output, ROOT 2.2 authorises the placeholder replacement, and the
+root records the override in an ADR note in the results commit that names each file above.
+The headlines and details hold no digit; they and the display names pass the copy guard
+(`tests/test_registry_contract.py`); a display name may hold "per 90", as the served estimator denominators ("per 90 minutes") do.
 
 ### 11.2 A later promotion (`CONSTRUCTS` plus `SPECS`) — every hardcoded list
 
@@ -827,46 +970,49 @@ who else plays.
 `render_model_card(results)` emits exactly these sections; every number is read from
 `results.json`, none is typed. `{...}` marks a field.
 
-1. **Model details.** `shot_location_v1`; specification `{selection.specification}`; unpenalised logistic regression, IRLS, NumPy `{packages.numpy}`; formula of preregistration 4.1; pitch convention from `{config.pitch_length_m}` x `{config.pitch_width_m}` m, goal `{config.goal_width_m}` m; coefficients and standard errors for each of the five leave-one-league-out fits (table); protocol commit `{...}`; training-frame hashes.
-2. **Intended use.** Valuing the origin of open-play shots in aggregate over a player-season, within one league, for men's top-division club football of 2017/18, as input to a candidate that passes its own lifecycle.
+1. **Model details.** `shot_location_v1`; specification `{selection.specification}`; unpenalised logistic regression, IRLS, NumPy `{packages.numpy}`; formula of preregistration 4.1; pitch convention from `{config.pitch_length_m}` x `{config.pitch_width_m}` m, goal `{config.goal_width_m}` m; coefficients and standard errors for each of the five leave-one-league-out fits (table; when S-count failed, the words "not fitted" in place of the table); protocol commit `{...}`; training-frame hashes.
+2. **Intended use.** Valuing the origin of open-play shots in aggregate over a player-season, within one league, for men's top-division club football of the season `{config.season}`, as input to a candidate that passes its own lifecycle.
 3. **Out of scope, as prohibitions.** A verdict on a single shot. Finishing skill. Goalkeeper evaluation. Comparison with any provider's xG as if on one scale. Any season, tier, sex or provider not evaluated. Any dated decision, until a strictly-prior fit exists.
-4. **What enters and what does not.** In: shot origin, provider head-or-body class. Not in: defender and goalkeeper positions, pressure, shot type, ball height, assist type, shooter, team, league, game state. Excluded as outcome-informed, with audit counts read from `{structure}`: opportunity tag, accuracy tags, blocked tag, goal-mouth zone tags.
+4. **What enters and what does not.** In: shot origin, provider head-or-body class. Not in: defender and goalkeeper positions, pressure, shot type, ball height, assist type, shooter, team, league, game state. Excluded as outcome-informed (preregistration 4.1): opportunity tag, accuracy tags, blocked tag, goal-mouth zone tags, counter-attack tag. The model is fitted on `distance_m`, `angle_rad` and `head_or_body` only; section 9 check 7 enforces this, and no sidecar column other than `body_part` and `shot_family` is loaded (`sidecar_columns`).
 5. **Training data.** Pappalardo et al. 2019, CC BY 4.0; provider `Shot` events, periods `{config.periods}`, origin in the opponent half and not at a location sentinel; exclusions with counts `{structure}`; label = goal flag on the shot row; base rate by league `{...}`.
 6. **Evaluation.** Leave one league out, five folds; match-level resampling, `{config.bootstrap_replicates}` replicates, coefficients fixed.
 7. **Metrics**, per held-out league and pooled, for `M0`, `MD`, `M1`, `MFLEX`: Brier, log loss, both skills against the training rate, observed over expected, calibration slope and intercept, ECE and MCE with the simulated null percentiles, AUROC (for comparability only). Table from `{instrument.leagues}`, `{instrument.pooled}`.
 8. **By factor.** Observed over expected for footed, head-or-body, three distance bands (gated); counter-attack flag (descriptive). Calibration bins per league.
-9. **Uncertainty not in any number here.** (a) coefficient uncertainty: omitted from intervals; (b) omitted information: published Brier gaps put the per-shot disagreement with a richer model at 0.05 to 0.08 RMS, the same order as the mean shot value; its between-player part cannot be estimated from this corpus; (c) location error: integer-percent coordinates, unpublished operator accuracy; (d) outcome variance is not uncertainty about the model sum.
+9. **Uncertainty not in any number here.** (a) coefficient uncertainty: omitted from intervals; (b) omitted information: published comparisons with models that also see defender and goalkeeper positions put the per-shot disagreement at the same order as the mean shot value; its between-player part cannot be estimated from this corpus; (c) location error: integer-percent coordinates, unpublished operator accuracy; (d) outcome variance is not uncertainty about the model sum.
 10. **Evidence class.** PREDICTIVE. Every construct built on it inherits it.
-11. **Verdict and scope.** `{instrument.token}`; failed gates `{...}`. Under `ACCEPTED_WITHIN_LEAGUE`: values carry no goal unit and are not compared across leagues.
+11. **Verdict and scope.** `{instrument.token}`, its statement from `registry_outcomes.instrument`; reason `{instrument.reason}`; failed gates `{instrument.failed_gates}`. Under `ACCEPTED_WITHIN_LEAGUE`: values carry no goal unit and are not compared across leagues.
 12. **Caveats.** Metres are a convention on percent coordinates; the provider's pitch drawing is not metric; head-or-body is not header; one season; national-team matches not evaluated; in-sample valuation is forbidden (a league is always valued by the fit that excluded it).
 13. **Temporal validity.** Full-season out-of-league fits are measurement instruments for research only.
 14. **Change policy.** Formula and thresholds frozen at the protocol commit. A refit is a new model id with a new card; the specification selected by preregistration 4.3 is named in the id (`shot_location_v1/M1` or `/MFLEX`).
 
 ## 13. Order of operations and shared-file requests to the root
 
-One order, the house order (north-star README, E-11 PIPELINE section 13): independent audit
-to READY, registration, the pipeline, the self-check stamp, the run.
+One order, the house order (north-star README, E-11 PIPELINE section 13), with E-09's root
+rulings first: root rulings, independent audit to READY, structure counts, registration, the
+pipeline, the self-check stamp, the run.
 
 **Before registration** (nothing below is an outcome):
 
 | Step | Detail |
 |---|---|
-| Audit | an independent audit of this revision that walks every branch of 4.5, 9.1 and 11 |
-| Structure counts | the root runs a committed structure-only script over the five leagues and writes `expected_behind_halfway_shot_rows`, `expected_sentinel_start_shot_rows` and `expected_in_domain_shot_rows` (`counted_by_root_before_registration`); the three `sb_folder_digests` that are null are computed with `sb_reader.folder_manifest` on the local folders |
-| Verified values | `verified_by_root_before_registration`: `pipeline_spec_sha256` is `lf_sha256` of this file as it stands (an edit before registration means recomputing it); the `decide` source hash and constants; the two sidecar versions against `galactico.ingestion.sidecar`; `e11_config_sha256` against the registered E-11 config |
-| Root ruling | ARCH D1 against `product_admissible` (protocol section 10): the promotion-set change below, or a ruling that replaces it. E-09 is not registered without one |
+| Root rulings | recorded in ROOT-DECISIONS as a new section (2.10, "Root rulings on the E-09 draft", after the form of 2.6, 2.7 and 2.9) before anything below; E-09 is not registered without each of `root_rulings_required_before_registration`: (1) OPEN QUESTION 1, ARCH D1 against `product_admissible`: the promotion-set change below, or a ruling that replaces it; (2) DISSENT 6 and OPEN QUESTION 6: which shot design is frozen, open play (the design in `candidates`) or ROOT 2.2's non-penalty shots (`root_2_2_design`), and under the second which subject id the volume candidate carries; (3) DISSENT 2 and the E-11 duplicate: that candidates are `CandidateSpec`, not ROOT 3b's "candidate ConstructSpecs", and that `shot_volume` and `opp_half_defensive_actions` are implemented here beside E-11's registered `provider_inputs.py`, tied by a parity test, which ROOT 4 and 2.9 Z3 would otherwise refuse (E-11's code is registered and pinned, so the duplicate cannot be removed). OPEN QUESTION 2 and DISSENT 5 (`root_rulings_optional_frozen_values_stand`): the frozen values stand unless the root rules otherwise before registration. After the rulings the reviser applies them (for (2): moves the selected design into the main keys, deletes the other block, recomputes the fingerprints and this file's hash), and the revision is audited again |
+| Audit | an independent audit of the ruled revision that walks every branch of 4.5, 9.1 and 11, until one finds no blocker (E-11 and E-10 precedent; ROOT 2.9 Z4) |
+| Structure counts | after the audit, the root runs one committed structure-only script over the five leagues and writes every key of `counted_by_root_before_registration` (`counted_by_root_rule`): the null pins are filled, every pinned count carried over from working notes is recounted and replaced where it differs, with the difference stated; the three `sb_folder_digests` that are null are computed with `sb_reader.folder_manifest` on the local folders. These keys are the only edits to `config.json` after the audit |
+| Verified values | `verified_by_root_before_registration`: `pipeline_spec_sha256` is `lf_sha256` of this file as it stands (an edit before registration means recomputing it); the `decide` and `_safe_abs_corr` source hashes and `decide`'s constants; the two sidecar versions against `galactico.ingestion.sidecar`; `e11_config_sha256` against the registered E-11 config; `sb_reader_source_sha256_in_e11_acceptance` against E-11's `acceptance.json` and the file |
 
 **The registration commit** changes served output, and says so:
 
 | File | Change |
 |---|---|
 | `experiments/preregistered/E-09-player-candidates/` | the three registered files (section 0); `experiments/preregistered/README.md` row `E-09 player candidates`, `preregistered, not run` |
-| `galactico/domain/verdicts.py` | the five `PENDING` records of section 11.1; `product_admissible(c)` returns `verdict_for("E-09", c).may_gate and c in PROMOTED`, `PROMOTED` an empty frozenset (`promotion_set_in_this_release`); the docstring's paragraph naming E-09 a draft and saying `product_admissible` is false while E-09 is not registered |
-| `tests/test_verdict_registry.py` | the shipped-registry test (it lists E-11's sixteen records); the `product_admissible` test gains the promotion set; a test that `product_admissible` is false for every E-09 subject under every token of the config |
-| `tests/test_protocol_drafts.py` (or a sibling) | ties the E-09 files: `lf_sha256` of `PIPELINE.md` equals `pipeline_spec_sha256`; every record built from the config under `PENDING` and under every token constructs and its `as_payload` passes `runtime.finalize`; every `player_lab_text`, `baseline_prose`, `nuisance_prose`, display name and sentence passes `labels.scan_labels` and holds no digit where `tests/test_registry_contract.py` requires none; no key of the config names a provider |
+| `galactico/domain/verdicts.py` | the five `PENDING` records of section 11.1; `product_admissible(c)` returns `verdict_for("E-09", c).may_gate and c in PROMOTED`, `PROMOTED` an empty frozenset (`promotion_set_in_this_release`); the docstring's paragraph naming E-09 a draft and saying `product_admissible` is false while E-09 is not registered; and its sentence that `may_gate` is the only value that may unlock a number-bearing panel gains that for E-09 a panel is unlocked through `product_admissible` only |
+| `tests/test_verdict_registry.py` | the shipped-registry test (it lists E-11's sixteen records); the `product_admissible` test gains the promotion set; a test that `product_admissible` is false for every E-09 subject under every token of the config; a test that no route or page unlocks anything on an E-09 `may_gate` in this release (`web/labs-shared.js` `mayGate` is not consulted for E-09) |
+| `tests/test_protocol_drafts.py` (or a sibling) | ties the E-09 files, each check run on the files, where it finds nothing, and on a copy with the defect planted, where it finds it (M-06): `lf_sha256` of `PIPELINE.md` equals `pipeline_spec_sha256`; every record built from the config under `PENDING` and under every token constructs and its `as_payload` passes `runtime.finalize`; every `player_lab_text`, `baseline_prose`, `nuisance_prose`, `planning_after_run` sentence, display name, sentence and `claim` text passes `labels.scan_labels` and holds no digit where `tests/test_registry_contract.py` requires none; on `{"provenance": {"config": config}}` and on a synthetic skeleton of the full 7.1 shape (every `GateCount`, `LeagueEvaluation` and `CandidateVerdict` field name, the instrument, structure, selfcheck and registry keys): the exact-key denylist walk, `banned_key_paths(..., parts=BANNED_KEY_PARTS)` and the provider-name walk each find nothing, and each finds a planted `id`, `rank_ties` or `wyscout_x` key. The reviser of the audit ran these checks in a scratch script (REVIEW-RECORD); adding the test now, as E-11's draft guard was added, is the root's choice |
 | `tests/test_preregistration_order.py` | nothing: `PROTOCOL` already holds `PIPELINE.md` |
 | `tests/test_licensing.py` | remove the draft `preregistration.md` and `PIPELINE.md` from their lists (they become one-line pointers) and add the registered pair to `NO_FIGURE_FORMED_FROM_STATSBOMB`; the registered `preregistration.md` draws the logo by the registration-time path |
-| `galactico/api/planning.py` | the `shots` entry of `NOT_MEASURED_EXTRA` says no registered protocol tests a shot construct, which is false once E-09 is registered; the root's wording |
+| `LICENSING.md` | its sentence that "the draft protocols E-09, E-11 and E-12" print analysis formed from StatsBomb data is false for E-09, which is on `NO_FIGURE_FORMED_FROM_STATSBOMB`; the root's wording |
+| draft folder | `preregistration.md` and `PIPELINE.md` become one-line pointers; `config.json` is deleted (section 0) |
+| `galactico/api/planning.py` | the `shots` entry of `NOT_MEASURED_EXTRA` says no registered protocol tests a shot construct, which is false once E-09 is registered; the root's wording for the registered, not run state (the post-run sentences are frozen, `planning_after_run`) |
 | prose that calls E-09 an unreviewed draft or a draft with no review | `docs/research/north-star/README.md`, `KNOWN_LIMITATIONS.md` ("Registered or drafted, not run", the sidecar entry), ROOT-DECISIONS 2.6's registry sentence, ADR-0018's registry paragraph, ADR-0028's "Confidence" sentence |
 | `docs/assets/statsbomb/statsbomb-logo.png` | the existing file, unchanged |
 
@@ -874,11 +1020,14 @@ to READY, registration, the pipeline, the self-check stamp, the run.
 
 | Step | Detail |
 |---|---|
-| The commit that adds the pipeline | the source files and tests of section 0. In that commit, and not before, `tests/test_research_firewall.py` gains `galactico.validation.shot_model_evaluation`, `candidate_gauntlet`, `candidate_synthetic` and `candidate_sb` in `RESEARCH_PIPELINES` (`test_the_lists_name_modules_that_exist` requires each listed file to exist) |
-| Review and stamp | the checklist of section 9; then the self-check run on the frozen config, its block committed beside the protocol as `selfcheck.json` in a commit of its own after the pipeline and before the results. A failed stamp stops E-09 before any outcome (section 8.3) |
+| The commit that adds the pipeline | the source files and tests of section 0, `candidate_sb.py` and its tests included. In that commit, and not before, `tests/test_research_firewall.py` gains `galactico.validation.shot_model_evaluation`, `candidate_gauntlet`, `candidate_synthetic` and `candidate_sb` in `RESEARCH_PIPELINES` (`test_the_lists_name_modules_that_exist` requires each listed file to exist) |
+| Review and stamp | the checklist of section 9; then `--selfcheck` on the frozen config writes `selfcheck.json` (section 7.3, `selfcheck_stamp_rule`), committed beside the protocol unchanged in a commit of its own after the pipeline and before the results. A failed stamp stops E-09 before any outcome (section 8.3). Any later change to a pinned source file means a new stamp, and phase 1 refuses an old one |
 
 **After the run:** the results commit (`results.json`, `analysis.md`, `MODEL-CARD.md`, the
-record tokens and hashes, the registry edits of 11.1 with the ADR note).
+record tokens and hashes, the registry, planning and gap-matrix edits of 11.1 with the ADR
+note). `analysis.md` goes on the `tests/test_licensing.py` list that fits it if it names the
+provider; the external leg's `sb_report` goes on `FORMED_FROM_STATSBOMB` in the commit that
+adds it.
 
 ## DISSENT
 
@@ -891,7 +1040,11 @@ record tokens and hashes, the registry edits of 11.1 with the ADR note).
 2. **Candidates are `CandidateSpec`, not `ConstructSpec`.** The root layout says "candidate
    ConstructSpecs". Same evidence. `shot_volume` exists once, as a `CandidateSpec`, and is
    tested equal to the house `shots_per_90` column; a `ConstructSpec` form is generated from
-   it at promotion, never written beside it (ROOT 4, ROOT 2.9 Z3).
+   it at promotion, never written beside it (ROOT 4, ROOT 2.9 Z3). One duplicate remains and
+   cannot be removed: E-11's registered `provider_inputs.py` computes the same two imported
+   definitions for its own purpose, and E-09 ties its masks to E-11's flags by a parity test,
+   which Z3 refused for E-10. E-11's code is registered and pinned, and product code may not
+   import it. Both points are rulings the root makes before registration (section 13).
 3. **The registry's only family for a per-90 magnitude is named with a banned word.** `Family`
    has QUALITY, STYLE, PHYSICAL, TEAM; shipped per-90 constructs use the first. Candidates
    carry `family="volume"` here. Before any promotion the root should add a neutral member or
@@ -906,9 +1059,10 @@ record tokens and hashes, the registry edits of 11.1 with the ADR note).
 5. **Two-tier instrument acceptance.** The root asked for frozen acceptance thresholds; this
    design freezes them and adds a scope tier (`ACCEPTED_WITHIN_LEAGUE`). A single tier would
    most likely reject the instrument on Italy's level (planning figure 0.897), a property no
-   within-league candidate uses. If the council prefers one tier, delete the L/R distinction
-   and treat every gate as R; the expected result is then `NOT_ESTABLISHED` for the
-   instrument and `NOT_ESTABLISHED_INSTRUMENT` for `shot_location_value`.
+   within-league candidate uses. If the root prefers one tier, delete the L/R distinction and
+   treat every gate as R; the expected result is then `NOT_ESTABLISHED` for the instrument
+   and `INCONCLUSIVE_INSTRUMENT` for `shot_location_value`. Unless the root rules before
+   registration, the two tiers stand (section 13).
 6. **`shot_volume` counts open-play shots, not all non-penalty shots (ROOT 2.2).** Evidence: the
    registered E-11 defines `shot_volume` as open-play shots and `non_penalty_shot_volume`
    separately, and its token applies to an E-09 candidate only if E-09 imports its definition
@@ -916,10 +1070,26 @@ record tokens and hashes, the registry edits of 11.1 with the ADR note).
    identity of 5.1 holds; a direct free kick's origin is set by where the foul was given, not
    chosen by the shooter, and its conversion follows another process, which the location-only
    model would value as an open-play shot from that spot. The display name says "open-play"
-   and "no direct free kicks". If the root holds to ROOT 2.2, `free_kick_shot` set pieces join
-   both shot candidates, the identity with `shots_per_90` is dropped, the subject is renamed
-   `non_penalty_shot_volume` to match E-11, and the fingerprints are recomputed.
-7. **No registry record for the external leg.** A LOCAL `VerdictRecord` in E-09's directory
+   and "no direct free kicks". The ROOT preamble asks a dissenter to deliver a design that
+   satisfies the root as well, and ROOT 2.6 says the root file wins where a draft contradicts
+   it, so the ROOT 2.2 design is written in full beside this one in `root_2_2_design`: both
+   shot candidates count open-play and direct free-kick shots (`free_kick_shot` set pieces;
+   fingerprints `57ed7aea86d9` and `fcc26575bdf8`, or `18f3a5bb9e89` for the volume if the
+   root names it `non_penalty_shot_volume`); `shot_volume` imports E-11's
+   `non_penalty_shot_volume` definition, whose E-11 record is its label; the house open-play
+   `shots_per_90` leaves its battery as an identity-family column (lenient, flagged), since
+   its correlation with the non-penalty volume is near 1 by construction; the non-penalty
+   volume joins every other battery, `shot_location_value`'s included, so ROOT 2.2's
+   redundancy test is against it; the model domain becomes non-penalty shots in the opponent
+   half, location-only with a descriptive free-kick subgroup; `box_shot_share` stays on
+   open-play shots, its nuisance the open-play column; and the structure pins, the external
+   leg's shot types, the planted traps and the tests change as listed there. The open-play
+   design stays the primary text because the reviser's event-level feasibility was simulated
+   on it; if the root selects the ROOT 2.2 design, that simulation is repeated on it before
+   the re-audit. E-09 is not registered until the root rules (section 13).
+7. **No registry record for the external leg.** ROOT 2.9 Z5 has since ruled the same way for
+   E-10's LOCAL arm: a hosted label from such an arm needs its own LOCAL record, created by a
+   later protocol. A LOCAL `VerdictRecord` in E-09's directory
    would make `tests/test_verdict_registry.py::local_estimate_failures` read E-09's PUBLIC
    `results.json`, whose aggregate floats it refuses, and would require its `analysis.md` to
    carry the StatsBomb logo. The leg's token is therefore a label in its credited note only,
@@ -934,12 +1104,16 @@ record tokens and hashes, the registry edits of 11.1 with the ADR note).
    true while promotion stays separate)? E-09 waits for the ruling.
 2. Thresholds R1 (0.08 pooled, 0.03 per-league lower bound) differ from the reconnaissance
    proposal (0.08 point and 0.05 lower bound in every league). By derived sampling error
-   (about 0.012 per league) the proposal fails a model whose true skill is 0.10 in about one
-   run in five; the council should confirm before the commit.
+   (`planning_figures.r1_league_brier_skill_se`) the proposal fails a model whose true skill
+   is 0.10 in about one run in five (`planning_figures.open_question_2_proposal_failure_rate_at_true_skill_0_10`).
+   The council no longer exists (ROOT 2.6); the draft owns these thresholds, and they stand
+   unless the root rules otherwise before registration.
 3. A per-shot mean of the instrument was left out in favour of `box_shot_share`. If the
-   council wants it, it is a fifth candidate and needs its own protocol.
+   root wants it, it is a fifth candidate and needs its own protocol.
 4. Should Euro 2016 and World Cup 2018 be an external transport test of the instrument? Not
    in this protocol.
 5. Whether E-10 uses `shot_location_v1` for conceded shot value; if so its protocol must cite
    the instrument token.
-6. ROOT 2.2 against DISSENT 6: open-play shots, as E-11 registered, or every non-penalty shot?
+6. ROOT 2.2 against DISSENT 6: open-play shots, as E-11 registered, or every non-penalty shot
+   (`root_2_2_design`, written in full), and under the second, the subject id `shot_volume`
+   or `non_penalty_shot_volume`? E-09 waits for the ruling (section 13).

@@ -102,8 +102,8 @@ the existing integer quantisation policy. None changes solve_xi's behaviour.
 
 ### 2.2 Preregistered research (experiments/preregistered/E-09 .. E-13)
 
-- E-09 NEW PLAYER CANDIDATES through the lifecycle: `shot_volume` (non-penalty shots per
-  90), `shot_location_value` (location-only conversion-model-weighted non-penalty shots per
+- E-09 NEW PLAYER CANDIDATES through the lifecycle: `shot_volume` (open-play shots per 90;
+  amended from non-penalty shots by 2.10 W2), `shot_location_value` (location-only conversion-model-weighted non-penalty shots per
   90; must show incremental information over shot_volume or be rejected as redundant, by the
   ball_retention precedent), and one defensive-location candidate. Includes a transparent
   in-repo location-only shot conversion model, named as a MODEL (PREDICTIVE), evaluated
@@ -411,6 +411,43 @@ unlinked players who have no Wyscout role.
   LOCAL replication arm: the arm's result is reported in `analysis.md` only, with the attribution
   of LICENSING.md, and no hosted page carries a label from it. A later protocol may add such a
   label only through its own LOCAL record.
+
+### 2.10 Root rulings on the E-09 draft's audit (18 October 2026; binding on its reviser)
+
+- W1 RULED (OPEN QUESTION 1). ARCH D1 stands: no candidate is promoted in this release. E-09's
+  registration commit gives `product_admissible` an explicit, empty promotion set, so a PUBLIC,
+  executed, established E-09 record admits nothing until a later promotion, which is its own
+  change set with its own ADR.
+- W2 RULED (DISSENT 6, OPEN QUESTION 6). `shot_volume` counts open-play shots, not every
+  non-penalty shot; ROOT 2.2's parenthesis is amended to match. Evidence: the registered E-11
+  defines `shot_volume` as open-play shots and `non_penalty_shot_volume` apart, and its token
+  is a label for an E-09 candidate only when E-09 imports the definition unchanged; the house
+  `shots_per_90` counts the neutral `shot` type; a direct free kick's origin is where the foul
+  was given. The display name says open play and no direct free kicks. The ROOT 2.2
+  alternative (`root_2_2_design`) is removed from the config before registration and kept in
+  REVIEW-RECORD as the design not chosen.
+- W3 RULED (DISSENT 2). Candidates are `CandidateSpec`; a `ConstructSpec` is generated from one
+  at promotion, never written beside it. The one duplicate that remains, E-11's registered
+  `provider_inputs.py` computing the two definitions E-09 imports, is a recorded exception to
+  Z3: E-11's code is registered and pinned, and product code may not import research code. The
+  tie is not a sampled parity test: a test imports both and asserts equal masks on every row
+  type, subtype and flag combination of the public adapter's closed vocabulary, and E-09 pins
+  `provider_inputs.py` among its source hashes.
+- W4 ACCEPTED (DISSENT 3). `family="volume"` is internal for this release; a neutral `Family`
+  member is added at promotion.
+- W5 ACCEPTED (DISSENT 5, OPEN QUESTION 2). The two acceptance tiers and the R1 thresholds
+  stand.
+- W6 ACCEPTED (DISSENT 7). No registry record for the LOCAL external leg, as Z5 for E-10; its
+  token is a label in its credited note only.
+- W7 ACCEPTED. The failed-run log goes to `data/public/research/E-09-player-candidates`,
+  gitignored.
+- W8 RULED. The post-run product edits (the Player Lab lists `TESTED_NOT_PROMOTED` and
+  `DISPLAY_NAMES`, the frozen planning sentences, the gap-matrix note) are the results commit's
+  consequences, overriding R13 and ADR-0011 for exactly those edits, and that commit carries
+  an ADR naming them, as ADR-0025 and ADR-0027 did.
+- W9 RULED. The E-09 draft guard joins `tests/test_protocol_drafts.py` (key walks, copy guard,
+  registry records through `finalize`, pipeline hash), as E-11's did; the reviser may add it.
+- W10 RULED. The revision applying W1 to W9 is audited again before E-09 is called READY.
 
 ## 3. Scenario decisions
 
