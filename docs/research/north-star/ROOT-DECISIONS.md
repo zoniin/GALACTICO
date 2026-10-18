@@ -498,6 +498,43 @@ the draft's first review, so the reviewers attack a draft that already reads the
 - T8 RULED. E-13 goes through the house review: three adversarial lenses and a revision, then
   partitioned audits with a refuter per claimed blocker, repeated until no scope has a blocker.
 
+### 2.12 Root rulings on the Opponent Lab and desk specification (18 October 2026; binding on its builders and on E-10's registration)
+
+[OPPONENT-DESK-SPEC.md](OPPONENT-DESK-SPEC.md) was drafted, attacked by three lenses and
+revised on 18 October 2026. Its ROOT RULINGS NEEDED are ruled here.
+
+- N1 ACCEPTED (R-1, DISSENT 1). The record gate opens at E-10's results commit, when all
+  seven E-10 records are `EXECUTED`, and not at registration. The gate sits inside the one
+  loader that reads the corpus for a record. Evidence: R5, and E-10 PIPELINE 11 row 1, whose
+  code review signs that no WP A file was executed on `data/` before the gate stamp. The
+  registry cannot tell that window from the time after the stamp. Before the run, the pages
+  ship with the record withheld (`RECORD_WITHHELD_NOT_RUN`).
+- N2 RULED (R-1, consequence for E-10). E-10's product table is aligned before registration.
+  The prior-date record is shown from E-10's results commit; before it, the panel prints the
+  non-claim and the reason it withholds the record. Its rows "no record (before
+  registration)" and `PENDING` say so. This is an edit to a READY draft, so it is verified by an
+  independent auditor before registration (Z4), with `pipeline_spec_sha256` recomputed if
+  PIPELINE.md moves.
+- N3 ACCEPTED (R-2, DISSENT 5). The desk composes the XI solve and its exact additions. It
+  reaches the opponent record and the requirement proposal by a stage that links to Opponent
+  Lab. That meets ROOT 2.3's "chain end to end": the chain's first two steps live on the page
+  that may show them. The desk forms no proposal and shows no descriptor (E-10 PIPELINE 13; the
+  narrowing of review E6).
+- N4 ACCEPTED (R-3, default). S3, S4 and S5 are team aggregates of the event sets behind
+  E-09's candidates. Each is withheld until a registry record under `"E-09"` exists, so no one
+  is exposed to them before E-09 is frozen.
+- N5 RULED (R-4). ADR-0031 overrides R13 for exactly the nav bytes of `web/index.html`,
+  `match.html`, `xi.html`, `squad.html` and `transfer.html` and the pinned tests the spec's
+  section 11 names, in the form of W8. `d9bf28f`'s earlier nav edit for Squad and Transfer Lab
+  is recorded there as the same kind of edit, made without naming R13.
+- N6 RULED (R-5). E-10 PIPELINE 13's line for "the wording that names the registered
+  protocols" covers rewording planning's `shots` item at E-10's registration. N2's edit names
+  it in that line, so the registration commit carries it explicitly.
+- N7 RULED (order). The spec is audited, with a refuter per claimed blocker, until no scope has a
+  blocker. The build follows E-10's pipeline commit, which brings WP A
+  (`galactico/features/team/`). The routers and the nav entries are registered in one commit
+  with ADR-0031.
+
 ## 3. Scenario decisions
 
 - Real Madrid stays the laboratory subject. Add a third snapshot kind: a PLANNING snapshot
