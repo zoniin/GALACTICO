@@ -390,6 +390,14 @@ unlinked players who have no Wyscout role.
 - Y3 E-12 states beside each contrast the share of linked units that are `ROLE_CHANGED`
   (E-11 section 14, item 10), and its sample gates and power statements are recomputed for
   the `ROLE_SAME` units before it is frozen.
+- Y4 RULED (18 October 2026, the order). "E-11 must be registered and executed first" binds
+  E-12's run, not its registration. E-12 may be registered before E-11 runs, and that is
+  preferred under R5: its design is frozen before E-11's results can shape it. Its admitted
+  construct set is then a function of E-11's registry tokens, fixed in its config. It is read
+  from `verdicts.py` at E-12's run, and a construct E-11 does not admit gets E-12's own
+  not-admitted token, never a silent omission. E-12's runner refuses to start while any E-11
+  record it reads is `PENDING`. If E-11 has run before E-12 is registered, E-12's
+  prior-exposure table says so and names who read E-11's analysis (E-10's "E-11 order" row).
 
 ### 2.9 Root rulings on the E-10 draft's audit (16 October 2026; binding on its reviser)
 
