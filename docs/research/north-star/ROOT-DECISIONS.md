@@ -103,8 +103,8 @@ the existing integer quantisation policy. None changes solve_xi's behaviour.
 ### 2.2 Preregistered research (experiments/preregistered/E-09 .. E-13)
 
 - E-09 NEW PLAYER CANDIDATES through the lifecycle: `shot_volume` (open-play shots per 90;
-  amended from non-penalty shots by 2.10 W2), `shot_location_value` (location-only conversion-model-weighted non-penalty shots per
-  90; must show incremental information over shot_volume or be rejected as redundant, by the
+  amended from non-penalty shots by 2.10 W2), `shot_location_value` (location-only conversion-model-weighted open-play shots from the
+  opponent half per 90, amended by 2.10 W2; must show incremental information over shot_volume or be rejected as redundant, by the
   ball_retention precedent), and one defensive-location candidate. Includes a transparent
   in-repo location-only shot conversion model, named as a MODEL (PREDICTIVE), evaluated
   leave-one-league-out. "Finishing" (goals minus expectation) stays out of scope.
@@ -425,7 +425,10 @@ unlinked players who have no Wyscout role.
   `shots_per_90` counts the neutral `shot` type; a direct free kick's origin is where the foul
   was given. The display name says open play and no direct free kicks. The ROOT 2.2
   alternative (`root_2_2_design`) is removed from the config before registration and kept in
-  REVIEW-RECORD as the design not chosen.
+  REVIEW-RECORD as the design not chosen. Extended 18 October 2026 (E-09 second audit,
+  blockers 1-2 and 4-1): the ruling covers `shot_location_value` too, which weights open-play
+  shots from the opponent half, and ROOT 2.2's parenthesis for it is amended to match;
+  `box_shot_share` was already on open-play shots.
 - W3 RULED (DISSENT 2). Candidates are `CandidateSpec`; a `ConstructSpec` is generated from one
   at promotion, never written beside it. The one duplicate that remains, E-11's registered
   `provider_inputs.py` computing the two definitions E-09 imports, is a recorded exception to
