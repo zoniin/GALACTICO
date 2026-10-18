@@ -8,7 +8,7 @@
   "committed_experiment_dir": "experiments/preregistered/E-09-player-candidates",
   "draft_dir": "docs/research/north-star/protocol-drafts/E-09-player-candidates",
 
-  "pipeline_spec_sha256": "14f45d5758f1dafb3be90506ad8797937015ecfe7e2e602371fcff4260d0266c",
+  "pipeline_spec_sha256": "34fd0116252bbf9ac06f6724f5bed51c2cd16acf8364359cc43e5fc2525d06c6",
   "verified_by_root_before_registration": ["pipeline_spec_sha256", "frozen_rule_decide_source_sha256", "frozen_rule_constants", "frozen_correlation_source_sha256", "sidecar_schema_version", "sidecar_tag_mapping_version", "e11_config_sha256", "sb_reader_source_sha256_in_e11_acceptance"],
   "counted_by_root_before_registration": ["expected_shot_rows", "expected_in_domain_shot_rows", "expected_sentinel_start_shot_rows", "expected_behind_halfway_shot_rows", "expected_goal_rows_on_shots", "expected_matches", "expected_rows_outside_periods", "expected_body_part_coverage_on_shots", "expected_clause_overlap_rows", "expected_shot_family_disagreements", "sb_folder_digests"],
   "counted_by_root_rule": "the root runs one committed structure-only script over the five leagues (and sb_reader.folder_manifest over the three local folders whose digest is null) after the audit and before the registration commit; for every key of counted_by_root_before_registration that is not in counted_by_root_assumption_pins, a null is filled, a value that differs from the draft is replaced and the difference is stated in the registration commit and in REVIEW-RECORD.md; these keys are the only edits to this file after the audit, and the file is then registered byte for byte",

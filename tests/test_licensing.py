@@ -229,12 +229,13 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
         "the external leg's readers, mappings and frame rules, the flag code it imports from "
         "E-11, its view of the config, the candidates and box drawing it evaluates, gates, "
         "tokens, refusals in both modes, the pin to the public run's code, the provider's "
-        "coordinate scale, the reader's pinned hash, where the leg writes and the shape of its "
-        "local file, and the attribution plan; synthetic figures only",
+        "coordinate scale, the reader's pinned hash and its check on every ref, where the leg "
+        "writes and the shape of its local file, and the attribution plan; synthetic figures "
+        "only",
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/REVIEW-RECORD.md":
         "the reviews' findings on the external leg (its frames, flags, refit gate, config "
-        "view, the specs it evaluates, refusals, code pin and lifecycle), key names and "
-        "attribution, with their dispositions; synthetic figures only",
+        "view, the specs it evaluates, refusals, code and reader pins and lifecycle), key names "
+        "and attribution, with their dispositions; synthetic figures only",
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/preregistration.md":
         "the external leg's rule, frame rules, gates and tokens and the provider's coordinate "
         "scale, with no figure formed from its data; it draws the logo for the leg's report",
