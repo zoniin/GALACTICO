@@ -45,6 +45,7 @@ from .decision_lab import router as decision_router
 from .runtime import router as runtime_router
 from .squad_lab import router as squad_router
 from .transfer_lab import router as transfer_router
+from .xi_extensions import router as xi_extensions_router
 
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
 OUT_OF_CONTEXT = RenderState.OUT_OF_CONTEXT.value
@@ -57,6 +58,7 @@ app.include_router(decision_router)
 app.include_router(runtime_router)
 app.include_router(squad_router)
 app.include_router(transfer_router)
+app.include_router(xi_extensions_router)
 
 
 def _built_under_another_registry(data: dict[str, Any]) -> bool:

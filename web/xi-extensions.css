@@ -1,0 +1,48 @@
+/* XI Lab's exact additions (web/xi-extensions.js). Linked after labs-shared.css on /xi only.
+   Every selector starts with #xi-extensions or names only xi- classes or ids, so no shipped
+   element of the page is restyled. Tokens are labs.css's. Gold is not used: no number and no
+   point of these panels is marked, and every point and every row is drawn alike. Every track
+   can shrink and every server string can wrap, so nothing widens the page at 320 px. */
+#xi-extensions{min-width:0;max-width:100%;overflow-wrap:anywhere}
+#xi-extensions .xi-ext h2,#xi-extensions .xi-panel h2{overflow-wrap:anywhere}
+#xi-extensions .xi-optin{display:flex;gap:.6rem;align-items:baseline;max-width:78ch;margin:.4rem 0 1rem;font-size:12px}
+#xi-extensions .xi-controls{display:flex;flex-wrap:wrap;gap:1rem;align-items:end;margin:.4rem 0 1rem;min-width:0}
+#xi-extensions .xi-controls .control{min-width:0;max-width:100%}
+#xi-extensions .xi-controls select,#xi-extensions .xi-controls button{max-width:100%;white-space:normal;text-align:left}
+#xi-extensions .xi-body{min-width:0}
+#xi-extensions .xi-body p{max-width:95ch;overflow-wrap:anywhere}
+#xi-extensions .xi-claim{color:var(--text)}
+#xi-extensions .xi-state{color:var(--text)}
+#xi-extensions .xi-evidence,#xi-extensions .xi-verdict{margin:.6rem 0 1rem;min-width:0;overflow-wrap:anywhere}
+#xi-extensions .xi-evidence .detail,#xi-extensions .xi-verdict .detail{font:11px var(--mono);color:var(--muted);margin-top:.25rem}
+#xi-extensions .xi-table{width:100%;border-collapse:collapse;margin:.6rem 0 1rem}
+#xi-extensions .xi-table caption{caption-side:top;text-align:left;padding:.6rem 0 .2rem;font:10px var(--mono);text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+#xi-extensions .xi-table th,#xi-extensions .xi-table td{overflow-wrap:anywhere;text-align:left;padding:.5rem 1rem .5rem 0;font-size:12px}
+#xi-extensions .xi-table th:last-child,#xi-extensions .xi-table td:last-child{padding-right:0;text-align:left}
+#xi-extensions .xi-table .detail{margin:.3rem 0 0;font:11px var(--mono);color:var(--muted)}
+#xi-extensions .xi-cell{min-width:0}
+#xi-extensions .xi-table details{border-top:0;padding:0}
+/* Opening a point gives its row the outline every opened row gets, and changes nothing else. */
+#xi-extensions .xi-point-row:has(details[open]){outline:1px solid var(--chalk);outline-offset:-1px}
+#xi-extensions .xi-plot{display:block;width:100%;max-width:420px;height:auto;margin:.8rem 0;background:var(--surface);border:1px solid var(--line)}
+#xi-extensions .xi-point{fill:var(--muted);stroke:var(--text);stroke-width:.004}
+#xi-extensions .xi-cert dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem 1.2rem;margin:.6rem 0}
+#xi-extensions .xi-cert dt,#xi-extensions .xi-body dt{font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+#xi-extensions .xi-cert dd,#xi-extensions .xi-body dd{margin:0;font:12px var(--mono);overflow-wrap:anywhere}
+#xi-extensions .xi-body dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem 1.2rem;margin:.6rem 0}
+#xi-extensions .xi-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.4rem 1.6rem;margin:.6rem 0 1rem}
+#xi-extensions .xi-group ul{margin:.2rem 0 0;padding-left:1rem;font-size:12px}
+/* The declared ledger, laid out as labs-shared.css lays out #ledger-declared (its 1.6 rules). */
+#xi-extensions .xi-ledger-declared caption{caption-side:top;text-align:left;padding:1rem 0 .2rem;font:10px var(--mono);text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+#xi-extensions .xi-ledger-declared td{overflow-wrap:anywhere}
+#xi-extensions .xi-ledger-declared td{padding-right:1rem}
+#xi-extensions .xi-ledger-declared td:last-child{padding-right:0}
+/* The kit stacks only .evidence-ledger (at 650 px); these tables stack by the same pattern. */
+@media(max-width:600px){
+#xi-extensions .xi-table{display:block}
+#xi-extensions .xi-table caption,#xi-extensions .xi-table tbody{display:block}
+#xi-extensions .xi-table thead{position:absolute;left:-9999px}
+#xi-extensions .xi-table tr{display:block;padding:.6rem 0;border-bottom:1px solid var(--line)}
+#xi-extensions .xi-table td{display:grid;grid-template-columns:7.5rem minmax(0,1fr);gap:.6rem;border:0;padding:.25rem 0}
+#xi-extensions .xi-table td::before{content:attr(data-label);font:10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+}

@@ -120,7 +120,7 @@ def test_budget_table_is_server_owned_and_pinned():
         "transfer.injection": 45.0, "transfer.injection.detail": 30.0,
         "transfer.retention": 20.0,
     }
-    assert frozenset({"xi.risk.regret", "squad.stress", "transfer.injection"}) \
+    assert frozenset({"xi.risk.tail", "xi.risk.regret", "squad.stress", "transfer.injection"}) \
         == runtime.LONG_ROUTES <= set(runtime.BUDGETS)
     assert not [name for name in runtime.BUDGETS if name.startswith(("opponent", "desk"))]
     with pytest.raises(TypeError):

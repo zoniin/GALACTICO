@@ -148,7 +148,9 @@ BUDGETS: Mapping[str, float] = MappingProxyType({
 })
 """Route name -> wall-clock seconds. Server-owned: a client may ask for less, never more."""
 
-LONG_ROUTES: frozenset[str] = frozenset({"xi.risk.regret", "squad.stress", "transfer.injection"})
+LONG_ROUTES: frozenset[str] = frozenset(
+    {"xi.risk.tail", "xi.risk.regret", "squad.stress", "transfer.injection"}
+)
 """Routes that enumerate (every absence set, every candidate, every world optimum)."""
 
 LONG_JOB_LIMIT = 2
