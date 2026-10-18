@@ -14,6 +14,12 @@ process.env.GALACTICO_URL = process.env.GALACTICO_URL || base;
 // uvicorn still holding the previous bundle in an lru_cache, so a fix that was
 // present in the artifact appeared to have failed. A test must never depend on a
 // process it did not start.
+//
+// The server keeps an idle connection for an hour. Playwright's API requests
+// (page.request) go through one keep-alive agent for the whole run that never
+// drops an idle socket itself, while uvicorn closes one after 5 s by default: a
+// request written onto a socket reused at that moment met "socket hang up" in
+// CI (xi-extensions.spec.js, two requests about 5 s apart in adjacent tests).
 module.exports = defineConfig({
   testDir: './e2e',
   timeout: 30000,
@@ -22,7 +28,7 @@ module.exports = defineConfig({
   reporter: [['list']],
   use: { baseURL: base, screenshot: 'only-on-failure', trace: 'off' },
   webServer: {
-    command: `"${python}" -m uvicorn galactico.api.player_lab:app --port ${port} --log-level warning`,
+    command: `"${python}" -m uvicorn galactico.api.player_lab:app --port ${port} --log-level warning --timeout-keep-alive 3600`,
     url: `${base}/api/health`,
     reuseExistingServer: false,
     timeout: 120000,
