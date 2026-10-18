@@ -452,6 +452,52 @@ unlinked players who have no Wyscout role.
   registry records through `finalize`, pipeline hash), as E-11's did; the reviser may add it.
 - W10 RULED. The revision applying W1 to W9 is audited again before E-09 is called READY.
 
+### 2.11 Root rulings on the E-13 draft and the built risk solver (18 October 2026; binding on its reviser)
+
+The declared-risk solver is built (`galactico/optimization/xi/risk.py`, ADR-0030). OR-XI-SPEC
+section 13 leaves six reconciliation items to the E-13 draft's owner; they are ruled here, before
+the draft's first review, so the reviewers attack a draft that already reads the built code.
+
+- T1 RULED (OR-XI 13, interfaces 1 and 6). E-13 calls the built
+  `declared_risk_selection(..., rule, tail_count)` through its two adapters. `_risk_call` fills
+  what the draft's interface 1 lacks: `world_count = len(worlds)`, a world seed and a version
+  string of E-13's own (its split-half worlds have no snapshot seed and no `bootstrap_version`),
+  and `deadline = time.monotonic() +` its solver limit; `WORST_WORLD` is called with
+  `tail_count` 1. `_risk_world_pairs` reads the result's `world_losses`. The draft's ASSUMED
+  INTERFACES are rewritten to the built signatures: none is assumed at registration.
+- T2 RULED (OR-XI 13, the discard rule). E-13 adopts the shipped rule wherever it uses the
+  product solver: a world is discarded when a non-excluded player lacks a needed metric at a
+  slot he is eligible for (ROOT 2.4, "exactly as the shipped bootstrap does";
+  `solver.py:551-559`). The draft's "any candidate has zero exposure" is withdrawn there. Part A's
+  synthetic worlds state their own rule in the same words, so the two parts discard alike. With
+  one rule there is no difference to count on the corpus before registration.
+- T3 ACCEPTED (OR-XI 13, pinning). `risk_solver_oracle_tests`, and the `lf_sha256` list that
+  says which oracle vouched for the solver, hold `tests/xi_exact_oracle.py` beside
+  `tests/test_xi_risk_oracle.py`. `source_paths` lists `galactico/optimization/xi/risk.py`,
+  `galactico/optimization/squad/kernel.py` and `galactico/optimization/xi/tradeoffs.py`, since
+  the risk solver's behaviour runs through members of both.
+- T4 RULED (OR-XI 13, the `risk_report` statistic). E-13 keeps its own statistic: the largest
+  shortfall `M` of the worst world, and the mean `M` over the `k` tail worlds, in normalised
+  units. Its reporting question compares a report with the selected set's true shortfall, a
+  quantity on the scale of one world; a sum over `k` worlds is not on that scale. The product
+  serves no `risk_report` payload and prints no figure note before E-13 has run, and
+  `verdicts.risk_report` stays `null`. If E-13 runs, its results commit may add the mean as an
+  exact server text with E-13's figure note, under an ADR naming that edit (as W8). The draft's
+  obligation that the sentence be "printed as a figure note under the objective lines" is
+  rewritten as that conditional consequence.
+- T5 RULED (OR-XI 13, the requirement set). E-13's token scope lists its requirement set (the
+  three measured requirements in force, `expected_active_requirements`). Its tokens say nothing
+  of a request with another set. The router already treats such a request, including the
+  product's default progression-only risk request, as outside `E13_SCOPE`, with
+  `RISK_OUTSIDE_E13`; that stands.
+- T6 ACCEPTED (OR-XI 13, the menu). The product's menu is the draft's `tail_counts` exactly
+  (`WORST_WORLD` at 1; `TAIL` at 2, 3, 6 for 12 worlds and 4, 10, 20 for 40). The 40-world
+  entries are offered only after X5's timing; E-13's scope may name 40 worlds before then.
+- T7 RULED (X8). The split-sample check is E-13's own research code. No product tool is
+  specified for it until E-13 is registered; then a separate change set may specify one.
+- T8 RULED. E-13 goes through the house review: three adversarial lenses and a revision, then
+  partitioned audits with a refuter per claimed blocker, repeated until no scope has a blocker.
+
 ## 3. Scenario decisions
 
 - Real Madrid stays the laboratory subject. Add a third snapshot kind: a PLANNING snapshot
