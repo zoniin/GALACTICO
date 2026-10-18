@@ -1,13 +1,36 @@
 {
-  "version": "declared-risk-selection-v1",
+  "version": "declared-risk-selection-v2",
   "experiment_id": "E-13",
+  "registry_experiment_id": "E-13",
   "tier": "PUBLIC",
   "experiment_directory": "experiments/preregistered/E-13-declared-risk-selection",
+  "draft_dir": "docs/research/north-star/protocol-drafts/E-13-declared-risk-selection",
+  "protocol_files": ["preregistration.md", "config.json", "PIPELINE.md"],
+  "pipeline_spec_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "verified_by_root_before_registration": [
+    "pipeline_spec_sha256: lf_sha256 of PIPELINE.md as registered",
+    "risk_solver_oracle_expected: the counts the oracle gate requires, read from a POSIX run of the risk_solver_oracle_tests files as they stand at registration",
+    "solver_time_limit: scripts/time_xi_risk.py (ROOT 2.7 X5) at 12 worlds, with the experimental opt-in, on both scenarios, prints a CERTIFIED status and EXACT completeness for every rule of the menu; it prints no lineup, loss or frequency, and its printed fields are stated in the registration commit; if a rule is not CERTIFIED inside solver_time_limit seconds, the root raises solver_time_limit before registration and the draft is audited again"
+  ],
+  "counted_by_root_before_registration": [
+    "snapshots[*].expected_candidates",
+    "snapshots[*].expected_feasible_assignments",
+    "snapshots[*].expected_player_sets",
+    "snapshots[*].expected_selection_count",
+    "snapshots[*].expected_prior_team_matches",
+    "geometries[*].exposure_counts[GATED_MINUTES]",
+    "geometries[*].exposure_counts[GATED_APPEARANCES]"
+  ],
+  "counted_by_root_rule": "the root runs one structure-only count over the two shipped snapshots (load_snapshot with worlds=0, decision_inputs with formation and the experimental opt-in, an enumeration of the feasible assignments, and each gated outfield candidate's prior minutes and appearances; no requirement value, no shortfall, no selection is computed or printed) after the audit and before the registration commit; for every key of counted_by_root_before_registration a null is filled and a value that differs from the draft is replaced, each difference stated in the registration commit and in REVIEW-RECORD.md; GATED_MINUTES of GROUPED_14C10 is the ascending vector of round_half_even(prior minutes / 90) of the 2018-05-06 snapshot's gated outfield candidates, GATED_APPEARANCES the ascending vector of their appearances, and the M05_8C3 vector of each is the order statistics at the positions of exposure_subset_rule; these keys are the only edits to this file after the audit, and it is then registered byte for byte",
+  "root_rulings_applied": ["T1", "T2", "T3", "T4", "T5", "T6", "T7"],
+  "root_rulings_rule": "ROOT-DECISIONS 2.11 (18 October 2026) ruled the six reconciliation items of OR-XI-SPEC section 13 before E-13's first review; T1 to T7 are applied in this file, preregistration.md and PIPELINE.md; T8 sets the review this draft goes through",
 
   "quantization": 100000,
   "rules": ["BALANCE", "WORST_WORLD", "TAIL_10", "TAIL_25", "TAIL_50", "MINIMAX_REGRET"],
   "modes": ["WORST_WORLD", "TAIL_10", "TAIL_25", "TAIL_50", "MINIMAX_REGRET"],
   "reference_arms": ["BALANCE_FIRST", "ORACLE_SHRINKAGE", "RANDOM_SET"],
+  "bridge_arms": ["BALANCE_FIRST", "ORACLE_SHRINKAGE_FIRST"],
+  "pseudo_rules": ["TRUTH_MIX", "RANDOM_MIX", "REFERENCE_WORST_MIX", "IDENTICAL"],
   "world_tiers": [12, 40, 200],
   "decision_tiers": [12, 40],
   "tail_counts": [
@@ -15,6 +38,7 @@
     {"worlds": 40, "WORST_WORLD": 1, "TAIL_10": 4, "TAIL_25": 10, "TAIL_50": 20},
     {"worlds": 200, "WORST_WORLD": 1, "TAIL_10": 20, "TAIL_25": 50, "TAIL_50": 100}
   ],
+  "encoding_base_rule": "BIG = max(2, 2 * W * T_bound + 1), T_bound = the sum over requirements of the targets t_r (no deficit exceeds its target, the coefficients being non-negative rates; Part B's synthetic structure check may have negative coefficients, so there T_bound = the largest T of the batch over the point, world and reference values), W the tier's world count: above any sum of T over W worlds and above twice one T (ROOT 2.7 X3)",
   "subject_arms": {
     "risk_rule:WORST_WORLD": ["WORST_WORLD"],
     "risk_rule:TAIL": ["TAIL_10", "TAIL_25", "TAIL_50"],
@@ -27,6 +51,7 @@
   "seed": 20261009,
   "bootstrap_seed": 20261010,
   "rehearsal_seed": 20261011,
+  "planted_seed": 20261012,
   "stream_latent": 0,
   "stream_match_uniforms": 1,
   "stream_count_permutation": 2,
@@ -37,6 +62,7 @@
   "stream_half_a_world_counts": 7,
   "stream_half_b_world_counts": 8,
   "stream_planted_coins": 9,
+  "stream_planted_noise": 10,
   "real_split_stream_offset": 1000,
   "real_world_stream_offset": 2000,
   "structure_check_stream_offset": 3000,
@@ -46,6 +72,9 @@
   "synthetic_matches": 34,
   "latent_mean": 1.8,
   "latent_sd": 0.3,
+  "exposure_unit": "a whole synthetic match; a real appearance is a match with positive reconstructed minutes (the shipped lineup reconstruction), and a real minutes-equivalent is round_half_even(minutes / 90)",
+  "exposure_subset_rule": "the M05_8C3 vector of a copied profile is the order statistics of the fourteen-count vector at positions round_half_even(i * 13 / 7), i = 0..7 (0, 2, 4, 6, 7, 9, 11, 13); a spanning profile is round_half_even(10 + i * 24 / (N - 1)), i = 0..N-1, N the geometry's candidates",
+  "minimum_level_rule": "minimum = picks * latent_mean + j * 0.8 * sqrt(picks / 3), j = 0 (MEAN), 1 (M05), 2 (HIGH), picks the geometry's selection size, rounded to two decimals; 0.8 is M-05's distance from the mean sum of three to its minimum 6.2, held at the same number of latent standard deviations of the selection sum; the normaliser is the M05 level",
   "geometries": [
     {
       "geometry_id": "M05_8C3",
@@ -59,7 +88,8 @@
         {"level": "HIGH", "minimum": 7.0}
       ],
       "exposure_counts": [
-        {"profile": "GATED_SQUAD", "counts": [23, 23, 24, 24, 25, 26, 28, 29]},
+        {"profile": "GATED_MINUTES", "counts": null},
+        {"profile": "GATED_APPEARANCES", "counts": [23, 23, 24, 24, 25, 26, 28, 29]},
         {"profile": "WIDE", "counts": [10, 13, 17, 20, 24, 27, 31, 34]},
         {"profile": "WIDE_ALIGNED", "counts": [10, 13, 17, 20, 24, 27, 31, 34]},
         {"profile": "FULL", "counts": [34, 34, 34, 34, 34, 34, 34, 34]}
@@ -69,7 +99,7 @@
       "geometry_id": "GROUPED_14C10",
       "groups": [[5, 4], [5, 3], [4, 3]],
       "requirements": 3,
-      "trials": 2000,
+      "trials": 4000,
       "normalizer": 19.46,
       "minimum_levels": [
         {"level": "MEAN", "minimum": 18.0},
@@ -77,7 +107,8 @@
         {"level": "HIGH", "minimum": 20.92}
       ],
       "exposure_counts": [
-        {"profile": "GATED_SQUAD", "counts": [23, 23, 23, 23, 24, 24, 24, 25, 25, 26, 28, 28, 28, 29]},
+        {"profile": "GATED_MINUTES", "counts": null},
+        {"profile": "GATED_APPEARANCES", "counts": [23, 23, 23, 23, 24, 24, 24, 25, 25, 26, 28, 28, 28, 29]},
         {"profile": "WIDE", "counts": [10, 12, 14, 16, 17, 19, 21, 23, 25, 27, 28, 30, 32, 34]},
         {"profile": "WIDE_ALIGNED", "counts": [10, 12, 14, 16, 17, 19, 21, 23, 25, 27, 28, 30, 32, 34]},
         {"profile": "FULL", "counts": [34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34, 34]}
@@ -86,59 +117,97 @@
   ],
   "primary_noise_sd": [0.1, 0.2, 0.3],
   "stress_noise_sd": [0.6],
-  "primary_exposure_profiles": ["GATED_SQUAD", "WIDE"],
+  "primary_exposure_profiles": ["GATED_MINUTES", "WIDE"],
   "base_shared_fraction": 0.5,
   "sensitivity_worlds": 40,
+  "stress_worlds": 40,
   "sensitivity_variants": [
-    {"variant": "SHARED_0", "shared_fraction": 0.0, "exposure_profiles": ["GATED_SQUAD", "WIDE"]},
+    {"variant": "SHARED_0", "shared_fraction": 0.0, "exposure_profiles": ["GATED_MINUTES", "WIDE"]},
     {"variant": "EXPOSURE_FULL", "shared_fraction": 0.5, "exposure_profiles": ["FULL"]},
-    {"variant": "EXPOSURE_WIDE_ALIGNED", "shared_fraction": 0.5, "exposure_profiles": ["WIDE_ALIGNED"]}
+    {"variant": "EXPOSURE_WIDE_ALIGNED", "shared_fraction": 0.5, "exposure_profiles": ["WIDE_ALIGNED"]},
+    {"variant": "EXPOSURE_GATED_APPEARANCES", "shared_fraction": 0.5, "exposure_profiles": ["GATED_APPEARANCES"]}
   ],
-  "split_exposure_profile": "GATED_SQUAD",
+  "split_exposure_profile": "GATED_MINUTES",
   "expected_primary_cells_per_tier": 36,
-  "expected_sensitivity_cells": 72,
+  "expected_sensitivity_cells": 90,
   "expected_stress_cells": 12,
   "expected_split_cells_per_tier": 18,
 
   "bootstrap_replicates": 2000,
   "interval_quantiles": [0.025, 0.975],
+  "interval_quantile_method": "linear",
+  "standard_error_rule": "the standard deviation (ddof 1) over the bootstrap_replicates replicate means of the cell's paired difference",
+  "unusable_trial_rule": "a trial in which a rule has fewer used worlds than its tail count is excluded for that rule and for its BALANCE pair and counted; the bootstrap counts matrix is restricted to the trials usable for the rule and each replicate mean divides by that replicate's sum of counts over them; a replicate whose sum is zero makes the cell invalid; in A2 a trial is usable for a rule when both its directions are",
+  "precision_target_sd": 0.05,
+  "precision_target_half_width_fraction": [1, 3],
   "true_shortfall_margin": 0.005,
+  "cost_family_alpha": 0.05,
+  "cost_multiplicity_rule": "Bonferroni over the valid primary cells of the subject: a valid cell shows a cost when mean(delta_true) - z * SE > true_shortfall_margin, z = the standard normal quantile at 1 - cost_family_alpha / m, m the number of valid primary cells over all components of the subject (for the sensitivity count, m = the rule's valid SENSITIVITY and STRESS cells)",
   "minimum_informative_trials": 200,
   "minimum_compared_cell_fraction": [2, 3],
   "maximum_discarded_world_trial_share": 0.05,
+  "reporting_minimum_nonzero_trials": 200,
+  "reporting_minimum_compared_cell_fraction": [2, 3],
   "diagnostic_minimum_agreeing_fraction": [2, 3],
+  "diagnostic_cost_tolerance": 0.005,
+  "diagnostic_minimum_tracking_fraction": [2, 3],
   "diagnostic_minimum_resolved_fraction": [2, 3],
   "diagnostic_recovery_tolerance": 0.25,
+  "diagnostic_recovery_interval": "closed",
 
   "provider": "pappalardo",
   "league_list": ["Spain"],
   "team_id": 675,
   "formation": "4-3-3",
   "snapshots": [
-    {"scenario_id": "madrid-2018-05-06", "match_id": 2565907, "expected_prior_team_matches": 34},
-    {"scenario_id": "madrid-2018-04-08", "match_id": 2565852, "expected_prior_team_matches": 30}
+    {"scenario_id": "madrid-2018-05-06", "match_id": 2565907, "expected_prior_team_matches": 34,
+     "expected_candidates": 16, "expected_feasible_assignments": 5200, "expected_player_sets": 480,
+     "expected_selection_count": null},
+    {"scenario_id": "madrid-2018-04-08", "match_id": 2565852, "expected_prior_team_matches": 30,
+     "expected_candidates": null, "expected_feasible_assignments": null, "expected_player_sets": null,
+     "expected_selection_count": null}
   ],
-  "expected_candidates": 16,
-  "expected_feasible_assignments": 5200,
-  "expected_player_sets": 480,
   "expected_active_requirements": ["left_pass_origins", "progression", "right_pass_origins"],
+  "data_read_rule": "the four files of data_paths are read whole, exactly as historical.load_snapshot reads them, so that the shipped dataset_hash is reproduced; this is the named exception to ROOT-DECISIONS 4 (read Parquet with a column list), and the frozen run prints its peak memory",
   "split_families": ["RANDOM", "ALTERNATING", "CHRONOLOGICAL"],
-  "product_split_rule": "ALTERNATING",
   "random_splits": 250,
   "requirement_multipliers": [1.0, 1.15, 1.3, 1.45],
   "minimum_used_world_share": 0.9,
   "minimum_used_directions": 450,
   "minimum_informative_directions": 100,
+  "split_expected_blocks": 8,
+  "split_mean_denominator": "every used direction, a direction whose level set equals BALANCE's contributing zero (as A1); the shares of minimum_direction_share are over informative used directions",
   "heldout_shortfall_margin": 0.005,
   "minimum_direction_share": 0.6,
   "split_quantiles": [0.025, 0.5, 0.975],
 
+  "token_scope": {
+    "formation": "formation",
+    "world_counts": "decision_tiers",
+    "tail_counts": "tail_counts",
+    "scenarios": "snapshots[*].scenario_id",
+    "requirements_in_force": "expected_active_requirements",
+    "declared_minima": "requirement_multipliers",
+    "declared_minima_rule": "every declared minimum, quantised as the solver quantises it (round_half_even(minimum / normaliser * quantization), the normaliser the snapshot's minimum), equals the snapshot's own minimum times one common multiplier of requirement_multipliers, quantised the same way",
+    "locks": [],
+    "exclusions": [],
+    "outside_rule": "a risk request outside any of these carries the subject's pending payload and RISK_OUTSIDE_E13, whatever the token; the product's default progression-only risk request is outside (ROOT-DECISIONS 2.11 T5)"
+  },
+
   "risk_solver_module": "galactico.optimization.xi.risk",
-  "risk_solver_oracle_tests": ["tests/test_xi_risk_oracle.py"],
+  "risk_solver_oracle_tests": ["tests/xi_exact_oracle.py", "tests/test_xi_risk_oracle.py"],
+  "risk_solver_oracle_expected": {"passed": 9, "skipped": 0, "failed": 0, "errors": 0},
+  "risk_solver_oracle_platform": "POSIX",
+  "solver_rule_map": {"WORST_WORLD": "WORST_WORLD", "TAIL_10": "TAIL", "TAIL_25": "TAIL", "TAIL_50": "TAIL", "MINIMAX_REGRET": "MINIMAX_REGRET"},
   "solver_audit_random_splits": [0, 1, 2],
   "solver_audit_include_alternating": true,
   "solver_audit_multipliers": [1.0, 1.3],
   "solver_audit_worlds": [12],
+  "solver_audit_expected_items": 192,
+  "solver_audit_minimum_certified_share": 1.0,
+  "solver_audit_analyze_ties": false,
+  "solver_audit_bootstrap_version": "e13-split-half-multinomial-v1",
+  "solver_audit_world_seed_rule": "world_seed = the seed the run draws its half-split worlds with (seed in the frozen run)",
   "solver_time_limit": 120,
   "solver_seed": 20260906,
 
@@ -146,95 +215,126 @@
   "bridge_trials": 4000,
   "bridge_noise_sd": [0.1, 0.3, 0.6],
   "bridge_tolerance": 0.0005,
+  "bridge_columns": {
+    "raw_mean_reported_max_deficit": "BALANCE_FIRST",
+    "raw_mean_true_selected_max_deficit": "BALANCE_FIRST",
+    "raw_optimism": "BALANCE_FIRST",
+    "raw_mean_regret": "BALANCE_FIRST",
+    "oracle_shrinkage_optimism": "ORACLE_SHRINKAGE_FIRST",
+    "oracle_shrinkage_mean_regret": "ORACLE_SHRINKAGE_FIRST"
+  },
 
+  "planted_seed_rule": "the seeds of a planted test are numpy.random.default_rng([planted_seed, test_index, i]) for i < the test's seed count, test_index the test's position in planted_tests; never seed, bootstrap_seed or rehearsal_seed",
+  "planted_tests": [
+    "a1_truth_mix", "a1_random_mix", "a1_identical", "a1_identity_of_the_truth_mix_target",
+    "a1_reporting_shift", "a2_sum_gap", "a2_leaky_halves", "a2_heldout_shift",
+    "split_on_synthetic_corpora", "array_cost_boundary", "array_positive_boundary",
+    "array_positive_effect", "array_cost_effect", "array_interval_coverage"
+  ],
   "planted_probability": 0.5,
-  "planted_geometry": "M05_8C3",
-  "planted_worlds": 40,
+  "planted_geometries": ["M05_8C3", "GROUPED_14C10"],
+  "planted_tiers": [12, 40],
   "planted_trials": 2000,
   "planted_seeds": 10,
   "planted_minimum_correct": 10,
-  "planted_magnitude_standard_errors": 4,
+  "planted_identity_tolerance": 1e-12,
   "planted_cost_margin_multiple": 3,
+  "planted_reporting_shift_margin_multiple": 2,
+  "planted_heldout_shift_margin_multiple": 3,
   "planted_array_seeds": 400,
   "planted_array_trials": 4000,
   "planted_array_sd": 0.05,
-  "planted_array_effect": -0.004,
-  "planted_array_minimum_recovered": 380,
-  "planted_array_maximum_false_positive": 20,
+  "planted_array_subject_cells": {"TAIL": 216, "WORST_WORLD": 72},
+  "planted_array_effect_standard_errors": 6,
+  "planted_arrays": [
+    {"array": "COST_BOUNDARY", "delta_true": "margin in every cell", "delta_optimism": "-effect", "token": "COSTS_TRUE_SHORTFALL", "at_most": 32},
+    {"array": "POSITIVE_BOUNDARY", "delta_true": "margin in one cell, 0 elsewhere", "delta_optimism": "-effect", "token": "LESS_OPTIMISTIC_COST_BOUNDED", "at_most": 24},
+    {"array": "POSITIVE_EFFECT", "delta_true": "0 in every cell", "delta_optimism": "-effect", "token": "LESS_OPTIMISTIC_COST_BOUNDED", "at_least": 380},
+    {"array": "COST_EFFECT", "delta_true": "margin + effect in one cell, 0 elsewhere", "delta_optimism": "-effect", "token": "COSTS_TRUE_SHORTFALL", "at_least": 380}
+  ],
+  "planted_coverage_minimum": 365,
   "planted_split_corpora": 10,
   "planted_split_minimum_correct": 10,
   "planted_split_noise_sd": 0.6,
-  "planted_split_random_splits": 100,
+  "planted_split_random_splits": 250,
+  "planted_split_arms": {"TRUTH_MIX": "HELD_OUT_GAP_SMALLER", "REFERENCE_WORST_MIX": "HELD_OUT_SHORTFALL_LARGER", "IDENTICAL": "INCONCLUSIVE"},
 
-  "rehearsal_trial_divisor": 4,
-  "rehearsal_random_splits": 20,
-  "rehearsal_synthetic_corpus_noise_sd": 0.3,
+  "rehearsal_design": {
+    "latent_sd": 0.25,
+    "noise_sd": [0.15, 0.45],
+    "minimum_levels": {
+      "M05_8C3": [{"level": "R_LOW", "minimum": 5.8}, {"level": "R_HIGH", "minimum": 6.6}],
+      "GROUPED_14C10": [{"level": "R_LOW", "minimum": 18.7}, {"level": "R_HIGH", "minimum": 20.2}]
+    },
+    "trial_divisor": 8,
+    "random_splits": 30,
+    "minimum_used_directions": 50,
+    "minimum_informative_directions": 10,
+    "synthetic_corpus_noise_sd": 0.3
+  },
 
   "float_decimals": 6,
   "results_maximum_bytes": 480000,
+  "results_allowed_identifiers": ["scenario_id", "match_id", "team_id"],
   "determinism_excluded_keys": ["part_b.solver_audit"],
 
+  "component_vocabulary": {
+    "selection": ["COSTS_TRUE_SHORTFALL", "INCONCLUSIVE", "LESS_OPTIMISTIC_COST_BOUNDED", "NOT_ESTABLISHED"],
+    "reporting": ["NOT_APPLICABLE", "INCONCLUSIVE", "OWN_STATISTIC_NOT_OPTIMISTIC", "NOT_ESTABLISHED"],
+    "split": ["INCONCLUSIVE", "DIAGNOSTIC_UNVALIDATED", "HELD_OUT_SHORTFALL_LARGER", "HELD_OUT_GAP_SMALLER", "NOT_ESTABLISHED"],
+    "selection_aggregate": ["COSTS", "INCONCLUSIVE", "POSITIVE", "NOT_ESTABLISHED"],
+    "split_aggregate": ["LARGER", "INCONCLUSIVE", "UNVALIDATED", "SMALLER", "NOT_ESTABLISHED"]
+  },
   "verdict_vocabulary": {
-    "risk_rule:WORST_WORLD": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT"],
-    "risk_rule:TAIL": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT"],
-    "risk_rule:MINIMAX_REGRET": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC", "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT"],
-    "risk_report:WORST_WORLD": ["INCONCLUSIVE", "NOT_ESTABLISHED", "OWN_STATISTIC_NOT_OPTIMISTIC"],
-    "risk_report:TAIL": ["INCONCLUSIVE", "NOT_ESTABLISHED", "OWN_STATISTIC_NOT_OPTIMISTIC"],
+    "risk_rule": ["INCONCLUSIVE", "NOT_ESTABLISHED", "COSTS_SHORTFALL", "LESS_OPTIMISTIC_COST_BOUNDED_SYNTHETIC", "LESS_OPTIMISTIC_COST_BOUNDED_SYNTHETIC_AND_SPLIT"],
+    "risk_report": ["INCONCLUSIVE", "NOT_ESTABLISHED", "OWN_STATISTIC_NOT_OPTIMISTIC"],
     "split_sample_diagnostic": ["INCONCLUSIVE", "NOT_ESTABLISHED", "RECOVERS_SUM_GAP"]
   },
-  "product_consequences": {
+  "experiment_verdict_vocabulary": ["INCONCLUSIVE", "LABEL_EARNED", "NOT_ESTABLISHED"],
+  "registry_subjects": {
+    "risk_rule": ["risk_rule:WORST_WORLD", "risk_rule:TAIL", "risk_rule:MINIMAX_REGRET"],
+    "risk_report": ["risk_report:WORST_WORLD", "risk_report:TAIL"],
+    "split_sample_diagnostic": ["split_sample_diagnostic"]
+  },
+  "registry_common": {
+    "not_run_statement": "No E-13 result applies here: E-13 has not run, or the request lies outside what it tests."
+  },
+  "registry_risk_rule": {
+    "scope": "Selections of eleven by this declared risk rule set against Balance, on synthetic squads with known values (eight candidates choosing three, and fourteen in three groups choosing ten; Gaussian match noise; no positional structure) and on Real Madrid's 2017/18 league matches before 8 April and before 6 May 2018 in the public Wyscout data (Pappalardo et al. 2019): formation 4-3-3, 12 or 40 resampled worlds, the menu's tail counts, the three measured requirements in force (left and right wide-channel pass origins and progression), declared minima equal to the snapshot's own times 1.0, 1.15, 1.3 or 1.45, and no lock or exclusion.",
+    "claim_token": "LESS OPTIMISTIC, COST BOUNDED",
+    "non_claim": "Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast."
+  },
+  "registry_risk_report": {
+    "scope": "The tail value of this declared risk rule (the largest shortfall of its worst world, or the mean largest shortfall over its k tail worlds, in normalised units) read as a report about the selected XI, on synthetic squads with known values, at 12 and at 40 resampled worlds and the menu's tail counts.",
+    "claim_token": "NOT OPTIMISTIC ON AVERAGE",
+    "non_claim": "Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast."
+  },
+  "registry_split_sample_diagnostic": {
+    "scope": "E-13's research split-sample check under Balance (select on one half of the matches, read the fixed selection on the other half), calibrated on synthetic squads with known values and exchangeable matches; it labels no product computation.",
+    "claim_token": "RECOVERS THE SUM GAP",
+    "non_claim": "A research check of one experiment. Not a prediction of any XI, and not a correction to any number."
+  },
+  "registry_outcomes": {
     "risk_rule": {
-      "PENDING": "NOT_RUN",
-      "INCONCLUSIVE": "RISK_GATE_FAILED",
-      "NOT_ESTABLISHED": "RISK_DECLARED_PREFERENCE_ONLY",
-      "COSTS_SHORTFALL": "RISK_COST_RECORDED",
-      "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC": "RISK_LESS_OPTIMISTIC_SYNTHETIC",
-      "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT": "RISK_LESS_OPTIMISTIC_SYNTHETIC_AND_SPLIT"
+      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "statement": "A declared risk preference over resamples of the same prior matches. A sample gate of E-13 failed for this rule and no cost was measured, so it was not compared with Balance."},
+      "NOT_ESTABLISHED": {"status": "NOT_ESTABLISHED", "limits": false, "statement": "A declared risk preference over resamples of the same prior matches. On synthetic squads with known values, E-13 did not establish that choosing by this rule narrows the gap between reported and true shortfall while keeping its true shortfall within 0.005 normalised units of Balance's on average."},
+      "COSTS_SHORTFALL": {"status": "NOT_ESTABLISHED", "limits": false, "statement": "A declared risk preference over resamples of the same prior matches. In E-13 this rule's selections had a larger average largest normalised shortfall than Balance's, by more than 0.005, against known values on synthetic squads or on held-out halves of Real Madrid's prior matches; the research note says which."},
+      "LESS_OPTIMISTIC_COST_BOUNDED_SYNTHETIC": {"status": "ESTABLISHED", "limits": true, "statement": "On synthetic squads with known values and no positional structure, averaged over trials in each compared cell, the true largest shortfall of this rule's selection exceeded its point-estimate shortfall by less than Balance's did, and was not larger than Balance's by more than 0.005 normalised units. A rule that does not minimise the reported shortfall reports at least Balance's, so the gap narrows unless its true shortfall rises as much; the tested part is the cost bound. Declared Gaussian match noise, not these players."},
+      "LESS_OPTIMISTIC_COST_BOUNDED_SYNTHETIC_AND_SPLIT": {"status": "ESTABLISHED", "limits": true, "statement": "On synthetic squads with known values and no positional structure, averaged over trials in each compared cell, the true largest shortfall of this rule's selection exceeded its point-estimate shortfall by less than Balance's did, and was not larger than Balance's by more than 0.005 normalised units. A rule that does not minimise the reported shortfall reports at least Balance's, so the gap narrows unless its true shortfall rises as much; the tested part is the cost bound. On random half-splits of Real Madrid's prior matches the gap between chosen-on and held-out shortfall was also smaller than Balance's, without a held-out shortfall larger than Balance's by more than 0.005 normalised units on average: one club, two overlapping snapshots, no interval."}
     },
     "risk_report": {
-      "PENDING": "NOT_RUN",
-      "INCONCLUSIVE": "RISK_REPORT_UNESTABLISHED",
-      "NOT_ESTABLISHED": "RISK_REPORT_UNESTABLISHED",
-      "OWN_STATISTIC_NOT_OPTIMISTIC": "RISK_REPORT_NOT_OPTIMISTIC"
+      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "statement": "A tail statistic of resampling. A sample gate of E-13 failed for this value, so it was not compared with the true shortfall. It grows with the number of worlds."},
+      "NOT_ESTABLISHED": {"status": "NOT_ESTABLISHED", "limits": false, "statement": "A tail statistic of resampling. E-13 compared it with the true largest shortfall on synthetic squads and did not establish that it is at or above it on average. It grows with the number of worlds."},
+      "OWN_STATISTIC_NOT_OPTIMISTIC": {"status": "ESTABLISHED", "limits": true, "statement": "On synthetic squads with known values, in each compared cell, this tail value was on average not below the selected XI's true largest shortfall at 12 and at 40 worlds. It is a tail statistic of resampling, the mean over the tail worlds and not their sum, and it grows with the number of worlds."}
     },
     "split_sample_diagnostic": {
-      "PENDING": "NOT_RUN",
-      "INCONCLUSIVE": "SPLIT_GATE_FAILED",
-      "NOT_ESTABLISHED": "SPLIT_RECORD_ONLY",
-      "RECOVERS_SUM_GAP": "SPLIT_RECOVERS_SUM_GAP"
+      "INCONCLUSIVE": {"status": "INCONCLUSIVE", "limits": false, "statement": "The synthetic calibration of E-13's split-sample check did not reach its sample gate. Its Madrid differences are read as the spread of one club-season's splits and nothing more."},
+      "NOT_ESTABLISHED": {"status": "NOT_ESTABLISHED", "limits": false, "statement": "On synthetic squads with known values, E-13's split-sample check did not recover the selection gap of the requirement sums within 25 percent. Its Madrid differences are read as the spread of one club-season's splits and nothing more."},
+      "RECOVERS_SUM_GAP": {"status": "ESTABLISHED", "limits": true, "statement": "On synthetic squads with known values, E-13's split-sample check recovered the true selection gap of the requirement sums within 25 percent. The shortfall line is different: a held-out shortfall is a noisy reading of a convex quantity and on average overstates the shortfall of a fixed XI."}
     }
   },
-  "display_status": {
-    "INCONCLUSIVE": "INCONCLUSIVE",
-    "NOT_ESTABLISHED": "NOT_ESTABLISHED",
-    "COSTS_SHORTFALL": "NOT_ESTABLISHED",
-    "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC": "ESTABLISHED",
-    "LESS_OPTIMISTIC_NOT_WORSE_SYNTHETIC_AND_SPLIT": "ESTABLISHED",
-    "OWN_STATISTIC_NOT_OPTIMISTIC": "ESTABLISHED",
-    "RECOVERS_SUM_GAP": "ESTABLISHED"
-  },
-  "claim_tokens": {
-    "risk_rule": "LESS OPTIMISTIC, NOT WORSE",
-    "risk_report": "NOT OPTIMISTIC ON AVERAGE",
-    "split_sample_diagnostic": "RECOVERS THE SUM GAP"
-  },
-  "consequence_sentences": {
-    "RISK_GATE_FAILED": "A declared risk preference over resamples of the same prior matches. E-13's sample gate failed for this rule, so it was not compared with Balance.",
-    "RISK_DECLARED_PREFERENCE_ONLY": "A declared risk preference over resamples of the same prior matches. On synthetic squads with known values, E-13 did not establish that choosing by this rule narrows the gap between reported and true shortfall without adding true shortfall.",
-    "RISK_COST_RECORDED": "A declared risk preference over resamples of the same prior matches. In E-13 the selections of this rule carried a larger declared shortfall than Balance's, on synthetic squads with known values or on held-out halves of Real Madrid's prior matches; the research note says which.",
-    "RISK_LESS_OPTIMISTIC_SYNTHETIC": "On synthetic squads with known values, the true shortfall of this rule's selection exceeded its point-estimate shortfall by less than Balance's did, and was not larger than Balance's by more than 0.005 normalised units. Any rule that does not minimise the reported number narrows that gap; the tested part is the cost bound. Declared Gaussian match noise, not these players.",
-    "RISK_LESS_OPTIMISTIC_SYNTHETIC_AND_SPLIT": "On synthetic squads with known values, the true shortfall of this rule's selection exceeded its point-estimate shortfall by less than Balance's did, and was not larger than Balance's by more than 0.005 normalised units. Any rule that does not minimise the reported number narrows that gap; the tested part is the cost bound. On random half-splits of Real Madrid's prior matches the gap between chosen-on and held-out shortfall was also smaller than Balance's, without a larger held-out shortfall: one club, two overlapping snapshots, no interval.",
-    "RISK_REPORT_NOT_OPTIMISTIC": "On synthetic squads with known values this tail value was, on average, not below the selected set's true shortfall at 12 and at 40 worlds. It is a tail statistic of resampling and grows with the number of worlds.",
-    "RISK_REPORT_UNESTABLISHED": "A tail statistic of resampling. E-13 did not establish that it is at or above the true shortfall on average. It grows with the number of worlds.",
-    "SPLIT_RECOVERS_SUM_GAP": "On synthetic squads with known values, the difference between chosen-on and other-half requirement sums recovered the true selection gap of those sums within 25 percent. The shortfall line is different: a held-out shortfall is a noisy reading of a convex quantity and overstates shortfall for a fixed XI.",
-    "SPLIT_RECORD_ONLY": "On synthetic squads with known values, this check did not recover the selection gap of the requirement sums within 25 percent. Read the differences as one split of one season and nothing more.",
-    "SPLIT_GATE_FAILED": "The synthetic calibration of this check did not reach its sample gate. Read the differences as one split of one season and nothing more."
-  },
-  "non_claims": {
-    "risk_rule": "Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast.",
-    "risk_report": "Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast.",
-    "split_sample_diagnostic": "One split of one club's season. Not a prediction of any XI, and not a correction to any number."
-  },
+  "risk_report_after_run": "no risk_report payload and no figure note before the results commit, verdicts.risk_report null on every reply; if E-13 runs, the results commit may add, under an ADR naming that edit (as ROOT-DECISIONS 2.10 W8), the mean largest shortfall over the k tail worlds (the tail sum of largest shortfalls divided by k, and for WORST_WORLD the worst world's) as an exact server text carrying the risk_report payload and its sentence; the sentence is never set beside the tail sum itself",
+  "split_sample_after_run": "the split_sample_diagnostic record labels no product computation; no product split-sample tool exists or is specified, and any later one is specified in a change set of its own after registration (ROOT-DECISIONS 2.11 T7), and only a may_gate verdict may unlock a number it shows",
 
   "source_paths": [
     "experiments/run_risk_selection.py",
@@ -242,8 +342,13 @@
     "galactico/validation/risk_selection.py",
     "galactico/validation/digests.py",
     "galactico/optimization/historical.py",
+    "galactico/optimization/snapshots.py",
+    "galactico/optimization/squad/kernel.py",
+    "galactico/optimization/xi/__init__.py",
     "galactico/optimization/xi/domain.py",
     "galactico/optimization/xi/solver.py",
+    "galactico/optimization/xi/tradeoffs.py",
+    "galactico/optimization/xi/ceilings.py",
     "galactico/optimization/xi/risk.py",
     "galactico/profiles/uncertainty.py",
     "galactico/features/spec.py",
