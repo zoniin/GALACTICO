@@ -15,7 +15,15 @@ they compute no outcome:
    ``dismissal_assumption_minimum_share``, and holds when it holds in every league; otherwise
    ``dismissal_check_fallback`` replaces ``dismissal_check`` before registration and the draft
    is audited again. A league with no such player has no share, and the assumption is not
-   shown to hold there.
+   shown to hold there. An event whose ``player_id`` is 0 is credited to no player (the raw
+   ``playerId`` 0, kept by the neutral frames and flagged ``player_attributed`` false in the
+   sidecar; no sheet lists player 0), so it is no player of this count: ROOT-DECISIONS 2.9 Z6,
+   ruled before any count was seen, leaves such pairs out of the count and the share and has
+   them printed apart (the unattributed cards of both teams in one match are one pair). Beside
+   the count, changing none of it: those pairs, the players not listed on the sheet of that
+   match, and the players left out because their ``second_yellow`` events are all outside
+   ``regulation_periods``. Item 4 keeps player 0: ``dismissal_check`` counts distinct player
+   ids, so an unattributed dismissal card is a residual of the rule as written.
 4. The ``dismissal_check`` residuals. Per league, the players with a card of
    ``dismissal_cards`` in the event record and a null sheet ``red_minute``, and the reverse:
    the sheet players whose ``red_minute`` is not null and who have no such card in the event
@@ -39,9 +47,9 @@ Definitions, in the config's words and nothing added:
   sidecar ``card`` is the card named. The sheet is the ``dismissal_check.sheet_table`` of the
   sidecar and its ``sheet_field``; a player the sheet of that match does not list has no
   ``red_minute`` there, so it is null. Beside each count, labelled as a part of it and changing
-  none: the players not listed on the sheet at all, the cards outside ``regulation_periods``
-  that the reverse count leaves out, and the card players the sheet lists under a team other
-  than their event's (``dismissal_check`` compares per team).
+  none: the players not listed on the sheet at all, those whose ``player_id`` is 0, the cards
+  outside ``regulation_periods`` that the counts leave out, and the card players the sheet
+  lists under a team other than their event's (``dismissal_check`` compares per team).
 - A meeting is one of a team's rows against an opponent: one per team per match of the
   sidecar's ``matches`` table, home or away. Its date is ``date_utc`` normalised to the day,
   as E-10's row contract normalises ``date`` (PIPELINE 4.1); "dated before" is the calendar
@@ -85,6 +93,9 @@ DEFAULT_CONFIG = (ROOT / "docs/research/north-star/protocol-drafts/E-10-conceded
                   / "config.json")
 
 SECOND_YELLOW = "second_yellow"  # the card item 3 names
+# The raw playerId of an event no player is credited with: the neutral frames keep it as
+# player_id 0, the sidecar flags it player_attributed false, and no sheet lists it.
+UNATTRIBUTED = 0
 ACTION_COLUMNS: tuple[str, ...] = ("game_id", "period", "team_id", "player_id", "event_id")
 CALENDAR_COLUMNS: tuple[str, ...] = ("game_id", "date_utc", "home_team_id", "away_team_id")
 PLAYER: list[str] = ["game_id", "player_id"]
@@ -269,12 +280,15 @@ def sheet_players(squads: pd.DataFrame, *, sheet_field: str) -> pd.DataFrame:
 
 @dataclass(frozen=True)
 class AssumptionCount:
-    """Item 3 for one league."""
+    """Item 3 for one league. The parts after ``holds`` change none of the counts."""
 
     second_yellow_players: int  # players in a match with a regulation second_yellow event
     sheet_red_not_null: int  # of them, those whose sheet red_minute in that match is not null
     share: Fraction | None  # their share; None when no player carries a second_yellow event
     holds: bool | None  # share >= dismissal_assumption_minimum_share; None without a share
+    unattributed: int  # left out (Z6): matches with a regulation second_yellow on player_id 0
+    not_listed: int  # of second_yellow_players, not on the sheet of that match
+    outside_only: int  # left out: second_yellow events only outside regulation_periods
 
 
 def assumption_count(actions: pd.DataFrame, squads: pd.DataFrame, *,
@@ -284,12 +298,24 @@ def assumption_count(actions: pd.DataFrame, squads: pd.DataFrame, *,
         raise ValueError(f"dismissal_cards does not hold {SECOND_YELLOW!r}")
     cards = player_cards(actions, dismissal_cards=dismissal_cards,
                          regulation_periods=regulation_periods)
-    second = cards.loc[cards[SECOND_YELLOW], PLAYER]
+    carded = cards.loc[cards[SECOND_YELLOW], PLAYER]
+    unattributed = carded["player_id"] == UNATTRIBUTED  # no player (ROOT 2.9 Z6)
+    second = carded.loc[~unattributed]
     sheet = sheet_players(squads, sheet_field=sheet_field)
     with_red = int(_member(second, sheet.loc[sheet["sheet_red"], PLAYER]).sum())
     share = Fraction(with_red, len(second)) if len(second) else None
-    return AssumptionCount(len(second), with_red, share,
-                           None if share is None else share >= minimum_share)
+    outside = card_events(actions, dismissal_cards=(SECOND_YELLOW,),
+                          regulation_periods=regulation_periods, regulation=False)
+    outside = outside[PLAYER].drop_duplicates()
+    return AssumptionCount(
+        second_yellow_players=len(second),
+        sheet_red_not_null=with_red,
+        share=share,
+        holds=None if share is None else share >= minimum_share,
+        unattributed=int(unattributed.sum()),
+        not_listed=int((~_member(second, sheet)).sum()),
+        outside_only=int((~_member(outside, second)).sum()),
+    )
 
 
 @dataclass(frozen=True)
@@ -300,6 +326,7 @@ class ResidualCount:
     card_sheet_null: int  # of them, a null sheet red_minute in that match (unlisted included)
     card_sheet_null_by_card: tuple[tuple[str, int], ...]  # of those, carrying each card
     card_not_listed: int  # of card_sheet_null, not listed on the sheet of that match at all
+    card_unattributed: int  # of card_sheet_null, player_id 0 (never on a sheet)
     card_listed_other_team: int  # card players the sheet lists under a team not their event's
     sheet_red_players: int  # sheet players in a match whose red_minute is not null
     sheet_red_no_card: int  # of them, no regulation event carrying a dismissal card
@@ -328,6 +355,7 @@ def residual_counts(actions: pd.DataFrame, squads: pd.DataFrame, *,
         card_sheet_null=len(null),
         card_sheet_null_by_card=tuple((card, int(null[card].sum())) for card in dismissal_cards),
         card_not_listed=int((~listed).sum()),
+        card_unattributed=int((null["player_id"] == UNATTRIBUTED).sum()),
         card_listed_other_team=len(other),
         sheet_red_players=len(red),
         sheet_red_no_card=len(unmatched),
@@ -480,10 +508,13 @@ def _holds_text(holds: bool | None) -> str:
 def assumption_table(counts: Mapping[str, AssumptionCount], minimum: Fraction) -> str:
     rows = [(league, count.second_yellow_players, count.sheet_red_not_null,
              _share_text(count.share, count.sheet_red_not_null, count.second_yellow_players),
-             f"{float(minimum):g}", _holds_text(count.holds))
+             f"{float(minimum):g}", _holds_text(count.holds), count.unattributed,
+             count.not_listed, count.outside_only)
             for league, count in counts.items()]
     return table(("league", "second_yellow players", "sheet red_minute not null", "share",
-                  "minimum share", "holds"), rows)
+                  "minimum share", "holds", "left out: player_id 0",
+                  "of which not on the sheet", "left out: only outside regulation_periods"),
+                 rows)
 
 
 def assumption_verdict(counts: Mapping[str, AssumptionCount]) -> bool:
@@ -495,10 +526,11 @@ def residual_tables(counts: Mapping[str, ResidualCount], cards: Sequence[str]) -
     forward = table(
         ("league", "dismissal-card players", "null sheet red_minute",
          *(f"of which {card}" for card in cards), "of which not on the sheet",
-         "listed under another team"),
+         "of which player_id 0", "listed under another team"),
         [(league, count.card_players, count.card_sheet_null,
           *(number for _, number in count.card_sheet_null_by_card), count.card_not_listed,
-          count.card_listed_other_team) for league, count in counts.items()])
+          count.card_unattributed, count.card_listed_other_team)
+         for league, count in counts.items()])
     reverse = table(
         ("league", "sheet red_minute not null", "no regulation dismissal card",
          "of which a card outside regulation_periods"),
@@ -635,6 +667,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     print("[item 3] dismissal_check assumption: players with a regulation second_yellow event, "
           "and those whose sheet red_minute in that match is not null")
     print(assumption_table(assumption, chosen.minimum_share))
+    print("parts, changing no count: 'of which player_id 0' are pairs of an event no player is "
+          "credited with (raw playerId 0; the sidecar's player_attributed is false), each "
+          "counted as one player, never on a sheet, so in the denominator only; 'of which not "
+          "on the sheet' includes them; 'left out' are players whose second_yellow events are "
+          "all outside regulation_periods. The root rules on them before registration.")
     holds = assumption_verdict(assumption)
     print(f"the assumption holds in every league: {'yes' if holds else 'no'}")
     if not holds:

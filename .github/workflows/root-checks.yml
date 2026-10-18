@@ -6,8 +6,9 @@ name: root-checks
 #   e10-counts      E-10's structure-only counts before registration (its config,
 #                   verified_by_root_before_registration items 3 to 5; PIPELINE section 13;
 #                   ROOT-DECISIONS 2.9 Z2). They compute no outcome.
-#   xi-risk-timing  the 40-world declared-risk solves, timed against 12 (ROOT-DECISIONS 2.7 X5;
-#                   OR-XI-SPEC 7.1, 11 item 15): statuses, seconds and memory only.
+#   xi-risk-timing  the 40-world declared-risk solves, timed against 12, for both formations
+#                   the risk routes accept (ROOT-DECISIONS 2.7 X5; OR-XI-SPEC 7.1, 11 item 15):
+#                   statuses, seconds and memory only.
 #   xi-screenshots  docs/screenshots/11-xi-lab.png and 12-xi-mobile.png regenerated with the
 #                   corpus for the root to inspect (ROOT-DECISIONS 2.7 X14).
 # Public CC BY 4.0 only. The runtime corpus, the built bundle and every file under data/ are
@@ -30,7 +31,13 @@ permissions:
 jobs:
   root-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # xi-risk-timing is bounded by the route budgets alone: 2 scenarios x 2 world counts x 2
+    # formations x 2 opt-in states x (4 tail-route entries x 60 s + 1 regret x 150 s), plus one
+    # cold tail-route call per scenario and world count, is 4 x (4 x 390 + 60) s = 108 minutes
+    # at worst, before the fetch, the snapshot builds, prepare_lab and prepare_planning.
+    timeout-minutes: 240
+    env:
+      E10_CONFIG: docs/research/north-star/protocol-drafts/E-10-conceded-shape/config.json
     steps:
       # The setup of ci.yml's historical-browser job; node and the browser for screenshots only.
       - uses: actions/checkout@v4
@@ -50,24 +57,29 @@ jobs:
       - run: uv run python scripts/fetch_pappalardo.py
 
       # e10-counts. The tag sidecar carries no period, team or player, so the counts read the
-      # neutral actions of the five leagues too: the ingest that prepare_lab.py and
-      # prepare_planning.py run, without the profile bundle. Then the sidecar of every league,
-      # after the frames, so that its build checks its event ids against them.
-      - name: neutral frames, five leagues (e10-counts)
+      # neutral actions of the config's leagues too: the ingest that prepare_lab.py and
+      # prepare_planning.py run, without the profile bundle. Then the sidecar of each of those
+      # leagues and no other, after the frames, so that its build checks its event ids against
+      # them. The leagues are read from the config, as the counts read them.
+      - name: neutral frames, the config's leagues (e10-counts)
         if: inputs.check == 'e10-counts'
         run: >-
-          uv run python -c "from pathlib import Path;
+          uv run python -c "import json, os; from pathlib import Path;
           from galactico.ingestion.pipeline import ingest;
           from galactico.providers.pappalardo import PappalardoProvider;
+          leagues = json.loads(Path(os.environ['E10_CONFIG']).read_text(encoding='utf-8'))['leagues'];
           ingest(PappalardoProvider(Path('data/public/pappalardo')),
-          Path('data/public/parquet/pappalardo'),
-          competitions=['Spain', 'England', 'Italy', 'Germany', 'France'])"
-      - name: tag sidecar, every league (e10-counts)
+          Path('data/public/parquet/pappalardo'), competitions=leagues)"
+      - name: tag sidecar, the config's leagues (e10-counts)
         if: inputs.check == 'e10-counts'
-        run: uv run python scripts/build_sidecar.py --all
+        run: |
+          leagues=$(uv run python -c "import json, os; from pathlib import Path; print(' '.join(json.loads(Path(os.environ['E10_CONFIG']).read_text(encoding='utf-8'))['leagues']))")
+          for league in $leagues; do
+            uv run python scripts/build_sidecar.py --only "$league"
+          done
       - name: E-10 structure-only counts
         if: inputs.check == 'e10-counts'
-        run: uv run python scripts/e10_root_counts.py
+        run: uv run python scripts/e10_root_counts.py --config "$E10_CONFIG"
 
       # The XI checks: the preparation of ci.yml's historical-browser job.
       - if: inputs.check == 'xi-risk-timing' || inputs.check == 'xi-screenshots'
@@ -75,6 +87,10 @@ jobs:
       - if: inputs.check == 'xi-risk-timing' || inputs.check == 'xi-screenshots'
         run: uv run python scripts/prepare_planning.py
 
+      # Every shipped scenario, 12 and 40 worlds, both formations (4-3-3 and 4-3-1-2: 40
+      # worlds, once on the menu, is offered for both), without and with the opt-in; each
+      # scenario and world count's first call cold, then every call warm. Exit 1 when a call
+      # raised or finalize refused its envelope.
       - name: XI declared-risk timing
         if: inputs.check == 'xi-risk-timing'
         run: uv run python scripts/time_xi_risk.py

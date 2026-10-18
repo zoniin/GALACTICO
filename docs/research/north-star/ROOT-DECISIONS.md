@@ -411,6 +411,14 @@ unlinked players who have no Wyscout role.
   LOCAL replication arm: the arm's result is reported in `analysis.md` only, with the attribution
   of LICENSING.md, and no hosted page carries a label from it. A later protocol may add such a
   label only through its own LOCAL record.
+- Z6 RULED (18 October 2026, before any count was seen). In Z2's assumption count, an event
+  whose `player_id` is 0 is credited to no player (the raw `playerId` 0, flagged
+  `player_attributed` false in the sidecar, listed on no sheet). It is left out of the count of
+  second-yellow players and of the share, and the matches holding one are printed apart. The
+  residual counts keep it, because `dismissal_check` counts distinct player ids, so an
+  unattributed dismissal card is a residual of the rule as written. The counts run in the
+  dispatch-only `root-checks` CI job (`scripts/e10_root_counts.py`). That job is the root's own
+  run on the corpus, which this container cannot fetch.
 
 ### 2.10 Root rulings on the E-09 draft's audit (18 October 2026; binding on its reviser)
 

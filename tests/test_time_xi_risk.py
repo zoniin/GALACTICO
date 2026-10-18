@@ -2,11 +2,15 @@
 
 Claim: the harness times the calls XI Lab's risk routes make: the router's own menu at each
 world count (WORST_WORLD at 1, TAIL at ``TAIL_MENU[B]``, MINIMAX_REGRET), the router's own
-``_risk`` on the snapshot of the router's loader, under the route's budget, with the tool
-called once with the router's arguments; by default every shipped scenario, 12 and 40 worlds,
-without and with the experimental opt-in. What it prints is pinned to statuses, completeness,
-solves, seconds, memory and world counts: no player id, no player name and no loss value of
-any result reaches its output.
+``_risk`` on the snapshot of the router's loader, inside the route's long job, with the tool
+called once with the router's arguments and the route's deadline; by default every shipped
+scenario, 12 and 40 worlds, both formations, without and with the experimental opt-in, the
+first entry of each scenario and world count made cold (the snapshot built inside the budget)
+before it is made warm. The measured fields hold what they name: the tool call's seconds, the
+peak memory during the call, the per-purpose sums and maxima of the tool's recorded solve
+times. A call whose envelope ``finalize`` refuses makes the run exit 1. What it prints is
+pinned to statuses, completeness, solves, seconds, memory and world counts: no player id, no
+player name and no loss value of any result reaches its output.
 
 Non-claim: no corpus is read; the snapshot is patched into the router's loader as in
 ``tests/test_xi_extensions_api.py``. Nothing here says how long the corpus solves take; the
@@ -15,12 +19,15 @@ root runs the harness in the ``root-checks`` workflow.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import importlib.util
 import re
 import sys
+import time
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
+from typing import NamedTuple
 
 import pytest
 
@@ -32,6 +39,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "time_xi_risk.py"
 METRICS = ("progression", "left_pass_origins", "right_pass_origins")
 SCENARIO = "madrid-2018-05-06"
+FORMATIONS = ("4-3-3", "4-3-1-2")
+MEGABYTE = 1024 * 1024
 
 # Fourteen candidates with ids and names nothing else in the output could print.
 ROWS = (
@@ -93,33 +102,51 @@ def harness() -> ModuleType:
 
 
 @pytest.fixture
-def snapshots(monkeypatch) -> dict[int, SimpleNamespace]:
-    made = {12: make_snapshot(12), 40: make_snapshot(40)}
+def snapshots(monkeypatch) -> dict:
+    """The router's loader, patched: each ask is recorded (and, cleared, the asks before it);
+    ``made["delay"]`` seconds pass in each build."""
+    made: dict = {12: make_snapshot(12), 40: make_snapshot(40), "delay": 0.0}
     asked: list[tuple[str, int]] = []
+    cleared: list[int] = []
 
     def loader(scenario_id: str, worlds: int) -> SimpleNamespace:
         asked.append((scenario_id, worlds))
+        time.sleep(made["delay"])
         return made[worlds]
 
+    loader.cache_clear = lambda: cleared.append(len(asked))
     monkeypatch.setattr("galactico.api.xi_extensions._match_snapshot", loader)
-    made["asked"] = asked
+    made["asked"], made["cleared"] = asked, cleared
     return made
 
 
+class Call(NamedTuple):
+    name: str
+    kwargs: dict
+    result: object
+    left: float  # the deadline the tool was given, less the clock when it was called
+
+
 @pytest.fixture
-def recorded(monkeypatch) -> list[tuple[str, dict, object]]:
-    """Every tool call the router makes: (tool name, keyword arguments, result)."""
-    calls: list[tuple[str, dict, object]] = []
+def recorded(monkeypatch) -> list[Call]:
+    """Every tool call the router makes, with the time its deadline left it."""
+    calls: list[Call] = []
     for name in ("worst_world_selection", "tail_selection", "minimax_regret_selection"):
         original = getattr(risk, name)
 
         def record(*args, _name=name, _original=original, **kwargs):
+            left = kwargs["deadline"] - time.monotonic()
             result = _original(*args, **kwargs)
-            calls.append((_name, kwargs, result))
+            calls.append(Call(_name, kwargs, result, left))
             return result
 
         monkeypatch.setattr(risk, name, record)
     return calls
+
+
+def column(harness, line: str, name: str) -> str:
+    """One cell of a printed row (no cell holds a space)."""
+    return line.split()[harness.HEADER.index(name)]
 
 
 # ------------------------------------------------------------------------------- the menu
@@ -172,19 +199,28 @@ def test_by_default_every_scenario_world_count_opt_in_and_entry_is_timed(harness
                                 completeness="EXACT")
 
     def fake(snap, entry, *, scenario_id, world_count, formation, opt_in, budget_seconds):
-        seen.append((scenario_id, world_count, opt_in, entry.rule, entry.tail_count,
-                     formation, budget_seconds))
+        if snap is not None:
+            assert snap is snapshots[world_count]
+        seen.append((scenario_id, world_count, "cold" if snap is None else "warm", formation,
+                     opt_in, entry.rule, entry.tail_count, budget_seconds))
         return blank
 
     monkeypatch.setattr(harness, "time_entry", fake)
     monkeypatch.setattr(harness, "format_row", lambda row, widths=None: "row")
     assert harness.main([]) == 0
-    expected = [
-        (scenario, worlds, opt_in, entry.rule, entry.tail_count, "4-3-3", None)
-        for scenario in decision_lab.SCENARIOS for worlds in (12, 40)
-        for opt_in in (False, True) for entry in harness.menu(worlds)
-    ]
-    assert seen == expected and len(seen) == 40
+    assert tuple(x.XIDeclarations.model_fields["formation"].annotation.__args__) == FORMATIONS
+    expected = []
+    for scenario in decision_lab.SCENARIOS:
+        for worlds in (12, 40):
+            expected.append((scenario, worlds, "cold", "4-3-3", False, "WORST_WORLD", None,
+                             None))
+            expected += [(scenario, worlds, "warm", formation, opt_in, entry.rule,
+                          entry.tail_count, None)
+                         for formation in FORMATIONS for opt_in in (False, True)
+                         for entry in harness.menu(worlds)]
+    assert seen == expected and len(seen) == 2 * 2 * (1 + 2 * 2 * 5)
+    # The cold call is faked here, so the loader is asked once per key: by main, for the warm
+    # calls, after the cold call.
     assert snapshots["asked"] == [(s, w) for s in decision_lab.SCENARIOS for w in (12, 40)]
 
 
@@ -196,9 +232,11 @@ def test_each_call_is_the_routers_call_under_the_route_budget(harness, snapshots
     worst, tail, regret = harness.menu(40)[0], harness.menu(40)[3], harness.menu(40)[-1]
     rows = [harness.time_entry(snapshots[40], entry, scenario_id=SCENARIO, world_count=40,
                                formation="4-3-3", opt_in=False) for entry in (worst, tail, regret)]
-    assert [name for name, _, _ in recorded] == ["worst_world_selection", "tail_selection",
-                                                 "minimax_regret_selection"]
-    for name, kwargs, _ in recorded:
+    assert [call.name for call in recorded] == ["worst_world_selection", "tail_selection",
+                                                "minimax_regret_selection"]
+    for (name, kwargs, _, left), entry in zip(recorded, (worst, tail, regret), strict=True):
+        # The route's deadline: its budget, started just before _risk on a warm call.
+        assert runtime.BUDGETS[entry.route] - 5.0 < left <= runtime.BUDGETS[entry.route]
         assert kwargs["worlds"] is snapshots[40].worlds
         assert (kwargs["world_count"], kwargs["world_seed"], kwargs["bootstrap_version"],
                 kwargs["analyze_ties"], kwargs["seed"]) == (
@@ -214,7 +252,138 @@ def test_each_call_is_the_routers_call_under_the_route_budget(harness, snapshots
         assert row.selection_solves == 1 and row.selection_status == "OPTIMAL"
         assert row.membership_solves == 14 and row.not_run == 0
         assert row.tool_seconds <= row.route_seconds
+        assert (row.start, row.snapshot_seconds, row.formation) == ("warm", None, "4-3-3")
     assert rows[-1].world_least_solves > 0 and rows[0].world_least_solves == 0
+    assert snapshots["asked"] == [] and snapshots["cleared"] == []  # warm: the snapshot given
+
+
+def test_the_tool_runs_inside_the_routes_long_job(harness, snapshots, recorded,
+                                                  monkeypatch) -> None:
+    entered: list[str] = []
+    held: list[str] = []
+    real = runtime.long_job
+
+    @contextlib.contextmanager
+    def long_job(route):
+        entered.append(route)
+        with real(route):
+            held.append(route)
+            try:
+                yield
+            finally:
+                held.pop()
+
+    inside: list[tuple[str, ...]] = []
+    for name in ("worst_world_selection", "minimax_regret_selection"):
+        original = getattr(risk, name)
+
+        def watch(*args, _original=original, **kwargs):
+            inside.append(tuple(held))
+            return _original(*args, **kwargs)
+
+        monkeypatch.setattr(risk, name, watch)
+    monkeypatch.setattr(runtime, "long_job", long_job)
+    for entry in (harness.menu(12)[0], harness.menu(12)[-1]):
+        harness.time_entry(snapshots[12], entry, scenario_id=SCENARIO, world_count=12,
+                           formation="4-3-3", opt_in=False)
+    assert entered == ["xi.risk.tail", "xi.risk.regret"]
+    assert inside == [("xi.risk.tail",), ("xi.risk.regret",)]
+
+
+def test_the_measured_fields_hold_what_they_name(harness, snapshots, recorded,
+                                                 monkeypatch) -> None:
+    """A tool that sleeps and holds 64 MB: tool_s holds the call, the peak the memory, and the
+    solve columns the sums and maxima of the tool's own recorded times."""
+    original = risk.tail_selection
+
+    def heavy(*args, **kwargs):
+        block = b"\x01" * (64 * MEGABYTE)  # every page written: resident
+        time.sleep(0.3)
+        del block
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(risk, "tail_selection", heavy)
+    row = harness.time_entry(snapshots[40], harness.menu(40)[2], scenario_id=SCENARIO,
+                             world_count=40, formation="4-3-3", opt_in=False)
+    assert row.tool_seconds >= 0.3 and row.route_seconds >= row.tool_seconds
+    if harness.current_rss_bytes() is not None:
+        assert row.peak_rss_bytes >= row.rss_before_bytes + 48 * MEGABYTE
+    (result,) = [call.result for call in recorded]
+    run = [r for r in result.certificate.records
+           if r.purpose in ("SELECTION", "MEMBERSHIP") and r.status != "NOT_RUN"]
+    walls = result.provenance["risk_solve_wall_times"]
+    spent = [t["deterministic_time"] for t in result.provenance["risk_solve_deterministic_times"]]
+    for purpose, prefix in (("SELECTION", "selection"), ("MEMBERSHIP", "membership")):
+        picked = [i for i, record in enumerate(run) if record.purpose == purpose]
+        assert getattr(row, f"{prefix}_solves") == len(picked)
+        assert getattr(row, f"{prefix}_wall_seconds") == pytest.approx(
+            sum(walls[i] for i in picked))
+        assert getattr(row, f"{prefix}_max_wall_seconds") == max(walls[i] for i in picked)
+        assert getattr(row, f"{prefix}_deterministic_seconds") == pytest.approx(
+            sum(spent[i] for i in picked))
+        assert getattr(row, f"{prefix}_max_deterministic_seconds") == max(spent[i]
+                                                                          for i in picked)
+        assert getattr(row, f"{prefix}_at_limit") == 0
+    assert row.membership_solves == 14 and row.membership_wall_seconds > \
+        row.membership_max_wall_seconds
+
+
+def test_the_process_peak_is_the_largest_per_call_peak(harness, snapshots, monkeypatch,
+                                                      capsys) -> None:
+    row = harness.TimingRow(**{field.name: None for field in
+                               dataclasses.fields(harness.TimingRow)})
+    peaks = iter([5, None, 9, 3, 4, 2])  # megabytes, in call order; the largest is not last
+
+    def fake(snap, entry, **kwargs):
+        peak = next(peaks)
+        return dataclasses.replace(row, start="cold" if snap is None else "warm",
+                                   finalized=True,
+                                   peak_rss_bytes=None if peak is None else peak * MEGABYTE)
+
+    monkeypatch.setattr(harness, "time_entry", fake)
+    monkeypatch.setattr(harness, "format_row", lambda row, widths=None: "row")
+    assert harness.main(["--scenarios", SCENARIO, "--worlds", "12", "--opt-in", "off",
+                         "--formations", "4-3-3"]) == 0
+    assert "calls: 6 (1 cold, 5 warm); process peak_rss_mb 9 (the largest per-call peak)" \
+        in capsys.readouterr().out
+    assert harness.process_peak([]) is None
+
+
+def test_a_solve_at_the_deterministic_limit_is_counted(harness) -> None:
+    records = (SimpleNamespace(purpose="SELECTION", status="FEASIBLE"),
+               SimpleNamespace(purpose="MEMBERSHIP", status="OPTIMAL"),
+               SimpleNamespace(purpose="WORLD_LEAST", status="OPTIMAL"),
+               SimpleNamespace(purpose="MEMBERSHIP", status="NOT_RUN"),
+               SimpleNamespace(purpose="MEMBERSHIP", status="UNKNOWN"))
+    result = SimpleNamespace(
+        certificate=SimpleNamespace(records=records, selection_deterministic_limit=40.0),
+        provenance={"risk_solve_wall_times": [9.0, 0.5, 7.0],
+                    "risk_solve_deterministic_times": [{"deterministic_time": 40.0},
+                                                       {"deterministic_time": 0.25},
+                                                       {"deterministic_time": 40.5}]})
+    times = harness._solve_times(result)
+    assert times["SELECTION"] == harness.SolveTimes(1, 9.0, 40.0, 9.0, 40.0, 1)
+    assert times["MEMBERSHIP"] == harness.SolveTimes(2, 7.5, 40.75, 7.0, 40.5, 1)
+
+
+def test_a_cold_call_builds_the_snapshot_inside_the_routes_budget(harness, snapshots,
+                                                                  recorded) -> None:
+    snapshots["delay"] = 0.5
+    entry = harness.menu(40)[-1]
+    row = harness.time_entry(None, entry, scenario_id=SCENARIO, world_count=40,
+                             formation="4-3-3", opt_in=False)
+    assert snapshots["cleared"] == [0] and snapshots["asked"] == [(SCENARIO, 40)]
+    (call,) = recorded
+    assert call.kwargs["worlds"] is snapshots[40].worlds
+    budget = runtime.BUDGETS[entry.route]
+    # The budget started before the build: the tool's deadline leaves it the budget less it.
+    assert budget - 5.0 < call.left <= budget - 0.5
+    assert (row.start, row.budget_seconds, row.completeness) == ("cold", budget, "EXACT")
+    assert row.snapshot_seconds >= 0.5
+    assert row.route_seconds >= row.snapshot_seconds + row.tool_seconds
+    line = harness.format_row(row)
+    assert (column(harness, line, "start"), column(harness, line, "snap_s")) == (
+        "cold", f"{row.snapshot_seconds:.3f}")
 
 
 def test_a_budget_override_replaces_the_routes(harness, snapshots, recorded) -> None:
@@ -222,9 +391,11 @@ def test_a_budget_override_replaces_the_routes(harness, snapshots, recorded) -> 
                              world_count=12, formation="4-3-3", opt_in=True,
                              budget_seconds=900.0)
     assert row.budget_seconds == 900.0 and row.opt_in is True
+    assert 895.0 < recorded[0].left <= 900.0
 
 
-def test_a_refused_finalize_is_printed_not_raised(harness, snapshots, monkeypatch) -> None:
+def test_a_refused_finalize_is_printed_and_fails_the_run(harness, snapshots, monkeypatch,
+                                                        capsys) -> None:
     def refuse(payload, **kwargs):
         raise runtime.BoundaryViolation("planted")
 
@@ -234,6 +405,11 @@ def test_a_refused_finalize_is_printed_not_raised(harness, snapshots, monkeypatc
     assert row.finalized is False
     assert row.error is None
     assert harness.format_row(row).split()[-2:] == ["REFUSED", "-"]
+    # The router answers a refused envelope with a 500: no request at that count is answered.
+    assert harness.main(["--scenarios", SCENARIO, "--worlds", "12", "--opt-in", "off",
+                         "--formations", "4-3-3", "--rules", "WORST_WORLD"]) == 1
+    out = capsys.readouterr().out
+    assert "finalize refused: 2; errors: 0" in out
 
 
 def test_recorded_times_that_do_not_line_up_with_the_records_are_refused(harness) -> None:
@@ -252,13 +428,15 @@ def test_recorded_times_that_do_not_line_up_with_the_records_are_refused(harness
 
 def test_the_printed_fields_are_statuses_counts_seconds_memory_and_worlds(harness) -> None:
     assert [field.name for field in dataclasses.fields(harness.TimingRow)] == [
-        "scenario_id", "world_count", "rule", "tail_count", "opt_in", "status", "completeness",
-        "stopped_by", "membership_completeness", "selection_status", "solves",
-        "selection_solves", "membership_solves", "world_least_solves", "not_run",
-        "tool_seconds", "route_seconds", "selection_wall_seconds", "membership_wall_seconds",
+        "scenario_id", "world_count", "formation", "start", "rule", "tail_count", "opt_in",
+        "status", "completeness", "stopped_by", "membership_completeness", "selection_status",
+        "solves", "selection_solves", "membership_solves", "world_least_solves", "not_run",
+        "snapshot_seconds", "tool_seconds", "route_seconds", "selection_wall_seconds",
+        "membership_wall_seconds", "selection_max_wall_seconds", "membership_max_wall_seconds",
         "selection_deterministic_seconds", "membership_deterministic_seconds",
-        "budget_seconds", "rss_before_bytes", "peak_rss_bytes", "rss_scope", "used_worlds",
-        "discarded_worlds", "finalized", "error",
+        "selection_max_deterministic_seconds", "membership_max_deterministic_seconds",
+        "selection_at_limit", "membership_at_limit", "budget_seconds", "rss_before_bytes",
+        "peak_rss_bytes", "rss_scope", "used_worlds", "discarded_worlds", "finalized", "error",
     ]
     assert len(harness.HEADER) == len(dataclasses.fields(harness.TimingRow))
     words = {"player", "lineup", "loss", "pair", "frequency", "shortfall", "name", "tail_sum"}
@@ -291,8 +469,12 @@ def test_the_output_holds_no_player_id_name_or_loss_value(harness, snapshots, re
     assert harness.main(["--scenarios", SCENARIO, "--worlds", "12", "40", "--rules",
                          "TAIL", "MINIMAX_REGRET", "--opt-in", "on"]) == 0
     out = capsys.readouterr().out
-    assert len(recorded) == 2 * 4  # at each world count, three tail entries and REGRET
-    results = [result for _, _, result in recorded]
+    # At each world count: the first TAIL entry cold, then for each formation three tail
+    # entries and REGRET.
+    assert len(recorded) == 2 * (1 + 2 * 4)
+    assert snapshots["asked"] == [(SCENARIO, 12)] * 2 + [(SCENARIO, 40)] * 2
+    assert snapshots["cleared"] == [0, 2]
+    results = [call.result for call in recorded]
     assert all(result.status == "CERTIFIED" for result in results)
     lineup_ids = {pid for result in results for _, pid in result.lineup if pid is not None}
     assert lineup_ids, "the check would pass on no lineup"
@@ -304,9 +486,13 @@ def test_the_output_holds_no_player_id_name_or_loss_value(harness, snapshots, re
     for text in texts:
         assert not re.search(rf"(?<![\d.]){re.escape(text)}(?![\d.])", out), text
     rows = [line for line in out.splitlines() if line.lstrip().startswith(SCENARIO)]
-    assert len(rows) == 8
+    assert len(rows) == 18
     assert all(len(line.split()) == len(harness.HEADER) for line in rows)
-    assert "EXACT: 8 of 8; finalize refused: 0; errors: 0" in out
+    assert [column(harness, line, "start") for line in rows].count("cold") == 2
+    assert {column(harness, line, "formation") for line in rows} == set(FORMATIONS)
+    assert "EXACT: 18 of 18; finalize refused: 0; errors: 0" in out
+    assert "calls: 18 (2 cold, 16 warm); process peak_rss_mb " in out
+    assert "membership solves are summarised, not listed one by one" in out
 
 
 def test_a_call_that_raises_is_recorded_by_name_and_the_run_goes_on(harness, snapshots,
@@ -316,13 +502,15 @@ def test_a_call_that_raises_is_recorded_by_name_and_the_run_goes_on(harness, sna
         raise ValueError(risk.RISK_OVERFLOW)
 
     monkeypatch.setattr(risk, "tail_selection", refuse)
-    assert harness.main(["--scenarios", SCENARIO, "--worlds", "40", "--opt-in", "off"]) == 1
+    assert harness.main(["--scenarios", SCENARIO, "--worlds", "40", "--opt-in", "off",
+                         "--formations", "4-3-3"]) == 1
     out = capsys.readouterr().out
-    rows = [line.split() for line in out.splitlines() if line.lstrip().startswith(SCENARIO)]
-    assert [(row[2], row[5], row[-1]) for row in rows] == [
-        ("WORST_WORLD", "CERTIFIED", "-"), ("TAIL", "ERROR", "RISK_OVERFLOW"),
-        ("TAIL", "ERROR", "RISK_OVERFLOW"), ("TAIL", "ERROR", "RISK_OVERFLOW"),
-        ("MINIMAX_REGRET", "CERTIFIED", "-")]
+    rows = [line for line in out.splitlines() if line.lstrip().startswith(SCENARIO)]
+    assert [tuple(column(harness, line, name) for name in ("start", "rule", "status", "error"))
+            for line in rows] == [
+        ("cold", "WORST_WORLD", "CERTIFIED", "-"), ("warm", "WORST_WORLD", "CERTIFIED", "-"),
+        ("warm", "TAIL", "ERROR", "RISK_OVERFLOW"), ("warm", "TAIL", "ERROR", "RISK_OVERFLOW"),
+        ("warm", "TAIL", "ERROR", "RISK_OVERFLOW"), ("warm", "MINIMAX_REGRET", "CERTIFIED", "-")]
     assert risk.RISK_OVERFLOW not in out
     assert "errors: 3" in out
     assert harness.error_name(KeyError("970101"), risk) == "KeyError"

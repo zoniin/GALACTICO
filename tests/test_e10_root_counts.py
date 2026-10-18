@@ -3,9 +3,13 @@
 Claim: each count of items 3, 4 and 5 of ``verified_by_root_before_registration`` follows the
 config's words on hand-computed instances: a ``second_yellow`` player with and without a sheet
 ``red_minute``, a ``red_card`` residual each way, events outside ``regulation_periods`` left
-out, and a calendar whose opponents sit at positions 0 to 3 modulo 4 split into the halves
-``reliability_split`` gives. The script reads the rules from the config and refuses a config
-whose words differ; it reads only the columns it names, through the shipped loaders; it prints
+out, an unattributed (player_id 0) second yellow left out of item 3 and printed apart (ROOT 2.9
+Z6) while item 4 keeps it,
+and a calendar whose opponents sit at positions 0 to 3 modulo 4 split into the halves
+``reliability_split`` gives. The script reads the rules and the values it counts with
+(``dismissal_cards``, ``regulation_periods``, ``evaluation_start``,
+``dismissal_assumption_minimum_share``) from the config, and refuses a config whose words
+differ; it reads only the columns it names, through the shipped loaders; it prints
 one table per count, the shares and whether the assumption holds, and names no team or player.
 
 Non-claim: no corpus is read. Every frame here is synthetic, and nothing here says what the
@@ -115,6 +119,48 @@ def test_a_config_whose_words_differ_is_refused_and_nothing_is_counted(counts, e
     assert out.startswith("refused: ") and "Nothing was counted." in out
 
 
+def test_settings_and_main_count_with_the_values_the_config_states(counts, tmp_path,
+                                                                   monkeypatch, capsys) -> None:
+    """Four values edited in a copy of the draft, its words unchanged: each reaches the counts."""
+    config = copy.deepcopy(draft())
+    config["dismissal_assumption_minimum_share"] = 0.6
+    config["regulation_periods"] = [*config["regulation_periods"], "E1"]
+    config["evaluation_start"] = "2018-02-01"
+    config["dismissal_cards"] = list(reversed(config["dismissal_cards"]))
+    chosen = counts.settings(config)
+    assert (chosen.minimum_share, chosen.regulation_periods, chosen.evaluation_start,
+            chosen.dismissal_cards) == (Fraction(3, 5), ("1H", "2H", "E1"), "2018-02-01",
+                                        ("second_yellow", "red_card"))
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    seen: list[tuple[str, dict]] = []
+    for name in ("assumption_count", "residual_counts", "split_count"):
+        real = getattr(counts, name)
+
+        def record(*args, _name=name, _real=real, **kwargs):
+            seen.append((_name, kwargs))
+            return _real(*args, **kwargs)
+
+        monkeypatch.setattr(counts, name, record)
+    monkeypatch.setattr(counts, "load_league", lambda league, chosen: league_frames(
+        counts, base=600000, with_red=True))
+    assert counts.main(["--config", str(path)]) == 0
+    out = capsys.readouterr().out
+    rules = {"dismissal_cards": ("second_yellow", "red_card"),
+             "regulation_periods": ("1H", "2H", "E1"), "sheet_field": "red_minute"}
+    assert seen == [call for _ in range(5) for call in (
+        ("assumption_count", {**rules, "minimum_share": Fraction(3, 5)}),
+        ("residual_counts", rules),
+        ("split_count", {"evaluation_start": "2018-02-01"}))]
+    assert ("dismissal_cards=second_yellow,red_card regulation_periods=1H,2H,E1 "
+            "sheet=squads.red_minute dismissal_assumption_minimum_share=0.6 "
+            "evaluation_start=2018-02-01") in out
+    assert re.search(r"^Spain .*1/1 = 1\.0000\s+0\.6\s+yes\b", out, re.MULTILINE)
+    forward = next(line for line in out.splitlines() if "dismissal-card players" in line)
+    assert forward.index("of which second_yellow") < forward.index("of which red_card")
+    assert "meetings dated before 2018-02-01 (before)" in out
+
+
 def test_the_counts_read_the_config_values_not_constants(counts) -> None:
     """With regulation_periods widened, the extra-time card counts: the config decides."""
     frame = actions([(1, "E1", 10, 700, "red_card")])
@@ -139,7 +185,7 @@ def test_second_yellow_with_and_without_a_sheet_red_minute(counts) -> None:
     ])
     squads = sheet([(1, 10, 701, 74), (1, 20, 702, None), (2, 10, 701, None), (2, 20, 703, 60)])
     found = counts.assumption_count(frame, squads, minimum_share=Fraction(1, 2), **options())
-    assert found == counts.AssumptionCount(2, 1, Fraction(1, 2), True)
+    assert found == counts.AssumptionCount(2, 1, Fraction(1, 2), True, 0, 0, 0)
     stricter = counts.assumption_count(frame, squads, minimum_share=Fraction(3, 5), **options())
     assert (stricter.share, stricter.holds) == (Fraction(1, 2), False)
 
@@ -148,9 +194,45 @@ def test_a_second_yellow_player_the_sheet_does_not_list_has_a_null_red_minute(co
     frame = actions([(1, "2H", 10, 704, "second_yellow")])
     found = counts.assumption_count(frame, sheet([(1, 10, 799, 80)]),
                                     minimum_share=Fraction(1, 2), **options())
-    assert found == counts.AssumptionCount(1, 0, Fraction(0), False)
+    assert found == counts.AssumptionCount(1, 0, Fraction(0), False, unattributed=0,
+                                           not_listed=1, outside_only=0)
     residual = counts.residual_counts(frame, sheet([(1, 10, 799, 80)]), **options())
     assert (residual.card_sheet_null, residual.card_not_listed) == (1, 1)
+
+
+def test_an_unattributed_second_yellow_is_left_out_of_item_3_and_kept_in_item_4(counts) -> None:
+    """player_id 0 is no player (ROOT 2.9 Z6): item 3's count and share leave it out and print
+    it apart, two teams' unattributed cards in one match being one pair; item 4 keeps it, as
+    dismissal_check counts distinct player ids."""
+    frame = actions([
+        (1, "2H", 10, 701, "second_yellow"),   # sheet red_minute 70
+        (1, "E1", 10, 701, "second_yellow"),   # also outside: he is counted, not left out
+        (1, "2H", 20, 702, "second_yellow"),   # sheet red_minute 80
+        (2, "2H", 10, 0, "second_yellow"),     # unattributed
+        (2, "2H", 20, 0, "second_yellow"),     # unattributed, other team: the same pair
+        (3, "2H", 10, 703, "second_yellow"),   # sheet red_minute null
+        (4, "E1", 10, 704, "second_yellow"),   # only outside regulation_periods: left out
+    ])
+    squads = sheet([(1, 10, 701, 70), (1, 20, 702, 80), (2, 10, 705, None),
+                    (3, 10, 703, None), (4, 10, 704, 112)])
+    found = counts.assumption_count(frame, squads, minimum_share=Fraction(1, 2), **options())
+    assert found == counts.AssumptionCount(3, 2, Fraction(2, 3), True, unattributed=1,
+                                           not_listed=0, outside_only=1)
+    attributed = frame.loc[frame["player_id"] != 0]
+    without = counts.assumption_count(attributed, squads, minimum_share=Fraction(1, 2),
+                                      **options())
+    assert without == counts.AssumptionCount(3, 2, Fraction(2, 3), True, unattributed=0,
+                                             not_listed=0, outside_only=1)
+    residual = counts.residual_counts(frame, squads, **options())
+    assert (residual.card_sheet_null, residual.card_not_listed,
+            residual.card_unattributed) == (2, 1, 1)
+    text = counts.assumption_table({"Spain": found}, Fraction(1, 2))
+    header, row = text.splitlines()
+    assert header.endswith("left out: player_id 0  of which not on the sheet  left out: only "
+                           "outside regulation_periods")
+    assert re.search(r"2/3 = 0\.6667\s+0\.5\s+yes\s+1\s+0\s+1$", row)
+    forward = counts.residual_tables({"Spain": residual}, CARDS).splitlines()[1:3]
+    assert "of which player_id 0" in forward[0] and forward[1].split()[-2:] == ["1", "0"]
 
 
 def test_the_red_minute_of_the_same_player_in_another_match_does_not_count(counts) -> None:
@@ -165,13 +247,13 @@ def test_no_second_yellow_player_leaves_the_share_undefined_and_the_assumption_u
     frame = actions([(1, "2H", 10, 706, "red_card")])
     found = counts.assumption_count(frame, sheet([(1, 10, 706, 50)]),
                                     minimum_share=Fraction(1, 2), **options())
-    assert found == counts.AssumptionCount(0, 0, None, None)
-    held = counts.AssumptionCount(4, 3, Fraction(3, 4), True)
+    assert found == counts.AssumptionCount(0, 0, None, None, 0, 0, 0)
+    held = counts.AssumptionCount(4, 3, Fraction(3, 4), True, 0, 0, 0)
     assert counts.assumption_verdict({"Spain": held, "England": held})
     assert not counts.assumption_verdict({"Spain": held, "England": found})
     assert not counts.assumption_verdict({"Spain": held,
                                           "England": counts.AssumptionCount(2, 0, Fraction(0),
-                                                                            False)})
+                                                                            False, 0, 0, 0)})
     assert not counts.assumption_verdict({})
 
 
@@ -189,7 +271,7 @@ def test_a_red_card_residual_each_way(counts) -> None:
     assert found == counts.ResidualCount(
         card_players=2, card_sheet_null=1,
         card_sheet_null_by_card=(("red_card", 1), ("second_yellow", 0)),
-        card_not_listed=0, card_listed_other_team=0,
+        card_not_listed=0, card_unattributed=0, card_listed_other_team=0,
         sheet_red_players=2, sheet_red_no_card=1, sheet_red_card_outside=0,
     )
 
@@ -216,7 +298,8 @@ def test_events_outside_regulation_periods_are_left_out(counts) -> None:
             residual.sheet_red_card_outside) == (2, 2, 2)
     assumption = counts.assumption_count(frame, squads, minimum_share=Fraction(1, 2),
                                          **options())
-    assert assumption == counts.AssumptionCount(0, 0, None, None)
+    # The extra-time second yellow is left out of item 3, and shown beside it.
+    assert assumption == counts.AssumptionCount(0, 0, None, None, 0, 0, outside_only=1)
 
 
 def test_a_card_player_the_sheet_lists_under_another_team_is_shown_beside_the_counts(
@@ -431,12 +514,9 @@ def test_main_prints_a_table_per_count_and_names_no_team_or_player(counts, monke
     assert "[item 4] dismissal_check residuals" in out
     assert "[item 5] reliability_split calendar count" in out
     assert counts.NO_OUTCOME_NOTE in out and counts.VALIDITY_NOTE in out
-    spain = next(line for line in out.splitlines() if line.startswith("Spain ")
-                 and "1/1 = 1.0000" in line)
-    assert spain.rstrip().endswith("yes")
-    italy = next(line for line in out.splitlines() if line.startswith("Italy ")
-                 and "0/1 = 0.0000" in line)
-    assert italy.rstrip().endswith("no")
+    assert re.search(r"^Spain .*1/1 = 1\.0000\s+0\.5\s+yes\s+0\s+0\s+0$", out, re.MULTILINE)
+    assert re.search(r"^Italy .*0/1 = 0\.0000\s+0\.5\s+no\s+0\s+0\s+0$", out, re.MULTILINE)
+    assert "parts, changing no count: 'of which player_id 0'" in out
     assert "the assumption holds in every league: no" in out
     assert draft()["dismissal_check_fallback"] in out
     assert "Spain A before: 1/1:2" in out and "Spain B home: 0/1:1 1/1:1" in out
