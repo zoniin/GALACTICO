@@ -239,17 +239,6 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/protocol-drafts/E-09-player-candidates/preregistration.md":
         "the external leg's rule, frame rules, gates and tokens and the provider's coordinate "
         "scale, with no figure formed from its data; it draws the logo for the leg's report",
-    "docs/research/north-star/protocol-drafts/E-10-conceded-shape/PIPELINE.md":
-        "the field mapping, the coordinate scale, an orientation rule, how events are read in "
-        "batches, the replication's gates and statuses, where replication statuses, "
-        "numbers and folder digests will be written, none of them in results.json, and when "
-        "analysis.md carries the credit",
-    "docs/research/north-star/protocol-drafts/E-10-conceded-shape/preregistration.md":
-        "that the corpus was seen before and that 40 of its files were inspected, with no "
-        "result of the inspection; the replication rule, its gates and statuses, the "
-        "provider's coordinate scale, which date field it records and that the arm's result "
-        "is reported in analysis.md only, with the credit whenever a status or number was "
-        "formed from the provider's files",
     "docs/research/north-star/protocol-drafts/E-10-conceded-shape/REVIEW-RECORD.md":
         "the reviews' findings on key names, the replication rule and its gates, the "
         "provider mapping, the reader's memory, the attribution plan and where the arm's "
@@ -257,6 +246,17 @@ NO_FIGURE_FORMED_FROM_STATSBOMB = {
     "docs/research/north-star/protocol-drafts/E-12-transport-movers/PIPELINE.md":
         "functions, digests and the attribution requirement; league membership and "
         "synthetic sizes",
+    "experiments/preregistered/E-10-conceded-shape/PIPELINE.md":
+        "the field mapping, the coordinate scale, an orientation rule, how events are read in "
+        "batches, the replication's gates and statuses, where replication statuses, "
+        "numbers and folder digests will be written, none of them in results.json, and when "
+        "analysis.md carries the credit",
+    "experiments/preregistered/E-10-conceded-shape/preregistration.md":
+        "that the corpus was seen before and that 40 of its files were inspected, with no "
+        "result of the inspection; the replication rule, its gates and statuses, the "
+        "provider's coordinate scale, which date field it records and that the arm's result "
+        "is reported in analysis.md only, with the credit whenever a status or number was "
+        "formed from the provider's files",
     "experiments/preregistered/E-11-provider-agreement/PIPELINE.md":
         "readers, the mapping, hashes, and the credit block quoted in a fence for the "
         "report to draw; the roster share in its dissent is counted on the public side",

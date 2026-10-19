@@ -488,8 +488,9 @@ for it under every token, and no digit may ride inside its sentences. Every new
 of the payload to be exactly the hosted one.
 
 The registry shipped **empty** until 14 October 2026, when E-11 was registered and
-its sixteen records added, token `PENDING` (ADR-0029). Every other subject answers
-"RECORD ONLY · NOT TESTED". Four protocols remain drafts under
+its sixteen LOCAL records added, token `PENDING` (ADR-0029). On 19 October 2026 E-10 was
+registered and its seven PUBLIC records added, token `PENDING` (ADR-0031). Every other
+subject answers "RECORD ONLY · NOT TESTED". Three protocols remain drafts under
 `docs/research/north-star/protocol-drafts/`; a draft is not a registration.
 
 **Evidence.** Clauses 1.2.1, 1.2.2 and 1.4 of the StatsBomb Public Data User
@@ -1258,3 +1259,143 @@ and the run times and peak memory are recorded in that change.
 
 **Reversal.** E-13's verdict relabels the risk modes. A change of policy is a new version of
 the affected module and of its served constants.
+
+
+---
+
+## ADR-0031 — E-10 is registered; its record waits for its run
+
+**Problem.** The E-10 conceded-shape protocol was found READY: a third independent audit
+confirmed no blocker in its third revision, three verifiers found that the fourth revision's
+edits added none, and an independent check of its alignment with ROOT-DECISIONS 2.12 (N2,
+N6) claimed none and reported four minor findings, A12-1 to A12-4 (the draft's
+`REVIEW-RECORD.md`). Registering it puts seven PUBLIC records in the verdict registry, which
+the planning pages print, and makes one served sentence false: planning's `shots` entry said
+"No registered protocol tests one", and E-10 registers `conceded_shots_inside_box_share`.
+
+**Decision.** The four files are registered under
+`experiments/preregistered/E-10-conceded-shape/` as found ready, in one commit, as the
+draft's `PIPELINE.md` section 13 lists. `config.json`, `PIPELINE.md` and
+`descriptor_test_vectors.json` are byte for byte the draft; `preregistration.md` differs in
+one line, the DRAFT banner, replaced by the line `PIPELINE.md` section 0 gives. It draws no
+logo: it prints no figure formed from StatsBomb data, and the only E-10 document that will
+draw one is `analysis.md` (section 12.4). The draft's four files become one-line pointers;
+its `REVIEW-RECORD.md` stays as the record of review. `galactico/domain/verdicts.py` holds
+seven PUBLIC records, token `PENDING`, built from the config's own sentences and the hashes
+of the registered files: the six descriptors (claim token "TENDENCY, ONE SEASON") and the
+level (claim token "VOLUME, ONE SEASON"). Each reads "E-10 · RECORD ONLY · NOT RUN"; none
+gates, since `may_gate` needs an executed ESTABLISHED record, and none carries a figure until
+the results commit (section 12.2).
+
+The page wording follows the evidence, not the commit. Every record is `PENDING`, so the
+research block lists E-10's records beside E-11's and keeps "The registered protocols are
+listed with their state. No quantity shown here has been tested: ...". The `shots` entry
+keeps its id, term and status and now reads: "No shot construct is shown. E-11, registered
+and not run, compares only whether two providers agree on shot counts; E-10, registered,
+tests a team-level conceded shot share that no planning page shows, and its badge says
+whether it has run." (ROOT 2.12 N6; A12-2 added the last clause, without which "registered"
+beside E-11's "registered and not run" implied that E-10 had run.) It stays true at E-10's
+results commit, which leaves it.
+
+The prior-date record of Opponent Lab, not yet built, is withheld until E-10's results
+commit, when all seven records are `EXECUTED` (ROOT 2.12 N1, N2; the protocol's Product
+consequence). The frozen table shows it from then for every subject, while ROOT 2.12 N4 holds
+S3, S4 and S5 back until a registry record under `"E-09"` exists (A12-1). The two agree only
+if E-09 is registered by then, so **E-10's results commit follows E-09's registration**
+(route (a) of A12-1). The other route, carrying N4's condition in the frozen table, was an
+edit to a READY draft needing its own audit, and is not taken.
+
+**Before registration** (section 13; each a check the root repeats).
+
+- Audit: the third audit, the verification of the fourth revision and the verification of
+  the ROOT 2.12 alignment, none with a confirmed blocker. A12-2 and A12-4 were applied, A12-1
+  by the order above; A12-3 is a fix to `OPPONENT-DESK-SPEC.md`, passed to that file's own
+  audit, and the E-10 files need none.
+- Pipeline hash: `pipeline_spec_sha256` is `lf_sha256` of the registered `PIPELINE.md`,
+  `3aa89efb8931973a5089d5ba0f661a5db4d2763da7e8b20090c5cac5c34a1353`, recomputed after A12-2.
+- Fingerprints: recomputed from the payloads of `descriptor_test_vectors.json`; all six and
+  all four equal `descriptor_fingerprints` and `descriptor_fingerprints_sb`.
+- Structure-only counts (`verified_by_root_before_registration` items 3 to 5; ROOT 2.9 Z2,
+  Z6): run by the root in the dispatch-only `root-checks` job (check `e10-counts`, run
+  39163118449, job 117780407620, `main` at `6c6529d`, 18 October 2026) with
+  `scripts/e10_root_counts.py` (`lf_sha256`
+  `52595dc72b7c6240c8921bad40b7bc2a35891bd7a194b3a871453b89c0116e6c`) on the draft config
+  (`lf_sha256` `e3a56391c320e3cf8cd1699da51d91630373c0d1fee54e9783912c459fb80c39`), from the
+  tag sidecar `wyscout-tag-sidecar-v1` with tag mapping `wyscout-v2-tags2name-57live-v1` in
+  all five leagues. The registered config differs from that one in `pipeline_spec_sha256`
+  only, which no count reads. They are counts; no outcome was computed.
+
+  The dismissal assumption, per league: the players whose event record carries a
+  `second_yellow` card in `regulation_periods`, those among them whose sheet `red_minute` in
+  that match is not null, and the share, against `dismissal_assumption_minimum_share` (0.5).
+
+  | League | `second_yellow` players | `red_minute` not null | Share | Holds |
+  |---|---|---|---|---|
+  | Spain | 42 | 42 | 1.0000 | yes |
+  | England | 19 | 17 | 0.8947 | yes |
+  | Italy | 45 | 45 | 1.0000 | yes |
+  | Germany | 22 | 22 | 1.0000 | yes |
+  | France | 33 | 33 | 1.0000 | yes |
+
+  No pair was left out in any league (none credited to player 0, none of a player not on that
+  match's sheet, none with every `second_yellow` event outside `regulation_periods`). The
+  assumption holds in every league, the lowest share being England's 17/19, so
+  `dismissal_check` stands and `dismissal_check_fallback` is not used.
+
+  The residuals, which `dismissals_mismatch` is built to invalidate and only G1 bounds. Event
+  record to sheet (players with a regulation dismissal card and a null sheet `red_minute`):
+  Spain 0 of 71, England 2 of 41 (both `second_yellow`), Italy 0 of 91, Germany 0 of 43,
+  France 0 of 86; none is off the sheet, none is player 0, none is listed under another team.
+  Sheet to event record (sheet players whose `red_minute` is not null and who carry no
+  regulation dismissal card): Spain 0 of 71, England 0 of 39, Italy 0 of 91, Germany 0 of 43,
+  France 1 of 87, a player with no dismissal card outside `regulation_periods` either.
+- E-11 order: E-11 was registered on 14 October 2026 (ADR-0029) and its pipeline built and
+  stamped on synthetic data; it has not run. Its directory holds no `results.json` and no
+  `analysis.md`, so no E-11 analysis exists and none was read. The case `reuse_disclosure`
+  names (E-11 ran first) does not arise.
+- Split calendar count (`reliability_split`, third audit 2-1): per league and half, the teams,
+  each team's meetings in the half, and the distribution over teams of the share of those
+  meetings dated before `evaluation_start` (2018-01-01) and of the share at home, written
+  share: number of teams. Every meeting is counted (the match table's validity is not built),
+  and no team lacks a meeting in either half. It changes nothing in the rule.
+
+  | League | Half | Teams | Meetings | Before `evaluation_start` | At home |
+  |---|---|---|---|---|---|
+  | Spain | A | 20 | 19 | 8/19: 2, 9/19: 18 | 9/19: 11, 10/19: 8, 11/19: 1 |
+  | Spain | B | 20 | 19 | 8/19: 20 | 8/19: 1, 9/19: 8, 10/19: 11 |
+  | England | A | 20 | 19 | 11/19: 20 | 9/19: 11, 10/19: 8, 11/19: 1 |
+  | England | B | 20 | 19 | 9/19: 2, 10/19: 18 | 8/19: 1, 9/19: 8, 10/19: 11 |
+  | Italy | A | 20 | 19 | 10/19: 20 | 8/19: 3, 9/19: 7, 10/19: 7, 11/19: 3 |
+  | Italy | B | 20 | 19 | 8/19: 4, 9/19: 16 | 8/19: 3, 9/19: 7, 10/19: 7, 11/19: 3 |
+  | Germany | A | 18 | 17 | 9/17: 18 | 7/17: 4, 8/17: 5, 9/17: 5, 10/17: 4 |
+  | Germany | B | 18 | 17 | 8/17: 18 | 7/17: 4, 8/17: 5, 9/17: 5, 10/17: 4 |
+  | France | A | 20 | 19 | 10/19: 20 | 6/19: 1, 7/19: 1, 8/19: 2, 9/19: 5, 10/19: 7, 11/19: 4 |
+  | France | B | 20 | 19 | 9/19: 20 | 8/19: 4, 9/19: 7, 10/19: 5, 11/19: 2, 12/19: 1, 13/19: 1 |
+- Replication label: nothing open (ROOT 2.9 Z5); E-10 creates no record for its LOCAL arm.
+
+**Evidence.** The draft's `REVIEW-RECORD.md` (every round of review, the audits'
+dispositions and the alignment's verification), the counts' job log, and two tests:
+`tests/test_verdict_registry.py` ties every record to the committed files and the config's
+sentences, and `tests/test_protocol_drafts.py` checks the registered files' pipeline hash,
+serves every registry and figure sentence through `finalize` under `PENDING` and every
+token, and walks every key of the config and the vectors for a provider's name or the `SB_`
+prefix, each with a planted defect it must find.
+
+**Alternatives rejected.** Keeping the registry empty until the run (the records would then
+be written after the outcome is known, and the `shots` entry would keep a false sentence).
+Showing the prior-date record from registration (ROOT 2.12 N1: the registry cannot tell the
+code-review window, in which no WP A file may run on `data/`, from the time after the gate
+stamp). The `shots` wording "E-10, registered and not run" (a second rewording at the results
+commit, which section 13 does not schedule). Carrying N4's condition in the frozen table
+(route (b) of A12-1, above).
+
+**Number.** `OPPONENT-DESK-SPEC.md` and ROOT-DECISIONS 2.12 (N5, N7) had named the Opponent
+Lab and desk ADR "ADR-0031". This registration takes that number; that ADR is ADR-0032, and
+both files were renumbered in this change.
+
+**Confidence.** High that the registered text is the text found ready and verified. The
+pipeline is not built; a defect found while building it is reported in the analysis, never
+repaired by editing a registered file.
+
+**Reversal.** None for the files. A protocol found unsound before its run is superseded by a
+new experiment id, and this one is recorded as not run.

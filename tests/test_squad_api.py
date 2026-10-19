@@ -186,7 +186,8 @@ def test_page_and_catalogue_read_no_data_and_pass_the_copy_guard(client, thesis_
     assert shell.scan_labels(catalogue) == []
     thesis_guard(catalogue)
     assert catalogue["verdicts"] == planning.verdict_reading()[0]
-    assert {v["badge"] for v in catalogue["verdicts"]} == {"E-11 · RECORD ONLY · NOT RUN"}
+    assert {v["badge"] for v in catalogue["verdicts"]} == {
+        "E-10 · RECORD ONLY · NOT RUN", "E-11 · RECORD ONLY · NOT RUN"}
     assert catalogue["research_statement"] == planning.REGISTERED_NOT_TESTED_STATEMENT
     assert catalogue["stress"]["needs_confirmation"] == [3]
     keepers = [s for s in catalogue["slots"]["4-3-3"] if not s["recruitable"]]
@@ -206,7 +207,8 @@ def test_every_response_is_an_envelope_that_passes_the_guards(client, thesis_gua
     assert payload["provenance"]["verdicts"] == planning.verdict_reading()[0]
     assert payload["research_statement"] == planning.REGISTERED_NOT_TESTED_STATEMENT
     # Nothing has been tested: a badge is unregistered, or registered and not run.
-    assert set(_badges(payload)) <= {"RECORD ONLY · NOT TESTED", "E-11 · RECORD ONLY · NOT RUN"}
+    assert set(_badges(payload)) <= {"RECORD ONLY · NOT TESTED", "E-10 · RECORD ONLY · NOT RUN",
+                                     "E-11 · RECORD ONLY · NOT RUN"}
     assert payload["evidence"]["class"] == "HEURISTIC" and payload["experimental_inputs"] == []
     assert [p["name"] for p in payload["omitted_candidates"]] == ["abel", "Zed"]
     assert payload["budget"]["completeness"] in ("EXACT", "COMPLETE")

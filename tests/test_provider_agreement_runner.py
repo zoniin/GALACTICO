@@ -490,10 +490,13 @@ def test_a_tree_built_from_the_results_passes_every_registry_checker(end_to_end,
         '<img src="statsbomb-logo.png" alt="StatsBomb">\n\nData source: StatsBomb.\n',
         encoding="utf-8")
     results_hash = lf_sha256(directory / "results.json")
+    # E-11's records only: the registry also holds other protocols' (E-10's, registered).
     registry = {key: dataclasses.replace(record, token=results["verdicts"][record.subject_id]
                                          ["token"], protocol_commit=COMMIT,
                                          results_hash=results_hash)
-                for key, record in V.VERDICTS.items()}
+                for key, record in V.VERDICTS.items()
+                if record.experiment_id == CONFIG["registry_experiment_id"]}
+    assert len(registry) == len(results["verdicts"]) == 16
     for check in checks.CHECKS:
         assert check(registry, tmp_path) == [], check.__name__
     # The opposite: a token that is not the results' is caught.

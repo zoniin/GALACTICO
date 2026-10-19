@@ -10,11 +10,11 @@ Non-claim: a record is not the evidence. The evidence is the experiment's
 record to those files by hash. A verdict labels a quantity. It is not a property
 of a player.
 
-A record is added only in the commit that freezes its protocol. E-11 is registered
-and not run: its sixteen subjects answer REGISTERED_NOT_RUN (PENDING), every other
-subject answers NOT_REGISTERED, the E-09, E-10, E-12 and E-13 documents are drafts,
-and ``product_admissible`` is false for every construct. That is the true state of
-the evidence, not a placeholder.
+A record is added only in the commit that freezes its protocol. E-11 and E-10 are
+registered and not run: E-11's sixteen LOCAL subjects and E-10's seven PUBLIC subjects
+answer REGISTERED_NOT_RUN (PENDING), every other subject answers NOT_REGISTERED, the
+E-09, E-12 and E-13 documents are drafts, and ``product_admissible`` is false for every
+construct. That is the true state of the evidence, not a placeholder.
 
 Two rules carry the licensing posture. ``may_gate`` is the only value that may
 unlock a number-bearing panel, and it is false for every LOCAL-tier record: a
@@ -416,6 +416,185 @@ for _record in [*(_e11(s, False) for s in _E11_CELL_SUBJECTS),
                 *(_e11(s, True) for s in _E11_LINK_SUBJECTS)]:
     VERDICTS[_record.claim_id] = _record
 del _record
+
+# ---- E-10 conceded shape: registered, not run ----------------------------------
+# Every sentence is the frozen config's ``registry_*`` entry, verbatim, and the two
+# hashes are ``lf_sha256`` of the registered preregistration.md and config.json.
+# tests/test_verdict_registry.py ties both to the committed files. The records are
+# PUBLIC: an executed ESTABLISHED one may gate a panel; a PENDING one gates nothing.
+
+_E10_DIRECTORY = "experiments/preregistered/E-10-conceded-shape"
+_E10_PROTOCOL_HASH = "e4bbd4a3d68918006f3a1779f18e3a41e29e6efb865af9d0df59f06641366d33"
+_E10_CONFIG_HASH = "2859739e839a77d16bdbb22007ef6ca265bc16ab1992e0f3ded435d6558f2498"
+_E10_NOT_RUN = "E-10 is registered and not run. Nothing has been compared."
+_E10_SUBJECT_GROUPS = {
+    "conceded": (
+        "conceded_f3_entries_by_channel",
+        "conceded_f3_entries_wide_share",
+        "conceded_box_entries_by_origin_channel",
+        "conceded_shots_inside_box_share",
+    ),
+    "own_actions": (
+        "defensive_actions_by_pitch_third",
+        "high_zone_defensive_action_share",
+    ),
+    "level": (
+        "conceded_f3_entries_per_90",
+    ),
+}
+"""``subject_groups``, in the config's order. The level group's one subject is the level
+record; every other subject is a descriptor."""
+_E10_NON_CLAIMS = {
+    "conceded": (
+        "This is where the opponent's actions were recorded. A team can leave a channel open on "
+        "purpose. Event data cannot tell that apart from failing to close it, so this panel does "
+        "not say the team defends that channel badly."
+    ),
+    "own_actions": (
+        "This is where the team's defensive actions were recorded. Actions happen where the ball "
+        "is, so this follows the opponent's play as well as the team's choices. It does not show "
+        "where the team's defensive line stands and does not say how well the team defends."
+    ),
+    "level": (
+        "This counts the opponent's final-third entry passes that were recorded. Conceding them "
+        "can be a choice as well as a failure, and event data cannot tell the two apart, so this "
+        "panel does not say how well the team defends."
+    ),
+}
+_E10_DESCRIPTOR_SCOPE = (
+    "Teams of the five leagues of the public Pappalardo/Wyscout corpus, 2017/18; one row per team "
+    "and match, first and second half, before any dismissal, goal difference at most one; the "
+    "defending team's history against the attacking team's own history."
+)
+_E10_LEVEL_SCOPE = (
+    "Teams of the five leagues of the public Pappalardo/Wyscout corpus, 2017/18; one row per team "
+    "and match, first and second half, before any dismissal, goal difference at most one; "
+    "final-third entry passes conceded per 90 minutes of that window."
+)
+_E10_DESCRIPTOR_VOCABULARY = (
+    "DEFENDER_SHAPE_SIGNAL",
+    "ADDED_INFORMATION_NOT_SHOWN",
+    "SIDE_NOT_SHOWN",
+    "NOT_RELIABLE",
+    "STRENGTH_NOT_EXCLUDED",
+    "INCONCLUSIVE",
+)
+_E10_LEVEL_VOCABULARY = (
+    "LEVEL_ESTABLISHED",
+    "ADDED_INFORMATION_NOT_SHOWN",
+    "NOT_RELIABLE",
+    "INCONCLUSIVE",
+)
+_E10_DESCRIPTOR_OUTCOMES = {
+    "DEFENDER_SHAPE_SIGNAL": Outcome(
+        VerdictStatus.ESTABLISHED, True,
+        (
+            "On later matches of one season from one provider, the defending team's own history "
+            "accounted for part of this split beyond the attacking team's own history, and the "
+            "split passed the frozen checks that it repeats across two halves of the team's "
+            "matches that each hold one meeting with every opponent and is more than team strength "
+            "measured by points, goals and pass share. The estimate is shrunken toward the league "
+            "composition, describes match states before any dismissal and within one goal, and was "
+            "decided on matches of the whole season."
+        )),
+    "ADDED_INFORMATION_NOT_SHOWN": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "E-10 compared this split with what the attacking team's own history accounts for, on "
+            "later matches, and the defending team's own history did not meet every frozen "
+            "criterion for adding to it. Read it as a record of past matches, not as a tendency."
+        )),
+    "SIDE_NOT_SHOWN": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "On later matches the defending team's own history added to what the attacking team's "
+            "own history accounts for in this split, but it was not shown to tell the team's left "
+            "from its right. Read it as a record of past matches, not as a tendency."
+        )),
+    "NOT_RELIABLE": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "On later matches the defending team's own history added to what the attacking team's "
+            "own history accounts for in this split, but the split did not pass the frozen check "
+            "that it repeats across two halves of the team's matches that each hold one meeting "
+            "with every opponent. Read it as a record of past matches, not as a tendency."
+        )),
+    "STRENGTH_NOT_EXCLUDED": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "On later matches the defending team's own history added to what the attacking team's "
+            "own history accounts for in this split, and the split passed the frozen check that it "
+            "repeats across two halves of the team's matches that each hold one meeting with every "
+            "opponent, but it did not pass the frozen check that it is more than team strength "
+            "measured by points, goals and pass share. Read it as a record of past matches, not as "
+            "a tendency."
+        )),
+    "INCONCLUSIVE": Outcome(
+        VerdictStatus.INCONCLUSIVE, False,
+        (
+            "E-10 could not test this descriptor: a frozen gate failed before any evaluation loss "
+            "was aggregated. No evaluation result was compared."
+        )),
+}
+_E10_LEVEL_OUTCOMES = {
+    "LEVEL_ESTABLISHED": Outcome(
+        VerdictStatus.ESTABLISHED, True,
+        (
+            "On later matches of one season from one provider, the defending team's own history "
+            "accounted for part of how many final-third entry passes it conceded beyond the "
+            "attacking team's own volume, and the volume passed the frozen check that it repeats "
+            "across two halves of the team's matches that each hold one meeting with every "
+            "opponent. This check does not separate it from team strength. It was decided on "
+            "matches of the whole season."
+        )),
+    "ADDED_INFORMATION_NOT_SHOWN": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "E-10 compared how many final-third entry passes teams conceded with what the "
+            "attacking team's own volume accounts for, on later matches, and the defending team's "
+            "own history did not meet every frozen criterion for adding to it. Read it as a record "
+            "of past matches."
+        )),
+    "NOT_RELIABLE": Outcome(
+        VerdictStatus.NOT_ESTABLISHED, False,
+        (
+            "On later matches the defending team's own history added to what the attacking team's "
+            "own volume accounts for, but the volume did not pass the frozen check that it repeats "
+            "across two halves of the team's matches that each hold one meeting with every "
+            "opponent. Read it as a record of past matches."
+        )),
+    "INCONCLUSIVE": Outcome(
+        VerdictStatus.INCONCLUSIVE, False,
+        (
+            "E-10 could not test this volume: a frozen gate failed before any evaluation loss was "
+            "aggregated. No evaluation result was compared."
+        )),
+}
+
+
+def _e10(subject_id: str, group: str) -> VerdictRecord:
+    level = group == "level"
+    return VerdictRecord(
+        experiment_id="E-10",
+        subject_id=subject_id,
+        scope=_E10_LEVEL_SCOPE if level else _E10_DESCRIPTOR_SCOPE,
+        tier=Tier.PUBLIC,
+        directory=_E10_DIRECTORY,
+        claim_token="VOLUME, ONE SEASON" if level else "TENDENCY, ONE SEASON",
+        non_claim=_E10_NON_CLAIMS[group],
+        not_run_statement=_E10_NOT_RUN,
+        vocabulary=_E10_LEVEL_VOCABULARY if level else _E10_DESCRIPTOR_VOCABULARY,
+        outcomes=_E10_LEVEL_OUTCOMES if level else _E10_DESCRIPTOR_OUTCOMES,
+        protocol_hash=_E10_PROTOCOL_HASH,
+        config_hash=_E10_CONFIG_HASH,
+    )
+
+
+for _group, _subjects in _E10_SUBJECT_GROUPS.items():
+    for _subject in _subjects:
+        _record = _e10(_subject, _group)
+        VERDICTS[_record.claim_id] = _record
+del _group, _subjects, _subject, _record
 
 
 def record(experiment_id: str, subject_id: str) -> VerdictRecord:

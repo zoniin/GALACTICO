@@ -272,8 +272,11 @@ technology, which put fixed words around served values. Transfer Lab's two
 
 - No column of the sidecar is a construct. A tag is the provider's judgement,
   recorded as the provider recorded it.
-- No experiment and no page reads it yet. The two drafts that will (E-09, E-10)
-  name functions that were not built.
+- No experiment and no page reads it yet. E-10, registered and not run, will read its
+  cards, own goals and goals and the sheet's dismissals through functions not yet built;
+  the E-09 draft will too. Before E-10's registration the root's structure-only counts
+  read its cards and the sheet's red-card minutes on the corpus and computed no outcome
+  ([ADR-0031](DECISIONS.md)).
 - Its match table leaves out extra-time and shootout scores: for a cup match that
   went past ninety minutes the two scores are the ninety-minute score.
 - `verify` shows the tables are the ones the manifest records. It does not show
@@ -284,13 +287,12 @@ technology, which put fixed words around served values. Transfer Lab's two
 
 ## Registered or drafted, not run
 
-Five protocols are written under
-[`docs/research/north-star/protocol-drafts/`](docs/research/north-star/README.md):
-new shot and defensive-location candidates (E-09), whether where a team concedes
-is a property of the defender (E-10), provider agreement on the 100 double-coded
-matches (E-11), whether rates survive a club change (E-12), and declared-risk
-selection against selection optimism (E-13). Four were each written by one
-designer and never adversarially reviewed or audited. E-11 went through three
+Five protocols are written: new shot and defensive-location candidates (E-09),
+whether where a team concedes is a property of the defender (E-10), provider agreement
+on the 100 double-coded matches (E-11), whether rates survive a club change (E-12),
+and declared-risk selection against selection optimism (E-13). E-11 and E-10 are
+registered under `experiments/preregistered/`; the other three are drafts under
+[`docs/research/north-star/protocol-drafts/`](docs/research/north-star/README.md). E-11 went through three
 rounds of review, revision and independent audit on 9 October 2026; the third audit
 returned NOT_READY with three blockers. A fourth revision of 13 October applied
 them, and five more audits that day found one, one, two, two and three blockers; a
@@ -299,10 +301,16 @@ revision applied its follow-ups, and a ninth audit found eight of nine scopes re
 one blocker, which an eleventh revision applied. A tenth audit returned READY on the
 eleventh revision; a twelfth and a thirteenth applied consistency items that change no
 token, each verified to add no blocker. E-11 was registered on 14 October 2026
-([ADR-0029](DECISIONS.md)): its sixteen records read E-11 · RECORD ONLY · NOT RUN, and
-every other badge on a planning page reads RECORD ONLY · NOT TESTED. Its pipeline is
-built on synthetic data and its acceptance stamp committed; it has not run. The other four
-are drafts with no pipeline. No outcome of any of the five has been computed.
+([ADR-0029](DECISIONS.md)); its pipeline is built on synthetic data and its acceptance
+stamp committed, and it has not run. E-10 was attacked by three reviewers and audited
+three times; the third audit confirmed no blocker, and verifications of its fourth
+revision and of its alignment with the root's rulings for Opponent Lab found none. It was
+registered on 19 October 2026 ([ADR-0031](DECISIONS.md)); its pipeline is not built,
+and its results commit waits for E-09's registration, since the record it would show for
+three subjects stays withheld until an E-09 record exists. E-11's sixteen records read
+E-11 · RECORD ONLY · NOT RUN, E-10's seven read E-10 · RECORD ONLY · NOT RUN, and every
+other badge on a planning page reads RECORD ONLY · NOT TESTED. The other three are drafts
+with no pipeline. No outcome of any of the five has been computed.
 
 ## Found by the October reconnaissance and not repaired
 

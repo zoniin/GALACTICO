@@ -268,9 +268,11 @@ No credentials or proprietary data are needed or committed.
   Its pipeline is built on synthetic data and reviewed against its checklist, and the
   acceptance stamp is committed (`f6f9184`). The verdict registry holds its sixteen
   `PENDING` records. The run needs the public corpus beside the licensed folders.
-- DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-10, E-12, E-13. The design council that
-  wrote them was cut short before adversarial review, reconciliation and audit; the
-  four are unreviewed.
+- REGISTERED, NOT BUILT, NOT RUN: E-10 (19 October 2026, ADR-0031), after one review
+  round, three audits and two verifications. The verdict registry holds its seven PUBLIC
+  `PENDING` records. Its results commit follows E-09's registration (ADR-0031).
+- DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-12, E-13. The design council that wrote them
+  was cut short before adversarial review, reconciliation and audit.
 - BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own
   goals; ADR-0028), which E-09 and E-10 need.
 - SPECIFIED, NOT BUILT: Opponent Lab; a Director's desk.

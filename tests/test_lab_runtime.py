@@ -787,7 +787,7 @@ def test_verdicts_endpoint_serves_the_registry(lab_client, thesis_guard, monkeyp
     assert response.headers["content-type"] == "application/json"
     body = response.json()
     assert body == {
-        "verdicts": verdicts.all_payloads(),             # E-11, registered and not run
+        "verdicts": verdicts.all_payloads(),     # E-11 and E-10, registered and not run
         "order": "experiment_id, subject_id ascending",
         "claim": "Registered protocols and their recorded verdicts. "
                  "A verdict labels a quantity; it is not a property of a player.",

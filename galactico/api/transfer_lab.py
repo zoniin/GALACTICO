@@ -20,7 +20,7 @@ Other leagues are an opt-in, and every such row carries the not-strength-adjuste
 
 Nothing has been tested: E-12, which would test whether a rate repeats after a move, is not
 registered, so a recorded rate carries the NOT_REGISTERED badge and no sentence here says
-otherwise. E-11 is registered and not run.
+otherwise. E-11 and E-10 are registered and not run.
 
 Every handler follows the runtime skeleton: start the route's budget, resolve the scenario
 (404), then inside ``runtime.lab_errors`` key the cache on the request as resolved and on the

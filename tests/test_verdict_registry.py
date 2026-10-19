@@ -1,7 +1,7 @@
 """The verdict registry: constructor rules, derivations, and its tie to committed files.
 
-Data-free. The registry ships E-11's records, registered and not run, so every
-check that walks it is written as a function of (registry, repository root) and
+Data-free. The registry ships E-11's and E-10's records, registered and not run, so
+every check that walks it is written as a function of (registry, repository root) and
 run twice: on the shipped registry and tree, where it must find nothing wrong,
 and on a synthetic experiment tree built here, where it must pass when the record
 and files agree AND fail when one of them is edited. A walker that only ever saw
@@ -133,13 +133,14 @@ def test_v7_allows_only_the_records_own_experiment_id():
 
 # ---- derivations ------------------------------------------------------------
 
-def test_the_shipped_registry_holds_e11_pending_and_answers_not_registered_otherwise():
+def test_the_shipped_registry_holds_e11_and_e10_pending_and_answers_not_registered_otherwise():
     config = json.loads((ROOT / V._E11_DIRECTORY / "config.json").read_text(encoding="utf-8"))
-    assert {r.experiment_id for r in V.VERDICTS.values()} == {"E-11"}
-    assert sorted(r.subject_id for r in V.VERDICTS.values()) == sorted(
+    assert {r.experiment_id for r in V.VERDICTS.values()} == {"E-10", "E-11"}
+    e11 = [r for r in V.VERDICTS.values() if r.experiment_id == "E-11"]
+    assert sorted(r.subject_id for r in e11) == sorted(
         [*V._E11_CELL_SUBJECTS, *V._E11_LINK_SUBJECTS])
-    assert len(V.VERDICTS) == 16
-    for rec in V.VERDICTS.values():
+    assert len(e11) == 16 and len(V.VERDICTS) == 16 + 7
+    for rec in e11:
         assert rec.token == PENDING and rec.tier is Tier.LOCAL
         assert rec.protocol_commit is None and rec.results_hash is None and rec.figures == ()
         v = V.derive(rec)
@@ -150,7 +151,8 @@ def test_the_shipped_registry_holds_e11_pending_and_answers_not_registered_other
         assert V.badge_text(v) == "E-11 · RECORD ONLY · NOT RUN"
         assert (v.may_gate, v.hostable, v.product_state) == (False, False, ProductState.NOT_RUN)
     assert [(p["experiment_id"], p["subject_id"]) for p in V.all_payloads()] == sorted(
-        ("E-11", s) for s in [*V._E11_CELL_SUBJECTS, *V._E11_LINK_SUBJECTS])
+        [*(("E-11", s) for s in [*V._E11_CELL_SUBJECTS, *V._E11_LINK_SUBJECTS]),
+         *(("E-10", s) for group in V._E10_SUBJECT_GROUPS.values() for s in group)])
     # Every sentence is the frozen config's, verbatim.
     cell, link = V.record("E-11", "progression"), V.record("E-11", "wide_link_tier_a")
     for rec, kind in ((cell, "cell"), (link, "link")):
@@ -163,9 +165,44 @@ def test_the_shipped_registry_holds_e11_pending_and_answers_not_registered_other
             config["registry_common"]["non_claim"], config["registry_common"]["not_run_statement"])
     assert list(V._E11_CELL_SUBJECTS) == config["registry_cell_subjects"]
     assert list(V._E11_LINK_SUBJECTS) == list(config["registry_link_subjects"])
-    # Every other subject answers NOT_REGISTERED, E-11's unlisted ones included.
+    # E-10: seven PUBLIC records, one per subject of ``subject_groups``, in its order.
+    config = json.loads((ROOT / V._E10_DIRECTORY / "config.json").read_text(encoding="utf-8"))
+    assert config["committed_experiment_dir"] == V._E10_DIRECTORY
+    assert {g: list(s) for g, s in V._E10_SUBJECT_GROUPS.items()} == config["subject_groups"]
+    assert config["subject_groups"]["level"] == [config["level_subject"]]
+    e10 = [r for r in V.VERDICTS.values() if r.experiment_id == "E-10"]
+    assert [r.subject_id for r in e10] == [
+        s for group in config["subject_groups"].values() for s in group]
+    for group, subjects in config["subject_groups"].items():
+        kind = "level" if group == "level" else "descriptor"
+        for subject in subjects:
+            rec = V.record("E-10", subject)
+            assert rec.token == PENDING and rec.tier is Tier[config["tier"]] is Tier.PUBLIC
+            assert rec.protocol_commit is None and rec.results_hash is None
+            assert rec.figures == ()
+            assert (rec.scope, rec.claim_token) == (config[f"registry_{kind}"]["scope"],
+                                                    config[f"registry_{kind}"]["claim_token"])
+            assert rec.vocabulary == tuple(config["verdict_vocabulary"][kind])
+            assert {t: (o.status.value, o.limits, o.statement, o.registry_move)
+                    for t, o in rec.outcomes.items()} \
+                == {t: (o["status"], o["limits"], o["statement"], "NONE")
+                    for t, o in config["registry_outcomes"][kind].items()}
+            assert (rec.non_claim, rec.not_run_statement) == (
+                config["registry_non_claims"][group],
+                config["registry_common"]["not_run_statement"])
+            v = V.derive(rec)
+            assert (v.status, v.basis, v.protocol_verdict) == (
+                VerdictStatus.RECORD_ONLY, VerdictBasis.REGISTERED_NOT_RUN, None)
+            assert v.statement == "E-10 is registered and not run. Nothing has been compared."
+            assert V.badge_text(v) == "E-10 · RECORD ONLY · NOT RUN"
+            # PUBLIC, so hostable; PENDING, so it gates nothing and has no figure.
+            assert (v.may_gate, v.hostable, v.product_state) == (
+                False, True, ProductState.NOT_RUN)
+            assert V.figures_for("E-10", subject) == {}
+    # Every other subject answers NOT_REGISTERED, E-11's and E-10's unlisted ones included.
     for experiment_id, subject in (("E-09", "shot_volume"), ("E-10", "x"), ("", ""),
-                                   ("E-99", "/"), ("E-11", "xt_sum")):
+                                   ("E-99", "/"), ("E-11", "xt_sum"),
+                                   ("E-10", "conceded_f3_entries_by_channel_sb")):
         v = V.verdict_for(experiment_id, subject)
         assert (v.status, v.basis) == (VerdictStatus.RECORD_ONLY, VerdictBasis.NOT_REGISTERED)
         assert V.badge_text(v) == "RECORD ONLY · NOT TESTED"

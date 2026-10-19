@@ -1,5 +1,5 @@
-"""The registered E-11 protocol and the E-09 draft hold together with themselves and with
-the shipped guards.
+"""The registered E-11 and E-10 protocols and the E-09 draft hold together with themselves
+and with the shipped guards.
 
 Data-free. The third audit of the E-11 draft found three defects by reading: a frozen
 registry sentence the response boundary would refuse, three config keys that named a
@@ -16,12 +16,19 @@ and over every key E-09's PIPELINE.md section 7.1 and the section 6 dataclasses 
 ``results.json``. An E-09 audit applied the same checks from a scratch script; here they
 run with the suite.
 
+E-10's twin (its PIPELINE.md section 13) runs E-11's three checks on the registered E-10
+files: the pipeline hash its config pins; every registry sentence and figure sentence through
+the response boundary under ``PENDING`` and every token of each kind, figures only under the
+tokens ``registry_figures.on_tokens`` names; and no key at any depth of ``config.json`` or
+``descriptor_test_vectors.json`` that names a provider or starts with ``SB_``.
+
 Claim: on these points the files agree with each other and with ``domain.verdicts``,
 ``api.runtime.finalize``, ``domain.labels``, ``domain.thesis`` and the key rule of
 ``tests/test_licensing.py``. Non-claim: nothing here says either protocol is sound, and
 nothing reads data. ``DRAFT`` named the E-11 draft folder until its registration commit,
-which pointed it at the registered directory (PIPELINE.md section 13); ``E09`` names the
-E-09 draft folder until E-09's registration commit does the same. Until a pipeline exists
+which pointed it at the registered directory (PIPELINE.md section 13); ``E10`` names E-10's
+registered directory from its registration commit; ``E09`` names the E-09 draft folder until
+E-09's registration commit does the same. Until a pipeline exists
 nothing else ties a protocol's files to each other.
 """
 
@@ -39,7 +46,14 @@ from galactico.api.runtime import HOSTED_PROVIDERS, BoundaryViolation, finalize
 from galactico.domain import verdicts as V
 from galactico.domain.labels import scan_labels
 from galactico.domain.thesis import BANNED_KEY_PARTS, banned_key_paths
-from galactico.domain.verdicts import PENDING, Outcome, Tier, VerdictRecord, VerdictStatus
+from galactico.domain.verdicts import (
+    PENDING,
+    Figure,
+    Outcome,
+    Tier,
+    VerdictRecord,
+    VerdictStatus,
+)
 from galactico.validation.digests import lf_sha256, lf_sha256_text
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -416,3 +430,150 @@ def test_e09_no_key_of_the_config_or_the_results_shape_is_refused() -> None:
     assert sorted(found["denylist"]) == ["id", "provenance.config.candidates[0].id"]
     assert sorted(found["banned"]) == ["provenance.config.rank_ties", "rank_ties"]
     assert sorted(found["provider"]) == ["provenance.config.zones[0].wyscout_x", "wyscout_x"]
+
+
+# --- E-10: the registered protocol (its PIPELINE.md section 13) -------------------------------
+
+E10 = ROOT / "experiments/preregistered/E-10-conceded-shape"
+E10_KINDS = ("descriptor", "level")
+E10_FIGURE_VALUES = {"k_context": 25, "k_unit": 50, "reliability_lower_bound": 0.75}
+"""Stand-ins of the right JSON type for the boundary check; no value is read from a result."""
+
+
+def e10_config() -> dict:
+    return json.loads((E10 / "config.json").read_text(encoding="utf-8"))
+
+
+def e10_vectors() -> dict:
+    return json.loads((E10 / "descriptor_test_vectors.json").read_text(encoding="utf-8"))
+
+
+def sb_prefixed_keys(node: object, path: str = "") -> list[str]:
+    """Every key, at any depth, that starts with ``SB_``."""
+    found: list[str] = []
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            here = f"{path}.{key}" if path else str(key)
+            if str(key).startswith("SB_"):
+                found.append(here)
+            found += sb_prefixed_keys(value, here)
+    elif isinstance(node, list):
+        for position, value in enumerate(node):
+            found += sb_prefixed_keys(value, f"{path}[{position}]")
+    return found
+
+
+def e10_records(config: Mapping, kind: str, token: str) -> dict[str, VerdictRecord]:
+    """The records E-10's PIPELINE.md 12.1 and 12.2 build for one kind, every subject at
+    ``token``, with the figures of ``registry_figures`` only under its ``on_tokens``."""
+    vocabulary = tuple(config["verdict_vocabulary"][kind])
+    outcomes = {
+        name: Outcome(VerdictStatus[outcome["status"]], outcome["limits"], outcome["statement"])
+        for name, outcome in config["registry_outcomes"][kind].items()
+    }
+    executed = {} if token == PENDING else {
+        "token": token, "protocol_commit": COMMIT, "results_hash": HASH}
+    groups = [g for g in config["subject_groups"] if (g == "level") == (kind == "level")]
+    built = {}
+    for group in groups:
+        for subject in config["subject_groups"][group]:
+            figures = tuple(
+                Figure(f["key"], E10_FIGURE_VALUES[f["key"]], f["unit"], f["sentence"],
+                       f["pointer"].format(subject=subject))
+                for f in config["registry_figures"][kind]
+            ) if token in config["registry_figures"]["on_tokens"] else ()
+            record = VerdictRecord(
+                experiment_id=config["registry_experiment_id"],
+                subject_id=subject,
+                scope=config[f"registry_{kind}"]["scope"],
+                tier=Tier[config["tier"]],
+                directory=config["committed_experiment_dir"],
+                claim_token=config[f"registry_{kind}"]["claim_token"],
+                non_claim=config["registry_non_claims"][group],
+                not_run_statement=config["registry_common"]["not_run_statement"],
+                vocabulary=vocabulary,
+                outcomes=outcomes,
+                protocol_hash=HASH,
+                config_hash=HASH,
+                figures=figures,
+                **executed,
+            )
+            built[record.claim_id] = record
+    return built
+
+
+def e10_boundary_refusals(config: Mapping, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """What the registry constructor or the verdicts endpoint's boundary refuses, every
+    subject of each kind served under PENDING and under every token of its vocabulary."""
+    refused: list[str] = []
+    for kind in E10_KINDS:
+        for token in (PENDING, *config["verdict_vocabulary"][kind]):
+            try:
+                registry = e10_records(config, kind, token)
+            except ValueError as error:
+                refused.append(f"{kind} {token}: {error}")
+                continue
+            monkeypatch.setattr(V, "VERDICTS", registry)
+            payload = {"verdicts": V.all_payloads(),
+                       "provenance": {"providers": list(HOSTED_PROVIDERS)}}
+            try:
+                finalize(payload)
+            except BoundaryViolation as error:
+                refused.append(f"{kind} {token}: {error}")
+    return refused
+
+
+def test_e10_the_pipeline_hash_the_config_pins_is_the_pipeline_file() -> None:
+    pinned = e10_config()["pipeline_spec_sha256"]
+    assert lf_sha256(E10 / "PIPELINE.md") == pinned, (
+        "E-10 PIPELINE.md changed: it is registered, and its hash is pinned in the config")
+    text = (E10 / "PIPELINE.md").read_text(encoding="utf-8")
+    assert lf_sha256_text(text + " ") != pinned
+    assert lf_sha256_text(text.replace("\n", "\r\n")) == pinned
+
+
+def test_e10_every_registry_and_figure_sentence_is_served_under_every_token(monkeypatch) -> None:
+    config = e10_config()
+    assert e10_boundary_refusals(config, monkeypatch) == []
+    # The figures were served: under each kind's established token, and under no other.
+    for kind, token in (("descriptor", "DEFENDER_SHAPE_SIGNAL"), ("level", "LEVEL_ESTABLISHED")):
+        assert token in config["registry_figures"]["on_tokens"]
+        monkeypatch.setattr(V, "VERDICTS", e10_records(config, kind, token))
+        served = V.all_payloads()
+        assert served and all(
+            [f["sentence"] for f in p["figures"]]
+            == [f["sentence"] for f in config["registry_figures"][kind]] for p in served)
+
+    planted = copy.deepcopy(config)
+    planted["registry_figures"]["descriptor"][2]["sentence"] = (
+        "Lower bound of the split-half reliability of the line height of the team.")
+    refused = e10_boundary_refusals(planted, monkeypatch)
+    assert len(refused) == 1 and refused[0].startswith("descriptor DEFENDER_SHAPE_SIGNAL: ")
+    assert "line height" in refused[0]
+
+    planted = copy.deepcopy(config)
+    planted["registry_non_claims"]["own_actions"] += " It is not the line height."
+    refused = e10_boundary_refusals(planted, monkeypatch)
+    assert len(refused) == 1 + len(config["verdict_vocabulary"]["descriptor"])
+    assert all(reason.startswith("descriptor ") and "line height" in reason
+               for reason in refused)
+
+
+def test_e10_no_key_of_the_config_or_the_vectors_names_a_provider() -> None:
+    config, vectors = e10_config(), e10_vectors()
+    for document in (config, vectors):
+        assert provider_named_keys(document) == []
+        assert sb_prefixed_keys(document) == []
+    assert all(name in config["key_naming"] for name in config["forbidden_result_key_names"])
+
+    planted = copy.deepcopy(config)
+    planted["replication"]["statsbomb_root"] = planted["replication"].pop("sb_root")
+    planted["SB_location_scale"] = planted["replication"].pop("sb_location_scale")
+    assert provider_named_keys(planted) == ["replication.statsbomb_root"]
+    assert sb_prefixed_keys(planted) == ["SB_location_scale"]
+    planted = copy.deepcopy(vectors)
+    planted["Wyscout"] = planted.pop("wy")
+    planted["sb"]["SB_conceded_shots_inside_box_share"] = planted["sb"].pop(
+        "conceded_shots_inside_box_share_sb")
+    assert provider_named_keys(planted) == ["Wyscout"]
+    assert sb_prefixed_keys(planted) == ["sb.SB_conceded_shots_inside_box_share"]

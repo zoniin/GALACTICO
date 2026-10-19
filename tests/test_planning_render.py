@@ -1055,13 +1055,16 @@ def test_the_catalogue_the_server_serves_renders_through_the_kit(tmp_path: Path)
         assert f'<option value="{source["source"]}"' in got["editor"]
     assert got["missing"].count("<li data-item=") == len(served["not_measured"])
     assert html.unescape(got["missing"]).count(served["not_measured_closing"]) == 1
-    # E-11 is registered and not run: one row per record, each with its own badge, and
-    # the server's sentence once. Nothing is drawn as established or gating.
+    # E-11 and E-10 are registered and not run: one row per record, each with its own badge,
+    # and the server's sentence once. Nothing is drawn as established or gating.
     assert served["verdicts"] == planning.verdict_reading()[0] and served["verdicts"]
     assert served["research_statement"] == planning.REGISTERED_NOT_TESTED_STATEMENT
     assert got["research"].count("<tr data-experiment=") == len(served["verdicts"])
-    assert got["research"].count(">E-11 · RECORD ONLY · NOT RUN</span>") == len(
-        served["verdicts"])
+    by_experiment = {e: sum(v["experiment_id"] == e for v in served["verdicts"])
+                     for e in ("E-10", "E-11")}
+    assert by_experiment == {"E-10": 7, "E-11": 16}
+    for experiment, count in by_experiment.items():
+        assert got["research"].count(f">{experiment} · RECORD ONLY · NOT RUN</span>") == count
     assert got["research"].count('data-may-gate="false"') == len(served["verdicts"])
     for form in ('data-verdict="ESTABLISHED"', 'data-may-gate="true"', 'data-basis="EXECUTED"'):
         assert form not in got["research"]

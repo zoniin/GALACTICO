@@ -125,8 +125,8 @@ def _clean(payload: dict, thesis_guard) -> None:
     assert payload["carry_over_statement"] == transfer_lab.CARRY_OVER_STATEMENT
     assert "has not been established" in payload["carry_over_statement"]
     assert payload["provenance"]["providers"] == ["pappalardo"]
-    # Nothing has been tested: E-11 is registered and not run, and a row carries no verdict,
-    # or the NOT_REGISTERED one.
+    # Nothing has been tested: E-11 and E-10 are registered and not run, and a row carries no
+    # verdict, or the NOT_REGISTERED one.
     assert payload["provenance"]["verdicts"] == planning.verdict_reading()[0]
     assert {v["basis"] for v in payload["provenance"]["verdicts"]} == {"REGISTERED_NOT_RUN"}
     assert {row["verdict"]["basis"] for row in payload["ledger"] if row["verdict"]} \

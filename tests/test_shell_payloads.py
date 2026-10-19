@@ -167,10 +167,17 @@ def test_verdict_payload_is_the_registry_payload(monkeypatch):
     payload = shell.verdict_payload("E-10", "conceded_f3_entries_per_90")
     assert payload == verdicts.as_payload(
         verdicts.verdict_for("E-10", "conceded_f3_entries_per_90"))
-    # E-10 is not registered: every such subject is a record nobody tested.
-    assert payload["badge"] == "RECORD ONLY · NOT TESTED"
-    assert payload["basis"] == "NOT_REGISTERED" and payload["may_gate"] is False
-    assert payload["figures"] == []
+    # E-10 is registered and not run: its level subject is a PUBLIC record nobody tested.
+    assert payload["badge"] == "E-10 · RECORD ONLY · NOT RUN"
+    assert payload["basis"] == "REGISTERED_NOT_RUN" and payload["may_gate"] is False
+    assert payload["tier"] == "PUBLIC" and payload["figures"] == []
+    # A subject no protocol registers is a record nobody tested.
+    unregistered = shell.verdict_payload("E-10", "conceded_f3_entries_by_channel_sb")
+    assert unregistered == verdicts.as_payload(
+        verdicts.verdict_for("E-10", "conceded_f3_entries_by_channel_sb"))
+    assert unregistered["badge"] == "RECORD ONLY · NOT TESTED"
+    assert unregistered["basis"] == "NOT_REGISTERED" and unregistered["may_gate"] is False
+    assert unregistered["figures"] == []
 
     sentinel = {"badge": "from the registry"}
     monkeypatch.setattr(verdicts, "as_payload", lambda verdict: sentinel)

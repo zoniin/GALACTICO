@@ -32,7 +32,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "e10_root_counts.py"
-DRAFT = ROOT / "docs/research/north-star/protocol-drafts/E-10-conceded-shape/config.json"
+REGISTERED = ROOT / "experiments/preregistered/E-10-conceded-shape/config.json"
 CARDS = ("red_card", "second_yellow")
 REGULATION = ("1H", "2H")
 
@@ -49,8 +49,8 @@ def counts() -> ModuleType:
         sys.modules.pop(spec.name, None)
 
 
-def draft() -> dict:
-    return json.loads(DRAFT.read_text(encoding="utf-8"))
+def registered() -> dict:
+    return json.loads(REGISTERED.read_text(encoding="utf-8"))
 
 
 def actions(rows) -> pd.DataFrame:
@@ -75,19 +75,19 @@ def options(**more) -> dict:
 # --------------------------------------------------------------------------------- config
 
 
-def test_the_draft_config_states_the_rules_the_script_counts(counts) -> None:
-    chosen = counts.settings(draft())
+def test_the_registered_config_states_the_rules_the_script_counts(counts) -> None:
+    chosen = counts.settings(registered())
     assert chosen.leagues == ("Spain", "England", "Italy", "Germany", "France")
     assert chosen.dismissal_cards == CARDS
     assert chosen.regulation_periods == REGULATION
     assert (chosen.sheet_table, chosen.sheet_field) == ("squads", "red_minute")
     assert chosen.minimum_share == Fraction(1, 2)
     assert chosen.evaluation_start == "2018-01-01"
-    assert chosen.fallback == draft()["dismissal_check_fallback"]
-    items = draft()["verified_by_root_before_registration"]
+    assert chosen.fallback == registered()["dismissal_check_fallback"]
+    items = registered()["verified_by_root_before_registration"]
     # Items 3, 4 and 5, in that order, are the three pinned texts.
     assert items[2:5] == list(counts.PINNED_ITEMS.values())
-    assert counts.DEFAULT_CONFIG == DRAFT
+    assert counts.DEFAULT_CONFIG == REGISTERED
 
 
 @pytest.mark.parametrize("edit", [
@@ -103,7 +103,7 @@ def test_the_draft_config_states_the_rules_the_script_counts(counts) -> None:
 ])
 def test_a_config_whose_words_differ_is_refused_and_nothing_is_counted(counts, edit, tmp_path,
                                                                      monkeypatch, capsys) -> None:
-    config = copy.deepcopy(draft())
+    config = copy.deepcopy(registered())
     edit(config)
     with pytest.raises(counts.ConfigRefused):
         counts.settings(config)
@@ -121,8 +121,9 @@ def test_a_config_whose_words_differ_is_refused_and_nothing_is_counted(counts, e
 
 def test_settings_and_main_count_with_the_values_the_config_states(counts, tmp_path,
                                                                    monkeypatch, capsys) -> None:
-    """Four values edited in a copy of the draft, its words unchanged: each reaches the counts."""
-    config = copy.deepcopy(draft())
+    """Four values edited in a copy of the registered config, its words unchanged: each reaches
+    the counts."""
+    config = copy.deepcopy(registered())
     config["dismissal_assumption_minimum_share"] = 0.6
     config["regulation_periods"] = [*config["regulation_periods"], "E1"]
     config["evaluation_start"] = "2018-02-01"
@@ -472,7 +473,7 @@ def test_load_league_reads_only_the_named_columns_through_the_shipped_loaders(
     monkeypatch.setattr(sidecar, "load", load)
     monkeypatch.setattr(sidecar, "provenance", lambda league: {"competition": league})
     monkeypatch.setattr(public, "load_public", load_public)
-    frames = counts.load_league("Spain", counts.settings(draft()))
+    frames = counts.load_league("Spain", counts.settings(registered()))
     assert asked == [
         ("verify", "Spain"),
         ("sidecar", "Spain", "events", ("event_id", "card")),
@@ -518,7 +519,7 @@ def test_main_prints_a_table_per_count_and_names_no_team_or_player(counts, monke
     assert re.search(r"^Italy .*0/1 = 0\.0000\s+0\.5\s+no\s+0\s+0\s+0$", out, re.MULTILINE)
     assert "parts, changing no count: 'of which player_id 0'" in out
     assert "the assumption holds in every league: no" in out
-    assert draft()["dismissal_check_fallback"] in out
+    assert registered()["dismissal_check_fallback"] in out
     assert "Spain A before: 1/1:2" in out and "Spain B home: 0/1:1 1/1:1" in out
     for base in bases.values():
         for offset in (1, 2, 11, 12, 21):

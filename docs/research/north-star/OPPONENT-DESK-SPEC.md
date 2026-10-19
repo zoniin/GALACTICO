@@ -49,7 +49,7 @@ and forms no requirement proposal: those are read, and a proposal accepted, on O
 | ROOT 2.7 X6 | the same default for XI parts outside XI Lab's main solve |
 | ROOT 2.9 Z3 | one estimator, `galactico/features/team/estimator.py`, product side; the panel calls it, never a copy |
 | ROOT 2.9 Z5 | no hosted label from E-10's LOCAL replication arm |
-| ROOT 2.12 N1-N7 | the rulings on this file's questions (Root rulings): the record gate opens at E-10's results commit (N1) and E-10's product table is aligned to it before registration (N2); the desk reaches the record and the proposal by a link to Opponent Lab (N3); S3, S4 and S5 wait for an E-09 record (N4); ADR-0031 overrides R13 for the nav bytes and pinned tests (N5); E-10's registration commit rewords planning's `shots` item (N6); the order of work (N7, 0.2) |
+| ROOT 2.12 N1-N7 | the rulings on this file's questions (Root rulings): the record gate opens at E-10's results commit (N1) and E-10's product table is aligned to it before registration (N2); the desk reaches the record and the proposal by a link to Opponent Lab (N3); S3, S4 and S5 wait for an E-09 record (N4); ADR-0032 overrides R13 for the nav bytes and pinned tests (N5); E-10's registration commit rewords planning's `shots` item (N6); the order of work (N7, 0.2) |
 | ROOT 3b | `galactico/models/opponent/` is the prior-date opponent record; `api/opponent_lab.py`, `api/desk.py`, `web/opponent.html`, `web/desk.html`; the root registers the routers; `verdicts.py` is the only thing product code reads from research |
 | E-10 PIPELINE 2.5 and 11 (row 1) | no WP A file is executed on `data/` before E-10's code review, and the only real-data test before the run requests no descriptor column; with R5, the reason the record waits for E-10's run (1.7, DISSENT 1, N1) |
 | E-10 PIPELINE 12.3 | when the estimate is shown, how it is computed, the proposal qualifiers, the tests the module carries |
@@ -98,7 +98,7 @@ The order is ROOT 2.12 N7's; N2 and N6 fix what E-10's registration carries for 
    then on disk, frozen with the registered PIPELINE.
 4. The build follows that commit (N7). This work is built on WP A, unit-tested on synthetic
    tables only and reviewed against section 10; then the root registers the two routers and the
-   two nav entries in one commit with ADR-0031, which carries N5's R13 override (section 11).
+   two nav entries in one commit with ADR-0032, which carries N5's R13 override (section 11).
 5. E-10's code review (PIPELINE 11), gate stamp, run and results commit proceed as PIPELINE 13
    says. The record gate of 1.7 opens at that results commit, when every E-10 record is
    `EXECUTED`, and not before (N1).
@@ -787,7 +787,7 @@ so a cold XI request can last its budget plus the solve and one build. The budge
 numbers, not measurements. The XI route without rules, and the desk, read no record and are
 measured on the corpus before the routers are registered; the record and proposal routes cannot
 compute before E-10's results commit (1.7), so their cold times and peak memory are measured then
-and recorded as a note to ADR-0031 in that commit (section 11), as X5 timed the risk routes; a
+and recorded as a note to ADR-0032 in that commit (section 11), as X5 timed the risk routes; a
 budget is raised there if a measurement needs it. The router is
 `APIRouter(route_class=decision_lab.DecisionRoute)`; no path collides with another router's
 (`tests/test_xi_extensions_api.py:1745-1766` pattern).
@@ -1142,7 +1142,7 @@ nor cleared; `runtime.router` still serves only `/api/evidence/verdicts`
 (`tests/test_lab_runtime.py:783-798`); runtime, squad and transfer still serve exactly 14 API
 paths (`tests/test_planning_api.py:1630-1650`); `runtime.BUDGETS` and `LONG_ROUTES` are unchanged.
 The HTML of the five shipped pages changes in its nav block only, by the root's edit under the
-R13 override ROOT 2.12 N5 rules (R-4), named in ADR-0031 (section 11), as W8 names its overrides.
+R13 override ROOT 2.12 N5 rules (R-4), named in ADR-0032 (section 11), as W8 names its overrides.
 
 ## 6. API: `galactico/api/desk.py`
 
@@ -1608,8 +1608,8 @@ present, and a record screenshot only after E-10's results commit (1.7).
 |---|---|---|
 | `test_reference_club_median_is_the_snapshot_normaliser` | no: it reads the reference and the match snapshot, no E-10 quantity | 4.3 |
 | `test_xi_part_equals_api_xi_solve_real` | no rule: no; an accepted proposal: yes | the parity of 8.1 on the real snapshot at both decision points |
-| `test_xi_and_desk_build_time_and_memory` | no | cold time of the XI route without rules and of a desk compose, and peak RSS, without asserting a number, for ADR-0031 before registration (5.1) |
-| `test_record_build_time_and_memory` | yes | cold build time of one league's table, the record request time and peak RSS, without asserting a number, for the note to ADR-0031 at E-10's results commit (5.1) |
+| `test_xi_and_desk_build_time_and_memory` | no | cold time of the XI route without rules and of a desk compose, and peak RSS, without asserting a number, for ADR-0032 before registration (5.1) |
+| `test_record_build_time_and_memory` | yes | cold build time of one league's table, the record request time and peak RSS, without asserting a number, for the note to ADR-0032 at E-10's results commit (5.1) |
 | `test_loader_tables_equal_the_runners_real` | yes | the parity test of 8.1 on Spain |
 
 No other test of this work compares `match__` columns with `build_match`: PIPELINE 9's
@@ -1671,7 +1671,7 @@ The reviewer signs each line before the root registers the routers.
 10. JS computes no number and sorts nothing (the render tests pass); both pages pass at 390 and
     320 px.
 11. The XI route's and the desk's budgets are measured on the corpus and the numbers are in
-    ADR-0031 before the pages are linked from the nav; the record and proposal budgets are
+    ADR-0032 before the pages are linked from the nav; the record and proposal budgets are
     measured at E-10's results commit (5.1).
 
 ## 11. Requests to the root
@@ -1679,7 +1679,7 @@ The reviewer signs each line before the root registers the routers.
 | File | Change |
 |---|---|
 | `galactico/api/player_lab.py` | after `app.include_router(xi_extensions_router)` (player_lab.py:61): `from .opponent_lab import router as opponent_router` and `from .desk import router as desk_router` with the other imports, then `app.include_router(opponent_router)` and `app.include_router(desk_router)`. Both import nothing heavy at import (8.1) |
-| `galactico/api/shell.py` | `Destination` gains `sr_suffix: str = " Lab"`, and `nav_markup` writes `f'<span class="sr-only">{destination.sr_suffix}</span>'` only when it is non-empty (the five shipped links keep their bytes); `DESTINATIONS` gains `Destination("opponent", "/opponent", "Opponent", "matchday")` after XI and `Destination("desk", "/desk", "Desk", "desk", sr_suffix=" (Director’s desk)")` last, with U+2019 (7.1); the module docstring's "Five destinations ship" becomes seven. In the same commit as the two routers and ADR-0031 (N7), never before (a nav link to a missing page is a 404, shell.py:11-12) |
+| `galactico/api/shell.py` | `Destination` gains `sr_suffix: str = " Lab"`, and `nav_markup` writes `f'<span class="sr-only">{destination.sr_suffix}</span>'` only when it is non-empty (the five shipped links keep their bytes); `DESTINATIONS` gains `Destination("opponent", "/opponent", "Opponent", "matchday")` after XI and `Destination("desk", "/desk", "Desk", "desk", sr_suffix=" (Director’s desk)")` last, with U+2019 (7.1); the module docstring's "Five destinations ship" becomes seven. In the same commit as the two routers and ADR-0032 (N7), never before (a nav link to a missing page is a 404, shell.py:11-12) |
 | `web/match.html`, `web/xi.html`, `web/squad.html`, `web/transfer.html` | the nav block replaced by the new `nav_markup(dest)` bytes, nothing else (under N5's R13 override, R-4) |
 | `web/index.html` | two links in its own nav (index.html:189-199), `/opponent` and `/desk` (under N5's R13 override, R-4) |
 | `web/labs-shared.css` | only if the 320 px check of seven links and three separators overflows (labs-shared.css:8-11) |
@@ -1687,7 +1687,7 @@ The reviewer signs each line before the root registers the routers.
 | `.github/workflows/ci.yml:69` | add `e2e/opponent.spec.js e2e/desk.spec.js` to the playwright command (both branch on the registry state, 8.4) |
 | `galactico/api/runtime.py:331-342` and `tests/test_lab_runtime.py:399-408` (recommended) | `source_fingerprint` also hashes `models/opponent/*.py` and `features/team/*.py`, and the pinned set says so |
 | `galactico/api/planning.py` (E-10's registration commit, N6) | E-10's registration commit carries it: N6 rules (R-5) that PIPELINE 13's line for "the wording that names the registered protocols" covers it, and N2's edit names it in that line. The change: the `shots` item of `NOT_MEASURED_EXTRA` (planning.py:1439-1442), whose "No registered protocol tests one" is false once E-10 registers `conceded_shots_inside_box_share`, reworded, for example "No shot construct is shown on a planning page. E-11, registered and not run, compares only whether two providers agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning page shows." The desk serves `planning.not_measured()` and inherits the edit; its test compares with planning's list, not with the text |
-| `DECISIONS.md` | ADR-0031 "Opponent Lab and the Director's desk": Problem (ROOT 2.3's two surfaces unbuilt; KNOWN_LIMITATIONS "not implemented"), Decision (sections 1.7, 2.2, 3, 4.5, 6.3 and 6.4 of this file), the R13 override (ROOT 2.12 N5, ruling R-4: in the form of W8, overriding R13 for exactly the nav bytes of `web/index.html`, `match.html`, `xi.html`, `squad.html` and `transfer.html` and the pinned tests above; `d9bf28f`'s earlier nav edit for Squad and Transfer Lab recorded as the same kind of edit, made without naming R13), Evidence (the oracle, parity and loader tests, the measured times and memory of 8.5), Alternatives rejected (a record before E-10's run; a record in a window E-10 does not register; a second estimator; a proposal with default thresholds; comparing two parts of a record; an acceptance not bound to the proposal shown; client-side composition of the desk; the desk showing descriptors or forming proposals; carrying declarations across pages by URL), Relation to ADR-0018, ADR-0019, ADR-0024; and, at E-10's results commit, a note with the record and proposal routes' measured times |
+| `DECISIONS.md` | ADR-0032 "Opponent Lab and the Director's desk": Problem (ROOT 2.3's two surfaces unbuilt; KNOWN_LIMITATIONS "not implemented"), Decision (sections 1.7, 2.2, 3, 4.5, 6.3 and 6.4 of this file), the R13 override (ROOT 2.12 N5, ruling R-4: in the form of W8, overriding R13 for exactly the nav bytes of `web/index.html`, `match.html`, `xi.html`, `squad.html` and `transfer.html` and the pinned tests above; `d9bf28f`'s earlier nav edit for Squad and Transfer Lab recorded as the same kind of edit, made without naming R13), Evidence (the oracle, parity and loader tests, the measured times and memory of 8.5), Alternatives rejected (a record before E-10's run; a record in a window E-10 does not register; a second estimator; a proposal with default thresholds; comparing two parts of a record; an acceptance not bound to the proposal shown; client-side composition of the desk; the desk showing descriptors or forming proposals; carrying declarations across pages by URL), Relation to ADR-0018, ADR-0019, ADR-0024; and, at E-10's results commit, a note with the record and proposal routes' measured times |
 | `KNOWN_LIMITATIONS.md` | "Product scope" (:418-422): Opponent Lab and the desk are implemented, with what they are; "The tag sidecar holds facts, and nothing has read it yet" (:271-283): Opponent Lab reads cards, own goals, goals and the sheet's dismissals, after `verify`, once E-10 has run; new entries: the record is withheld until E-10 has run (1.7); S3, S4 and S5 are withheld until E-09 is registered (N4); one window, E-10's; a record is not adjusted for opponents or strength and cannot tell funnelling from failing to close (H14); a proposal is a declared HEURISTIC policy; the per-match chain exists at two Madrid decision points only; the desk's per-match chain takes a decision point and a mode, and minima, locks, exclusions, proposals, the frontier and the risk modes are declared on Opponent Lab and XI Lab; the desk page offers presets, the opt-in, the formation, the slot, stress and leagues, and requirement declarations, exclusions, locks and filters are declared on Squad and Transfer Lab; the desk is sequential, can take its budget plus one build per part that starts cold, and holds two of the sixteen places; a league without a built sidecar has no record (CI builds Spain only) |
 | `README.md`, `ARCHITECTURE.md` | the three model modules, the two routers and the six web files in the module tables; the two labs in the product list |
 | `docs/research/north-star/README.md` | a row for this file: draft, revised after three reviews, its root questions ruled (ROOT 2.12), not audited, nothing built |
@@ -1800,10 +1800,10 @@ differ, 2.12 wins.
 - **R-4. The nav edit and R13.** Adding two destinations changes the nav bytes of
   `web/index.html`, `match.html`, `xi.html`, `squad.html`, `transfer.html` and re-pins
   `SHIPPED_XI_HTML`, `tests/test_web_shell.py` and `tests/test_shell_payloads.py`. **N5 RULED.**
-  ADR-0031 overrides R13 for exactly those nav bytes and the pinned tests section 11 names, in the
+  ADR-0032 overrides R13 for exactly those nav bytes and the pinned tests section 11 names, in the
   form of W8 ("overriding R13 ... and that commit carries an ADR naming them"). `d9bf28f`'s
   earlier nav edit for Squad and Transfer Lab is recorded there as the same kind of edit, made
-  without naming R13 (5.8, section 11's ADR-0031 row).
+  without naming R13 (5.8, section 11's ADR-0032 row).
 - **R-5. Planning's `shots` item** (section 11): whether PIPELINE 13's planning wording line
   covers the rewording at E-10's registration. **N6 RULED.** It does: E-10 PIPELINE 13's line for
   "the wording that names the registered protocols" covers rewording planning's `shots` item at
@@ -1812,7 +1812,7 @@ differ, 2.12 wins.
 - **Order** (no question was put; ruled with the five). **N7 RULED.** This file is audited, with a
   refuter per claimed blocker, until no scope has a blocker. The build follows E-10's pipeline
   commit, which brings WP A (`galactico/features/team/`). The routers and the nav entries are
-  registered in one commit with ADR-0031 (0.2, section 11).
+  registered in one commit with ADR-0032 (0.2, section 11).
 
 ## OPEN QUESTIONS
 
@@ -1897,7 +1897,7 @@ rulings).
 | P4 | major | Every sidecar failure shows the wrong remedy ("Run the Pappalardo fetch") | labs-shared.js:207-210; sidecar.py:154 | Accepted: `_sidecar_errors` catches `SidecarMissing`; `SIDECAR_UNAVAILABLE` names the build script; the page prints it verbatim (5.3, 5.6, 7.4, 8.1, 8.4) |
 | P5 | major | Same as C3 | as C3 | Accepted as C3 |
 | P6 | major | The desk's apostrophe breaks byte-equal navs | labs-shared.js:30, 72; test_shell_payloads.py:59-79 | Accepted: U+2019 (7.1, 11) |
-| P7 | major | "Every shipped route byte for byte" is false; nav edit needs an explicit R13 override | test_xi_extensions_render.py:843-861; W8 | Accepted: 5.8 limited to API routes; ADR-0031 carries the override; R-4 (5.8, 11) |
+| P7 | major | "Every shipped route byte for byte" is false; nav edit needs an explicit R13 override | test_xi_extensions_render.py:843-861; W8 | Accepted: 5.8 limited to API routes; ADR-0032 carries the override; R-4 (5.8, 11) |
 | P8 | major | Same as C13 (tests pinned to today's registry) | as C13 | Accepted as C13 |
 | P9 | major | Opponent e2e fails in the withheld state; no timeouts | playwright.config.js:25 | Accepted: branched on `record_available`, timeouts as squad.spec.js (8.4) |
 | P10 | major | Desk e2e expects outcome groups defaults cannot produce; no timeouts | transfer_lab.py:547-549; ROOT 3b | Accepted: deficiency declared by presets, branched on the served state (8.4) |

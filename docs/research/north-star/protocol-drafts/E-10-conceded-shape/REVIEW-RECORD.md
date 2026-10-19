@@ -1,8 +1,10 @@
 # E-10 review record
 
 What each round of review found in the E-10 draft and what was done with it. The draft
-(`preregistration.md`, `config.json`, `PIPELINE.md`, `descriptor_test_vectors.json`) is not
-registered and nothing in it has been run. Every number below was computed on synthetic
+(`preregistration.md`, `config.json`, `PIPELINE.md`, `descriptor_test_vectors.json`) was
+registered on 19 October 2026 under `experiments/preregistered/E-10-conceded-shape/`
+(`DECISIONS.md` ADR-0031); the four files in this folder are now one-line pointers to it, and
+nothing in it has been run. Every number below was computed on synthetic
 seasons or is arithmetic; no file under `data/` was opened in any round.
 
 ## 14 October 2026 — first review, three lenses, and the revision
@@ -657,7 +659,7 @@ served sentence or key name changed. No file under `data/` was opened. The appli
 |---|---|---|
 | `preregistration.md`, Product consequence, first paragraph | the prior-date record "is shown in every state" | shown from E-10's results commit, when all seven E-10 records are `EXECUTED` (`product_rules.record_shown_from`; ROOT 2.12 N1, N2). Before it, with no E-10 record or while any is `PENDING`, the record is neither computed for a page nor shown: each panel shows its subject's definition and badge and prints its group's non-claim and the reason (E-10 not registered; E-10 registered and not run), and no count. The paragraph gives the reasons: before registration a record of every team would be a composition E-10 tests, computed before the plan is frozen (R5); while `PENDING` it would run WP A on the corpus in the window where `PIPELINE.md` section 11 row 1 signs that nothing under review ran on `data/`, which the registry cannot tell from the time after the gate stamp (N1) |
 | `preregistration.md`, the table of registry states | four columns; the rows "no record (before registration)" and `PENDING` showed "nothing" beyond a record that was shown, with evidence class "counts OBSERVED, shares and rates DERIVED" | a column "Prior-date record". Those two rows read "withheld, not computed", each with the reason it prints, and evidence class "none: no number is shown". The four executed rows read "shown". The `INCONCLUSIVE` row now states its evidence class in full, because its "same" pointed at the `PENDING` row, which changed |
-| `preregistration.md`, the proposal bullet of `product_rules` | the qualifier `proposal_sentence_not_tested` for a record not registered, `PENDING` or `INCONCLUSIVE` | the same, plus: a proposal reads the record, so none is formed before the results commit; on a page this qualifier is then met only under `INCONCLUSIVE`, and the rule stays defined for the two earlier states |
+| `preregistration.md`, the proposal bullet of `product_rules` | the qualifier `proposal_sentence_not_tested` for a record not registered, `PENDING` or `INCONCLUSIVE` | the same, plus: a proposal reads the record, so none is formed before the results commit; on a page this qualifier is then met only under `INCONCLUSIVE`, and the rule stays defined for the two earlier states. The sentence first called it "the first qualifier"; after A12-4 (below) it names it, `proposal_sentence_not_tested`, as `PIPELINE.md` 12.3 does |
 | `PIPELINE.md` 12.3 | opened with "Shown only for a record whose `may_gate` is true", about the estimate; no rule for the record itself | a new first paragraph, **The prior-date record**, states the same rule as the protocol: no function of sections 2 and 3 runs on the corpus for a page before the results commit, and no count is served. The old opening now begins **The estimate**. The proposal bullet carries the protocol's added sentence, and its test's `PENDING` record is marked as planted. The panel test adds planted registries (no E-10 record; seven `PENDING`; six `EXECUTED` and one `PENDING`) and asserts that no count is served and that the non-claim and the reason (not registered; not run) are printed. These states and that split of reasons are those of `OPPONENT-DESK-SPEC.md` 1.7 and its `test_record_available_follows_the_registry` |
 | `config.json` `product_rules` | no key fixed when the record is shown | `record_shown_from`, a restated rule (a string that no code branches on). The Opponent Lab module holds `product_rules` verbatim, and its test ties that constant to the registered config (`PIPELINE.md` 7.5 and 12.3), so the constants carry the rule. It passes the copy guard, though it is not served |
 
@@ -687,7 +689,10 @@ reason:
 
 > No shot construct is shown. E-11, registered and not run, compares only whether two providers
 > agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning
-> page shows.
+> page shows, and its badge says whether it has run.
+
+(The last clause was added by A12-2, below: without it, "registered" beside E-11's "registered
+and not run" implied that E-10 had run.)
 
 The E-11 clause is kept as `planning.py` reads it at the time; it is ADR-0029's wording for
 E-11. Why this wording:
@@ -727,4 +732,49 @@ Checks (`n6_guard.py`):
   `scripts/check_licensing.py` reports clean.
 - N2 makes this an edit to a READY draft. An independent auditor must verify it before
   registration (ROOT 2.9 Z4), with `pipeline_spec_sha256` recomputed again if `PIPELINE.md` moves.
-  That verification has not been done.
+  That verification followed on 19 October 2026 (next section).
+
+### Verification of the alignment (ROOT 2.9 Z4), 19 October 2026
+
+An independent checker read this alignment's edits (commit `6c6529d` over this folder) against
+ROOT-DECISIONS 2.12, `OPPONENT-DESK-SPEC.md`, the copy guard and `api/runtime.finalize`, and
+claimed no blocker. It reported four minor findings. The applier checked each against the
+draft, the spec and the code; all four hold. None changes a verdict rule, criterion, gate,
+estimand, seed, registry sentence, figure or key name. As in the verification of the fourth
+revision, findings that change no verdict are applied without a further round; the one route
+that would edit the draft beyond them (A12-1, route (b)) would need its own check. E-10
+stays READY. No file under `data/` was opened. The applier's script (`shots_guard.py`) is
+data-free and is not committed.
+
+| Id | Finding | Verified | Disposition |
+|---|---|---|---|
+| A12-1 | The protocol's table shows the prior-date record from E-10's results commit in the four executed rows, and `product_rules.record_shown_from` says so for every subject. ROOT 2.12 N4, in the section whose heading binds E-10's registration, holds S3, S4 and S5 back until a registry record under `"E-09"` exists. If E-10's results commit came before E-09's registration, the product would withhold S3 to S5 while the frozen protocol says they are shown | Holds: `OPPONENT-DESK-SPEC.md` 1.7 makes `record.subject_available(subject)` need, for the three subjects of `record.E09_ADJACENT`, a key of `verdicts.VERDICTS` under `"E-09"`; the E-09 protocol is a draft, so no such key exists; the draft names no N4 condition. The draft agrees with itself, and the old "shown in every state" claimed more | Not applied to the draft, as the finding's fix says: N4 is outside N2 and N6. Put to the root before registration with its two routes: (a) record that E-09 is registered before E-10's results commit, so the frozen "shown" holds when the gate opens; (b) carry N4's condition in the table and `record_shown_from`, a further edit to a READY draft that needs its own Z4 check. The registration commit takes route (a): ADR-0031 records that E-10's results commit follows E-09's registration (ROOT 2.12 N4) |
+| A12-2 | `PIPELINE.md` 13's new `shots` reason read "E-11, registered and not run, compares only ...; E-10, registered, tests ...". Beside the E-11 clause, dropping "and not run" for E-10 alone implies that E-10 has run, which is false for the whole time the reason is served before E-10 has results | Holds. The REVIEW-RECORD's reason for the wording (no second rewording at the results commit) is sound; only the contrast misleads | Applied with the checker's text, in section 13 and in the quote above: "..., and its badge says whether it has run." It is true in both states: the record's badge reads `E-10 · RECORD ONLY · NOT RUN` until the results commit, and a TESTED or INCONCLUSIVE badge after it, in the same payload's list of registered protocols. `shots_guard.py`: `labels.scan_labels` finds nothing in it; `runtime.finalize` passes planning's whole not-measured list (fifteen items) with it in place; the reason with "should", "quality" or "expected" planted is refused. `pipeline_spec_sha256` recomputed (below) |
+| A12-3 | `PIPELINE.md` 12.3 asserts, on three planted registries (no E-10 record; seven `PENDING`; six `EXECUTED` and one `PENDING`), that no count is served and that the non-claim and the withheld reason are printed. Among the spec's named tests, `test_withheld_until_e10_has_run` checks the served payload for the first two only; `test_record_available_follows_the_registry` plants the third but checks `record_available()` alone; the spec's section 12 lists three tests for 12.3 | Holds: `OPPONENT-DESK-SPEC.md` 8.1 and 12 read as stated. The N2 table's sentence above ("These states and that split of reasons are those of ... `test_record_available_follows_the_registry`") is right about the states; no named test asserts the third state's payload | No edit to the E-10 draft, which is consistent. The fix belongs to `OPPONENT-DESK-SPEC.md`, whose own audit is running, and is passed to it: add the six-`EXECUTED`-one-`PENDING` registry to `test_withheld_until_e10_has_run`, expecting `RECORD_WITHHELD_NOT_RUN` and no count, and name that test in section 12's reconciliation as the one that meets 12.3's planted-registry sentence |
+| A12-4 | The protocol's proposal bullet said "on a page the first qualifier is then met only under `INCONCLUSIVE`"; the bullet's first branch is "none when `may_gate` is true", which is not a qualifier, and `PIPELINE.md` 12.3's matching sentence names `proposal_sentence_not_tested` | Holds | Applied: `preregistration.md` reads "on a page `proposal_sentence_not_tested` is then met only under `INCONCLUSIVE`"; the N2 table above says so. `preregistration.md` is not hashed in the config |
+
+Refuted claims: none (no blocker was claimed).
+
+What changed: `PIPELINE.md` section 13, the registration-commit row for
+`galactico/api/planning.py` (A12-2); `preregistration.md`, the proposal bullet of "Fixed in every
+state" (A12-4); `config.json`, `pipeline_spec_sha256`, recomputed with
+`galactico.validation.digests.lf_sha256` after the `PIPELINE.md` edit:
+`578ed5a095dcc9f6d16cf33d4585462407297279da600cd2f8e8fd8049f2bed7` became
+`3aa89efb8931973a5089d5ba0f661a5db4d2763da7e8b20090c5cac5c34a1353`. No other key of the config
+moved, so the keys the root's structure-only counts read (`leagues`, `dismissal_cards`,
+`regulation_periods`, `dismissal_check`, `dismissal_assumption_minimum_share`,
+`reliability_split`, `evaluation_start`) are those of the config they ran on (`lf_sha256`
+`e3a56391c320e3cf8cd1699da51d91630373c0d1fee54e9783912c459fb80c39`, commit `6c6529d`).
+`descriptor_test_vectors.json` is unchanged; its fingerprints were recomputed from its payloads
+and equal `descriptor_fingerprints` and `descriptor_fingerprints_sb`.
+
+### Registration, 19 October 2026
+
+The four files were registered in one commit under `experiments/preregistered/E-10-conceded-shape/`
+as `PIPELINE.md` section 13 lists: `config.json`, `PIPELINE.md` and
+`descriptor_test_vectors.json` byte for byte, `preregistration.md` with its DRAFT banner
+replaced by the one line section 0 gives. `DECISIONS.md` ADR-0031 records the registration, the
+root's structure-only counts (the dismissal assumption holds in every league, so
+`dismissal_check` stands; the residuals; the split calendar count), E-11's order (registered,
+not run, no analysis exists or was read) and route (a) of A12-1. This record stays here as the
+record of review.

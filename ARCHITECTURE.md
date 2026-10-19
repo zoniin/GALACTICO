@@ -72,7 +72,7 @@ changed: their bytes are hashed into published experiment results.
 | `optimization/squad/depth.py`, `stress.py`, `brief.py` | Slot depth with attributed drops; exact k-absence stress; the role brief (inverse problem per slot) |
 | `optimization/transfers/universe.py`, `injection.py`, `retention.py` | Gated candidate universe; exact forced-inclusion re-solves; the break-even carry-over fraction |
 | `domain/evidence.py` | The one mapping from shipped vocabularies to `EvidenceClass`, and composition by the weakest |
-| `domain/verdicts.py` | One typed record per preregistered claim; a LOCAL-tier record can label, never gate. Holds E-11's sixteen records, registered and not run (ADR-0029) |
+| `domain/verdicts.py` | One typed record per preregistered claim; a LOCAL-tier record can label, never gate. Holds E-11's sixteen LOCAL records (ADR-0029) and E-10's seven PUBLIC records (ADR-0031), registered and not run |
 | `domain/thesis.py` | Walks any payload for rating-like keys by exact key and, at the planning boundary, by key part |
 | `domain/labels.py` | The copy guard: words a served string may not contain outside a named denial. Run on the string values of every new 200 reply outside its provenance blocks |
 | `api/runtime.py` | How every new request runs: error mapping, budgets that start with the request, result cache with single-flight, sixteen requests past the cache lookup and two long computations at a time, the boundary check `finalize` (providers, keys, served words), NaN-free responses |

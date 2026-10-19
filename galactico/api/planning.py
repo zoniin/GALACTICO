@@ -19,9 +19,9 @@ A preset is a server-owned declaration named after what it sets. Applying one is
 declaration, never a finding: the 3322 preset records a departure that is a public record
 outside this corpus.
 
-E-11 is registered and not run, so nothing here says a quantity was tested. The copy below is
-the branch that is true while no registered record's badge reads TESTED, and a test ties it
-to that.
+E-11 and E-10 are registered and not run, so nothing here says a quantity was tested. The copy
+below is the branch that is true while no registered record's badge reads TESTED, and a test
+ties it to that.
 
 No nav and no badge text (``api/shell.py``); no result cache, budget or deadline machinery
 (``api/runtime.py``); no router. The module reads no data and imports no solver at import:
@@ -1438,9 +1438,10 @@ NOT_MEASURED_EXTRA: tuple[shell.NotMeasured, ...] = (
     shell.NotMeasured("off_ball", "Off-ball movement and pressing", "UNAVAILABLE",
                       "Not recorded by this provider's events."),
     shell.NotMeasured("shots", "Shot volume and location", "UNMEASURED",
-                      "No shot construct is shown. No registered protocol tests one; E-11, "
-                      "registered and not run, compares only whether two providers agree on "
-                      "shot counts."),
+                      "No shot construct is shown. E-11, registered and not run, compares "
+                      "only whether two providers agree on shot counts; E-10, registered, "
+                      "tests a team-level conceded shot share that no planning page shows, and "
+                      "its badge says whether it has run."),
     shell.NotMeasured("chance_creation_requirement", "Chance creation as a requirement",
                       "UNMEASURED",
                       "Needs 1,800 minutes per player on this provider; it enters no solve."),

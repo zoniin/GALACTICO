@@ -132,7 +132,7 @@ test('the default problem has no shortfall: the page says so and leads to a decl
   await expect(page.locator('#eligibility-banner')).toHaveText(new RegExp(pool.eligibility.banner.slice(0, 40)));
   await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#composed-evidence')).toHaveAttribute('data-evidence', pool.evidence.class);
-  // E-11 is registered and not run: one row per record, then the server's sentence.
+  // E-11 and E-10 are registered and not run: one row per record, then the server's sentence.
   await expect(page.locator('#research-status tbody tr')).toHaveCount(pool.provenance.verdicts.length);
   await expect(page.locator('#research-status [data-label="Record"]')).toHaveText(pool.provenance.verdicts.map(v => v.badge));
   await expect(page.locator('#research-status + .figure-note')).toHaveText(pool.research_statement);

@@ -187,8 +187,8 @@ test('Squad Lab draws what the server returned, with the gate beside every count
     .toEqual([inForce[0].evidence_class, distribution.evidence_class]);
   const verdicts = page.locator('.verdict');
   expect(await verdicts.count()).toBeGreaterThan(0);
-  // E-11 is registered and not run: its records are RECORD ONLY like every unregistered one.
-  const allowed = ['NOT_REGISTERED|RECORD ONLY · NOT TESTED', 'REGISTERED_NOT_RUN|E-11 · RECORD ONLY · NOT RUN'];
+  // E-11 and E-10 are registered and not run: their records are RECORD ONLY like every unregistered one.
+  const allowed = ['NOT_REGISTERED|RECORD ONLY · NOT TESTED', 'REGISTERED_NOT_RUN|E-11 · RECORD ONLY · NOT RUN', 'REGISTERED_NOT_RUN|E-10 · RECORD ONLY · NOT RUN'];
   for (const seen of await verdicts.evaluateAll(els => els.map(e => e.dataset.basis + '|' + e.textContent))) expect(allowed).toContain(seen);
   const records = depth.provenance.verdicts;
   await expect(page.locator('#research-status tbody tr')).toHaveCount(records.length);
@@ -417,8 +417,8 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   const ledgerIds = await page.locator('#evidence-ledger tr[data-ledger]').evaluateAll(trs => trs.map(t => t.dataset.ledger));
   expect(new Set(ledgerIds).size).toBe(ledgerIds.length);
   for (const id of ['audit-depth', 'audit-shortfall', 'reference-progression', 'stress-k2', 'brief-st', 'pool-st']) expect(ledgerIds).toContain(id);
-  // Nothing is tested: a badge is unregistered, or E-11's, registered and not run.
-  expect(await page.locator('.verdict').evaluateAll(els => els.every(e => e.dataset.verdict === 'RECORD_ONLY' && (e.dataset.basis === 'NOT_REGISTERED' || (e.dataset.basis === 'REGISTERED_NOT_RUN' && e.dataset.experiment === 'E-11'))))).toBe(true);
+  // Nothing is tested: a badge is unregistered, or E-11's or E-10's, registered and not run.
+  expect(await page.locator('.verdict').evaluateAll(els => els.every(e => e.dataset.verdict === 'RECORD_ONLY' && (e.dataset.basis === 'NOT_REGISTERED' || (e.dataset.basis === 'REGISTERED_NOT_RUN' && ['E-11', 'E-10'].includes(e.dataset.experiment)))))).toBe(true);
 
   await page.locator('#removal-order').selectOption('name');
   await page.locator(`#depth-list li[data-slot="lb"] button[data-player="${NACHO}"]`).click();

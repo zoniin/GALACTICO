@@ -215,10 +215,10 @@ def test_catalogue_is_corpus_free_passes_the_copy_guard_and_claims_no_test(
         "off_ball", "shots", "chance_creation_requirement", "carry_over", "league_strength",
         "results",
     ]
-    # E-11 is registered and not run: its records are served, and nothing is called tested.
-    # When another protocol is registered or E-11 runs this fails, and the shots and
-    # carry-over sentences must be checked against it.
-    assert {r.experiment_id for r in verdicts.VERDICTS.values()} == {"E-11"}
+    # E-11 and E-10 are registered and not run: their records are served, and nothing is
+    # called tested. When another protocol is registered or either runs this fails, and the
+    # shots and carry-over sentences must be checked against it.
+    assert {r.experiment_id for r in verdicts.VERDICTS.values()} == {"E-10", "E-11"}
     assert all(r.token == verdicts.PENDING for r in verdicts.VERDICTS.values())
     assert (catalogue["verdicts"], catalogue["research_statement"]) \
         == (verdicts.all_payloads(), planning.REGISTERED_NOT_TESTED_STATEMENT)

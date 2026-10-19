@@ -121,8 +121,8 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   ([M-05](docs/research/M-05-optimizer-selection-bias.md)).
 - Opponent foundation: descriptive match/team aggregates exist; no validated
   opponent-to-requirement mapping or conditioned solver is implemented.
-- Five protocols are written; **E-11 is registered and not run**, the other four are
-  **drafts**
+- Five protocols are written; **E-11 and E-10 are registered and not run**, the other
+  three are **drafts**
   ([drafts](docs/research/north-star/README.md)): E-09 shot and defensive-location
   candidates, E-10 conceded-territory persistence, E-11 provider agreement on the
   100 double-coded matches, E-12 rates across a club change, E-13 declared-risk
@@ -138,9 +138,10 @@ repeats after a move. The transfer tools carry rates over unchanged and say so.
   change no token. E-11 was registered on 14 October 2026 (ADR-0029). Its pipeline is
   built and tested on synthetic data, reviewed against its pre-outcome checklist, and its
   synthetic acceptance stamp is committed (16 October); it has not run, because the
-  public corpus is not reachable from the build environment. The verdict registry holds
-  its sixteen records, token PENDING. E-10 has had one review round and an audit; E-09
-  one reviewer so far; E-12 and E-13 none.
+  public corpus is not reachable from the build environment. E-10 was registered on 19
+  October 2026 after one review round, three audits and two verifications (ADR-0031); its
+  pipeline is not built. The verdict registry holds E-11's sixteen records and E-10's
+  seven, token PENDING. E-09 has had one reviewer so far; E-12 and E-13 none.
 
 ## Not started or not validated
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """E-10's structure-only counts before registration, per league, from the tag sidecar.
 
-    python scripts/e10_root_counts.py                  # the draft config
-    python scripts/e10_root_counts.py --config PATH    # the registered config, once it moves
+    python scripts/e10_root_counts.py                  # the registered config
+    python scripts/e10_root_counts.py --config PATH    # a config at another path
 
 What it counts: items 3, 4 and 5 of ``verified_by_root_before_registration`` in E-10's
 ``config.json``, which PIPELINE.md section 13 ("Before registration") has the root run on the
@@ -89,8 +89,8 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CONFIG = (ROOT / "docs/research/north-star/protocol-drafts/E-10-conceded-shape"
-                  / "config.json")
+DEFAULT_CONFIG = ROOT / "experiments/preregistered/E-10-conceded-shape/config.json"
+"""The registered config (the draft's until E-10's registration commit, when it moved)."""
 
 SECOND_YELLOW = "second_yellow"  # the card item 3 names
 # The raw playerId of an event no player is credited with: the neutral frames keep it as
@@ -619,7 +619,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG,
-                        help="E-10's config.json (default: the draft)")
+                        help="E-10's config.json (default: the registered one)")
     args = parser.parse_args(argv)
 
     from galactico.validation.digests import lf_sha256

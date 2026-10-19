@@ -37,7 +37,7 @@ jobs:
     # at worst, before the fetch, the snapshot builds, prepare_lab and prepare_planning.
     timeout-minutes: 240
     env:
-      E10_CONFIG: docs/research/north-star/protocol-drafts/E-10-conceded-shape/config.json
+      E10_CONFIG: experiments/preregistered/E-10-conceded-shape/config.json
     steps:
       # The setup of ci.yml's historical-browser job; node and the browser for screenshots only.
       - uses: actions/checkout@v4

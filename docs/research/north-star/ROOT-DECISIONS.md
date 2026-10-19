@@ -322,6 +322,9 @@ a measured fact or this file, this file and the code win, and the deviation is r
   14 October 2026: E-11 is registered and its sixteen records are `PENDING`
   ("E-11 · RECORD ONLY · NOT RUN"); every other subject still answers `NOT_REGISTERED`,
   now with the sentence "No registered protocol tests this claim." ([ADR-0029](../../../DECISIONS.md)).
+  19 October 2026: E-10 is registered and its seven PUBLIC records are `PENDING`
+  ("E-10 · RECORD ONLY · NOT RUN"); every subject of E-09, E-12 and E-13, still drafts, answers
+  `NOT_REGISTERED` ([ADR-0031](../../../DECISIONS.md)).
 
 ### 2.7 Root rulings on the OR-XI specification (14 October 2026; binding on its builders)
 
@@ -539,7 +542,7 @@ revised on 18 October 2026. Its ROOT RULINGS NEEDED are ruled here.
 - N4 ACCEPTED (R-3, default). S3, S4 and S5 are team aggregates of the event sets behind
   E-09's candidates. Each is withheld until a registry record under `"E-09"` exists, so no one
   is exposed to them before E-09 is frozen.
-- N5 RULED (R-4). ADR-0031 overrides R13 for exactly the nav bytes of `web/index.html`,
+- N5 RULED (R-4). ADR-0032 overrides R13 for exactly the nav bytes of `web/index.html`,
   `match.html`, `xi.html`, `squad.html` and `transfer.html` and the pinned tests the spec's
   section 11 names, in the form of W8. `d9bf28f`'s earlier nav edit for Squad and Transfer Lab
   is recorded there as the same kind of edit, made without naming R13.
@@ -549,7 +552,7 @@ revised on 18 October 2026. Its ROOT RULINGS NEEDED are ruled here.
 - N7 RULED (order). The spec is audited, with a refuter per claimed blocker, until no scope has a
   blocker. The build follows E-10's pipeline commit, which brings WP A
   (`galactico/features/team/`). The routers and the nav entries are registered in one commit
-  with ADR-0031.
+  with ADR-0032.
 
 ## 3. Scenario decisions
 
