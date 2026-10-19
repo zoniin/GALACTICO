@@ -10,20 +10,21 @@ option ships only after its TAIL, WORST_WORLD and REGRET selection and membershi
 timed on the corpus, and the change that adds 40 worlds to the menu records the run times and
 the peak memory. This harness is that measurement and nothing else.
 
-What it runs. For each scenario of ``decision_lab.SCENARIOS``, each world count (12, the menu
-today, as the reference; 40), each formation the request model accepts (``4-3-3`` and
-``4-3-1-2``: 40 worlds, once on the menu, is offered for both), without and with the
-experimental opt-in, and each entry of the router's own menu (``xi_extensions._rule_options``:
-``WORST_WORLD`` at 1, ``TAIL`` at each count of ``TAIL_MENU[B]``, ``MINIMAX_REGRET``), it makes
-the call the router makes: the route's budget is ``runtime.budget_for(route)``; then, inside
+What it runs. For each scenario of ``decision_lab.SCENARIOS``, each world count (12, the
+reference; 40, on the menu since its timing on the corpus, run 39163120253), each formation the
+request model accepts (``4-3-3`` and ``4-3-1-2``: 40 worlds is offered for both), without and
+with the experimental opt-in, and each entry of the router's own menu
+(``xi_extensions._rule_options``: ``WORST_WORLD`` at 1, ``TAIL`` at each count of
+``TAIL_MENU[B]``, ``MINIMAX_REGRET``), it makes the call the router makes: the route's budget
+is ``runtime.budget_for(route)``; then, inside
 ``runtime.long_job(route)``, ``xi_extensions._risk`` (which declares the problem and calls the
 tool with the deadline the router passes) and ``runtime.finalize``, the body of ``_answer``'s
 ``compute`` without the result cache. The snapshot is the router's loader's,
 ``xi_extensions._match_snapshot(scenario_id, B)``. The tool call is timed by a wrapper around
 the three tool functions of ``optimization.xi.risk`` that ``_risk`` looks up, so the arguments
-are the router's own. A 40-world request is built with ``model_construct`` because the request
-model accepts 12 only until 40 joins ``OFFERED_WORLDS``; its tail count is checked here against
-``TAIL_MENU[40]``. A 12-world request is validated by the model.
+are the router's own. Every request is validated by the request model, as the router validates
+it: both world counts are in ``OFFERED_WORLDS`` since X5 was met, and a tail count off
+``TAIL_MENU`` is refused with the router's own sentence.
 
 Cold and warm calls. In the router the budget starts in ``_answer``, before the snapshot is
 built, so the first request of a scenario at B on an empty cache leaves the tool the route's
@@ -37,7 +38,9 @@ each call and of its solves from the warm rows (``tool_s``, the selection and me
 and deterministic seconds); from each cold row, whether the first request of that scenario at
 that world count is answered within the route's budget once the build is paid (its
 ``completeness``, and ``route_s`` against ``budget_s``); and the peak memory, the process peak
-on the closing line (the largest per-call peak, the cold calls' builds included).
+on the closing line (the largest per-call peak, the cold calls' builds included), with one
+router snapshot built at a time: the loader is cleared before each cold call, while the
+router keeps up to four.
 
 What it prints, and nothing else (OR-XI-SPEC 7.1 and 1.6: no lineup, pair or selection is
 printed or kept, so the timing adds no prior exposure for E-13): per call, the status, the
@@ -159,11 +162,9 @@ def menu(world_count: int) -> tuple[Entry, ...]:
 
 def request_for(entry: Entry, *, scenario_id: str, world_count: int, formation: str,
                 opt_in: bool) -> Any:
-    """The request body the router would receive for ``entry``.
-
-    Validated by the request model where the router accepts the world count today; otherwise
-    built with ``model_construct`` (the model's other defaults apply) after the tail count is
-    checked against ``TAIL_MENU[world_count]``, as the model checks it at 12.
+    """The request body the router would receive for ``entry``, validated by the request
+    model as the router validates it (a world count off ``OFFERED_WORLDS`` or a tail count off
+    ``TAIL_MENU[world_count]`` is refused there).
     """
     from galactico.api import xi_extensions as x
 
@@ -175,11 +176,7 @@ def request_for(entry: Entry, *, scenario_id: str, world_count: int, formation: 
         body["rule"] = entry.rule
         if entry.tail_count is not None:
             body["tail_count"] = entry.tail_count
-    if world_count in x.OFFERED_WORLDS:
-        return model.model_validate(body)
-    if entry.tail_count is not None and entry.tail_count not in x.TAIL_MENU[world_count]:
-        raise ValueError(f"tail count {entry.tail_count} is not on the menu at {world_count}")
-    return model.model_construct(**body)
+    return model.model_validate(body)
 
 
 # --------------------------------------------------------------------------- the timing

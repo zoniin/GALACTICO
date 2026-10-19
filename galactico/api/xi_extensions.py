@@ -168,8 +168,10 @@ MEASURED_REQUIREMENTS: tuple[Mapping[str, object], ...] = tuple(
 """The three measured requirements of ``decision_inputs``, whose labels live in a dict local to
 that function: a corpus-free ``GET`` cannot call it. Equal to it field by field, by test."""
 
-OFFERED_WORLDS: tuple[int, ...] = (12,)
-"""World counts the risk routes accept. 40 joins once its solves are timed (ROOT 2.7 X5)."""
+OFFERED_WORLDS: tuple[int, ...] = (12, 40)
+"""World counts the risk routes accept and the menu offers: every count of
+``runtime.WORLD_MENU``. 40 joined once its solves were timed on the corpus (ROOT 2.7 X5; the
+times and peak memory are in ADR-0030)."""
 TAIL_MENU: Mapping[int, tuple[int, ...]] = MappingProxyType({12: (2, 3, 6), 40: (4, 10, 20)})
 """``risk.TAIL_MENU``, restated so the router imports no tool at import. Equal by test."""
 DIMENSION_COUNTS: tuple[int, ...] = (2, 3)
@@ -369,8 +371,10 @@ RISK_SAME_DRAW = (
     "which can be fewer."
 )
 RISK_PREFIX = (
-    "The main solve's 12 resampled worlds are worlds 0 to 11 of these 40. Its selection "
-    "frequencies use only the worlds it certified under its own decision rule and requirements."
+    "Worlds 0 to 11 of these 40 are the 12 that the main solve's rule draws with the same seed "
+    "and the same match-resampling procedure, from the corpus files as they are now. Its "
+    "selection frequencies use only the worlds it certified under its own decision rule and "
+    "requirements."
 )
 MODEL_DIFFERS = (
     "This answer's model holds {labels_here}; the solve above holds {labels_main}. Differences "
@@ -489,8 +493,9 @@ class FrontierRequest(XIDeclarations):
         return self
 
 
-# A Literal compares by equality and would read 12.0 and true as 12; INTEGER_ONLY refuses both.
-_Worlds = Annotated[Literal[12], planning.INTEGER_ONLY]
+# OFFERED_WORLDS, as a type (equal by test). A Literal compares by equality and would read 12.0
+# and true as 12; INTEGER_ONLY refuses both.
+_Worlds = Annotated[Literal[12, 40], planning.INTEGER_ONLY]
 
 
 class RiskTailRequest(XIDeclarations):

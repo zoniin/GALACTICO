@@ -30,6 +30,7 @@ from types import ModuleType, SimpleNamespace
 from typing import NamedTuple
 
 import pytest
+from pydantic import ValidationError
 
 from galactico.api import decision_lab, runtime
 from galactico.api import xi_extensions as x
@@ -167,7 +168,7 @@ def test_the_menu_is_the_routers_at_each_world_count(harness) -> None:
     assert x.TAIL_MENU == risk.TAIL_MENU and harness.WORLD_COUNTS == runtime.WORLD_MENU
 
 
-def test_requests_at_12_are_validated_and_at_40_built_as_the_router_would(harness) -> None:
+def test_requests_are_validated_by_the_request_model(harness) -> None:
     tail, worst, regret = harness.menu(12)[1], harness.menu(12)[0], harness.menu(12)[-1]
     request = harness.request_for(tail, scenario_id=SCENARIO, world_count=12, formation="4-3-3",
                                   opt_in=True)
@@ -181,12 +182,21 @@ def test_requests_at_12_are_validated_and_at_40_built_as_the_router_would(harnes
                       x.RiskRegretRequest)
     forty = harness.request_for(harness.menu(40)[2], scenario_id=SCENARIO, world_count=40,
                                 formation="4-3-3", opt_in=False)
+    assert isinstance(forty, x.RiskTailRequest)
     assert (forty.bootstrap_worlds, forty.rule, forty.tail_count) == (40, "TAIL", 10)
     assert (forty.locks, forty.excludes, forty.minimums) == ([], [], {})
+    assert isinstance(harness.request_for(harness.menu(40)[-1], scenario_id=SCENARIO,
+                                          world_count=40, formation="4-3-1-2", opt_in=True),
+                      x.RiskRegretRequest)
+    # Refused as the router refuses them, by the model: a tail count of the other menu, and a
+    # world count off OFFERED_WORLDS.
     off_menu = harness.Entry("xi.risk.tail", "TAIL", 6)
-    with pytest.raises(ValueError, match="not on the menu"):
+    with pytest.raises(ValidationError, match=re.escape(x._TAIL_OFF_MENU)):
         harness.request_for(off_menu, scenario_id=SCENARIO, world_count=40, formation="4-3-3",
                             opt_in=False)
+    with pytest.raises(ValidationError, match="bootstrap_worlds"):
+        harness.request_for(harness.menu(12)[0], scenario_id=SCENARIO, world_count=80,
+                            formation="4-3-3", opt_in=False)
 
 
 def test_by_default_every_scenario_world_count_opt_in_and_entry_is_timed(harness, snapshots,

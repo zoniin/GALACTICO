@@ -726,6 +726,9 @@ def test_a_frontier_reply_recorded_at_a_deadline_prints_its_sentence(tmp_path, c
     ("tail", {**api.WORST, **api.OPT_IN}),
     ("tail", api.TAIL),
     ("regret", {**api.REGRET, **api.OPT_IN}),
+    ("tail", {**api.TAIL40, **api.OPT_IN}),
+    ("tail", {**api.WORST40, **api.OPT_IN}),
+    ("regret", {**api.REGRET40, **api.OPT_IN}),
 ])
 def test_risk_panel_prints_the_tables_for_the_xi_shown_and_the_certificate(
         tmp_path, client, route, body):
@@ -733,6 +736,9 @@ def test_risk_panel_prints_the_tables_for_the_xi_shown_and_the_certificate(
     result = reply["result"]
     markup = drawn(tmp_path, route, reply)
     text = visible(markup)
+    # The sentence of how the worlds are built is the one served for this world count.
+    assert result["draw_text"] == (x.RISK_PREFIX if body["bootstrap_worlds"] == 40
+                                   else x.RISK_SAME_DRAW.format(B=12))
     assert reply["claim"] in text and reply["verdicts"]["risk_rule"]["badge"] in text
     assert reply["verdicts"]["risk_rule"]["statement"] in text
     for statement in reply["statements"]:

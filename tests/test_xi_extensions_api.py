@@ -31,6 +31,7 @@ from decimal import Decimal
 from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
+from typing import get_args
 
 import pytest
 from fastapi import FastAPI
@@ -62,6 +63,10 @@ DIMS = {"dimensions": ["progression", "left_pass_origins"]}
 TAIL = {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 3}
 WORST = {"bootstrap_worlds": 12, "rule": "WORST_WORLD"}
 REGRET = {"bootstrap_worlds": 12}
+# The same three rules at 40 worlds, offered since their solves were timed (ROOT 2.7 X5).
+TAIL40 = {"bootstrap_worlds": 40, "rule": "TAIL", "tail_count": 10}
+WORST40 = {"bootstrap_worlds": 40, "rule": "WORST_WORLD"}
+REGRET40 = {"bootstrap_worlds": 40}
 PATHS = {
     "ceilings": "/api/xi/ceilings", "conflict": "/api/xi/conflict",
     "frontier": "/api/xi/frontier", "tail": "/api/xi/risk/tail", "regret": "/api/xi/risk/regret",
@@ -131,7 +136,7 @@ def make_snapshot(*, worlds: int = 12, rows=ROWS, minima: float | dict = 10.0,
 
 def loader(**options):
     """A replacement for ``xi_extensions._match_snapshot``: the snapshot of each world count."""
-    made = {0: make_snapshot(worlds=0, **options), 12: make_snapshot(worlds=12, **options)}
+    made = {worlds: make_snapshot(worlds=worlds, **options) for worlds in (0, 12, 40)}
     return lambda scenario_id, worlds: made[worlds]
 
 
@@ -262,7 +267,9 @@ def test_restated_constants_equal_the_objects_they_restate():
     assert set(x.ROUTES) == {"xi.ceilings", "xi.conflict", "xi.frontier", "xi.risk.tail",
                              "xi.risk.regret"} <= set(runtime.BUDGETS)
     assert {"xi.risk.tail", "xi.risk.regret"} <= runtime.LONG_ROUTES
-    assert x.OFFERED_WORLDS == (12,) and set(x.OFFERED_WORLDS) <= set(runtime.WORLD_MENU)
+    assert x.OFFERED_WORLDS == (12, 40) == runtime.WORLD_MENU
+    for model in (x.RiskTailRequest, x.RiskRegretRequest):
+        assert get_args(model.model_fields["bootstrap_worlds"].annotation) == x.OFFERED_WORLDS
     from galactico.optimization.xi.solver import QUANTIZATION
     assert QUANTIZATION == 100000  # the "1/100000" every sentence and solver text names
 
@@ -359,16 +366,19 @@ def test_the_menus_are_corpus_free_finalized_and_offer_no_tail_of_one(lab_client
     menus = reply.json()
     assert runtime.finalize(menus) == menus and scan_labels(menus) == []
     assert menus["provenance"] == {"providers": ["pappalardo"]}
-    assert menus["world_counts"] == [12] and menus["tail_counts"] == {"12": [2, 3, 6]}
-    assert menus["world_count_texts"] == {"12": "12 worlds"}
-    options = menus["rule_options"]["12"]
-    assert [o["rule"] for o in options] == ["WORST_WORLD", "TAIL", "TAIL", "TAIL",
-                                            "MINIMAX_REGRET"]
-    assert [o["tail_count"] for o in options] == [1, 2, 3, 6, None]
-    assert not [o for o in options if o["rule"] == "TAIL" and o["tail_count"] == 1]
-    assert options[0]["text"] == "Worst world of 12: the extreme of the tail rule"
-    assert options[2]["text"] == "Tail: 3 highest-loss worlds of 12"
-    assert options[4]["text"] == "Least largest regret over 12 worlds"
+    assert menus["world_counts"] == [12, 40]
+    assert menus["tail_counts"] == {"12": [2, 3, 6], "40": [4, 10, 20]}
+    assert menus["world_count_texts"] == {"12": "12 worlds", "40": "40 worlds"}
+    assert set(menus["rule_options"]) == {"12", "40"}
+    for worlds, tails in ((12, [2, 3, 6]), (40, [4, 10, 20])):
+        options = menus["rule_options"][str(worlds)]
+        assert [o["rule"] for o in options] == ["WORST_WORLD", "TAIL", "TAIL", "TAIL",
+                                                "MINIMAX_REGRET"]
+        assert [o["tail_count"] for o in options] == [1, *tails, None]
+        assert not [o for o in options if o["rule"] == "TAIL" and o["tail_count"] == 1]
+        assert options[0]["text"] == f"Worst world of {worlds}: the extreme of the tail rule"
+        assert options[2]["text"] == f"Tail: {tails[1]} highest-loss worlds of {worlds}"
+        assert options[4]["text"] == f"Least largest regret over {worlds} worlds"
     assert menus["requirements"] == [
         {"requirement_id": row["requirement_id"], "label": row["label"],
          "experimental": row["experimental"]} for row in x.MEASURED_REQUIREMENTS]
@@ -461,10 +471,19 @@ def test_evidence_composes_by_the_requirements_in_force(client):
 
 
 def assert_refused(reply, *secrets) -> None:
+    """A 422 whose body holds no secret. A numeric secret is looked for as a whole token: the
+    menu's own sentence ("Input should be 12 or 40") holds the digit 0 inside 40, which echoes
+    no input 0. Every other secret is looked for anywhere in the body, so "MINIMAX" also
+    catches an echoed "MINIMAX_REGRET"."""
     assert reply.status_code == 422, reply.text[:300]
     body = json.dumps(reply.json())
     for secret in secrets:
-        assert str(secret) not in body, secret
+        text = str(secret)
+        if re.fullmatch(r"[0-9.]+", text):
+            token = rf"(?<![0-9A-Za-z_.]){re.escape(text)}(?![0-9A-Za-z_.])"
+            assert not re.search(token, body), secret
+        else:
+            assert text not in body, secret
 
 
 @pytest.mark.parametrize("route, body, secrets", [
@@ -480,18 +499,27 @@ def assert_refused(reply, *secrets) -> None:
     ("tail", {"bootstrap_worlds": "12", "rule": "WORST_WORLD"}, ('"12"',)),
     ("tail", {"bootstrap_worlds": True, "rule": "WORST_WORLD"}, ("true", "True")),
     ("tail", {"bootstrap_worlds": 0, "rule": "WORST_WORLD"}, ("0",)),
-    ("tail", {"bootstrap_worlds": 40, "rule": "WORST_WORLD"}, ("40",)),
+    ("tail", {"bootstrap_worlds": 40.0, "rule": "WORST_WORLD"}, ("40.0",)),
+    ("tail", {"bootstrap_worlds": "40", "rule": "WORST_WORLD"}, ('"40"',)),
     ("tail", {"bootstrap_worlds": 80, "rule": "WORST_WORLD"}, ("80",)),
+    ("tail", {"bootstrap_worlds": 200, "rule": "WORST_WORLD"}, ("200",)),
     ("tail", {"rule": "WORST_WORLD"}, ()),
     ("tail", {"bootstrap_worlds": 12}, ()),
     ("tail", {"bootstrap_worlds": 12, "rule": "TAIL"}, ()),
     ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 1}, ("1",)),
     ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 4}, ("4",)),
+    ("tail", {"bootstrap_worlds": 40, "rule": "TAIL", "tail_count": 1}, ("1", "40")),
+    ("tail", {"bootstrap_worlds": 40, "rule": "TAIL", "tail_count": 3}, ("3", "40")),
+    ("tail", {"bootstrap_worlds": 40, "rule": "TAIL"}, ("40",)),
+    ("tail", {"bootstrap_worlds": 40, "rule": "WORST_WORLD", "tail_count": 1}, ("1", "40")),
     ("tail", {"bootstrap_worlds": 12, "rule": "TAIL", "tail_count": 3.0}, ("3.0",)),
     ("tail", {"bootstrap_worlds": 12, "rule": "WORST_WORLD", "tail_count": 1}, ("1",)),
     ("tail", {"bootstrap_worlds": 12, "rule": "MINIMAX_REGRET"}, ("MINIMAX",)),
     ("regret", {"bootstrap_worlds": 12, "tail_count": 2}, ("2",)),
-    ("regret", {"bootstrap_worlds": 40}, ("40",)),
+    ("regret", {"bootstrap_worlds": 40.0}, ("40.0",)),
+    ("regret", {"bootstrap_worlds": True}, ("true", "True")),
+    ("regret", {"bootstrap_worlds": 80}, ("80",)),
+    ("regret", {"bootstrap_worlds": 40, "tail_count": 10}, ("10", "40")),
     ("conflict", {"explains": "solve", "mode": "SATISFY", "floors": {}, **OPT_IN}, ()),
     ("conflict", {"explains": "floors", "mode": "SATISFY"}, ()),
     ("conflict", {"explains": "solve", **OPT_IN}, ()),
@@ -1440,7 +1468,8 @@ def walk_numbers(node, key=""):
 def test_no_encoding_of_a_pair_leaves_in_a_served_reply(client):
     token = re.compile(r"\b\d+\b")
     for route, body in (("tail", {**TAIL, **OPT_IN}), ("tail", {**WORST, **OPT_IN}),
-                        ("regret", {**REGRET, **OPT_IN}), ("tail", TAIL)):
+                        ("regret", {**REGRET, **OPT_IN}), ("tail", TAIL),
+                        ("tail", {**TAIL40, **OPT_IN}), ("regret", {**REGRET40, **OPT_IN})):
         payload = ok(client, route, body)
         result = payload["result"]
         q = result["certificate"]["quantization"]
@@ -1504,6 +1533,91 @@ def keys_of(node) -> list[str]:
     if isinstance(node, list):
         return [k for v in node for k in keys_of(v)]
     return []
+
+
+# ----------------------------------------------------------------------- 40 worlds (X5)
+
+
+@pytest.mark.parametrize("route, body, claim", [
+    ("tail", {**TAIL40, "tail_count": 4}, risk.RISK_TAIL.format(B=40, k=4)),
+    ("tail", TAIL40, risk.RISK_TAIL.format(B=40, k=10)),
+    ("tail", {**TAIL40, "tail_count": 20}, risk.RISK_TAIL.format(B=40, k=20)),
+    ("tail", WORST40, risk.RISK_WORST.format(B=40)),
+    ("regret", REGRET40, risk.RISK_REGRET.format(B=40)),
+])
+def test_a_40_world_request_answers_its_rule_over_the_40_worlds_with_the_prefix_sentence(
+        client, route, body, claim):
+    payload = ok(client, route, {**body, **OPT_IN})
+    result, certificate = payload["result"], payload["result"]["certificate"]
+    assert result["status"] == "CERTIFIED"
+    assert result["claim"] == claim
+    # In E-13's scope (4-3-3, the opt-in, 40 worlds, a count of its menu), and E-13 has not run.
+    assert payload["claim"] == f"{claim} {x.RISK_UNTESTED}"
+    assert payload["verdicts"]["risk_rule"]["subject_id"] == f"risk_rule:{result['rule']}"
+    assert certificate["world_count"] == 40
+    assert certificate["used_world_ids"] == list(range(40))
+    assert (result["world_count_text"], result["discarded_text"]) == ("40 worlds, 40 used",
+                                                                       "0 of 40")
+    # How the 40 worlds are built: worlds 0 to 11 are the 12 the main solve's rule draws (1.4),
+    # and not the 12-world sentence. Like that sentence, it names the main solve's rule and
+    # the files as they are now, not the main solve's own worlds, which a corpus rewrite in a
+    # running server leaves as they were (OR-XI-SPEC 7.7).
+    assert result["draw_text"] == x.RISK_PREFIX
+    for sentence in (x.RISK_PREFIX, x.RISK_SAME_DRAW):
+        assert "the main solve's rule" in sentence
+        assert "from the corpus files as they are now" in sentence
+    assert payload["statements"] == [x.RISK_BALANCE, x.RISK_WITNESS, x.RISK_PREFIX]
+    assert not [path for path, text in every_string(payload)
+                if x.RISK_SAME_DRAW.split("{B}")[0] in text]
+    rows = {row["row_id"]: row for row in payload["ledger"]}
+    assert (rows["risk-worlds"]["value_text"], rows["risk-worlds"]["sample"]) \
+        == ("40 worlds, 40 used", x.RISK_PREFIX)
+    declared = {row["key"]: row["value_text"] for row in payload["declared"]}
+    assert declared["declared-worlds"] == "40 worlds"
+    if route == "regret":
+        assert declared["declared-risk-rule"] == "Least largest regret over 40 worlds"
+        assert result["tail_sum"] is None and certificate["growth"] is None
+        assert result["binding_world_ids"]
+        assert [r["world_id"] for r in result["world_rows"]] == list(range(40))
+    else:
+        k = body.get("tail_count", 1)
+        assert result["tail_count"] == k and len(result["tail_world_ids"]) == k
+        assert [r["world_id"] for r in result["tail_rows"]] == result["tail_world_ids"]
+        assert declared["declared-risk-rule"] == (
+            f"Tail {k} of 40 worlds" if body["rule"] == "TAIL" else "Worst world of 40")
+        assert certificate["growth"] == risk.RISK_GROWTH.format(B=40, U=40)
+        assert rows["risk-tail-sums"]["sample"] == "40 worlds, 40 used"
+
+
+def test_each_world_count_takes_its_own_tail_menu_and_e13s_scope_holds_at_40(client):
+    for worlds, other in ((12, 40), (40, 12)):
+        for k in x.TAIL_MENU[worlds]:
+            body = {"bootstrap_worlds": worlds, "rule": "TAIL", "tail_count": k}
+            assert ok(client, "tail", body)["result"]["tail_count"] == k
+        for k in x.TAIL_MENU[other]:
+            body = {"bootstrap_worlds": worlds, "rule": "TAIL", "tail_count": k}
+            assert_refused(ask(client, "tail", body))
+    # Outside E-13's scope at 40 as at 12: without the opt-in, or in 4-3-1-2.
+    for body in (TAIL40, {**TAIL40, **OPT_IN, "formation": "4-3-1-2"}):
+        outside = ok(client, "tail", body)
+        assert outside["claim"] == f"{outside['result']['claim']} {x.RISK_OUTSIDE_E13}"
+        assert outside["result"]["draw_text"] == x.RISK_PREFIX
+
+
+def test_a_40_world_reply_is_its_own_cache_entry_and_leaves_the_12_world_reply_unchanged(
+        client):
+    twelve = ask(client, "tail", {**TAIL, **OPT_IN})
+    forty = ask(client, "tail", {**TAIL40, "tail_count": 4, **OPT_IN})
+    again = ask(client, "tail", {**TAIL, **OPT_IN})
+    assert (cache(twelve), cache(forty), cache(again)) == ("miss", "miss", "hit")
+    assert again.json() == twelve.json()
+    assert twelve.json()["result"]["draw_text"] == x.RISK_SAME_DRAW.format(B=12)
+    assert twelve.json()["result"]["certificate"]["world_count"] == 12
+    assert forty.json()["result"]["certificate"]["world_count"] == 40
+    # The first twelve of the fixture's 40 worlds are its 12 worlds, as RISK_PREFIX says of the
+    # main solve's rule (the prefix test of test_xi_risk.py checks the builder itself).
+    snaps = {worlds: make_snapshot(worlds=worlds) for worlds in (12, 40)}
+    assert {w: snaps[40].worlds[w] for w in range(12)} == snaps[12].worlds
 
 
 # --------------------------------------------------------------- every terminal state

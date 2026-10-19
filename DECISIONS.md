@@ -1253,9 +1253,32 @@ stages as a search device stands for the kernel; O8 overrides it for the risk mo
 because the encoding is exact by construction and never leaves the solve. The router's
 snapshot loader is behind ADR-0024's build gate, and `xi.risk.tail` is a long route (X5).
 
+**Run times and peak memory (X5; OR-XI-SPEC 11 item 15).** The root ran
+`scripts/time_xi_risk.py` in the dispatch-only `root-checks` job on the corpus (run
+39163120253, `main` at `6c6529d`, 18 October 2026): 84 calls, both Madrid scenarios × B in
+{12, 40} × formations 4-3-3 and 4-3-1-2 × the opt-in off and on × every menu entry, with the
+default minima and no lock or exclusion, the first call of each scenario and B made cold.
+Every call was `CERTIFIED` and `EXACT`; `finalize` refused none, none raised, and no world was
+set aside. At B = 40 the warm routes took 0.11 to 0.37 s for TAIL and WORST_WORLD and 0.20 to
+0.48 s for MINIMAX_REGRET, against budgets of 60 and 150 s; the largest single selection solve
+took 0.17 s of wall time, and no solve reached its deterministic limit. A cold first request
+at B = 40 took 0.94 to 1.02 s, of which the snapshot build was 0.76 to 0.86 s (at B = 12, 0.87
+to 0.99 s, build 0.78 to 0.90 s). The peak RSS of the timing process was 653 MB, the largest
+per-call peak (483 to 533 MB on warm calls). That process held one router snapshot at a time
+(the harness clears the loader before each cold call); the router keeps up to four, so a
+server's footprint with 40 worlds on offer was not measured. With 40 worlds offered, the
+loader (`_match_snapshot`, `maxsize=4`) no longer holds every (scenario, worlds) pair: the two
+scenarios at 0 worlds (ceilings, conflict, frontier), 12 and 40 are six keys, so a reader who
+moves between them can evict a snapshot and pay its build again, 0.76 to 0.90 s in this run.
+The size stays four; raising it would first need the peak measured with all six built. X5 is
+met: 40 worlds joins the risk menu in the change that records these figures
+(`OFFERED_WORLDS = (12, 40)`, with the tail counts 4, 10 and 20), and a 40-world reply states
+`RISK_PREFIX` while the prefix test of `tests/test_xi_risk.py` passes.
+
 **Confidence.** High that each tool computes what its claim says on the declared model, by
-the oracle. The 40-world risk option is withheld until its solves are timed on the corpus,
-and the run times and peak memory are recorded in that change.
+the oracle. The 40-world risk option is offered since its solves were timed on the corpus
+(above); those times are of the two Madrid scenarios with the default declarations, and a
+solve that runs past its route's budget is reported as not certified.
 
 **Reversal.** E-13's verdict relabels the risk modes. A change of policy is a new version of
 the affected module and of its served constants.

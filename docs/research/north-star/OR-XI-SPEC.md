@@ -243,7 +243,7 @@ Used by the risk modes only.
 | used worlds `U` | the others, ascending. `k` and `B` are never recomputed on `|U|` |
 | lemma | for every `w ∈ U` the keys `(p, s)` with `p ∉ X` that are admissible under `V^w` are exactly those with `Eligible(p, s)` (the discard rule leaves no such key unmeasured), so `β_w.variables`, and hence `𝒳`, are the same in every used world. `risk.py` checks it (5.6 step 2; a `RuntimeError` if not) |
 | world fingerprint | `solver._fingerprint(snap.worlds)` over all `B` worlds, discarded ones included: the function and input of `bootstrap_world_fingerprint` (solver.py:609). For `B = 12`, when both snapshots are built from the same files, it equals the fingerprint the main solve on the same scenario carries: a fact of construction, tested on the corpus (slow test), never checked per request. Equal fingerprints say the worlds were drawn alike; they do not say which worlds the main solve's selection frequencies use: those are only the worlds it certified under its own decision rule and requirements (`bootstrap_used_worlds`, solver.py:566-568) |
-| prefix property | `shared_match_weights` draws all replicates from one generator with `multinomial(..., size=B)` (profiles/uncertainty.py:139-141), which draws rows in sequence: the first 12 of the 40 worlds are the 12 worlds, row for row (checked under numpy 2.5.3 and under 2.5.4, the version in the project's `.venv`). The world vectors are then computed from those weights by float matrix products (historical.py:203-212), whose rows could in principle depend on the row count under another BLAS, so equal weights are not enough: a structure test checks the property itself under the installed numpy, on the weights and on the world vectors built from them by the same expression on synthetic frames (`solver._fingerprint` of worlds 0 to 11 of the 40 equals that of the 12), and records `numpy.__version__` as information only; no test asserts a version string. While that test passes, the 40-world certificate may say that the main solve's 12 worlds are its worlds 0 to 11 (`RISK_PREFIX`, 7.7) |
+| prefix property | `shared_match_weights` draws all replicates from one generator with `multinomial(..., size=B)` (profiles/uncertainty.py:139-141), which draws rows in sequence: the first 12 of the 40 worlds are the 12 worlds, row for row (checked under numpy 2.5.3 and under 2.5.4, the version in the project's `.venv`). The world vectors are then computed from those weights by float matrix products (historical.py:203-212), whose rows could in principle depend on the row count under another BLAS, so equal weights are not enough: a structure test checks the property itself under the installed numpy, on the weights and on the world vectors built from them by the same expression on synthetic frames (`solver._fingerprint` of worlds 0 to 11 of the 40 equals that of the 12), and records `numpy.__version__` as information only; no test asserts a version string. While that test passes, the 40-world certificate may say that its worlds 0 to 11 are the 12 that the main solve's rule draws from the corpus files as they are now (`RISK_PREFIX`, 7.7) |
 | seeds | the world seed is `snap.provenance["seed"]` (`historical.SEED`); the solver seed is `historical.SEED` too, as `decision_lab` passes it. The router passes the world seed and `snap.provenance["bootstrap_version"]` to every risk function as the keyword arguments `world_seed` and `bootstrap_version` (5.7) |
 
 ### 1.5 Deadlines, deterministic time, statuses, completeness
@@ -1937,7 +1937,7 @@ per tool asserts `scan_labels(asdict(result))` is empty. No shipped warning of `
 | `RISK_NON_CLAIM` | Stability against resampling of the historical matches; not robustness to opponents, absences or form, and not a forecast. |
 | `RISK_DISCARDED` | {d} of {B} worlds were set aside: in each, a player who can be selected has no value in that world for a requirement in force here ({labels}) at a place he is eligible for: he has no recorded minutes in that world's resampled matches, or no value at all. The main solve's resampling sets worlds aside by this rule over its own requirements. |
 | `RISK_SAME_DRAW` (`B = 12`) | These are drawn by the main solve's rule for its {B} resampled worlds: the same seed and the same match-resampling procedure, from the corpus files as they are now. Its selection frequencies use only the worlds it certified under its own decision rule and requirements, which can be fewer. |
-| `RISK_PREFIX` (`B = 40`, while the prefix test holds) | The main solve's 12 resampled worlds are worlds 0 to 11 of these 40. Its selection frequencies use only the worlds it certified under its own decision rule and requirements. |
+| `RISK_PREFIX` (`B = 40`, while the prefix test holds) | Worlds 0 to 11 of these 40 are the 12 that the main solve's rule draws with the same seed and the same match-resampling procedure, from the corpus files as they are now. Its selection frequencies use only the worlds it certified under its own decision rule and requirements. |
 | `RISK_HARD` | Declared-risk rules compare shortfalls; a hard minimum is a Satisfy question. |
 | `RISK_OVERFLOW` | The declared minima are too large for the exact integer model of this rule. |
 | `RISK_NOT_EVALUABLE` | No world, or fewer worlds than the tail count, could be used, so this rule was not evaluated. |
@@ -1949,10 +1949,11 @@ per tool asserts `scan_labels(asdict(result))` is empty. No shipped warning of `
 `RISK_SAME_DRAW` and `RISK_PREFIX` state how the worlds are built, which the router knows
 without seeing the main reply; neither says that the main solve used these worlds, and the
 certificate prints the world fingerprint so a reader can compare it with the main solve's.
-`RISK_SAME_DRAW` names the procedure and the files as they are now, not "the same matches":
-after a corpus rewrite in a running server the main solve keeps worlds drawn from the files as
-they were (`decision_lab.snapshot`'s cache, KNOWN_LIMITATIONS.md:79-82), while the gated loader
-of 7.3 draws again from the new files, and the fingerprints then differ.
+`RISK_SAME_DRAW` and `RISK_PREFIX` name the procedure and the files as they are now, not "the
+same matches" or the main solve's own worlds: after a corpus rewrite in a running server the
+main solve keeps worlds drawn from the files as they were (`decision_lab.snapshot`'s cache,
+KNOWN_LIMITATIONS.md:88-91), while the gated loader of 7.3 draws again from the new files, and
+the fingerprints then differ.
 The earlier sentence that the worlds "are the worlds the main solve's selection frequencies
 use" is withdrawn: the main solve sets aside, besides discarded worlds, every world it could
 not certify (solver.py:566-568), under its own mode and requirements. The sentence
@@ -2426,7 +2427,7 @@ record and the departure is accepted by the root:
 | 7.5 | Empty membership groups are omitted from a risk reply; the menu reply carries `world_count_texts`, the labels of the world menu; text fields the page prints and the table did not name (`attained_note`, `bound_note`, `minimum_reached_text`, `minimum_missed_text`, `dimension_labels`) are served so the page never picks an entry out of a list |
 | 7.6 | Declared rows follow `planning.declared_rows` order; a one-member conflict set reads "1 declaration" |
 | 8 | The section's lead sentence names the model each panel answers on; the page's listeners write any fault into the section's status line instead of raising into a shipped flow |
-| 11 item 15 | The 40-world risk option is not offered (`OFFERED_WORLDS = (12,)`) until its solves are timed on the corpus |
+| 11 item 15 | Closed on 19 October 2026. The 40-world risk option was not offered (`OFFERED_WORLDS = (12,)`) until its solves were timed on the corpus. The root timed them (`root-checks` run 39163120253, `main` at `6c6529d`, 18 October 2026; the run times and peak memory are in ADR-0030, which records that X5 is met), and `OFFERED_WORLDS = (12, 40)`: the risk routes accept, and the `GET` reply offers, 12 and 40 worlds with the tail counts of `TAIL_MENU`, as 7.1, 7.2, 7.5 and 8.2 provide once the timing is done, and a 40-world reply serves `RISK_PREFIX` (1.4, 7.7), which was reworded before it was first served: it said "The main solve's 12 resampled worlds are worlds 0 to 11 of these 40", false after a corpus rewrite in a running server, and now names the main solve's rule and the files as they are now, as `RISK_SAME_DRAW` does (7.7). Nothing else served changed (R13). The departure is closed |
 
 ## DISSENT
 

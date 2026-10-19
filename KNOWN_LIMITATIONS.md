@@ -144,9 +144,18 @@ When a limitation changes, preserve the experiment in `docs/research/`.
   declared-risk modes (the tail of k of B resampled worlds, the worst world, minimax
   regret) select for stability against resampling of the historical matches, not
   robustness to states of football; E-13, which would test whether they reduce
-  selection optimism, is a draft and has not run. The worst world grows with B, a
-  declared problem whose encoding would overflow is refused, and the menu offers 12
-  worlds until the 40-world solves are timed on the corpus.
+  selection optimism, is a draft and has not run. The worst world grows with B, and a
+  declared problem whose encoding would overflow is refused. The risk menu offers 12 and
+  40 worlds. The 40-world option was added after its solves were timed on the corpus
+  ([ADR-0030](DECISIONS.md)): on the two Madrid scenarios, in both formations, with and
+  without the opt-in, at the default minima, every call was certified and exact, a warm
+  request took at most 0.48 s, a cold first request at most 1.02 s with its snapshot
+  build, and the timing process, which held one router snapshot at a time, peaked at
+  653 MB. The router keeps up to four, and a server's footprint with 40 worlds on offer
+  was not measured. Four slots no longer hold every scenario and world count, so moving
+  between them can evict a snapshot and build it again (0.76 to 0.90 s in that run).
+  Other declarations were not timed; a solve that runs past its route's budget is
+  reported as not certified.
 - You never observe the unplayed XI. Observational associations or manager
   agreement cannot establish that a proposed lineup would have won.
 

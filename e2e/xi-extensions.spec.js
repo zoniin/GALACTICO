@@ -321,11 +321,24 @@ test('risk options are the server menu, integers are sent as served and tables a
   await expect(page.locator('#risk-worlds')).toHaveValue('');
   await expect(page.locator('#risk-rule')).toHaveValue('');
   await expect(page.locator('#solve-risk')).toBeDisabled();
-  await page.locator('#risk-worlds').selectOption('0');
-  const offered = await page.locator('#risk-rule option').allTextContents();
+  // Every world count the server serves (12 and 40), each with its own rule options; then the
+  // first, on which the rest of this test runs. A TAIL rule is chosen at each count before the
+  // next is selected, so the empty rule and the disabled button there are a reset: the same
+  // option index is another tail count at the other world count (TAIL 4 of 40, TAIL 2 of 12).
+  const worldTexts = await page.locator('#risk-worlds option').allTextContents();
+  expect(worldTexts.slice(1)).toEqual(menus.world_counts.map(b => menus.world_count_texts[String(b)]));
+  for (const [i, b] of [...menus.world_counts.entries()].reverse()) {
+    await page.locator('#risk-worlds').selectOption(String(i));
+    await expect(page.locator('#risk-rule')).toHaveValue('');
+    await expect(page.locator('#solve-risk')).toBeDisabled();
+    const offered = await page.locator('#risk-rule option').allTextContents();
+    expect(offered.slice(1)).toEqual(menus.rule_options[String(b)].map(o => o.text));
+    const tail = menus.rule_options[String(b)].findIndex(o => o.rule === 'TAIL');
+    await page.locator('#risk-rule').selectOption(String(tail));
+    await expect(page.locator('#risk-rule')).toHaveValue(String(tail));
+    await expect(page.locator('#solve-risk')).toBeEnabled();
+  }
   const count = menus.world_counts[0];
-  expect(offered.slice(1)).toEqual(menus.rule_options[String(count)].map(o => o.text));
-  await expect(page.locator('#solve-risk')).toBeDisabled();
   const tailIndex = menus.rule_options[String(count)].findIndex(o => o.rule === 'TAIL');
   await page.locator('#risk-rule').selectOption(String(tailIndex));
   // Main minima (all three sent by the page), a lock and an exclusion.

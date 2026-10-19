@@ -2,7 +2,8 @@ name: root-checks
 
 # Checks the root runs on the public corpus by hand, before a registration or a menu change.
 # Their output is read from the job log; xi-screenshots also uploads the two XI Lab captures,
-# and nothing else.
+# and nothing else, and commits the same two files and a one-line README to the branch
+# ci/xi-captures.
 #   e10-counts      E-10's structure-only counts before registration (its config,
 #                   verified_by_root_before_registration items 3 to 5; PIPELINE section 13;
 #                   ROOT-DECISIONS 2.9 Z2). They compute no outcome.
@@ -10,9 +11,13 @@ name: root-checks
 #                   the risk routes accept (ROOT-DECISIONS 2.7 X5; OR-XI-SPEC 7.1, 11 item 15):
 #                   statuses, seconds and memory only.
 #   xi-screenshots  docs/screenshots/11-xi-lab.png and 12-xi-mobile.png regenerated with the
-#                   corpus for the root to inspect (ROOT-DECISIONS 2.7 X14).
+#                   corpus for the root to inspect (ROOT-DECISIONS 2.7 X14). The root cannot
+#                   download an artifact (its blob host is blocked there), so the job
+#                   xi-captures-branch then force-pushes a fresh orphan commit holding those two
+#                   files and a one-line README (the run id and the source sha) to the branch
+#                   ci/xi-captures, which the root fetches with git. The artifact is kept.
 # Public CC BY 4.0 only. The runtime corpus, the built bundle and every file under data/ are
-# never uploaded as an artifact.
+# never uploaded as an artifact, committed or pushed.
 on:
   workflow_dispatch:
     inputs:
@@ -25,6 +30,7 @@ on:
           - xi-risk-timing
           - xi-screenshots
 
+# Read only, except the one job that pushes ci/xi-captures (contents: write on that job alone).
 permissions:
   contents: read
 
@@ -88,9 +94,9 @@ jobs:
         run: uv run python scripts/prepare_planning.py
 
       # Every shipped scenario, 12 and 40 worlds, both formations (4-3-3 and 4-3-1-2: 40
-      # worlds, once on the menu, is offered for both), without and with the opt-in; each
-      # scenario and world count's first call cold, then every call warm. Exit 1 when a call
-      # raised or finalize refused its envelope.
+      # worlds is offered for both), without and with the opt-in; each scenario and world
+      # count's first call cold, then every call warm. Exit 1 when a call raised or finalize
+      # refused its envelope.
       - name: XI declared-risk timing
         if: inputs.check == 'xi-risk-timing'
         run: uv run python scripts/time_xi_risk.py
@@ -112,3 +118,72 @@ jobs:
             docs/screenshots/12-xi-mobile.png
           if-no-files-found: error
           retention-days: 14
+
+  # xi-screenshots only, after the captures above were drawn and uploaded. The only job with
+  # contents: write, and it writes one branch. It checks out nothing and fetches no corpus: its
+  # workspace holds the downloaded artifact alone, and the push is refused unless the commit
+  # holds exactly the two captures and the README, and each capture is a PNG by its signature.
+  # The orphan commit has no parent, so the branch never carries an earlier run's files or
+  # any file of the repository. It runs only when root-check succeeded, so a failed run
+  # pushes nothing and the branch keeps the last good run's captures, whose README names that
+  # run; the failed run's artifact is still kept.
+  xi-captures-branch:
+    needs: root-check
+    if: inputs.check == 'xi-screenshots'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Two xi-screenshots dispatches push one after the other, never at once; the README names
+    # the run whose captures the branch holds.
+    concurrency:
+      group: ci-xi-captures
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: xi-screenshots
+          path: ${{ runner.temp }}/xi-screenshots
+      - name: commit the two captures onto ci/xi-captures, a fresh orphan commit force-pushed
+        env:
+          CAPTURES: ${{ runner.temp }}/xi-screenshots
+          WORKTREE: ${{ runner.temp }}/xi-captures
+          TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git init -q -b ci/xi-captures "$WORKTREE"
+          cd "$WORKTREE"
+          mkdir -p docs/screenshots
+          for name in 11-xi-lab.png 12-xi-mobile.png; do
+            # The artifact's root is docs/screenshots (the common ancestor of its two paths).
+            source="$CAPTURES/$name"
+            [ -f "$source" ] || source="$CAPTURES/docs/screenshots/$name"
+            if [ ! -s "$source" ]; then
+              echo "::error::the artifact holds no capture $name"
+              exit 1
+            fi
+            # Only a PNG is pushed: the first eight bytes are the PNG signature.
+            if [ "$(head -c 8 "$source" | od -An -tx1 | tr -d ' \n')" != 89504e470d0a1a0a ]; then
+              echo "::error::$name is not a PNG"
+              exit 1
+            fi
+            cp -- "$source" "docs/screenshots/$name"
+          done
+          echo "XI Lab captures of root-checks run $RUN_ID ($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$RUN_ID), source $SOURCE_SHA." > README.md
+          git add -- README.md docs/screenshots/11-xi-lab.png docs/screenshots/12-xi-mobile.png
+          held=$(git ls-files)
+          wanted=$(printf '%s\n' README.md docs/screenshots/11-xi-lab.png docs/screenshots/12-xi-mobile.png)
+          if [ "$held" != "$wanted" ]; then
+            echo "::error::the commit would hold other files than the two captures and the README"
+            exit 1
+          fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -m "XI Lab captures, root-checks run $RUN_ID, source $SOURCE_SHA"
+          auth=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+          echo "::add-mask::$auth"
+          git -c http.extraheader="AUTHORIZATION: basic $auth" push --force \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" HEAD:refs/heads/ci/xi-captures
+          echo "ci/xi-captures is $(git rev-parse HEAD): run $RUN_ID, source $SOURCE_SHA"
