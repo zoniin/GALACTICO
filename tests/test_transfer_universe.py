@@ -347,7 +347,11 @@ def test_universe_equals_a_row_by_row_recount(hand_surface, thesis_guard):
                         for s in c.other_stints] == w["others"]
                 assert list(c.values) == list(METRICS)
                 for key in METRICS:
-                    assert c.values[key] == pytest.approx(w["values"][key], rel=1e-12, abs=1e-15)
+                    expected = w["values"][key]
+                    if expected is None:
+                        assert c.values[key] is None
+                    else:
+                        assert c.values[key] == pytest.approx(expected, rel=1e-12, abs=1e-15)
                 if w["lanes"] is None:
                     assert c.lane_shares is None
                 else:

@@ -106,11 +106,13 @@ def _per_match_components(spec: ConstructSpec, actions: pd.DataFrame, xt,
     else:
         delta = (xt.values[xt.grid.cells(rows["end_x"], rows["end_y"])]
                  - xt.values[xt.grid.cells(rows["start_x"], rows["start_y"])])
-        delta = pd.Series(delta, index=rows.index)
+        # Floating-point addition depends on order. Give every player-match the
+        # same summation order even when its events arrive shuffled or reindexed.
+        gains = rows[["player_id", "game_id"]].assign(gain=delta)
         if spec.measure is Measure.SUM_POSITIVE_XT_GAIN:
-            delta = delta[delta > 0]
-        keep = rows.loc[delta.index]
-        numerator = delta.groupby([keep["player_id"], keep["game_id"]]).sum()
+            gains = gains.loc[gains.gain > 0]
+        gains = gains.sort_values(["player_id", "game_id", "gain"])
+        numerator = gains.groupby(["player_id", "game_id"])["gain"].sum()
 
     frame = numerator.rename("numerator").reset_index()
     frame.columns = ["player_id", "game_id", "numerator"]
