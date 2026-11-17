@@ -76,8 +76,8 @@ What it reads, through the shipped loaders the draft names (PIPELINE section 1, 
 only: ``sidecar.verify``, ``sidecar.manifest`` (its versions and ``actions_event_ids_equal``
 are checked against the config), ``sidecar.load`` of ``events`` with ``sidecar_columns``, and
 the neutral actions through ``load_public`` with the columns of ``ACTION_COLUMNS``, each one
-in the config's ``action_columns``, joined by ``sidecar.attach``. No team or player column is
-read.
+in the config's ``action_columns``, joined by ``sidecar.attach``.
+The counts use no team or player column. Sidecar verification hashes its complete tables.
 
 Exit codes: 0 when every assumption pin agrees and ``structure_identity`` holds in every league
 (the other keys may differ: those differences are what the root writes); 1 when an assumption
@@ -119,7 +119,7 @@ ALL = "all leagues"
 NO_OUTCOME_NOTE = (
     "These counts compute no outcome: no candidate value, no conversion value or model, no "
     "reliability and no rate; the goal rows are a structure pin counted per league as a whole. "
-    "No team or player column is read, and no team or player is named."
+    "The counts use no team or player column, and no team or player is named."
 )
 NOT_COUNTED_NOTE = (
     "sb_folder_digests is not counted here: the root computes it on its own machine with "
@@ -387,8 +387,8 @@ def sentinel_start(frame: pd.DataFrame, *,
                    sentinels: Sequence[tuple[float, float]]) -> np.ndarray:
     """Whether each row's ``(start_x, start_y)`` equals one of ``sentinels`` exactly."""
     _require(frame, ("start_x", "start_y"))
-    x = frame["start_x"].to_numpy(dtype=float)
-    y = frame["start_y"].to_numpy(dtype=float)
+    x = frame["start_x"].to_numpy(dtype=float, na_value=np.nan)
+    y = frame["start_y"].to_numpy(dtype=float, na_value=np.nan)
     found = np.zeros(len(frame), dtype=bool)
     for sx, sy in sentinels:
         found |= (x == sx) & (y == sy)
@@ -399,7 +399,7 @@ def opponent_half(frame: pd.DataFrame, *, halfway: float,
                   sentinels: Sequence[tuple[float, float]]) -> np.ndarray:
     """The zone ``opponent_half``: ``start_x > halfway`` strictly and not a sentinel start."""
     _require(frame, ("start_x", "start_y"))
-    x = frame["start_x"].to_numpy(dtype=float)
+    x = frame["start_x"].to_numpy(dtype=float, na_value=np.nan)
     with np.errstate(invalid="ignore"):
         beyond = x > halfway
     return beyond & ~sentinel_start(frame, sentinels=sentinels)
@@ -425,8 +425,8 @@ class ShotCount:
 def shot_count(kept: pd.DataFrame, *, halfway: float,
                sentinels: Sequence[tuple[float, float]]) -> ShotCount:
     _require(kept, ("type", "start_x", "start_y", "goal"))
-    shots = kept.loc[(kept["type"] == SHOT).to_numpy(dtype=bool)]
-    x = shots["start_x"].to_numpy(dtype=float)
+    shots = kept.loc[kept["type"].isin([SHOT])]
+    x = shots["start_x"].to_numpy(dtype=float, na_value=np.nan)
     sentinel = sentinel_start(shots, sentinels=sentinels)
     with np.errstate(invalid="ignore"):
         beyond, behind = x > halfway, x <= halfway
@@ -459,7 +459,7 @@ class Coverage:
 
 def body_part_coverage(kept: pd.DataFrame) -> Coverage:
     _require(kept, ("type", "body_part"))
-    shots = kept.loc[(kept["type"] == SHOT).to_numpy(dtype=bool)]
+    shots = kept.loc[kept["type"].isin([SHOT])]
     return Coverage(len(shots), int(shots["body_part"].notna().sum()))
 
 
@@ -513,9 +513,9 @@ def family_disagreements(kept: pd.DataFrame, pins: Sequence[FamilyPin]) -> Famil
     expected = np.full(len(kept), None, dtype=object)
     named = np.zeros(len(kept), dtype=bool)
     for pin in pins:
-        mask = (kept["type"] == pin.type).to_numpy(dtype=bool, copy=True)
+        mask = kept["type"].isin([pin.type]).to_numpy(dtype=bool, copy=True)
         if pin.subtype is not None:
-            mask &= (kept["subtype"] == pin.subtype).to_numpy(dtype=bool)
+            mask &= kept["subtype"].isin([pin.subtype]).to_numpy(dtype=bool)
         if (mask & named).any():
             raise ValueError("two shot_family_pins name one row")
         expected[mask] = pin.family
@@ -635,7 +635,7 @@ def stops(results: Iterable[KeyResult]) -> tuple[KeyResult, ...]:
     return tuple(result for result in results if result.pin and not result.agrees)
 
 
-def to_write(chosen: Settings, results: Iterable[KeyResult]) -> tuple[KeyResult, ...]:
+def to_write(results: Iterable[KeyResult]) -> tuple[KeyResult, ...]:
     """The keys not pinned whose count differs from the config: the root writes these."""
     return tuple(result for result in results if not result.pin and not result.agrees)
 
@@ -807,6 +807,11 @@ def load_league(league: str, chosen: Settings) -> LeagueFrames:
                                 f"(sidecar_requires_actions_event_ids_equal)")
         events = sidecar.load(league, "events", columns=list(chosen.sidecar_columns))
         actions = load_public(league, tables=("actions",), action_columns=ACTION_COLUMNS).actions
+        # attach checks uniqueness and coverage of every action. For a whole league,
+        # equal lengths also rule out surplus sidecar IDs since the manifest was built.
+        if chosen.event_ids_equal_required and len(actions) != len(events):
+            raise CorpusRefused(f"{league}: current actions and sidecar have different row counts "
+                                f"({len(actions)} and {len(events)})")
         joined = sidecar.attach(actions, events,
                                 [name for name in chosen.sidecar_columns if name != "event_id"])
         return LeagueFrames(joined, sidecar.provenance(league))
@@ -893,14 +898,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(key_block(chosen, result, counts))
             print()
 
-    writes = to_write(chosen, results)
-    print("to write into config.json (each difference stated in the registration commit and in "
-          "REVIEW-RECORD.md):" if writes else "to write into config.json: nothing; every key "
-          "written by the root agrees with the config")
-    for result in writes:
-        was = json.dumps(result.stated)
-        print(f'  "{result.key}": {written_value(chosen, result)},   (config: {was}; differs in '
-              f"{', '.join(result.differing)})")
     stopped, failed = stops(results), identity_failures(chosen, counts)
     if stopped or failed:
         for result in stopped:
@@ -909,6 +906,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"STOP: structure_identity fails in {', '.join(failed)}.")
         print("STOP: registration stops; nothing above is written.")
         return 1
+    writes = to_write(results)
+    print("to write into config.json (each difference stated in the registration commit and in "
+          "REVIEW-RECORD.md):" if writes else "to write into config.json: nothing; every key "
+          "written by the root agrees with the config")
+    for result in writes:
+        was = json.dumps(result.stated)
+        print(f'  "{result.key}": {written_value(chosen, result)},   (config: {was}; differs in '
+              f"{', '.join(result.differing)})")
     print("every assumption pin agrees with the config, and structure_identity holds in every "
           "league.")
     return 0
