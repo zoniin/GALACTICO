@@ -367,6 +367,13 @@ is set when `ratio.decision[0] > ratio_flag_lower_bound_above`, under any token.
 in its order, returning `NO_ORIGIN_SEASON`, `bundesliga_destination`, `within_league` or
 `league_change`; a test covers all 25 pairs of the five leagues.
 
+For each cross-corpus contrast, the runner takes the two `role_changed_share` values
+from the cohort structure at the construct's floors (section 2). For each arm divide
+its ROLE_CHANGED count by its total ROLE_SAME and ROLE_CHANGED count, or return null
+when the arm is empty. Attach these shares to every local contrast record, including
+`NOT_ADMITTED` and a failed sample gate. The runner needs no outcome column for them.
+The descriptive correlations in `role_changed` still require both gates to pass.
+
 `evaluate_contrast` enforces the order that makes `INCONCLUSIVE` true to its definition:
 
 1. not admitted: return `{verdict: NOT_ADMITTED, ...}`; **no panel column is read**.
@@ -716,8 +723,10 @@ Run by a reviewer who did not write the code, on synthetic data, before `execute
 13. One `Worlds` object per arm; no function draws its own resampling weights except the
     declared sensitivities.
 14. `decide` matches the protocol table row for row; no other code assigns a verdict token.
-15. A failed gate or a non-admitted construct returns before any outcome column is read, and
-    no descriptive output is computed for it.
+15. A non-admitted construct returns before reading the outcome panel. A sample gate uses
+    the finite-value masks in section 5. On either early return, the runner still reports
+    the structural role shares and skips every outcome statistic. Test both early returns
+    with distinct role shares in the two arms and test an empty mover cohort (null share).
 16. `ROLE_CHANGED` units enter no verdict-bearing statistic; their stratum never reaches
     `decide`.
 17. `false_link_share` enters row 7 only; it never touches row 8.

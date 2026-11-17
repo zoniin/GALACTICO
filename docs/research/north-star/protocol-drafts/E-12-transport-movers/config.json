@@ -182,7 +182,7 @@
   "sensitivity_minimum_movers": 40,
   "attrition_destination_minutes_steps": [1, 270, 450, 900, 1800],
   "attrition_contrast_rule": "among the ROLE_SAME linked units of a cohort with a 2017/18 appearance (at least one regulation minute at a destination club), the mean origin z of those who cleared the destination floor minus the mean of those who did not, with its decision interval; computed per admitted construct for contrasts that passed rows 1 and 2",
-  "role_changed_rule": "per contrast that passed rows 1 and 2: the ROLE_CHANGED share of the linked units of each arm, and on ROLE_CHANGED units the rho of each arm and their ratio with intervals when each arm has at least minimum_units_for_any_statistic units; labelled outside the ordering E-11 graded; never reaches decide",
+  "role_changed_rule": "for every cross_corpus contrast, report the ROLE_CHANGED share separately for stayers and movers from the linked cohort counts at the construct floors, before admission, finite-value or matching filters; a zero denominator gives null. Only after rows 1 and 2 pass, report rho for each ROLE_CHANGED arm and their ratio with intervals when each arm has at least minimum_units_for_any_statistic units; label those statistics outside the ordering E-11 graded; never pass them to decide",
   "role_changed_sentence": "E-11 graded the ordering of these quantities within the Wyscout role code. The ordering of origin percentiles for players whose StatsBomb position and Wyscout role differ was not graded there, so those players enter no verdict here.",
   "public_winter_last_old_club_appearance_after": "2017-09-01",
   "public_winter_first_new_club_appearance_from": "2018-01-01",

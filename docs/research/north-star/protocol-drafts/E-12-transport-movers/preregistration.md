@@ -274,7 +274,8 @@ population of a cell is unchanged. `ROLE_CHANGED` units are reported beside each
 a descriptive stratum labelled outside the ordering E-11 graded (`role_changed_rule`); they
 never reach a verdict, and `analysis.md` prints `role_changed_sentence` beside them. The
 `ROLE_CHANGED` share of the linked units of each arm is printed beside every contrast in
-`results.local.json` and `analysis.md` (Y3; E-11 section 14, item 10). The flag mixes
+`results.local.json` and `analysis.md` (Y3; E-11 section 14, item 10). Use the linked cohorts at the construct’s minute floors, before admission, matching
+or finite-value filters. An empty arm has an undefined share. The flag mixes
 redeployment with provider labelling and cannot separate them.
 
 Position for strata, matching and reporting is the Wyscout role (one public label per
