@@ -312,9 +312,9 @@
   "descriptive_subgroups": ["counter_attack"],
 
   "expected_shot_rows": {"Spain": 7979, "England": 8451, "Italy": 8806, "Germany": 6898, "France": 8327},
-  "expected_behind_halfway_shot_rows": null,
-  "expected_sentinel_start_shot_rows": null,
-  "expected_in_domain_shot_rows": null,
+  "expected_behind_halfway_shot_rows": {"Spain": 21, "England": 11, "Italy": 26, "Germany": 23, "France": 19},
+  "expected_sentinel_start_shot_rows": {"Spain": 0, "England": 0, "Italy": 0, "Germany": 0, "France": 0},
+  "expected_in_domain_shot_rows": {"Spain": 7958, "England": 8440, "Italy": 8780, "Germany": 6875, "France": 8308},
   "planning_shot_rows_at_or_behind_halfway_by_x_only": {"Spain": 21, "England": 11, "Italy": 26, "Germany": 23, "France": 19},
   "expected_goal_rows_on_shots": {"Spain": 884, "England": 914, "Italy": 853, "Germany": 747, "France": 873},
   "expected_matches": {"Spain": 380, "England": 380, "Italy": 380, "Germany": 306, "France": 380},

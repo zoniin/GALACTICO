@@ -774,3 +774,30 @@ Refuted claims: none (no blocker was claimed).
    verification confirmed one in the third audit's revision, the settle applied it, and this
    round found that the settle's edits added none. The edits of this round apply consistency
    findings to a READY draft, as the E-10 precedent did after its verification.
+
+## Five-league structure counts, 17 November 2026
+
+The committed counter at `f1ccaa8` ran over the neutral action frames and verified tag
+sidecars built from the public Pappalardo/Wyscout corpus. Every assumption pin agreed.
+All 40,461 shot rows had a body part. Each league had zero rows outside the configured
+periods, zero overlapping defensive clauses and zero shot-family disagreements.
+
+Three draft values changed from null to the per-league counts below. The two sentinel
+coordinates occurred on zero shots. The previously populated shot, goal and match totals also agreed. Reproduce the counts with
+`python scripts/e09_root_counts.py` with the five leagues prepared.
+
+| League | Shot rows | In model domain | At or behind halfway, excluding sentinels | Sentinel start |
+|---|---:|---:|---:|---:|
+| Spain | 7,979 | 7,958 | 21 | 0 |
+| England | 8,451 | 8,440 | 11 | 0 |
+| Italy | 8,806 | 8,780 | 26 | 0 |
+| Germany | 6,898 | 6,875 | 23 | 0 |
+| France | 8,327 | 8,308 | 19 | 0 |
+
+The Premier League, Serie A and Ligue 1 folder digests still require the local StatsBomb
+cache. The registration commit must record the three public count fields above together
+with the remaining digest checks under PIPELINE section 13.
+
+Public data: Pappalardo et al., *A public data set of spatio-temporal match events in
+soccer competitions* (2019), [Scientific Data](https://doi.org/10.1038/s41597-019-0247-7),
+CC BY 4.0.
