@@ -268,9 +268,16 @@ No credentials or proprietary data are needed or committed.
   Its pipeline is built on synthetic data and reviewed against its checklist, and the
   acceptance stamp is committed (`f6f9184`). The verdict registry holds its sixteen
   `PENDING` records. The run needs the public corpus beside the licensed folders.
-- REGISTERED, NOT BUILT, NOT RUN: E-10 (19 October 2026, ADR-0031), after one review
-  round, three audits and two verifications. The verdict registry holds its seven PUBLIC
-  `PENDING` records. Its results commit follows E-09's registration (ADR-0031).
+- E-10 (ADR-0031) is registered. On 17 November the first implementation package added
+  the team descriptors, match table and prior-date estimator under `galactico/features/team/`.
+  The ten provider-specific descriptor definitions match the registered vectors. Match Lab
+  independently reproduced six full-match totals for 25 historical matches. The date and
+  estimator tests use synthetic counts. One interface clarification for the next package:
+  `time_key` preserves fractional seconds because the protocol orders incidents strictly
+  before each event; an integer key as specified in PIPELINE 2.1 would collapse distinct
+  provider timestamps. Next are the research engine (package B) and synthetic generator
+  (C), then the runner (D). All seven registry records are still `PENDING`. The results
+  commit follows E-09's registration.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-12, E-13. The design council that wrote them
   was cut short before adversarial review, reconciliation and audit.
 - BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own
