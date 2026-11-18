@@ -275,7 +275,10 @@ No credentials or proprietary data are needed or committed.
   estimator tests use synthetic counts. One interface clarification for the next package:
   `time_key` preserves fractional seconds because the protocol orders incidents strictly
   before each event; an integer key as specified in PIPELINE 2.1 would collapse distinct
-  provider timestamps. Next are the research engine (package B) and synthetic generator
+  provider timestamps. Package B now has the shared calendar-week bootstrap and paired
+  ratio estimates in `galactico/validation/conceded_shape.py`. Hand-calculated tests cover
+  pooled and single-league estimates, subsets and weeks that cross the evaluation cutoff.
+  Next are the walk-forward models and evaluation rules in B, the synthetic generator
   (C), then the runner (D). All seven registry records are still `PENDING`. The results
   commit follows E-09's registration.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-12, E-13. The design council that wrote them
