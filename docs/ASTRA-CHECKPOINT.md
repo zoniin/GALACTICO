@@ -278,8 +278,11 @@ No credentials or proprietary data are needed or committed.
   provider timestamps. Package B now has the shared calendar-week bootstrap and paired
   ratio estimates in `galactico/validation/conceded_shape.py`. Hand-calculated tests cover
   pooled and single-league estimates, subsets and weeks that cross the evaluation cutoff.
-  Next are the walk-forward models and evaluation rules in B, the synthetic generator
-  (C), then the runner (D). All seven registry records are still `PENDING`. The results
+  The shape and volume models now score each fixture from strictly earlier dates and
+  select shrinkage settings on development fixtures. Synthetic tests cover opponent
+  exclusion, mirrored and permuted teams, recent form, and a held-out side preference.
+  Next in B are sample gates, calibration, reliability and the registered decision rules,
+  followed by the synthetic generator (C) and runner (D). All seven registry records are still `PENDING`. The results
   commit follows E-09's registration.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-12, E-13. The design council that wrote them
   was cut short before adversarial review, reconciliation and audit.
