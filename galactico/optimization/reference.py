@@ -236,6 +236,9 @@ def build_league_reference(
     rates: dict[str, dict[tuple[int, int], float]] = {}
     for key, table in components.items():
         with_club = table.merge(club_of, how="left", on=["game_id", "player_id"])
+        # Match the club snapshot's contiguous player groups and match order.
+        # Summing interleaved clubs can change the last bit of a player's rate.
+        with_club = with_club.sort_values(["lineup_team_id", "player_id", "game_id"])
         totals = with_club.groupby(["lineup_team_id", "player_id"])[
             ["numerator", "denominator"]
         ].sum()
