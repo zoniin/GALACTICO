@@ -58,8 +58,43 @@ async function loadClubs() {
     const retry = element('button','Retry clubs'); retry.onclick = loadClubs; connection.append(retry);
   }
 }
+let baselineVersion = 0;
+async function loadBaseline() {
+  const output = document.getElementById('baseline'), day = document.getElementById('baseline-day').value;
+  const version = ++baselineVersion;
+  if (!day) { output.textContent = 'Choose a date.'; return; }
+  output.textContent = 'Loading reported league results…';
+  try {
+    const data = await get('/api/match-centre/scouting/madrid?' + new URLSearchParams({day}));
+    if (version !== baselineVersion) return;
+    const wrap = element('div'); wrap.className = 'scroll';
+    const table = element('table'), header = table.createTHead().insertRow();
+    for (const label of ['Per team match','Madrid','Other clubs','Madrid gap']) header.append(element('th',label));
+    const body = table.createTBody();
+    for (const [label, field] of [['Goals scored','scored_per_game'],['Goals conceded','conceded_per_game']]) {
+      const row = body.insertRow(), a = data.madrid[field], b = data.other_clubs[field];
+      const gap = a == null || b == null ? null : a - b;
+      for (const value of [label, a?.toFixed(2), b?.toFixed(2),
+        gap == null ? null : (gap > 0 ? '+' : '') + gap.toFixed(2)]) row.append(element('td',value ?? '—'));
+    }
+    wrap.append(table);
+    output.replaceChildren(wrap, element('p', 'Madrid played ' + data.madrid.team_games +
+      ' reported matches. The reference pools ' + data.other_clubs.team_games +
+      ' team appearances from the other La Liga clubs.'),
+      element('small', ['OpenFootball through ' + data.cutoff, data.reported + ' results reported',
+        data.missing + ' fixtures without a result', ...data.warnings].join(' · ')));
+  } catch (error) {
+    if (version !== baselineVersion) return;
+    const retry = element('button','Retry results'); retry.onclick = loadBaseline;
+    output.replaceChildren(element('p',error.message),retry);
+  }
+}
 async function init() {
   const config = await get('/api/match-centre');
+  const day = document.getElementById('baseline-day');
+  day.max = day.value = config.today || new Date().toISOString().slice(0,10);
+  day.onchange = loadBaseline;
+  loadBaseline();
   if (!config.private_feed) {connection.textContent = ''; document.getElementById('setup').hidden = false; return;}
   form.hidden = false;
   for (const [id,name] of Object.entries(config.leagues)) control('league').add(new Option(name,id));

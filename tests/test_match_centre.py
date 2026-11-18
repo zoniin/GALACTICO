@@ -176,3 +176,24 @@ def test_local_launcher_reads_dotenv_and_preserves_an_exported_key(tmp_path, mon
     monkeypatch.setenv("API_FOOTBALL_KEY", "env-example")
     local.run()
     assert captured == ["file-example", "env-example"]
+
+
+def test_public_scouting_uses_reported_scores_and_counts_other_team_appearances(monkeypatch):
+    async def season(self, code, year):
+        return Snapshot([
+            {"team1": "Real Madrid CF", "team2": "A", "date": "2025-10-01", "score": [3, 0]},
+            {"team1": "A", "team2": "B", "date": "2025-10-02", "score": [1, 1]},
+            {"team1": "B", "team2": "Real Madrid CF", "date": "2025-10-03"},
+            {"team1": "A", "team2": "Real Madrid CF", "date": "2025-10-04", "score": [8, 4]},
+        ], CHECKED)
+
+    monkeypatch.setattr(OpenFootball, "season", season)
+    with TestClient(app) as client:
+        url = "/api/match-centre/scouting/madrid"
+        report = client.get(url, params={"day": "2025-10-03"}).json()
+        assert report["reported"] == 2 and report["missing"] == 1
+        assert report["madrid"]["scored_per_game"] == 3 and report["madrid"]["team_games"] == 1
+        assert report["other_clubs"]["scored_per_game"] == 2 / 3
+        assert report["other_clubs"]["conceded_per_game"] == 5 / 3
+        empty = client.get(url, params={"day": "2025-09-18"}).json()
+        assert empty["madrid"]["scored_per_game"] is None

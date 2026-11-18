@@ -27,7 +27,9 @@ The hosted entry point serves the public match centre at `/` and fetches public 
 on demand. A local installation reads the subscription key for private match reports.
 [API-Football documentation](https://www.api-football.com/documentation-v3)
 
-Open **Scouting** in the private match centre to select a season, league, club and
+**Scouting** shows Madrid’s scoring and conceding rates against the rest of La Liga
+from publicly reported results as of the selected date, including sample sizes and missing games.
+Open it in the private match centre with a provider key to select a season, league, club and
 position. For example, choose Crystal Palace midfielders and key passes, then compare
 their output against top-six opponents with Madrid midfielders facing top-six La Liga
 opposition. Candidates are listed from the selected club’s actual player reports.

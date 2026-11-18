@@ -56,6 +56,13 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
             raise HTTPException(422, "Select a supported league and season.")
         return scout
 
+    @router.get("/api/match-centre/scouting/madrid")
+    async def madrid_baseline(day: date):
+        try:
+            return await public.madrid_baseline(day, datetime.now(UTC).date())
+        except FeedError as exc:
+            raise HTTPException(503, str(exc)) from exc
+
     @router.get("/api/match-centre/scouting/clubs")
     async def scouting_clubs(league: int, season: int):
         service = scouting_feed(league, season)

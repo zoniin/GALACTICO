@@ -54,8 +54,15 @@ test('private report exposes timelines, lineups and player totals', async ({ pag
 });
 
 test('season scouting handles missing credentials and compares a selected need', async ({page}) => {
+  await page.route('**/scouting/madrid?**', r => r.fulfill({json:{
+    madrid:{scored_per_game:2,conceded_per_game:1,team_games:6},
+    other_clubs:{scored_per_game:1.5,conceded_per_game:1.2,team_games:114},
+    cutoff:day,reported:60,missing:2,warnings:[]
+  }}));
   await page.goto('/match-centre/scouting');
   await expect(page.getByRole('heading',{name:'Connect player data'})).toBeVisible();
+  await expect(page.getByRole('row',{name:'Goals scored 2.00 1.50 +0.50'})).toBeVisible();
+  await expect(page.getByText(/114 team appearances/)).toBeVisible();
   await page.route('**/api/match-centre', r => r.fulfill({json:{private_feed:true, season:2026,
     leagues:{39:'Premier League'},roles:{M:'Midfielders'}}}));
   await page.route('**/scouting/clubs?**', r => r.fulfill({json:{clubs:[{id:52,name:'Example club'}],warnings:[]}}));

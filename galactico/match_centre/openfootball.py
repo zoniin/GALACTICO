@@ -167,6 +167,23 @@ class OpenFootball:
                 "fixtures": sorted(matches, key=lambda m: (m["day"], m["kickoff"] or "")),
                 "checked": season.checked, "warnings": [season.warning] if season.warning else []}
 
+    async def madrid_baseline(self, day: date, today: date) -> dict:
+        league = await self.competition("es.1", day, today, None)
+        madrid = [row for row in league["table"] if row["team"] in MADRID]
+        others = [row for row in league["table"] if row["team"] not in MADRID]
+
+        def rates(rows: list[dict]) -> dict:
+            games = sum(row["played"] for row in rows)
+            scored = sum(row["gf"] for row in rows)
+            conceded = sum(row["ga"] for row in rows)
+            return {"team_games": games, "scored": scored, "conceded": conceded,
+                    "scored_per_game": scored / games if games else None,
+                    "conceded_per_game": conceded / games if games else None}
+
+        return {k: league[k] for k in ("season", "cutoff", "reported", "missing",
+                                      "checked", "warnings")} | {
+            "madrid": rates(madrid), "other_clubs": rates(others)}
+
     async def detail(self, code: str, year: int, key: str, today: date) -> dict | None:
         season = await self.season(code, year)
         for row in season.rows:
