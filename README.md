@@ -16,12 +16,15 @@ many results are missing and uses points, goal difference and goals scored. Open
 updates can lag, and missing results stay marked as pending.
 [OpenFootball](https://github.com/openfootball/football.json)
 
-For in-play coverage, set `API_FOOTBALL_KEY` in the server environment before starting
-the same command. An account with access to the relevant season and competitions is
+For in-play coverage, copy `.env.example` to `.env` in the checkout and set
+`API_FOOTBALL_KEY` there before starting the same command. An exported environment
+variable takes precedence over the file. An account with access to the relevant season and competitions is
 required. Switch the source to **API-Football** for match clocks, events, lineups and
 team and player totals. Today’s board and open report refresh every minute while visible.
 The private server binds to loopback. The regular lab server also serves the public
 scoreboard at `/match-centre`.
+The hosted entry point serves the public match centre at `/` and fetches public data
+on demand. A local installation reads the subscription key for private match reports.
 [API-Football documentation](https://www.api-football.com/documentation-v3)
 
 Open **Scouting** in the private match centre to select a season, league, club and

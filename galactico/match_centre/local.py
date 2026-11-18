@@ -1,20 +1,20 @@
 """Run the private match centre with python -m galactico.match_centre.local."""
 
 import os
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import PlainTextResponse
 
 from .api_football import ApiFootball
-from .routes import WEB, make_router
+from .public import create_centre
 
 LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
 
 def create_app(key: str | None) -> FastAPI:
-    app = FastAPI(title="Galáctico private match centre")
+    app = create_centre("Galáctico private match centre", ApiFootball(key) if key else None)
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
@@ -27,15 +27,16 @@ def create_app(key: str | None) -> FastAPI:
         response.headers["Cache-Control"] = "no-store"
         return response
 
-    @app.get("/", include_in_schema=False)
-    def home():
-        return FileResponse(WEB / "match-centre.html")
-
-    app.include_router(make_router(ApiFootball(key) if key else None))
-    app.mount("/static", StaticFiles(directory=WEB), name="static")
     return app
 
 
-if __name__ == "__main__":
+def run() -> None:
+    from dotenv import load_dotenv
+
+    load_dotenv(Path.cwd() / ".env", override=False)
     uvicorn.run(create_app(os.getenv("API_FOOTBALL_KEY")), host="127.0.0.1",
                 port=8091, proxy_headers=False)
+
+
+if __name__ == "__main__":
+    run()

@@ -148,3 +148,31 @@ def test_league_table_counts_reported_results_and_ties_and_links_team_schedule(m
         fixture = team["fixtures"][0]
         assert client.get("/api/match-centre/fixtures/" + fixture["id"]).json()["match"] == fixture
         assert client.get("/api/match-centre/leagues/unknown?day=2026-09-01").status_code == 404
+
+
+def test_hosted_entrypoint_serves_current_app_without_private_data(monkeypatch):
+    from api.index import app as hosted
+
+    monkeypatch.setenv("API_FOOTBALL_KEY", "example")
+    with TestClient(hosted) as client:
+        for path in ("/", "/match-centre", "/match-centre/leagues", "/match-centre/scouting",
+                     "/match-centre/demo", "/static/match-centre.js"):
+            assert client.get(path).status_code == 200
+        assert "Match centre" in client.get("/").text
+        assert client.get("/api/match-centre").json()["private_feed"] is False
+        assert client.get("/api/match-centre/fixtures/42").status_code == 403
+
+
+def test_local_launcher_reads_dotenv_and_preserves_an_exported_key(tmp_path, monkeypatch):
+    from galactico.match_centre import local
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("API_FOOTBALL_KEY", raising=False)
+    (tmp_path / ".env").write_text("API_FOOTBALL_KEY=file-example\n")
+    captured = []
+    monkeypatch.setattr(local, "create_app", lambda key: captured.append(key))
+    monkeypatch.setattr(local.uvicorn, "run", lambda *args, **kwargs: None)
+    local.run()
+    monkeypatch.setenv("API_FOOTBALL_KEY", "env-example")
+    local.run()
+    assert captured == ["file-example", "env-example"]

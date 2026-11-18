@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": "{galactico/match_centre/**,galactico/providers/**,galactico/__init__.py,web/**}",
+        "excludeFiles": "{data/**,docs/**,experiments/**,tests/**,e2e/**,node_modules/**,.venv/**}"
+      }
+    }
+  ],
+  "routes": [{ "src": "/(.*)", "dest": "/api/index.py" }]
+}
