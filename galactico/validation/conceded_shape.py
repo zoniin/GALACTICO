@@ -10,6 +10,7 @@ import hashlib
 import math
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -113,7 +114,8 @@ def cluster_ratio(
     holes = len(kept) - len(ratios)
     interval = None
     if len(ratios):
-        low, high = np.quantile(ratios, quantiles, method=method)
+        # NumPy validates the configured method name at runtime.
+        low, high = np.quantile(ratios, quantiles, method=cast(Any, method))
         interval = (float(low), float(high))
     p = (1 + int(np.count_nonzero(ratios >= -zero_tolerance))) / (1 + len(ratios))
     return ClusterEstimate(
@@ -431,6 +433,7 @@ def select_k(
     losses = pooled.tolist()
     if not np.isfinite(pooled).all():
         return None, losses
-    tied = np.flatnonzero(pooled <= pooled.min() + tolerance)
-    winner = max(tied, key=lambda i: math.inf if candidates[i] is None else candidates[i])
-    return int(winner), losses
+    threshold = min(losses) + tolerance
+    tied = [(i, k) for i, k in enumerate(candidates) if losses[i] <= threshold]
+    winner, _ = max(tied, key=lambda option: math.inf if option[1] is None else option[1])
+    return winner, losses
