@@ -72,3 +72,16 @@ test('season scouting handles missing credentials and compares a selected need',
   await expect(page.getByRole('row',{name:/Example midfielder 6 270 315 2.00 \+1.00/})).toBeVisible();
   await expect(page.getByText(/360 observed out of 450/)).toBeVisible();
 });
+
+test('league table opens a club schedule and links the fixture to its report', async ({page}) => {
+  await page.route('**/api/match-centre/leagues/es.1?**', r => r.fulfill({json:{
+    competition:'La Liga', season:2026, cutoff:day, reported:1, missing:2, checked, warnings:[],
+    table:[{team:'Real Madrid',played:1,wins:0,draws:1,losses:0,gf:0,ga:0,points:1,rank:1}],
+    fixtures:[game]
+  }}));
+  await page.goto('/match-centre/leagues?league=es.1&day=' + day);
+  await expect(page.getByText(/2 fixtures through that date have no reported result/)).toBeVisible();
+  await page.getByRole('link',{name:'Real Madrid',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Real Madrid',exact:true})).toBeVisible();
+  await expect(page.getByRole('link',{name:'Real Madrid v Test Club'})).toHaveAttribute('href', new RegExp('match=' + game.id));
+});

@@ -65,6 +65,40 @@ def recent_form(rows: list[dict], name: str, before: str) -> list[dict]:
     return sorted(games, key=lambda r: r["day"], reverse=True)[:5]
 
 
+def results_table(rows: list[dict], cutoff: str) -> tuple[list[dict], int, int]:
+    clubs = {r[side] for r in rows for side in ("team1", "team2")}
+    table = {club: dict(team=club, played=0, wins=0, draws=0, losses=0, gf=0, ga=0, points=0)
+             for club in clubs}
+    reported = missing = 0
+    for row in rows:
+        if row["date"] > cutoff:
+            continue
+        score = final_score(row)
+        if score is None:
+            missing += 1
+            continue
+        reported += 1
+        for team, gf, ga in ((row["team1"], *score), (row["team2"], *reversed(score))):
+            entry = table[team]
+            entry["played"] += 1
+            entry["wins"] += int(gf > ga)
+            entry["draws"] += int(gf == ga)
+            entry["losses"] += int(gf < ga)
+            entry["gf"] += gf
+            entry["ga"] += ga
+            entry["points"] += 3 if gf > ga else int(gf == ga)
+    ordered = sorted(table.values(), key=lambda c: (-c["points"], c["ga"]-c["gf"],
+                                                    -c["gf"], c["team"].casefold()))
+    last = None
+    for position, entry in enumerate(ordered, start=1):
+        record = (entry["points"], entry["gf"]-entry["ga"], entry["gf"])
+        if record != last:
+            rank = position
+        entry["rank"] = rank
+        last = record
+    return ordered, reported, missing
+
+
 class OpenFootball:
     def __init__(self) -> None:
         self.cache = FeedCache(30)
@@ -120,6 +154,18 @@ class OpenFootball:
                 "next": min((d for d in dates if d > day.isoformat()), default=None),
                 "previous": max((d for d in dates if d < day.isoformat()), default=None),
                 "madrid_fixture": madrid_fixture}
+
+    async def competition(self, code: str, day: date, today: date, team: str | None) -> dict:
+        year = season_start(day)
+        season = await self.season(code, year)
+        cutoff = min(day, today)
+        table, reported, missing = results_table(season.rows, cutoff.isoformat())
+        matches = [_fixture(code, year, row, today) for row in season.rows
+                   if team and team in (row["team1"], row["team2"])]
+        return {"competition": LEAGUES[code], "season": year, "cutoff": cutoff,
+                "table": table, "reported": reported, "missing": missing,
+                "fixtures": sorted(matches, key=lambda m: (m["day"], m["kickoff"] or "")),
+                "checked": season.checked, "warnings": [season.warning] if season.warning else []}
 
     async def detail(self, code: str, year: int, key: str, today: date) -> dict | None:
         season = await self.season(code, year)

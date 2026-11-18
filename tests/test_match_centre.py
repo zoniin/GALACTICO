@@ -128,3 +128,23 @@ def test_failed_refresh_retains_last_success_and_backs_off():
             await cache.get("other", 60, load)
 
     asyncio.run(run())
+
+
+def test_league_table_counts_reported_results_and_ties_and_links_team_schedule(monkeypatch):
+    async def season(self, code, year):
+        return Snapshot(GAMES, CHECKED)
+
+    monkeypatch.setattr(OpenFootball, "season", season)
+    with TestClient(app) as client:
+        url = "/api/match-centre/leagues/es.1"
+        overview = client.get(url, params={"day": "2026-09-01"}).json()
+        assert overview["reported"] == 1 and overview["missing"] == 0
+        assert [c["rank"] for c in overview["table"]] == [1, 1, 3, 3]
+        team = client.get(url, params={"day": "2026-10-10", "team": "Real Madrid"}).json()
+        assert team["reported"] == 2 and team["missing"] == 2
+        madrid = team["table"][0]
+        assert madrid["team"] == "Real Madrid" and madrid["gf"] == 2 and madrid["points"] == 4
+        assert len(team["fixtures"]) == 3
+        fixture = team["fixtures"][0]
+        assert client.get("/api/match-centre/fixtures/" + fixture["id"]).json()["match"] == fixture
+        assert client.get("/api/match-centre/leagues/unknown?day=2026-09-01").status_code == 404

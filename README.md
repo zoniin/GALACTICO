@@ -10,7 +10,9 @@ Open [the match centre](http://127.0.0.1:8091). No historical data download is n
 The public scoreboard reads this season’s fixtures and reported results for La Liga,
 the Premier League, Bundesliga, Serie A and Ligue 1. Pick a day, follow Madrid’s next
 league fixture, save matches or inspect either club’s last five reported league results
-before a fixture. OpenFootball publishes community-maintained season files. Score
+before a fixture. **Leagues** shows tables from reported scores as of a chosen date
+and links every club’s season schedule back to individual match reports. It shows how
+many results are missing and uses points, goal difference and goals scored. OpenFootball publishes community-maintained season files. Score
 updates can lag, and missing results stay marked as pending.
 [OpenFootball](https://github.com/openfootball/football.json)
 

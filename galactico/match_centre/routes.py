@@ -25,6 +25,19 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     def centre():
         return FileResponse(WEB / "match-centre.html")
 
+    @router.get("/match-centre/leagues", include_in_schema=False)
+    def leagues_page():
+        return FileResponse(WEB / "leagues.html")
+
+    @router.get("/api/match-centre/leagues/{code}")
+    async def competition(code: str, day: date, team: str | None = None):
+        if code not in LEAGUES:
+            raise HTTPException(404, "Unknown competition.")
+        try:
+            return await public.competition(code, day, datetime.now(UTC).date(), team)
+        except FeedError as exc:
+            raise HTTPException(503, str(exc)) from exc
+
     @router.get("/match-centre/demo", include_in_schema=False)
     def demo():
         return FileResponse(WEB / "matchroom-demo.html")
@@ -69,7 +82,8 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     def sources():
         today = datetime.now(UTC).date()
         return {"private_feed": private is not None, "today": today.isoformat(),
-                "season": season_start(today), "leagues": SCOUT_LEAGUES, "roles": ROLES}
+                "season": season_start(today), "leagues": SCOUT_LEAGUES, "roles": ROLES,
+                "public_leagues": LEAGUES}
 
     @router.get("/api/match-centre/fixtures")
     async def fixtures(day: date, source: str = "openfootball"):
