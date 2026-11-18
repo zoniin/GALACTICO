@@ -225,6 +225,17 @@ PROVIDERS: dict[str, LicensePosture] = {
               "opponent-strength prior is ever needed, compute Elo in-repo from a CC0 "
               "results source, which is also prior-date by construction.",
     ),
+    "openfootball": LicensePosture(
+        name="OpenFootball fixtures and results",
+        tier=DataTier.PUBLIC,
+        may_redistribute=True,
+        may_host_derived=True,
+        may_commit=False,
+        commercial_use=True,
+        requires_attribution=False,
+        terms_url="https://github.com/openfootball/football.json/blob/master/LICENSE.md",
+        notes="CC0 1.0. Season files are updated from community-maintained schedules.",
+    ),
     "api_football": LicensePosture(
         name="API-Football",
         tier=DataTier.LOCAL_LICENSED,
@@ -239,7 +250,7 @@ PROVIDERS: dict[str, LicensePosture] = {
               "local only (LICENSING.md). This entry said a hosted instance may serve "
               "numbers derived from it; no terms of use are recorded here and no note "
               "in the repository gives a basis for that, so since October 2026 it does "
-              "not. No adapter exists and nothing reads this entry.",
+              "not. The private match centre reads this feed on loopback.",
     ),
     "fpl": LicensePosture(
         name="Premier League Fantasy API (REFERENCE ONLY)",

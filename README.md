@@ -2,6 +2,31 @@
 
 An open football decision laboratory.
 
+## Current match centre
+
+Run `python -m pip install -e ".[api]"` and `python -m galactico.match_centre.local` from the checkout.
+Open [the match centre](http://127.0.0.1:8091). No historical data download is needed.
+
+The public scoreboard reads this season’s fixtures and reported results for La Liga,
+the Premier League, Bundesliga, Serie A and Ligue 1. Pick a day, follow Madrid’s next
+league fixture, save matches or inspect either club’s last five reported league results
+before a fixture. OpenFootball publishes community-maintained season files. Score
+updates can lag, and missing results stay marked as pending.
+[OpenFootball](https://github.com/openfootball/football.json)
+
+For in-play coverage, set `API_FOOTBALL_KEY` in the server environment before starting
+the same command. An account with access to the relevant season and competitions is
+required. Switch the source to **API-Football** for match clocks, events, lineups and
+team and player totals. Today’s board and open report refresh every minute while visible.
+The private server binds to loopback. The regular lab server also serves the public
+scoreboard at `/match-centre`.
+[API-Football documentation](https://www.api-football.com/documentation-v3)
+
+The **Scouting demo** in the navigation preserves the interactive Madrid midfield
+comparison and transfer shortlist. It uses explicitly invented figures.
+
+## Historical decision labs
+
 <!-- generated:counts -->
 **11 proposed. 8 tested. 5 survive.**
 

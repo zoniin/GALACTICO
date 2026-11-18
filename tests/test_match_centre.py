@@ -1,0 +1,130 @@
+"""Exercise both fixture sources, using only invented match records in the test suite."""
+
+import asyncio
+from datetime import UTC, date, datetime
+
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+
+from galactico.api.player_lab import app
+from galactico.match_centre.api_football import ApiFootball
+from galactico.match_centre.feed import FeedCache, FeedError, Snapshot
+from galactico.match_centre.local import create_app
+from galactico.match_centre.openfootball import OpenFootball
+
+DAY = date(2026, 10, 10)
+CHECKED = datetime(2026, 10, 10, 12, tzinfo=UTC).isoformat()
+GAMES = [
+    dict(date="2026-09-01", team1="Real Madrid", team2="Test A", score=[0, 0]),
+    dict(date="2026-10-01", team1="Test B", team2="Real Madrid", score={"ft": [0, 2]}),
+    dict(date="2026-10-09", team1="Test B", team2="Test A"),
+    dict(date="2026-10-10", team1="Real Madrid", team2="Test C", score={"ht": [1, 0]}),
+]
+
+
+def test_public_scoreboard_form_and_date_boundaries(monkeypatch):
+    async def season(self, code, year):
+        if code == "it.1":
+            raise FeedError("Unavailable")
+        return Snapshot(GAMES if code == "es.1" else [], CHECKED)
+
+    monkeypatch.setattr(OpenFootball, "season", season)
+    with TestClient(app) as client:
+        response = client.get("/api/match-centre/fixtures?day=2026-10-01").json()
+        assert response["warnings"] == ["Serie A · Unavailable"]
+        assert response["matches"][0]["score"] == [0, 2]
+        assert response["next"] == "2026-10-09"
+        board = client.get("/api/match-centre/fixtures?day=2026-10-10").json()
+        fixture = board["matches"][0]
+        assert board["madrid_fixture"]["id"] == fixture["id"] and fixture["score"] is None
+        detail = client.get("/api/match-centre/fixtures/" + fixture["id"]).json()
+        assert [r["result"] for r in detail["form"]["Real Madrid"]] == ["W", "D"]
+        assert detail["form"]["Test C"] == []
+        assert client.get("/api/match-centre/fixtures/foo").status_code == 404
+        assert client.get("/api/match-centre/fixtures?day=bad").status_code == 422
+
+
+def test_public_application_never_enables_private_adapter(monkeypatch):
+    monkeypatch.setenv("API_FOOTBALL_KEY", "test-only")
+    with TestClient(app) as client:
+        assert client.get("/api/match-centre").json()["private_feed"] is False
+        assert client.get("/api/match-centre/fixtures/42").status_code == 403
+        assert client.get("/api/match-centre/fixtures?day=2026-10-10&source=api_football"
+                          ).status_code == 403
+
+
+def test_private_reports_keep_zero_unknown_and_extra_time_distinct(monkeypatch):
+    calls = []
+
+    async def get(self, url, **kwargs):
+        calls.append(kwargs)
+        row = dict(fixture=dict(id=42, date="2026-10-10T20:00:00+02:00",
+                                status=dict(short="2H", elapsed=90, extra=3)),
+                   league=dict(name="Cup"), teams=dict(home=dict(name="Test A", id=541),
+                                                       away=dict(name="Test B", id=1)),
+                   goals=dict(home=1, away=0), players=[dict(team=dict(name="Test A"), players=[
+                       dict(player=dict(name="Player A"), statistics=[
+                           dict(passes=dict(key=0), games=dict(minutes=90))])])])
+        return httpx.Response(200, json={"response": [row], "errors": []},
+                              request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", get)
+    feed = ApiFootball("test-only")
+
+    async def run():
+        board = await feed.fixtures(DAY, DAY)
+        match = board["matches"][0]
+        assert match["score"] == [1, 0] and match["madrid"] and match["live"]
+        assert match["kickoff"] == "18:00 UTC" and match["status"] == "90+3′"
+        results = await asyncio.gather(feed.detail("42"), feed.detail("42"))
+        assert results[0] == results[1]
+        player = results[0]["players"][0]
+        assert player["key_passes"] == 0 and player["assists"] is None
+        assert len(calls) == 2 and calls[-1]["params"] == {"id": "42"}
+
+    asyncio.run(run())
+
+
+def test_private_server_refuses_remote_peer_host_and_forwarded_requests():
+    async def run():
+        local = create_app("test-only")
+        for peer, host, headers, status in [
+            ("127.0.0.1", "localhost", {}, 200),
+            ("192.0.2.1", "localhost", {}, 403),
+            ("127.0.0.1", "public.example", {}, 403),
+            ("127.0.0.1", "localhost", {"X-Forwarded-For": "192.0.2.1"}, 403),
+        ]:
+            transport = httpx.ASGITransport(app=local, client=(peer, 1234))
+            async with httpx.AsyncClient(transport=transport, base_url="http://" + host) as client:
+                response = await client.get("/api/match-centre", headers=headers)
+            assert response.status_code == status
+            if status == 200:
+                assert response.headers["Cache-Control"] == "no-store"
+                assert response.json()["private_feed"]
+
+    asyncio.run(run())
+
+
+def test_failed_refresh_retains_last_success_and_backs_off():
+    attempts = 0
+
+    async def load():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return [{"id": 1}]
+        raise FeedError("Check quota")
+
+    async def run():
+        cache = FeedCache()
+        first = await cache.get("day", 0, load)
+        stale = await cache.get("day", 0, load)
+        assert stale.rows == first.rows and stale.checked == first.checked
+        assert stale.warning == "Check quota"
+        assert await cache.get("day", 0, load) == stale
+        assert attempts == 2
+        with pytest.raises(FeedError, match="quota"):
+            await cache.get("other", 60, load)
+
+    asyncio.run(run())

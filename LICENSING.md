@@ -15,7 +15,7 @@ attempt to commit into them.
 
 **PUBLIC** — redistributable and hostable. The public demo runs on these and
 nothing else: Pappalardo/Wyscout (CC BY 4.0), SkillCorner (MIT), DFL/Sportec
-(CC BY 4.0).
+(CC BY 4.0), and OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)).
 
 **REFERENCE ONLY** — reachable and free, and not ours to use. Consulted by hand,
 never ingested, no adapter. UEFA: clause 6.2 of its terms bars systematic
@@ -36,9 +36,9 @@ class that names one fails where it is defined.
 never served to a third party. StatsBomb open data and any paid API feed.
 API-Football is the one paid feed with an entry. That entry said a hosted instance
 may serve numbers derived from it. No terms of use are recorded for it, so since the
-second audit it may not; no adapter exists and nothing outside the tests reads the
-entry. The hostable
-set is the three PUBLIC sources, and a test asserts that it is exactly those.
+second audit it may not. The private match centre reads this feed on loopback.
+The public application serves OpenFootball fixtures and results. A test asserts
+the exact set of hostable sources.
 
 **TRIAL** — time-boxed vendor trial data. Usable for calibration; never a
 dependency of anything that must keep working after expiry. Currently empty, and a

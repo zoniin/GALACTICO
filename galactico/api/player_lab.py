@@ -38,6 +38,7 @@ from ..domain.provenance import DEFAULT_GATE
 from ..features.estimators import CHANNEL_GEOMETRY, describe_style
 from ..features.spec import SPECS
 from ..identity import normalise_name
+from ..match_centre.routes import make_router as match_centre_router
 from ..profiles import REJECTED, RESEARCH_ONLY, RenderState
 from ..profiles.build import BUILD_RULES, UNTESTED, construct_version
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
@@ -52,6 +53,7 @@ OUT_OF_CONTEXT = RenderState.OUT_OF_CONTEXT.value
 STATIC = Path(__file__).resolve().parent.parent.parent / "web"
 
 app = FastAPI(title="Galáctico Historical Decision Laboratory", version="0.3.0")
+app.include_router(match_centre_router())
 app.include_router(decision_router)
 # The planning labs. Each router owns its page route and its endpoints; none reads data or
 # imports a solver at import time, so Player Lab starts exactly as before.
