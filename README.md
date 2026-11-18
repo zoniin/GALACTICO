@@ -22,6 +22,13 @@ The private server binds to loopback. The regular lab server also serves the pub
 scoreboard at `/match-centre`.
 [API-Football documentation](https://www.api-football.com/documentation-v3)
 
+Open **Scouting** in the private match centre to select a season, league, club and
+position. For example, choose Crystal Palace midfielders and key passes, then compare
+their output against top-six opponents with Madrid midfielders facing top-six La Liga
+opposition. Candidates are listed from the selected club’s actual player reports.
+The screen shows observed minutes, missing coverage, the Madrid rate and each gap.
+It ranks players on one selected need and applies no assumed league-strength bonus.
+
 The **Scouting demo** in the navigation preserves the interactive Madrid midfield
 comparison and transfer shortlist. It uses explicitly invented figures.
 

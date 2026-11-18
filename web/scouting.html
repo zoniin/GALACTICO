@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Season scouting · Galáctico</title><link rel="stylesheet" href="/static/match-centre.css"><script src="/static/scouting.js" defer></script>
+</head><body>
+<header class="mast"><div class="frame mast-inner"><a class="brand" href="/match-centre">Galáctico</a>
+<nav aria-label="Workspaces"><a href="/match-centre">Match centre</a><a href="/match-centre/scouting" aria-current="page">Scouting</a><a href="/match-centre/demo">Scouting demo</a></nav></div></header>
+<main class="frame scout"><div class="heading"><h1>Season scouting</h1></div>
+<p>Compare a club’s players with Madrid’s players in the same position. Choose the ability Madrid needs and the opponents you want to judge it against.</p>
+<div id="connection" role="status">Checking the data connection…</div>
+<section id="setup" hidden><h2>Connect player data</h2><p>Set <code>API_FOOTBALL_KEY</code> in your local environment and run <code>python -m galactico.match_centre.local</code>. Open this page on localhost with a plan that covers your chosen season.</p>
+<a href="/match-centre/demo">Try the scouting demo with sample figures →</a></section>
+<form id="filters" hidden>
+<label>Season starting year<input name="season" type="number" min="2010" required></label>
+<label>League<select name="league"></select></label><label>Club<select name="club" required></select></label>
+<label>Position<select name="role"></select></label>
+<label>Madrid need<select name="metric"><option value="key_passes">Create shots · key passes</option><option value="tackles">Make tackles</option><option value="shots">Take shots</option><option value="goals">Score goals</option></select></label>
+<label>Opponents<select name="split"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option></select></label>
+<label>Minimum observed minutes<input name="min_minutes" type="number" min="1" max="5000" value="270" required></label>
+<button type="submit">Compare with Madrid</button></form>
+<div id="result" aria-live="polite"></div>
+<details><summary>How the comparison works</summary>
+<p>Each player’s rate uses reported events per 90 minutes with a known value. A recorded zero counts. Missing values and their minutes are excluded. Madrid’s reference pools players in the same provider position.</p>
+<p>The opponent table uses completed league matches before the fixture’s UTC date, ordered by points, goal difference and goals scored. The top-six split starts once every club has played five games. Ties across sixth place stay unclassified. All opponents includes those games.</p>
+<p>The table orders eligible players by the selected rate in their own league. It applies no league multiplier. Role, minutes, data coverage and transfer cost all matter when interpreting a gap.</p></details>
+</main></body></html>

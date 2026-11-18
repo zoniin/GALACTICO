@@ -52,3 +52,23 @@ test('private report exposes timelines, lineups and player totals', async ({ pag
   await page.getByRole('button', {name:'Player stats'}).click();
   await expect(page.getByRole('row', {name:/Test scorer 64 1 — — — 0 —/})).toBeVisible();
 });
+
+test('season scouting handles missing credentials and compares a selected need', async ({page}) => {
+  await page.goto('/match-centre/scouting');
+  await expect(page.getByRole('heading',{name:'Connect player data'})).toBeVisible();
+  await page.route('**/api/match-centre', r => r.fulfill({json:{private_feed:true, season:2026,
+    leagues:{39:'Premier League'},roles:{M:'Midfielders'}}}));
+  await page.route('**/scouting/clubs?**', r => r.fulfill({json:{clubs:[{id:52,name:'Example club'}],warnings:[]}}));
+  await page.route('**/scouting/comparison?**', r => {
+    const q = new URL(r.request().url()).searchParams;
+    expect(q.get('club')).toBe('52'); expect(q.get('split')).toBe('top');
+    return r.fulfill({json:{club:'Example club',season:2026,madrid:{observed:360,minutes:450,per90:1},
+      players:[{name:'Example midfielder',observed:270,minutes:315,count:6,per90:2,gap:1}],
+      coverage:[{club:'Example club',covered:3,matches:4,unclassified:5}],checked,warnings:[]}});
+  });
+  await page.reload();
+  await page.getByLabel('Opponents').selectOption('top');
+  await page.getByRole('button',{name:'Compare with Madrid'}).click();
+  await expect(page.getByRole('row',{name:/Example midfielder 6 270 315 2.00 \+1.00/})).toBeVisible();
+  await expect(page.getByText(/360 observed out of 450/)).toBeVisible();
+});

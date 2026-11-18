@@ -110,7 +110,7 @@ function renderBoard() {
       if (date) shortcuts.append(button(label + ' · ' + niceDay(date), () => changeDay(date)));
     }
   }
-  if (madrid) {
+  if (madrid && madrid.id !== state.key) {
     const card = el('section', null, 'spot');
     card.append(el('div', 'Madrid watch', 'eyebrow'), el('h2', madrid.home + ' v ' + madrid.away),
       el('p', [niceDay(madrid.day), madrid.kickoff, madrid.competition, madrid.round].filter(Boolean).join(' · ')),
@@ -140,11 +140,12 @@ async function refreshBoard(background = false) {
       ['previous','next','madrid_fixture'].some(k => JSON.stringify(state.board[k]) !== JSON.stringify(data[k]));
     state.board = data;
     $('meta').textContent = ['Checked ' + stamp(data.checked), ...data.warnings].join(' · ');
-    if (changed) renderBoard();
+    if (changed || $('nearby').querySelector('[data-retry]')) renderBoard();
   } catch (error) {
     if (version !== state.listVersion) return;
     $('meta').textContent = (state.board ? 'Last checked ' + stamp(state.board.checked) + ' · ' : '') + error.message;
-    $('nearby').replaceChildren(button('Retry fixtures', () => refreshBoard()));
+    const retry = button('Retry fixtures', () => refreshBoard());
+    retry.dataset.retry = 'true'; $('nearby').replaceChildren(retry);
   }
 }
 async function changeDay(day, key = '') {
@@ -262,7 +263,9 @@ async function init() {
   const initialKey = params.get('match') || '';
   await changeDay($('day').value || state.today, /^[a-z0-9.-]{1,48}$/.test(initialKey) ? initialKey : '');
   function poll() {
-    if (document.hidden || state.source !== 'api_football' || state.day !== new Date().toISOString().slice(0,10)) return;
+    if (document.hidden || state.source !== 'api_football') return;
+    const inPlay = state.board?.matches.some(game => game.live) || state.detail?.match.live;
+    if (!inPlay && state.day !== new Date().toISOString().slice(0,10)) return;
     refreshBoard(true);
     if (state.key) openReport(state.key);
   }

@@ -73,7 +73,7 @@ class ApiFootball:
         self.key = key
         self.cache = FeedCache()
 
-    async def _fetch(self, params: dict) -> list:
+    async def fetch_fixtures(self, params: dict) -> list:
         assert_may_ingest("api_football")
         async with httpx.AsyncClient(timeout=8, follow_redirects=False) as client:
             response = await client.get("https://v3.football.api-sports.io/fixtures",
@@ -91,7 +91,7 @@ class ApiFootball:
         try:
             for row in rows:
                 _match(row)
-                if "id" in params:
+                if "id" in params or "ids" in params:
                     _report(row)
         except (KeyError, TypeError, ValueError, AttributeError) as exc:
             raise FeedError("API-Football returned an incomplete fixture report.") from exc
@@ -100,13 +100,13 @@ class ApiFootball:
     async def fixtures(self, day: date, today: date) -> dict:
         params = {"date": day.isoformat(), "timezone": "UTC"}
         data = await self.cache.get(str(day), 60 if day == today else 900,
-                                    lambda: self._fetch(params))
+                                    lambda: self.fetch_fixtures(params))
         return {"matches": [_match(row) for row in data.rows], "checked": data.checked,
                 "warnings": [data.warning] if data.warning else []}
 
     async def detail(self, fixture_id: str) -> dict | None:
         data = await self.cache.get(f"match/{fixture_id}", 60,
-                                    lambda: self._fetch({"id": fixture_id}))
+                                    lambda: self.fetch_fixtures({"id": fixture_id}))
         if not data.rows:
             return None
         row = data.rows[0]
