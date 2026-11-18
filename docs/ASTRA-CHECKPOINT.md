@@ -281,9 +281,13 @@ No credentials or proprietary data are needed or committed.
   The shape and volume models now score each fixture from strictly earlier dates and
   select shrinkage settings on development fixtures. Synthetic tests cover opponent
   exclusion, mirrored and permuted teams, recent form, and a held-out side preference.
-  Next in B are sample gates, calibration, reliability and the registered decision rules,
-  followed by the synthetic generator (C) and runner (D). All seven registry records are still `PENDING`. The results
-  commit follows E-09's registration.
+  Package B also counts eligible fixtures, calendar weeks and events before fitting.
+  Its sample checks cover the public shape and level studies and the replication fixture
+  list. Reliability uses the registered opponent-balanced halves and league-adjusted lower
+  bound. Calibration uses held-out fixtures and the season's shared weekly draws.
+  Next in B are the persistence, strength and pair-interaction checks, followed by the
+  selection and verdict workflow. The full synthetic generator (C) and runner (D) follow.
+  All seven registry records are still `PENDING`. The results commit follows E-09's registration.
 - DRAFTED, NOT REGISTERED, NOT RUN: E-09, E-12, E-13. The design council that wrote them
   was cut short before adversarial review, reconciliation and audit.
 - BUILT, READ BY NOTHING YET: the tag sidecar (body part, duel outcome, cards, own

@@ -498,3 +498,341 @@ def test_walk_forward_recovers_a_repeatable_side_on_held_out_fixtures(planted):
         np.testing.assert_equal(
             shape.loss_candidate[selected, held_out], shape.loss_context[held_out]
         )
+
+
+def _double_round_robin(teams, *, second_leg_seed=None):
+    first = []
+    for r in range(teams - 1):
+        rotation = [(i + r) % (teams - 1) for i in range(teams - 1)]
+        top = (rotation[0], teams - 1)
+        matches = [top if r % 2 == 0 else top[::-1]]
+        for i in range(1, teams // 2):
+            pair = (rotation[i], rotation[teams - 1 - i])
+            matches.append(pair if i % 2 else pair[::-1])
+        first.append(matches)
+    order = range(len(first))
+    if second_leg_seed is not None:
+        order = np.random.default_rng(second_leg_seed).permutation(len(first))
+    second = [[pair[::-1] for pair in first[i]] for i in order]
+    data = []
+    for week, games in enumerate(first + second):
+        for i, (home, away) in enumerate(games):
+            for unit, context in ((home, away), (away, home)):
+                data.append((week, week * teams + i, unit, context, context == home))
+    frame = pd.DataFrame(data, columns=["week", "game_id", "unit_id", "context_id", "context_home"])
+    return frame.assign(
+        date=pd.Timestamp("2018-01-01") + pd.to_timedelta(frame.week * 7, unit="D"),
+        league="West",
+        valid=True,
+        exposure=1.0,
+        n__wide=2,
+        n__centre=1,
+        unit_goals=0,
+        context_goals=0,
+    )
+
+
+def test_count_pass_tracks_the_forecast_without_fitting(monkeypatch):
+    rows = _double_round_robin(6)
+    rows.loc[rows.week == 0, ["n__wide", "n__centre"]] = 0
+    rows.loc[rows.game_id == 6, ["valid", "n__wide", "n__centre", "exposure"]] = [
+        False,
+        0,
+        0,
+        np.nan,
+    ]
+    other = rows.assign(league="East", unit_goals=1)
+    rows = pd.concat([rows, other]).sample(frac=1, random_state=2)
+    shape = engine.walk_forward_shape(rows, FORWARD)
+
+    def unexpected(*args, **kwargs):
+        pytest.fail("pre-selection sample checks attempted a model fit")
+
+    for name in ("empty_state", "add_rows", "shape_estimate", "level_estimate"):
+        monkeypatch.setattr(estimator, name, unexpected)
+    counts = engine.count_pass(rows, FORWARD)
+    np.testing.assert_array_equal(counts.eligible, shape.eligible)
+    np.testing.assert_array_equal(counts.donor_changed, shape.donor_changed)
+    np.testing.assert_array_equal(counts.events, shape.events)
+    for i, row in enumerate(rows.itertuples()):
+        prior = rows[rows.valid & (rows.league == row.league) & (rows.date < row.date)]
+        assert counts.unit_prior_matches[i] == (prior.unit_id == row.unit_id).sum()
+        assert counts.context_prior_matches[i] == (prior.unit_id == row.context_id).sum()
+    assert not counts.eligible[rows.week <= 1].any()
+
+
+@pytest.mark.parametrize("teams", [18, 20])
+@pytest.mark.parametrize("seed", [None, 1, 13])
+def test_split_halves_balance_opponents_legs_and_venues(teams, seed):
+    rows = _double_round_robin(teams, second_leg_seed=seed).sample(frac=1, random_state=7)
+    halves = engine._meeting_halves(rows)
+    counts = halves.groupby(["unit_id", "half"])
+    assert (counts.size() == teams - 1).all()
+    assert (counts.context_id.nunique() == teams - 1).all()
+    home = counts.context_home.sum().unstack()
+    assert ((home.A - home.B).abs() <= 1).all()
+    legs = halves.assign(leg_one=halves.week < teams - 1).groupby(["unit_id", "half"]).leg_one.sum()
+    assert ((2 * legs - (teams - 1)).abs() <= 1).all()
+    # Invalidating an early meeting removes just that fixture from its original half.
+    rows.loc[rows.game_id == 0, "valid"] = False
+    kept = engine._meeting_halves(rows.sample(frac=1, random_state=9))
+    keys = ["unit_id", "game_id"]
+    assert (
+        kept.set_index(keys)
+        .half.sort_index()
+        .equals(halves[halves.game_id != 0].set_index(keys).half.sort_index())
+    )
+
+
+def _gate_config():
+    return dict(
+        leagues=["West"],
+        calendar_week_rule="W-SUN",
+        evaluation_start="2018-02-05",
+        minimum_valid_match_share_per_league=29 / 30,
+        minimum_development_rows_per_league=24,
+        minimum_development_weeks_per_league=4,
+        minimum_evaluation_rows_per_league=28,
+        minimum_evaluation_weeks_per_league=5,
+        minimum_evaluation_events_per_league=84,
+        minimum_half_matches_per_team=4,
+        minimum_reliability_teams=6,
+        permutation_seeds=list(FORWARD.permutation_seeds),
+        minimum_permutation_changed_share=0.5,
+    )
+
+
+def test_sample_gates_count_matches_and_apply_each_subjects_limits():
+    rows = _double_round_robin(6)
+    rows.loc[rows.game_id == rows.game_id.max(), ["valid", "n__wide", "n__centre", "exposure"]] = [
+        False,
+        0,
+        0,
+        np.nan,
+    ]
+    count = engine.count_pass(rows, FORWARD)
+    evaluation = count.eligible & (rows.week >= 5).to_numpy()
+    donors = np.ones_like(count.donor_changed)
+    donors[:, evaluation] = False
+    donors[:, np.flatnonzero(evaluation)[:14]] = True
+    count = replace(count, donor_changed=donors)
+    cfg = _gate_config()
+    audit = engine.audit_summary_from_rows(rows, ["West", "Absent"])
+    assert audit == {
+        "West": {"matches": 30, "valid_matches": 29},
+        "Absent": {"matches": 0, "valid_matches": 0},
+    }
+
+    def gates(cfg, subject):
+        return engine.sample_gates(rows, count, audit, cfg, subject=subject)
+
+    got = gates(cfg, "shape")
+    assert list(got) == ["G1", "G2", "G3", "G4", "G5"]
+    assert all(v["passed"] for v in got.values())
+    assert got["G2"]["detail"]["West"] == dict(rows=24, weeks=4)
+    assert got["G3"]["detail"]["West"] == dict(rows=28, weeks=5, events=84)
+    assert got["G4"]["detail"]["teams"] == 6
+    assert list(got["G5"]["detail"].values()) == [0.5, 0.5]
+    for gate, key, strict in (
+        ("G1", "minimum_valid_match_share_per_league", 1),
+        ("G2", "minimum_development_weeks_per_league", 5),
+        ("G3", "minimum_evaluation_events_per_league", 85),
+        ("G4", "minimum_half_matches_per_team", 5),
+        ("G5", "minimum_permutation_changed_share", 0.51),
+    ):
+        result = gates({**cfg, key: strict}, "shape")
+        assert [k for k, v in result.items() if not v["passed"]] == [gate]
+    level = gates({**cfg, "minimum_permutation_changed_share": 1}, "level")
+    assert set(level) == {"G1", "G2", "G3", "G4"} and all(g["passed"] for g in level.values())
+    absent = gates({**cfg, "leagues": ["Absent", "West"]}, "level")
+    assert all(not absent[k]["passed"] for k in ("G1", "G2", "G3"))
+    assert absent["G1"]["detail"]["Absent"]["share"] is None
+    # Replication includes missing fixture files in its denominator and starts evaluation earlier.
+    audit["West"]["listed_matches"] = 35
+    rep = {**cfg, "evaluation_start": "2018-01-01", "minimum_evaluation_rows_per_league": 52}
+    result = gates({**cfg, "replication": rep}, "replication")
+    assert set(result) == {"G1", "G3"} and not result["G1"]["passed"] and result["G3"]["passed"]
+    assert result["G1"]["detail"]["West"]["share"] == 29 / 35
+    assert result["G3"]["detail"]["West"] == dict(rows=52, weeks=9, events=156)
+
+
+@pytest.mark.parametrize(
+    ("r", "band", "number"),
+    [(0.4770, True, False), (0.4769, False, False), (0.6495, True, True), (0.6494, True, False)],
+)
+def test_registered_reliability_bounds(r, band, number):
+    c = 1.6448536269514722
+    got = engine._reliability_coordinate(
+        "side_balance", r, 98, 5, 38.0, critical_value=c, house_confidence=0.9, period="test"
+    )
+    low = np.tanh(np.arctanh(r) - c / np.sqrt(91))
+    assert got["lower_bound"] == pytest.approx(2 * low / (1 + low))
+    assert (got["lower_bound"] >= 0.5) == band and (got["lower_bound"] >= 0.7) == number
+    reliability = 2 * r / (1 + r)
+    assert got["house_lower_bound"] == pytest.approx(
+        np.tanh(np.arctanh(reliability) - c / np.sqrt(95))
+    )
+    assert got["implied_per_match_icc"] == pytest.approx(reliability / (38 - 37 * reliability))
+
+
+def test_reliability_matches_calendar_recount_for_shape_and_volume():
+    from scripts.e10_root_counts import meeting_halves
+
+    west = _double_round_robin(12, second_leg_seed=7)
+    rng = np.random.default_rng(2026)
+    rows = pd.concat([west, west.assign(league="East")], ignore_index=True)
+    rows["n__wide"] = rng.poisson(1 + rows.unit_id + (rows.league == "West") * 30)
+    rows["n__centre"] = rng.poisson(2 + (rows.context_id % 3), len(rows))
+    rows["exposure"] = rng.uniform(0.3, 1.0, len(rows))
+    rows.loc[(rows.league == "East") & (rows.unit_id == 1), "valid"] = False
+    rows = rows.sample(frac=1, random_state=5)
+    halves = []
+    for _, fixtures_ in rows.groupby("league"):
+        schedule = fixtures_[~fixtures_.context_home].rename(
+            columns={"unit_id": "home_team_id", "context_id": "away_team_id"}
+        )
+        reference = meeting_halves(schedule).rename(columns={"team_id": "unit_id"})
+        halves.append(
+            fixtures_.merge(reference[["game_id", "unit_id", "half"]], on=["game_id", "unit_id"])
+        )
+    split = pd.concat(halves)
+    complete = split[split.valid].groupby(["league", "unit_id", "half"])
+    sized = complete.size().unstack().dropna()
+    index = sized[(sized >= 6).all(axis=1)].index
+    agg = complete[["n__wide", "n__centre", "exposure"]].sum()
+    half_values = {}
+    for h in ["A", "B"]:
+        a = agg.xs(h, level="half").loc[index]
+        half_values[h] = pd.DataFrame(
+            dict(
+                first_versus_second=np.log((a.n__wide + 0.5) / (a.n__centre + 0.5)) / np.sqrt(2),
+                log_rate=np.log((a.n__wide + a.n__centre + 0.5) / a.exposure),
+            )
+        )
+        half_values[h] -= half_values[h].groupby(level="league").transform("mean")
+    options = dict(
+        smoothing=0.5,
+        minimum_half_matches=6,
+        critical_value=1.6448536269514722,
+        house_confidence=0.9,
+        period="test",
+        band=0.5,
+        number=0.7,
+    )
+    for name, got in (
+        ("first_versus_second", engine.split_half(rows, FORWARD.parts, **options)),
+        ("log_rate", engine.level_split_half(rows, **options)),
+    ):
+        r = np.corrcoef(half_values["A"][name], half_values["B"][name])[0, 1]
+        n = len(index)
+        assert got["n_teams"] == n == 23 and got["teams_dropped"] == 1
+        R = 2 * r / (1 + r)
+        lo = np.tanh(np.arctanh(r) - options["critical_value"] / np.sqrt(n - 3 - 1))
+        coord = got["coordinates"][name]
+        assert coord["half_r"] == pytest.approx(r)
+        assert coord["implied_per_match_icc"] == pytest.approx(R / (22 - 21 * R))
+        assert got["minimum_lower_bound"] == pytest.approx(2 * lo / (1 + lo))
+        assert got["render"] == (
+            "number"
+            if got["minimum_lower_bound"] >= 0.7
+            else "band"
+            if got["minimum_lower_bound"] >= 0.5
+            else "insufficient"
+        )
+
+
+def test_undefined_half_bounds_cannot_support_a_number():
+    import json
+
+    rows = _double_round_robin(6).rename(
+        columns={"n__wide": "n__def_left", "n__centre": "n__def_right"}
+    )
+    rows["n__def_centre"] = 1
+    parts = ("def_left", "def_centre", "def_right")
+    options = dict(
+        smoothing=0.5,
+        minimum_half_matches=2,
+        critical_value=1.6448536269514722,
+        house_confidence=0.9,
+        period="test",
+        band=0.5,
+        number=0.7,
+    )
+    for frame in (rows, rows.iloc[:0], rows.assign(valid=False)):
+        out = engine.split_half(frame, parts, **options)
+        assert set(out["coordinates"]) == {"side_balance", "wide_versus_centre"}
+        assert out["minimum_lower_bound"] is None and out["render"] == "insufficient"
+        assert all(c["half_r"] is None for c in out["coordinates"].values())
+        json.dumps(out, allow_nan=False)
+    rows["n__def_left"] = rows.unit_id + 1
+    perfect = engine.split_half(rows, parts, **options)
+    assert perfect["coordinates"]["side_balance"]["half_r"] == 1
+    assert perfect["minimum_lower_bound"] is None
+    assert (
+        engine.level_split_half(rows.assign(exposure=0), **options)["minimum_lower_bound"] is None
+    )
+
+
+def test_calibration_uses_held_out_rows_the_selected_candidate_and_the_shared_world():
+    rows = fixtures().rename(columns={"n__wide": "n__def_left", "n__centre": "n__def_right"})
+    rows = rows.assign(
+        n__def_centre=1,
+        date=pd.to_datetime(
+            ["2018-01-08", "2018-01-10", "2018-01-11", "2018-01-16", "2018-01-17", "2018-01-18"]
+        ),
+    )
+    parts = ("def_left", "def_centre", "def_right")
+    shape = engine.walk_forward_shape(rows, replace(FORWARD, parts=parts, mirror_pairs=()))
+    events = np.array([1000, 3, 4, 5, 2, 1000])
+    residual = np.array(
+        [[800.0, 1.0], [2.0, 1.0], [1.0, 1.0], [-3.0, 1.0], [100.0, 1.0], [800.0, 1.0]]
+    )
+    delta = np.zeros((2, len(rows), 2))
+    delta[1, :, 0] = [1, 1, 2, -1, 1, 1]
+    shape = replace(
+        shape,
+        eligible=np.array([1, 1, 1, 1, 1, 0], bool),
+        events=events,
+        residual_coordinates=residual,
+        delta_coordinates_pair_excluded=delta,
+    )
+    world = engine.season_world(
+        {"West": rows.date},
+        leagues=["West"],
+        evaluation_start="2018-01-10",
+        seed=13,
+        week_rule="W-SUN",
+        replicates=40,
+    )
+    args = dict(minimum_events=3, **INTERVAL)
+    got = engine.calibration(shape, rows, 1, world, k_unit=2, **args)
+    # The first eligible evaluation week contributes (14,19), the second (15,5).
+    # The 8th shares a week with the 10th but precedes the cutoff.
+    draws = world.multiplicity[:, 1:]
+    ratios = (draws @ np.array([14, 15])) / (draws @ np.array([19, 5]))
+    assert got["side_balance"]["slope"] == pytest.approx(29 / 24)
+    assert got["side_balance"]["interval"] == pytest.approx(np.quantile(ratios, [0.25, 0.75]))
+    assert got["wide_versus_centre"] == {"slope": None, "interval": None}
+    assert engine.calibration(shape, rows, 0, world, k_unit=None, **args) is None
+
+
+def test_house_bound_confidence_matches_the_registered_critical_value():
+    import json
+    from pathlib import Path
+
+    from galactico.reliability import core
+
+    protocol = Path(__file__).resolve().parents[1] / "experiments/preregistered/E-10-conceded-shape"
+    config = json.loads((protocol / "config.json").read_text())
+    assert (
+        core._CRITICAL_VALUES[config["house_reliability_confidence"]]
+        == (config["house_reliability_critical_value"])
+    )
+
+
+def test_near_anticorrelation_keeps_its_finite_lower_bound():
+    r = np.nextafter(-1., 0.)
+    got = engine._reliability_coordinate("log_rate", r, 4, 1, 8., critical_value=1.645,
+                                         house_confidence=.9, period="test")
+    assert got["lower_bound"] < got["spearman_brown"] < 0
+    assert np.isfinite(got["lower_bound"])
