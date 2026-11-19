@@ -49,7 +49,7 @@ def test_every_provider_requiring_attribution_supplies_one() -> None:
 
 # LICENSING.md, "Tiers". The public demo runs on the first set and nothing else; the
 # second is reachable and free and not ours to use.
-PUBLIC_SOURCES = {"pappalardo", "skillcorner", "dfl", "openfootball", "wikipedia"}
+PUBLIC_SOURCES = {"pappalardo", "skillcorner", "dfl", "openfootball", "wikipedia", "openligadb"}
 REFERENCE_ONLY_SOURCES = {"uefa", "fpl", "football_data", "clubelo"}
 PERMISSIONS = ("may_redistribute", "may_host_derived", "may_commit", "commercial_use")
 

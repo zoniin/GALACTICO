@@ -1,10 +1,26 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Season scouting · Galáctico</title><link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css"><link rel="stylesheet" href="/static/centre-theme.css"><script src="/static/scouting.js" defer></script>
+<link rel="stylesheet" href="/static/goal-scout.css"><script type="module" src="/static/goal-scout.js"></script>
 </head><body>
 <header class="mast"><div class="frame mast-inner"><a class="brand" href="/lineup"><span class="brand-mark" aria-hidden="true">G</span>Galáctico</a><nav aria-label="Workspaces"><a href="/lineup">Lineup studio</a><a href="/match-centre">Match centre</a><a href="/match-centre/leagues">Leagues</a><a href="/match-centre/scouting" aria-current="page">Scouting</a></nav></div></header>
 <main class="frame scout"><div class="heading"><h1>Season scouting</h1></div>
-<p>Compare Madrid’s scoring and conceding rates with the rest of La Liga. Player scouting uses match reports to compare candidates with Madrid in the same position.</p>
+<article id="goals" aria-labelledby="goals-heading">
+<div class="goal-title"><div><p class="goal-kicker">Current season</p><h2 id="goals-heading">Goal explorer</h2></div><span id="goals-season"></span></div>
+<p>See who scored for a club and which opponents those goals came against.</p>
+<div class="goal-controls">
+<label>Goal explorer league<select id="goals-league"><option value="es">La Liga</option><option value="en">Premier League</option><option value="de">Bundesliga</option></select></label>
+<label>Club to explore<select id="goals-club" disabled></select></label>
+<label>Opponent strength<select id="goals-split" aria-label="Opponent strength"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option></select></label>
+</div>
+<p id="goals-status" role="status">Loading reported goals…</p>
+<div id="goals-data" hidden>
+<div class="goal-metrics"><div><strong id="goals-games"></strong><span>League matches</span></div><div><strong id="goals-total"></strong><span>Team goals</span></div><div><strong id="goals-named"></strong><span>Named player goals</span></div></div>
+<h3>Recorded scorers</h3><div id="goals-scorers" class="scorer-picks"></div>
+<h3>Match log</h3><div id="goals-log"></div>
+<p class="goal-method">Opponent groups use the table before the match date once every club has played five games. Games with an unresolved sixth-place tie for that opponent stay unclassified.</p>
+</div>
+<small id="goals-credit"></small></article>
 <article aria-labelledby="baseline-title">
 <h2 id="baseline-title">Madrid against the league</h2>
 <label>As of date<input id="baseline-day" type="date" required></label>
@@ -18,7 +34,7 @@
 <label>League<select name="league"></select></label><label>Club<select name="club" required></select></label>
 <label>Position<select name="role"></select></label>
 <label>Madrid need<select name="metric"><option value="key_passes">Create shots · key passes</option><option value="tackles">Make tackles</option><option value="shots">Take shots</option><option value="goals">Score goals</option></select></label>
-<label>Opponents<select name="split"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option></select></label>
+<label>Opponents<select name="split" aria-label="Opponents"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option></select></label>
 <label>Minimum observed minutes<input name="min_minutes" type="number" min="1" max="5000" value="270" required></label>
 <button type="submit">Compare with Madrid</button></form>
 <div id="result" aria-live="polite"></div>

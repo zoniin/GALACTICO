@@ -6,11 +6,13 @@ import re
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 
 from .api_football import ApiFootball
 from .feed import FeedError
+from .goal_scout import LEAGUES as GOAL_LEAGUES
+from .goal_scout import GoalScout
 from .openfootball import LEAGUES, OpenFootball, season_start
 from .scouting import LEAGUES as SCOUT_LEAGUES
 from .scouting import METRICS, ROLES, SPLITS, Scouting, teams
@@ -69,6 +71,23 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     @router.get("/match-centre/scouting", include_in_schema=False)
     def scouting_page():
         return FileResponse(WEB / "scouting.html")
+
+    goals = GoalScout()
+
+    @router.get("/api/match-centre/goal-scout/{league}")
+    async def goal_report(league: str, response: Response, club: int | None = Query(None, gt=0)):
+        if league not in GOAL_LEAGUES:
+            raise HTTPException(404, "Unknown goal-scout league.")
+        try:
+            report = await goals.report(league, club, datetime.now(UTC).date())
+        except FeedError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        if report is None:
+            raise HTTPException(404, "Club missing from the current league season.")
+        if private is None and not report["warning"]:
+            response.headers["Vercel-CDN-Cache-Control"] = (
+                "s-maxage=21600, stale-while-revalidate=3600")
+        return report
 
     scout = Scouting(private) if private else None
 

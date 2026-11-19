@@ -181,6 +181,51 @@ function renderBench() {
     }),
   );
 }
+let leagueReport;
+function normalizedName(name) {
+  return name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replaceAll('.', '').trim();
+}
+function renderGoals(player) {
+  if (!leagueReport || !player) return;
+  const output = $('profile-goal-results');
+  const names = new Map();
+  for (const member of squad) {
+    const full = normalizedName(member.name),
+      parts = full.split(/\s+/);
+    const aliases = new Set([full]);
+    if (parts.length > 1) aliases.add(parts[0][0] + ' ' + parts.slice(1).join(' '));
+    for (const alias of aliases) names.set(alias, names.has(alias) ? null : member.id);
+  }
+  const matches = leagueReport.matches;
+  const hits = matches
+    .map((game) => ({
+      game,
+      count: game.events.filter(
+        (e) => e.for_club && !e.own && names.get(normalizedName(e.name)) === player.id,
+      ).length,
+    }))
+    .filter((row) => row.count);
+  const total = hits.reduce((sum, row) => sum + row.count, 0);
+  output.textContent = total
+    ? total +
+      ' named league goal' +
+      (total === 1 ? '' : 's') +
+      ' · Latest against ' +
+      hits[0].game.opponent +
+      ' (' +
+      hits[0].game.day +
+      ').'
+    : 'No named goals matched in ' + matches.length + ' reported Madrid matches.';
+}
+async function loadLeagueGoals() {
+  const output = $('profile-goal-results');
+  try {
+    leagueReport = await get('/api/match-centre/goal-scout/es?club=1133');
+    renderGoals(selected());
+  } catch {
+    output.replaceChildren('League reports unavailable. ', action('Retry', loadLeagueGoals));
+  }
+}
 function renderProfile() {
   const p = selected();
   if (!p) return;
@@ -194,6 +239,7 @@ function renderProfile() {
   $('xi-role').textContent = shapes[state.shape][state.selected].role;
   $('hero-number').textContent = p.number;
   $('season-note').textContent = state.season + ' · All competitions';
+  renderGoals(p);
 }
 function paint() {
   const role = state.mode === 'role',
@@ -434,3 +480,4 @@ $('clear-import').onclick = () => {
 renderPitch();
 draw($('map'), [], null, false);
 start();
+loadLeagueGoals();

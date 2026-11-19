@@ -16,6 +16,15 @@ Live match reports use a separate [API-Football account](https://dashboard.api-f
 Set `API_FOOTBALL_KEY` in the local server’s `.env`. API-Football supplies aggregates.
 The studio’s measured maps require event locations.
 
+## Free goal explorer
+
+The public scouting page reads OpenLigaDB’s current La Liga, Premier League and Bundesliga
+match reports without an API key. Choose a club, compare scorers against opponents inside or
+outside the pre-match top six, and open a scoreline for recorded goal minutes. The club’s
+reported match score and the number of named player goals are shown separately.
+The lineup studio also matches named La Liga events to the selected Madrid player.
+[Open the goal explorer](https://galactico-sandy.vercel.app/match-centre/scouting#goals) · [OpenLigaDB](https://www.openligadb.de/)
+
 ## Current match centre
 
 Run `python -m pip install -e ".[api]"` and `python -m galactico.match_centre.local` from the checkout.

@@ -36,6 +36,19 @@ async function openStudio(page) {
       },
     }),
   );
+  await page.route('**/api/match-centre/goal-scout/es?club=1133', (route) =>
+    route.fulfill({
+      json: {
+        matches: [
+          {
+            day: '2026-09-01',
+            opponent: 'Example FC',
+            events: [{ name: 'K. Mbappé', for_club: true, own: false }],
+          },
+        ],
+      },
+    }),
+  );
   await page.goto('/lineup');
   await expect(page.locator('#sample-count')).toHaveText('2 located actions');
 }
@@ -44,6 +57,9 @@ test('actual actions, planned roles and local imports follow the selected player
   page,
 }) => {
   await openStudio(page);
+  await expect(page.locator('#profile-goal-results')).toContainText(
+    '1 named league goal · Latest against Example FC',
+  );
   await page.getByLabel('Action filter').selectOption('Pass');
   await expect(page.locator('#sample-count')).toHaveText('1 located action');
   await page.getByRole('button', { name: 'Role zone' }).click();

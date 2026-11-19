@@ -15,7 +15,7 @@ attempt to commit into them.
 
 **PUBLIC** — redistributable and hostable. The public demo runs on these and
 nothing else: Pappalardo/Wyscout (CC BY 4.0), SkillCorner (MIT), DFL/Sportec
-(CC BY 4.0), English Wikipedia season tables (CC BY-SA 4.0), and OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)).
+(CC BY 4.0), English Wikipedia season tables (CC BY-SA 4.0), OpenLigaDB match reports (ODbL 1.0), and OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)).
 
 **REFERENCE ONLY** — reachable and free, and not ours to use. Consulted by hand,
 never ingested, no adapter. UEFA: clause 6.2 of its terms bars systematic
@@ -48,6 +48,10 @@ The lineup studio adapts the English Wikipedia season squad and appearance table
 These extracts are attributed to the linked season article and carry its CC BY-SA 4.0
 licence. The studio fetches its selected Pappalardo match samples at runtime and
 links the Events and Players records and licence in the map view.
+
+The public goal explorer reads the current competition season from the OpenLigaDB API.
+Its adapted goal reports identify the source endpoint and carry the same licence.
+[OpenLigaDB licensing](https://www.openligadb.de/lizenz) · [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/)
 
 ## StatsBomb specifically
 

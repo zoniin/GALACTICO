@@ -775,3 +775,37 @@ select {
     font-size: 0.72rem;
   }
 }
+
+.tools .scout-link {
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-decoration: none;
+  color: #4c408d;
+  margin-right: 4px;
+}
+.tools .scout-link:hover {
+  text-decoration: underline;
+}
+
+.profile-goals {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 13px 17px;
+}
+.profile-goals h2 {
+  font:
+    700 23px/1.1 'Barlow Condensed',
+    sans-serif;
+  text-transform: uppercase;
+}
+.profile-goals p {
+  margin: 5px 0;
+  color: var(--navy);
+  font-size: 0.8rem;
+}
+.profile-goals small,
+.profile-goals small a {
+  font-size: 0.65rem;
+  color: var(--faint);
+}

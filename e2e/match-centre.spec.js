@@ -92,3 +92,30 @@ test('league table opens a club schedule and links the fixture to its report', a
   await expect(page.getByRole('heading',{name:'Real Madrid',exact:true})).toBeVisible();
   await expect(page.getByRole('link',{name:'Real Madrid v Test Club'})).toHaveAttribute('href', new RegExp('match=' + game.id));
 });
+
+test('keyless goal explorer filters before-match opponents and restores a shared scorer view', async ({page}) => {
+  const goal = {for_club:true, player:9, name:'Example forward', minute:72, own:false, penalty:true};
+  await page.route('**/api/match-centre/goal-scout/**', route => route.fulfill({json:{
+    league:'La Liga',club:11,clubs:{11:'Example team',22:'Other club'},season:2026,
+    checked,source:'https://api.openligadb.de/',licence:'https://opendatacommons.org/licenses/odbl/1-0/',
+    matches:[
+      {id:1, day,venue:'H',opponent:'North FC',split:'top',for:2,against:0,
+        events:[goal,{...goal,player:0,name:'',minute:null,penalty:false}]},
+      {id:2,day:'2026-09-12',venue:'A',opponent:'South FC',split:'unclassified',for:0,against:0,events:[]}
+    ]
+  }}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/match-centre/scouting#goals');
+  await expect(page.locator('#goals-games')).toHaveText('2');
+  await page.getByLabel('Opponent strength').selectOption('top');
+  await expect(page.locator('#goals-games')).toHaveText('1');
+  await expect(page.locator('#goals-total')).toHaveText('2');
+  await expect(page.locator('#goals-named')).toHaveText('1');
+  await page.getByRole('button',{name:'Example forward · 1'}).click();
+  await expect(page.getByText(/72′ · Example forward/)).toBeVisible();
+  await expect(page.getByText(/Minute unknown · Scorer unreported/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Example forward · 1'})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByLabel('Opponent strength')).toHaveValue('top');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

@@ -1,0 +1,135 @@
+#goals {
+  scroll-margin-top: 16px;
+}
+.goal-title,
+.goal-controls,
+.goal-metrics,
+.scorer-picks {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.goal-title {
+  justify-content: space-between;
+}
+.goal-title h2 {
+  font:
+    italic 800 clamp(32px, 5vw, 48px) / 1 'Barlow Condensed',
+    sans-serif;
+  text-transform: uppercase;
+}
+.scout .goal-kicker,
+#goals-season {
+  margin: 0 0 4px;
+  color: #5740a2;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.goal-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0;
+}
+.goal-metrics {
+  background: #201d42;
+  color: white;
+  border-radius: 9px;
+  margin: 16px 0 20px;
+  gap: 0;
+}
+.goal-metrics div {
+  flex: 1;
+  padding: 12px 14px;
+}
+.goal-metrics strong,
+.goal-metrics span {
+  display: block;
+}
+.goal-metrics strong {
+  font:
+    700 32px/1 'Barlow Condensed',
+    sans-serif;
+  color: #d2ff9b;
+}
+.goal-metrics span {
+  font-size: 0.77rem;
+  margin-top: 4px;
+}
+.scorer-picks {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 18px;
+}
+.scorer-picks button {
+  font-size: 0.85rem;
+  min-height: 33px;
+  border-radius: 20px;
+}
+#goals-log details {
+  border-top: 1px solid var(--edge);
+  padding: 9px 0;
+}
+#goals-log summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
+}
+#goals-log summary::before {
+  content: '▸';
+  color: var(--violet);
+}
+#goals-log details[open] summary::before {
+  content: '▾';
+}
+#goals-log time {
+  color: var(--dim);
+  font-size: 0.78rem;
+}
+#goals-log summary b {
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#goals-log ol {
+  padding-left: 30px;
+  font-size: 0.88rem;
+}
+#goals-log li {
+  padding: 3px 0;
+}
+#goals-log .picked-goal {
+  font-weight: 700;
+  color: #44328c;
+}
+#goals-log .goal-coverage,
+.goal-method,
+#goals-status {
+  font-size: 0.8rem;
+}
+#goals-status:empty {
+  display: none;
+}
+@media (max-width: 640px) {
+  .goal-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .goal-controls label:last-child {
+    grid-column: 1/-1;
+  }
+  .goal-metrics div {
+    padding: 10px;
+  }
+  .goal-metrics span {
+    font-size: 0.7rem;
+  }
+  #goals-log summary {
+    gap: 6px;
+  }
+  #goals-log time {
+    min-width: 43px;
+  }
+}
