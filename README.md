@@ -2,10 +2,24 @@
 
 An open football decision laboratory.
 
+## Lineup studio
+
+[Open the squad builder](https://galactico-sandy.vercel.app/lineup) to edit Madrid’s current XI.
+Change shape, swap shirts, substitute from the bench and save the team on your device.
+The roster and all-competition appearances and goals come from the current season’s
+Wikipedia tables. The activity panel labels each available archive match and date.
+Import player event CSVs with 0–100 `x,y` coordinates and an optional `type` column
+for your own measured heatmap. Imported coordinates stay in the browser tab.
+The role-zone view follows the selected position in your formation.
+
+Live match reports use a separate [API-Football account](https://dashboard.api-football.com/).
+Set `API_FOOTBALL_KEY` in the local server’s `.env`. API-Football supplies aggregates.
+The studio’s measured maps require event locations.
+
 ## Current match centre
 
 Run `python -m pip install -e ".[api]"` and `python -m galactico.match_centre.local` from the checkout.
-Open [the match centre](http://127.0.0.1:8091). No historical data download is needed.
+Open [the match centre](http://127.0.0.1:8091/match-centre). No historical data download is needed.
 
 The public scoreboard reads this season’s fixtures and reported results for La Liga,
 the Premier League, Bundesliga, Serie A and Ligue 1. Pick a day, follow Madrid’s next
@@ -23,8 +37,8 @@ required. Switch the source to **API-Football** for match clocks, events, lineup
 team and player totals. Today’s board and open report refresh every minute while visible.
 The private server binds to loopback. The regular lab server also serves the public
 scoreboard at `/match-centre`.
-The hosted entry point serves the public match centre at `/` and fetches public data
-on demand. A local installation reads the subscription key for private match reports.
+The hosted home page opens the lineup studio. The public match centre remains at
+`/match-centre` and accepts existing fixture links. A local installation reads the subscription key for private match reports.
 [API-Football documentation](https://www.api-football.com/documentation-v3)
 
 **Scouting** shows Madrid’s scoring and conceding rates against the rest of La Liga

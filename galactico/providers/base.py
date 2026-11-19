@@ -225,6 +225,14 @@ PROVIDERS: dict[str, LicensePosture] = {
               "opponent-strength prior is ever needed, compute Elo in-repo from a CC0 "
               "results source, which is also prior-date by construction.",
     ),
+    "wikipedia": LicensePosture(
+        name="English Wikipedia season squad and appearance tables",
+        tier=DataTier.PUBLIC,
+        may_redistribute=True, may_host_derived=True, may_commit=False,
+        commercial_use=True, requires_attribution=True,
+        attribution="Wikipedia contributors, CC BY-SA 4.0. Season tables adapted for display.",
+        terms_url="https://en.wikipedia.org/wiki/Wikipedia:Copyrights",
+    ),
     "openfootball": LicensePosture(
         name="OpenFootball fixtures and results",
         tier=DataTier.PUBLIC,

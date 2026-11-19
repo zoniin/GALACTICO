@@ -15,7 +15,7 @@ attempt to commit into them.
 
 **PUBLIC** — redistributable and hostable. The public demo runs on these and
 nothing else: Pappalardo/Wyscout (CC BY 4.0), SkillCorner (MIT), DFL/Sportec
-(CC BY 4.0), and OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)).
+(CC BY 4.0), English Wikipedia season tables (CC BY-SA 4.0), and OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)).
 
 **REFERENCE ONLY** — reachable and free, and not ours to use. Consulted by hand,
 never ingested, no adapter. UEFA: clause 6.2 of its terms bars systematic
@@ -43,6 +43,11 @@ the exact set of hostable sources.
 **TRIAL** — time-boxed vendor trial data. Usable for calibration; never a
 dependency of anything that must keep working after expiry. Currently empty, and a
 test asserts it stays empty.
+
+The lineup studio adapts the English Wikipedia season squad and appearance tables.
+These extracts are attributed to the linked season article and carry its CC BY-SA 4.0
+licence. The studio fetches its selected Pappalardo match samples at runtime and
+links the Events and Players records and licence in the map view.
 
 ## StatsBomb specifically
 

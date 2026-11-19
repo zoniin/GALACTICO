@@ -14,12 +14,36 @@ from .feed import FeedError
 from .openfootball import LEAGUES, OpenFootball, season_start
 from .scouting import LEAGUES as SCOUT_LEAGUES
 from .scouting import METRICS, ROLES, SPLITS, Scouting, teams
+from .studio import Studio
 
 WEB = Path(__file__).resolve().parents[2] / "web"
 
 
 def make_router(private: ApiFootball | None = None) -> APIRouter:
     router, public = APIRouter(), OpenFootball()
+
+    studio = Studio()
+
+    @router.get("/lineup", include_in_schema=False)
+    def lineup():
+        return FileResponse(WEB / "studio.html")
+
+    @router.get("/api/studio/squad")
+    async def studio_squad():
+        try:
+            return await studio.roster(datetime.now(UTC).date())
+        except FeedError as exc:
+            raise HTTPException(503, str(exc)) from exc
+
+    @router.get("/api/studio/activity/{player}")
+    async def studio_activity(player: str):
+        try:
+            sample = await studio.activity(player)
+        except FeedError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        if sample is None:
+            raise HTTPException(404, "No archived spatial sample for this player.")
+        return sample
 
     @router.get("/match-centre", include_in_schema=False)
     def centre():

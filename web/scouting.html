@@ -1,9 +1,8 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Season scouting · Galáctico</title><link rel="stylesheet" href="/static/match-centre.css"><script src="/static/scouting.js" defer></script>
+<title>Season scouting · Galáctico</title><link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css"><link rel="stylesheet" href="/static/centre-theme.css"><script src="/static/scouting.js" defer></script>
 </head><body>
-<header class="mast"><div class="frame mast-inner"><a class="brand" href="/match-centre">Galáctico</a>
-<nav aria-label="Workspaces"><a href="/match-centre">Match centre</a><a href="/match-centre/leagues">Leagues</a><a href="/match-centre/scouting" aria-current="page">Scouting</a><a href="/match-centre/demo">Scouting demo</a></nav></div></header>
+<header class="mast"><div class="frame mast-inner"><a class="brand" href="/lineup"><span class="brand-mark" aria-hidden="true">G</span>Galáctico</a><nav aria-label="Workspaces"><a href="/lineup">Lineup studio</a><a href="/match-centre">Match centre</a><a href="/match-centre/leagues">Leagues</a><a href="/match-centre/scouting" aria-current="page">Scouting</a></nav></div></header>
 <main class="frame scout"><div class="heading"><h1>Season scouting</h1></div>
 <p>Compare Madrid’s scoring and conceding rates with the rest of La Liga. Player scouting uses match reports to compare candidates with Madrid in the same position.</p>
 <article aria-labelledby="baseline-title">
@@ -12,7 +11,7 @@
 <div id="baseline" aria-live="polite"></div>
 </article>
 <div id="connection" role="status">Checking the data connection…</div>
-<section id="setup" hidden><h2>Connect player data</h2><p>Set <code>API_FOOTBALL_KEY</code> in a local <code>.env</code> file or your environment and run <code>python -m galactico.match_centre.local</code>. Open this page on localhost with a plan that covers your chosen season.</p>
+<section id="setup" hidden><h2>Connect player data</h2><p>Get a key from <a href="https://dashboard.api-football.com/">API-Football</a>. Set <code>API_FOOTBALL_KEY</code> in a local <code>.env</code> file or your environment and run <code>python -m galactico.match_centre.local</code>. Open this page on localhost with a plan that covers your chosen season.</p>
 <a href="/match-centre/demo">Try the scouting demo with sample figures →</a></section>
 <form id="filters" hidden>
 <label>Season starting year<input name="season" type="number" min="2010" required></label>

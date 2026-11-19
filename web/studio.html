@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#f6f6f1" />
+    <title>Lineup studio · Galáctico</title>
+    <link rel="stylesheet" href="/static/studio-shell.css" />
+    <link rel="stylesheet" href="/static/studio.css" />
+    <script src="/static/studio.js" type="module"></script>
+  </head>
+  <body class="studio">
+    <header class="mast">
+      <div class="frame mast-inner">
+        <a class="brand" href="/lineup"
+          ><span class="brand-mark" aria-hidden="true">G</span>Galáctico</a
+        >
+        <nav aria-label="Workspaces">
+          <a href="/lineup" aria-current="page">Lineup studio</a
+          ><a href="/match-centre">Match centre</a><a href="/match-centre/leagues">Leagues</a
+          ><a href="/match-centre/scouting">Scouting</a>
+        </nav>
+      </div>
+    </header>
+    <main class="frame">
+      <div class="studio-head">
+        <div>
+          <p class="kicker">Real Madrid <span>/</span> <span id="season">First team</span></p>
+          <h1>Lineup studio<span>.</span></h1>
+        </div>
+        <div class="tools">
+          <button id="undo" disabled><span aria-hidden="true">↶</span> Undo</button
+          ><button id="save" class="primary" disabled>Save lineup</button>
+        </div>
+      </div>
+      <p id="notice" class="notice" role="status" aria-live="polite">Loading the first team…</p>
+      <div class="studio-grid">
+        <section class="board-col" aria-labelledby="starting">
+          <div class="pitch-card">
+            <div class="board-bar">
+              <h2 id="starting"><i class="field-icon" aria-hidden="true"></i>Starting XI</h2>
+              <label class="formation-label"
+                ><span>Formation</span>
+                <select id="formation" aria-label="Formation">
+                  <option>4-3-3</option>
+                  <option>4-2-3-1</option>
+                  <option>4-4-2</option>
+                  <option>3-5-2</option>
+                </select></label
+              >
+            </div>
+            <div class="field" id="field" aria-label="Tactical pitch">
+              <svg
+                class="markings"
+                viewBox="0 0 640 440"
+                preserveAspectRatio="none"
+                aria-hidden="true"
+              >
+                <g fill="none">
+                  <rect x="17" y="16" width="606" height="408" rx="1" />
+                  <path
+                    d="M17 220H623 M194 16v62h252V16 M252 16v25h136V16 M194 424v-62h252v62 M252 424v-25h136v25"
+                  />
+                  <ellipse cx="320" cy="220" rx="59" ry="45" />
+                  <path
+                    d="M279 78q41 32 82 0 M279 362q41-32 82 0 M17 27q11 0 11-11 M612 16q0 11 11 11 M17 413q11 0 11 11 M612 424q0-11 11-11"
+                  />
+                </g>
+                <g class="spots">
+                  <circle cx="320" cy="220" r="2.8" />
+                  <circle cx="320" cy="62" r="2.5" />
+                  <circle cx="320" cy="378" r="2.5" />
+                </g>
+              </svg>
+              <span class="direction">↑ Attack</span>
+              <div id="slots"></div>
+            </div>
+            <div class="board-foot">
+              <span
+                ><span class="selected-dot"></span>
+                <span id="picked">Select a shirt to inspect a player</span></span
+              >
+              <div class="board-actions">
+                <a href="#player-name" class="inspect-link">View profile ↓</a
+                ><button id="swap" disabled>Swap position</button>
+              </div>
+            </div>
+          </div>
+          <section class="bench" aria-labelledby="bench-title">
+            <div class="section-row">
+              <h2 id="bench-title">Substitutes</h2>
+              <span id="bench-count"></span>
+            </div>
+            <p id="bench-hint">Choose a substitute for the selected position.</p>
+            <div id="bench-list"></div>
+          </section>
+        </section>
+        <aside class="inspector" aria-label="Player inspection">
+          <section class="profile" aria-labelledby="player-name">
+            <div class="hero">
+              <div class="hero-lines"></div>
+              <p class="hero-label"><i></i> Player profile</p>
+              <div class="profile-copy">
+                <p id="given-name"></p>
+                <h2 id="player-name" tabindex="-1">Choose a player</h2>
+                <p id="player-meta"></p>
+              </div>
+              <div class="hero-kit">
+                <img src="/static/assets/studio-kit.webp" alt="" /><strong
+                  id="hero-number"
+                ></strong>
+              </div>
+            </div>
+            <div class="metrics">
+              <div><span>Appearances</span><strong id="apps">—</strong></div>
+              <div><span>Goals</span><strong id="goals">—</strong></div>
+              <div><span>XI role</span><strong id="xi-role">—</strong></div>
+            </div>
+            <p id="season-note" class="profile-note">Season totals · all competitions</p>
+          </section>
+          <section class="analysis" aria-labelledby="map-title">
+            <div class="section-row">
+              <h2 id="map-title">Activity map</h2>
+              <span class="analysis-icon" aria-hidden="true">⌖</span>
+            </div>
+            <div class="map-tabs" aria-label="Map view">
+              <button id="events" aria-pressed="true">Event heatmap</button
+              ><button id="role" aria-pressed="false">Role zone</button>
+            </div>
+            <div class="map-label">
+              <span id="sample">Select a player</span><span>Attack →</span>
+            </div>
+            <canvas
+              id="map"
+              width="660"
+              height="346"
+              role="img"
+              aria-label="Player activity map"
+            ></canvas>
+            <div class="map-caption">
+              <span id="sample-count"></span
+              ><label id="action-label" hidden
+                ><span class="sr">Action filter</span
+                ><select id="action" aria-label="Action filter"></select
+              ></label>
+            </div>
+            <div
+              id="density-scale"
+              class="density-scale"
+              hidden
+              aria-label="Relative action density"
+            >
+              Fewer actions <i aria-hidden="true"></i> More
+            </div>
+            <p class="map-detail" id="map-detail"></p>
+            <details class="importer">
+              <summary>Import match events</summary>
+              <p>
+                Upload a CSV with <code>x,y</code> and optional <code>type</code>. Use 0–100
+                coordinates, attacking left to right, with y increasing downwards. Each row is an
+                action by the selected player.
+              </p>
+              <input
+                type="file"
+                id="file"
+                accept=".csv,text/csv"
+                aria-label="Import coordinates for selected player"
+              /><button id="clear-import" hidden>Remove imported events</button>
+            </details>
+          </section>
+        </aside>
+      </div>
+      <footer class="sources">
+        <span id="roster-credit">Squad and season totals by Wikipedia contributors.</span> Adapted
+        under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
+      </footer>
+    </main>
+  </body>
+</html>

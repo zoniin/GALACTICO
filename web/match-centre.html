@@ -3,16 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#131916">
+  <meta name="theme-color" content="#171935">
   <title>Match centre · Galáctico</title>
-  <link rel="stylesheet" href="/static/match-centre.css">
+  <link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css"><link rel="stylesheet" href="/static/centre-theme.css">
   <script src="/static/match-centre.js" defer></script>
 </head>
 <body>
-  <header class="mast"><div class="frame mast-inner">
-    <a class="brand" href="/match-centre">Galáctico</a>
-    <nav aria-label="Workspaces"><a href="/match-centre" aria-current="page">Match centre</a><a href="/match-centre/leagues">Leagues</a><a href="/match-centre/scouting">Scouting</a><a href="/match-centre/demo">Scouting demo</a></nav>
-  </div></header>
+  <header class="mast"><div class="frame mast-inner"><a class="brand" href="/lineup"><span class="brand-mark" aria-hidden="true">G</span>Galáctico</a><nav aria-label="Workspaces"><a href="/lineup">Lineup studio</a><a href="/match-centre" aria-current="page">Match centre</a><a href="/match-centre/leagues">Leagues</a><a href="/match-centre/scouting">Scouting</a></nav></div></header>
   <main class="frame">
     <div class="heading"><h1>Match centre</h1>
       <label class="source">Data source <select id="source"><option value="openfootball">OpenFootball</option></select></label>
@@ -41,6 +38,6 @@
         </section>
       </aside>
     </div>
-    <footer><a href="https://github.com/openfootball/football.json">OpenFootball coverage</a> · <a href="https://www.api-football.com/documentation-v3">API-Football coverage</a></footer>
+    <footer><a href="/match-centre/demo">Scouting demo</a> · <a href="https://github.com/openfootball/football.json">OpenFootball coverage</a> · <a href="https://www.api-football.com/documentation-v3">API-Football coverage</a></footer>
   </main>
 </body></html>
