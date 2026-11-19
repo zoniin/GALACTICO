@@ -72,7 +72,7 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     def scouting_page():
         return FileResponse(WEB / "scouting.html")
 
-    goals = GoalScout()
+    goals = GoalScout(public)
 
     @router.get("/api/match-centre/goal-scout/{league}")
     async def goal_report(league: str, response: Response, club: int | None = Query(None, gt=0)):

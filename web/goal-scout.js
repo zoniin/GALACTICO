@@ -129,9 +129,10 @@ function render() {
   const unclassified = report.matches.filter((g) => g.split === 'unclassified').length;
   const clubName = report.clubs[report.club];
   const notes = [
+    report.unverified_league_matches ? report.unverified_league_matches + ' league reports could not be verified against the schedule.' : '',
     report.warning ? 'Showing a cached report.' : '',
     split.value !== 'all' && unclassified
-      ? unclassified + ' early or tied-table matches excluded.'
+      ? unclassified + ' matches had no reliable pre-match group.'
       : '',
     'Named totals exclude own goals and unnamed scorers.',
   ];

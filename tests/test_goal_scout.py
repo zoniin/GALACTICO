@@ -3,13 +3,16 @@
 import httpx
 from fastapi.testclient import TestClient
 
-from galactico.match_centre.goal_scout import parse_matches
+from galactico.match_centre.feed import Snapshot
+from galactico.match_centre.goal_scout import parse_matches, verify_fixtures
+from galactico.match_centre.openfootball import OpenFootball
 from galactico.match_centre.public import create_centre
 
 
 def fixture():
     return dict(
         matchID=1,
+        group=dict(groupOrderID=1),
         matchDateTimeUTC="2025-10-01T20:00:00Z",
         matchIsFinished=True,
         team1=dict(teamId=11, teamName="A"),
@@ -52,6 +55,10 @@ def test_conflicting_goals_do_not_double_count_or_credit_guessed_scorer():
 
 
 def test_public_report_uses_one_season_download_for_multiple_clubs(monkeypatch):
+    async def schedule(self, league, year):
+        return Snapshot([dict(round="Matchday 1", team1="A", team2="B")], "2026-10-10")
+
+    monkeypatch.setattr(OpenFootball, "season", schedule)
     calls = []
 
     async def get(self, url):
@@ -81,3 +88,18 @@ def test_failed_source_returns_service_unavailable(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "get", get)
     with TestClient(create_centre("Test")) as client:
         assert client.get("/api/match-centre/goal-scout/es").status_code == 503
+
+
+def test_cross_checks_competition_club_names_and_suppresses_disputed_scores():
+    games, schedule = [], []
+    for rnd in range(1, 7):
+        raw = fixture() | dict(matchID=rnd, group=dict(groupOrderID=rnd))
+        raw["team1"]["teamName"] = "Incorrect league club"
+        games.extend(parse_matches([raw]))
+        schedule.append(dict(round=f"Matchday {rnd}", team1="Confirmed club", team2="B"))
+    schedule[-1]["score"] = {"ft": [0, 0]}
+    checked = verify_fixtures(games, schedule)
+    assert all(g["teams"]["home"]["name"] == "Confirmed club" for g in checked[:-1])
+    assert all(g["verified"] for g in checked)
+    assert [g["omit_events"] for g in checked] == [False] * 5 + [True]
+    assert checked[-1]["goals"] == {"home": 0, "away": 0}

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from collections import Counter, defaultdict
 from datetime import date, datetime
 from random import randrange
 from typing import TypeGuard
@@ -10,7 +12,7 @@ import httpx
 
 from ..providers import assert_may_host
 from .feed import FeedCache, FeedError
-from .openfootball import season_start
+from .openfootball import OpenFootball, final_score, season_start
 from .scouting import opponent_groups, teams
 
 # Competition shortcut, display name, initial club. IDs are specific to OpenLigaDB.
@@ -115,6 +117,7 @@ def parse_matches(payload: object) -> list[dict]:
                 "date": day,
                 "status": {"short": "FT" if finished else "NS"},
             },
+            "round": (raw.get("group") or {}).get("groupOrderID"),
             "teams": {
                 s: {"id": t["teamId"], "name": t["teamName"]}
                 for s, t in zip(("home", "away"), sides, strict=True)
@@ -127,8 +130,56 @@ def parse_matches(payload: object) -> list[dict]:
     return list(games.values())
 
 
+def verify_fixtures(games: list[dict], schedule: list[dict]) -> list[dict]:
+    # Some provider club IDs carry names from a different league. The ordered home/away
+    # record is independent of those names. Confirm the round and both sides afterwards.
+    reference: dict[str, set] = defaultdict(set)
+    fixtures = {}
+    for row in schedule:
+        number = re.fullmatch(r"Matchday (\d+)", str(row.get("round", "")))
+        if number:
+            rnd = int(number[1])
+            for side in ("team1", "team2"):
+                reference[row[side]].add((rnd, side))
+            fixtures[rnd, row["team1"], row["team2"]] = row
+    signatures: dict[int, set] = defaultdict(set)
+    for game in games:
+        for key, side in (("team1", "home"), ("team2", "away")):
+            signatures[game["teams"][side]["id"]].add((game["round"], key))
+    labels = {}
+    for team_id, name in teams(games).items():
+        sig = signatures[team_id]
+        candidates = [n for n, ref in reference.items() if sig <= ref]
+        if name in candidates:
+            labels[team_id] = name
+        elif len(sig) >= 6 and len(candidates) == 1:
+            labels[team_id] = candidates[0]
+    # A pair of provider IDs must never be merged into one club.
+    counts = Counter(labels.values())
+    for game in games:
+        home, away = (labels.get(game["teams"][side]["id"]) for side in ("home", "away"))
+        match = fixtures.get((game["round"], home, away))
+        game["verified"] = False
+        game["omit_events"] = False
+        if not home or not away or match is None or counts[home] != 1 or counts[away] != 1:
+            continue
+        expected = final_score(match)
+        if expected and expected != [game["goals"]["home"], game["goals"]["away"]]:
+            # Keep the independent result in the league table. The inconsistent or
+            # absent event report cannot contribute player goals.
+            game["omit_events"] = True
+            game["goals"] = {"home": expected[0], "away": expected[1]}
+            game["fixture"]["status"]["short"] = "FT"
+        game["teams"]["home"]["name"], game["teams"]["away"]["name"] = home, away
+        game["verified"] = True
+    if not any(g["verified"] for g in games):
+        raise FeedError("Club identities could not be confirmed against the league schedule.")
+    return games
+
+
 class GoalScout:
-    def __init__(self) -> None:
+    def __init__(self, schedules: OpenFootball) -> None:
+        self.schedules = schedules
         self.cache = FeedCache(12, max_retry=3600)
 
     async def report(self, league: str, club: int | None, today: date) -> dict | None:
@@ -142,19 +193,33 @@ class GoalScout:
             async with httpx.AsyncClient(timeout=12, headers={"User-Agent": agent}) as client:
                 resp = await client.get(source)
             resp.raise_for_status()
-            return parse_matches(resp.json())
+            schedule = await self.schedules.season(league + ".1", year)
+            return verify_fixtures(parse_matches(resp.json()), schedule.rows)
 
         snap = await self.cache.get(source, 6 * 3600 + randrange(300), fetch)
-        clubs = teams(snap.rows)
+        confirmed = [g for g in snap.rows if g["verified"]]
+        omitted = [
+            g["fixture"]["date"]
+            for g in snap.rows
+            if not g["verified"]
+            and g["fixture"]["status"]["short"] == "FT"
+            and g["fixture"]["date"] <= today.isoformat()
+        ]
+        earliest_gap = min(omitted, default=None)
+        clubs = teams(confirmed)
         if club is None:
             club = preferred if preferred in clubs else min(clubs, key=lambda c: clubs[c])
         if club not in clubs:
             return None
-        bands = opponent_groups(snap.rows, club)
+        bands = opponent_groups(confirmed, club)
         games = []
-        for row in snap.rows:
+        for row in confirmed:
             fixture, sides = row["fixture"], row["teams"]
-            if fixture["id"] not in bands or fixture["date"] > today.isoformat():
+            if (
+                row["omit_events"]
+                or fixture["id"] not in bands
+                or fixture["date"] > today.isoformat()
+            ):
                 continue
             home = sides["home"]["id"] == club
             own, opp = ("home", "away") if home else ("away", "home")
@@ -165,7 +230,11 @@ class GoalScout:
                     "day": fixture["date"],
                     "venue": "H" if home else "A",
                     "opponent": sides[opp]["name"],
-                    "split": bands[fixture["id"]],
+                    "split": (
+                        "unclassified"
+                        if earliest_gap and earliest_gap < fixture["date"]
+                        else bands[fixture["id"]]
+                    ),
                     "for": row["goals"][own],
                     "against": row["goals"][opp],
                     "events": events,
@@ -178,7 +247,11 @@ class GoalScout:
             "clubs": clubs,
             "matches": sorted(games, key=lambda g: (g["day"], g["id"]), reverse=True),
             "source": source,
-            "credit": "OpenLigaDB",
+            "credit": "OpenLigaDB; club identities checked against OpenFootball",
+            "unverified_league_matches": len(omitted)
+            + sum(
+                g["omit_events"] and g["fixture"]["date"] <= today.isoformat() for g in confirmed
+            ),
             "licence": LICENCE,
             "checked": snap.checked,
             "warning": snap.warning,
