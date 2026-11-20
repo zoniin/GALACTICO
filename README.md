@@ -10,7 +10,9 @@ The roster and all-competition appearances and goals come from the current seaso
 Wikipedia tables. The activity panel labels each available archive match and date.
 Import player event CSVs with 0–100 `x,y` coordinates and an optional `type` column
 for your own measured heatmap. Imported coordinates stay in the browser tab.
-The role-zone view follows the selected position in your formation.
+The role-zone view follows the selected position in your formation. Open the next league
+fixture above the pitch for venue, reported dates, both clubs’ recent form and the
+opponent’s scorers. Players with matched league goals link directly to their comparison.
 
 Live match reports use a separate [API-Football account](https://dashboard.api-football.com/).
 Set `API_FOOTBALL_KEY` in the local server’s `.env`. API-Football supplies aggregates.
@@ -20,7 +22,9 @@ The studio’s measured maps require event locations.
 
 The public scouting page reads OpenLigaDB’s current La Liga, Premier League and Bundesliga
 match reports without an API key. Choose a club, compare scorers against opponents inside or
-outside the pre-match top six, and open a scoreline for recorded goal minutes. The club’s
+outside the pre-match top six, and open a scoreline for recorded goal minutes.
+Choose a specific opponent and a scorer to see their goals by opponent strength.
+Add a teammate for a side-by-side comparison. The URL preserves the matchup and both players. The club’s
 reported match score and the number of named player goals are shown separately.
 The lineup studio also matches named La Liga events to the selected Madrid player.
 [Open the goal explorer](https://galactico-sandy.vercel.app/match-centre/scouting#goals) · [OpenLigaDB](https://www.openligadb.de/)

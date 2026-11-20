@@ -37,6 +37,19 @@
       <p id="notice" class="notice" role="status" aria-live="polite">Loading the first team…</p>
       <div class="studio-grid">
         <section class="board-col" aria-labelledby="starting">
+          <details id="match-prep" class="match-prep" hidden>
+            <summary>
+              <span class="prep-label">Next in La Liga</span><strong id="prep-opponent"></strong>
+              <span id="prep-date"></span>
+            </summary>
+            <div class="prep-body">
+              <p id="prep-schedule" hidden></p>
+              <p>Last five reported results · newest first</p>
+              <div id="prep-form"></div>
+              <a id="prep-scout">Scout opponent</a>
+              <small>Match reports from <a href="https://www.openligadb.de/">OpenLigaDB</a> under <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>.</small>
+            </div>
+          </details>
           <div class="pitch-card">
             <div class="board-bar">
               <h2 id="starting"><i class="field-icon" aria-hidden="true"></i>Starting XI</h2>
@@ -122,6 +135,7 @@
           <section class="profile-goals" aria-labelledby="profile-goals-title">
             <h2 id="profile-goals-title">La Liga goal log</h2>
             <p id="profile-goal-results">Loading league reports…</p>
+            <a id="profile-scout" class="profile-scout" hidden></a>
             <small><a href="https://www.openligadb.de/">OpenLigaDB</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a></small>
           </section>
           <section class="analysis" aria-labelledby="map-title">

@@ -29,7 +29,7 @@
 }
 .goal-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 18px 0;
 }
 .goal-metrics {
@@ -117,9 +117,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
-  .goal-controls label:last-child {
-    grid-column: 1/-1;
-  }
   .goal-metrics div {
     padding: 10px;
   }
@@ -132,4 +129,97 @@
   #goals-log time {
     min-width: 43px;
   }
+}
+
+#goals-comparison {
+  margin: 18px 0 22px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 14px;
+  background: #fafaf7;
+}
+.comparison-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.comparison-heading label {
+  max-width: 100%;
+}
+.comparison-scroll {
+  overflow-x: auto;
+}
+#goals-matrix {
+  width: 100%;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+#goals-matrix th,
+#goals-matrix td {
+  text-align: right;
+  padding: 6px 5px;
+}
+#goals-matrix th:first-child {
+  text-align: left;
+}
+#goals-matrix tbody th button {
+  padding: 4px 8px;
+  min-height: 30px;
+  white-space: nowrap;
+  font: inherit;
+}
+#goals-matrix tbody td {
+  font-weight: 650;
+}
+#goals-log .peer-goal {
+  font-weight: 700;
+  color: #18664c;
+}
+.comparison-note {
+  font-size: 0.76rem;
+}
+@media (max-width: 640px) {
+  #goals-comparison {
+    padding: 10px;
+  }
+  #goals-matrix {
+    font-size: 0.76rem;
+  }
+  #goals-matrix th,
+  #goals-matrix td {
+    padding: 5px 3px;
+  }
+  #goals-matrix tbody th button {
+    padding-inline: 4px;
+    text-align: left;
+    white-space: normal;
+  }
+}
+
+.sample-coverage {
+  display: block;
+  font-size: 0.67rem;
+  color: var(--dim);
+  font-weight: 500;
+}
+.comparison-share {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  margin-top: 8px;
+}
+#goals-copy {
+  font-size: 0.78rem;
+  min-height: 32px;
+}
+#goals-share-status {
+  font-size: 0.76rem;
+  color: var(--dim);
+}
+#goals-share-url {
+  flex-basis: 100%;
 }

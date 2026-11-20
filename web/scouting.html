@@ -11,12 +11,21 @@
 <div class="goal-controls">
 <label>Goal explorer league<select id="goals-league"><option value="es">La Liga</option><option value="en">Premier League</option><option value="de">Bundesliga</option></select></label>
 <label>Club to explore<select id="goals-club" disabled></select></label>
-<label>Opponent strength<select id="goals-split" aria-label="Opponent strength"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option></select></label>
+<label>Opponent strength<select id="goals-split" aria-label="Opponent strength"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option><option value="unclassified">Unclassified</option></select></label>
+<label>Match opponent<select id="goals-opponent" disabled><option value="">All clubs</option></select></label>
 </div>
 <p id="goals-status" role="status">Loading reported goals…</p>
 <div id="goals-data" hidden>
-<div class="goal-metrics"><div><strong id="goals-games"></strong><span>League matches</span></div><div><strong id="goals-total"></strong><span>Team goals</span></div><div><strong id="goals-named"></strong><span>Named player goals</span></div></div>
+<div class="goal-metrics"><div><strong id="goals-games"></strong><span>Club matches</span></div><div><strong id="goals-total"></strong><span>Team goals</span></div><div><strong id="goals-named"></strong><span>Named player goals</span></div></div>
 <h3>Recorded scorers</h3><div id="goals-scorers" class="scorer-picks"></div>
+<section id="goals-comparison" aria-labelledby="goals-comparison-title" hidden>
+<div class="comparison-heading"><h3 id="goals-comparison-title">Compare recorded goals</h3>
+<label>Compare with a teammate<select id="goals-peer"></select></label></div>
+<div class="comparison-scroll"><table id="goals-matrix" aria-labelledby="goals-comparison-title"></table></div>
+<p class="comparison-note">Matches count club fixtures. Player minutes and appearances are unavailable in this feed. The fraction shows named player goals out of reported team goals.</p>
+<div class="comparison-share"><button id="goals-copy" type="button">Copy comparison link</button><span id="goals-share-status" role="status"></span>
+<input id="goals-share-url" aria-label="Comparison URL" readonly hidden></div>
+</section>
 <h3>Match log</h3><div id="goals-log"></div>
 <p class="goal-method">Club identities are checked against the <a href="https://github.com/openfootball/football.json">OpenFootball league schedule</a>. When reported scores disagree, the table uses OpenFootball and the goal log excludes that match. Opponent groups use the table before the match date once every club has played five games. Games with an unresolved sixth-place tie for that opponent stay unclassified.</p>
 </div>

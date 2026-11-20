@@ -1,3 +1,4 @@
+import { scorer, scoutLink } from './goal-links.js';
 import { shapes, positions, initialXI, reshape, shortName } from './studio-formation.js';
 import { draw, readEvents } from './studio-map.js';
 
@@ -196,13 +197,17 @@ function renderGoals(player) {
     if (parts.length > 1) aliases.add(parts[0][0] + ' ' + parts.slice(1).join(' '));
     for (const alias of aliases) names.set(alias, names.has(alias) ? null : member.id);
   }
+  const identities = new Set();
   const matches = leagueReport.matches;
   const hits = matches
     .map((game) => ({
       game,
-      count: game.events.filter(
-        (e) => e.for_club && !e.own && names.get(normalizedName(e.name)) === player.id,
-      ).length,
+      count: game.events.filter((e) => {
+        if (!e.for_club || e.own || !e.name || names.get(normalizedName(e.name)) !== player.id)
+          return false;
+        identities.add(scorer(e, leagueReport.league).id);
+        return true;
+      }).length,
     }))
     .filter((row) => row.count);
   const total = hits.reduce((sum, row) => sum + row.count, 0);
@@ -216,11 +221,68 @@ function renderGoals(player) {
       hits[0].game.day +
       ').'
     : 'No named goals matched in ' + matches.length + ' reported Madrid matches.';
+  const matchup = $('profile-scout');
+  matchup.hidden = identities.size !== 1;
+  if (!matchup.hidden) {
+    matchup.textContent = 'Compare ' + shortName(player) + ' with a teammate →';
+    matchup.href = scoutLink('es', 1133, { goalsPlayer: [...identities][0] });
+  }
+}
+
+function renderMatchPrep(report) {
+  const game = report.next_match;
+  const panel = $('match-prep');
+  panel.hidden = !game;
+  if (!game) return;
+  $('prep-opponent').textContent = game.opponent.name;
+  const formatDay = (value) =>
+    new Intl.DateTimeFormat('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    }).format(new Date(value + 'T12:00:00Z'));
+  const datesDiffer = game.schedule_day && game.schedule_day !== game.day;
+  $('prep-date').textContent =
+    (game.venue === 'H' ? 'Home' : 'Away') +
+    ' · ' +
+    (datesDiffer ? 'Date to confirm' : formatDay(game.day));
+  $('prep-schedule').hidden = !datesDiffer;
+  if (datesDiffer) {
+    $('prep-schedule').textContent =
+      'OpenLigaDB lists ' +
+      formatDay(game.day) +
+      '. OpenFootball lists ' +
+      formatDay(game.schedule_day) +
+      '.';
+  }
+  const rows = [
+    [report.club, report.clubs[report.club], game.club_form],
+    [game.opponent.id, game.opponent.name, game.opponent_form],
+  ];
+  $('prep-form').replaceChildren(
+    ...rows.map(([id, team, form]) => {
+      const row = el('div', null, 'prep-form-row');
+      row.append(el('strong', team));
+      if (!form.length) row.append(el('small', 'No earlier reports'));
+      for (const match of form) {
+        const a = link(match.result, scoutLink('es', id, { goalsOpponent: match.opponent }));
+        a.className = 'form-result form-' + match.result;
+        a.title = [match.day, team, match.score, match.opponent, match.venue].join(' · ');
+        a.setAttribute('aria-label', a.title);
+        row.append(a);
+      }
+      return row;
+    }),
+  );
+  $('prep-scout').href = scoutLink('es', game.opponent.id);
+  $('prep-scout').textContent = 'Scout ' + game.opponent.name + ' →';
 }
 async function loadLeagueGoals() {
   const output = $('profile-goal-results');
   try {
     leagueReport = await get('/api/match-centre/goal-scout/es?club=1133');
+    renderMatchPrep(leagueReport);
     renderGoals(selected());
   } catch {
     output.replaceChildren('League reports unavailable. ', action('Retry', loadLeagueGoals));
