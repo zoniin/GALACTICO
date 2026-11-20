@@ -119,3 +119,39 @@ test('keyless goal explorer filters before-match opponents and restores a shared
   await expect(page.getByLabel('Opponent strength')).toHaveValue('top');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test('compare teammates for one opponent and retain scoreless selections', async ({page}) => {
+  const goals = (player, name) => ({for_club:true, player, name, minute:23});
+  const a = goals(7, 'Example winger'), b = goals(9, 'Example striker');
+  const games = [
+    {day, opponent:'North FC', split:'top', for:3, events:[a,b,{...a,name:''}]},
+    {day:'2026-09-01', opponent:'South FC', split:'other', for:1, events:[b]},
+    {day:'2026-08-01', opponent:'North FC', split:'unclassified', for:0, events:[]}
+  ].map((g,id) => ({...g,id,venue:'H',against:0}));
+  await page.route('**/api/match-centre/goal-scout/**', route => route.fulfill({json:{
+    league:'La Liga',club:11,clubs:{11:'Example team'},season:2026,checked,
+    source:'https://api.openligadb.de/',licence:'https://opendatacommons.org/licenses/odbl/1-0/',
+    matches:games
+  }}));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/match-centre/scouting#goals');
+  await page.getByRole('button',{name:'Example winger · 1'}).click();
+  await page.getByLabel('Compare with a teammate').selectOption('9');
+  await expect(page.locator('#goals-matrix').getByRole('row',{name:'All matches 3 1 2 3/4'})).toBeVisible();
+  await page.getByLabel('Match opponent').selectOption('North FC');
+  await expect(page.locator('#goals-matrix').getByRole('row',{name:'All matches 2 1 1 2/3'})).toBeVisible();
+  await page.getByRole('button',{name:'Top six',exact:true}).click();
+  await expect(page.locator('#goals-log details')).toHaveCount(1);
+  await expect(page.locator('#goals-log .peer-goal')).toContainText('Example striker');
+  await page.reload();
+  await expect(page.getByLabel('Match opponent')).toHaveValue('North FC');
+  await expect(page.getByLabel('Compare with a teammate')).toHaveValue('9');
+  await expect(page.getByLabel('Opponent strength')).toHaveValue('top');
+  await page.getByRole('button',{name:'Unclassified',exact:true}).click();
+  await expect(page.locator('#goals-matrix').getByRole('row',{name:'Unclassified 1 0 0 0/0'})).toBeVisible();
+  await expect(page.locator('#goals-log')).toContainText('No goals are credited');
+  await expect(page.getByRole('button',{name:'Example winger · 0'})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Outside top six',exact:true}).click();
+  await expect(page.locator('#goals-matrix').getByRole('row',{name:'Outside top six 0 — — —'})).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

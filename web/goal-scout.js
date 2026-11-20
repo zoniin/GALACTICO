@@ -1,10 +1,20 @@
 const byId = (id) => document.getElementById('goals-' + id);
 const league = byId('league'),
   club = byId('club'),
-  split = byId('split');
+  split = byId('split'),
+  opponent = byId('opponent'),
+  peer = byId('peer');
+const bands = new Map([
+  ['all', 'All matches'],
+  ['top', 'Top six'],
+  ['other', 'Outside top six'],
+  ['unclassified', 'Unclassified'],
+]);
 const query = new URLSearchParams(location.search);
 let report,
   selected = '',
+  teammate = '',
+  seasonTotals,
   version = 0;
 function shareView() {
   const url = new URL(location.href);
@@ -13,6 +23,13 @@ function shareView() {
   url.searchParams.set('goalsSplit', split.value);
   if (selected) url.searchParams.set('goalsPlayer', selected);
   else url.searchParams.delete('goalsPlayer');
+  for (const [key, value] of [
+    ['goalsPeer', teammate],
+    ['goalsOpponent', opponent.value],
+  ]) {
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+  }
   url.hash = 'goals';
   history.replaceState(null, '', url);
 }
@@ -37,14 +54,18 @@ function scorer(event) {
   return { id: String(event.player || event.name), name: event.name };
 }
 
-function picks(players) {
-  const options = [['', 'All scorers'], ...players.map((p) => [p.id, p.name + ' · ' + p.count])];
+function picks(players, filtered) {
+  const options = [
+    ['', 'All scorers'],
+    ...players.map((p) => [p.id, p.name + ' · ' + (filtered.players.get(p.id)?.count ?? 0)]),
+  ];
   byId('scorers').replaceChildren(
     ...options.map(([id, name]) => {
       const b = node('button', name);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(selected === id));
       b.onclick = () => {
+        if (id && id === teammate) teammate = selected;
         selected = id;
         render();
         shareView();
@@ -89,7 +110,11 @@ function gameRow(game, name) {
         ' · Goal for ' +
         side,
     );
-    if (selected && isNamed(event) && scorer(event).id === selected) item.className = 'picked-goal';
+    if (isNamed(event)) {
+      const { id } = scorer(event);
+      if (selected === id) item.className = 'picked-goal';
+      else if (teammate === id) item.className = 'peer-goal';
+    }
     line.append(item);
   }
   details.open = Boolean(selected);
@@ -107,51 +132,123 @@ function gameRow(game, name) {
   return details;
 }
 
+function summarize(games) {
+  const players = new Map();
+  let named = 0,
+    goals = 0;
+  for (const game of games) {
+    goals += game.for;
+    for (const event of game.events.filter(isNamed)) {
+      const player = scorer(event);
+      const entry = players.get(player.id) ?? { ...player, count: 0 };
+      entry.count++;
+      players.set(player.id, entry);
+      named++;
+    }
+  }
+  return { games: games.length, goals, named, players };
+}
+
+function comparison(games, players) {
+  byId('comparison').hidden = !selected;
+  if (!selected) return;
+  const others = players.filter((p) => p.id !== selected);
+  peer.replaceChildren(
+    new Option('Just this player', ''),
+    ...others.map((p) => new Option(p.name, p.id)),
+  );
+  peer.value = teammate;
+  peer.disabled = !others.length;
+  const table = byId('matrix');
+  table.replaceChildren();
+  const heads = ['Opponent group', 'Club matches', seasonTotals.players.get(selected).name];
+  if (teammate) heads.push(seasonTotals.players.get(teammate).name);
+  heads.push('Coverage');
+  const header = table.createTHead().insertRow();
+  for (const title of heads) {
+    const th = node('th', title);
+    th.scope = 'col';
+    header.append(th);
+  }
+  const body = table.createTBody();
+  for (const [band, title] of bands) {
+    const totals = summarize(band === 'all' ? games : games.filter((g) => g.split === band));
+    const row = body.insertRow();
+    const th = node('th');
+    th.scope = 'row';
+    const button = node('button', title);
+    button.type = 'button';
+    button.setAttribute('aria-pressed', String(band === split.value));
+    button.onclick = () => {
+      split.value = band;
+      render();
+      shareView();
+      table.querySelector('[aria-pressed=true]').focus();
+    };
+    th.append(button);
+    row.append(th);
+    row.insertCell().textContent = totals.games;
+    for (const id of [selected, teammate].filter(Boolean)) {
+      row.insertCell().textContent = totals.games ? (totals.players.get(id)?.count ?? 0) : '—';
+    }
+    row.insertCell().textContent = totals.games ? totals.named + '/' + totals.goals : '—';
+  }
+}
+
 function render() {
   if (!report) return;
-  const games = report.matches.filter((g) => split.value === 'all' || split.value === g.split);
-  const named = games.flatMap((g) => g.events.filter(isNamed));
-  const players = new Map();
-  for (const e of named) {
-    const player = scorer(e),
-      entry = players.get(player.id) || { ...player, count: 0 };
-    entry.count++;
-    players.set(player.id, entry);
-  }
-  if (!players.has(selected)) selected = '';
-  const ordered = [...players.values()].sort(
+  const versus = report.matches.filter((g) => !opponent.value || g.opponent === opponent.value);
+  const games = versus.filter((g) => split.value === 'all' || split.value === g.split);
+  const totals = summarize(games);
+  const players = [...seasonTotals.players.values()].sort(
     (a, b) => b.count - a.count || a.name.localeCompare(b.name),
   );
-  picks(ordered);
-  byId('games').textContent = games.length;
-  byId('total').textContent = games.reduce((total, g) => total + g.for, 0);
-  byId('named').textContent = named.length;
-  const unclassified = report.matches.filter((g) => g.split === 'unclassified').length;
+  if (!seasonTotals.players.has(selected)) selected = '';
+  if (!selected || selected === teammate || !seasonTotals.players.has(teammate)) teammate = '';
+  picks(players, totals);
+  comparison(versus, players);
+  byId('games').textContent = totals.games;
+  byId('total').textContent = totals.goals;
+  byId('named').textContent = totals.named;
+  const unclassified = versus.filter((g) => g.split === 'unclassified').length;
   const clubName = report.clubs[report.club];
   const notes = [
-    report.unverified_league_matches ? report.unverified_league_matches + ' league reports could not be verified against the schedule.' : '',
+    report.unverified_league_matches
+      ? report.unverified_league_matches +
+        ' league reports could not be verified against the schedule.'
+      : '',
     report.warning ? 'Showing a cached report.' : '',
-    split.value !== 'all' && unclassified
+    ['top', 'other'].includes(split.value) && unclassified
       ? unclassified + ' matches had no reliable pre-match group.'
       : '',
     'Named totals exclude own goals and unnamed scorers.',
   ];
   byId('status').textContent = notes.filter(Boolean).join(' ');
   const visible = selected
-    ? games.filter((g) => g.events.some((e) => isNamed(e) && scorer(e).id === selected))
+    ? games.filter((g) =>
+        g.events.some((e) => isNamed(e) && [selected, teammate].includes(scorer(e).id)),
+      )
     : games;
   byId('log').replaceChildren(
     ...(visible.length
       ? visible.map((g) => gameRow(g, clubName))
-      : [node('p', 'No completed matches in this opponent group.')]),
+      : [
+          node(
+            'p',
+            games.length
+              ? 'No goals are credited to the selected players in these matches.'
+              : 'No completed matches for this opponent selection.',
+          ),
+        ]),
   );
 }
 
-async function load(clubId = '', playerId = '', share = false) {
+async function load(clubId = '', saved = {}, share = false) {
   const request = ++version;
   report = undefined;
   selected = '';
   club.disabled = true;
+  opponent.disabled = true;
   byId('data').hidden = true;
   byId('credit').replaceChildren();
   byId('season').textContent = '';
@@ -166,7 +263,18 @@ async function load(clubId = '', playerId = '', share = false) {
     const data = await response.json();
     if (request !== version) return;
     report = data;
-    selected = playerId;
+    selected = saved.player || '';
+    teammate = saved.peer || '';
+    seasonTotals = summarize(report.matches);
+    const opponents = [...new Set(report.matches.map((game) => game.opponent))].sort((a, b) =>
+      a.localeCompare(b),
+    );
+    opponent.replaceChildren(
+      new Option('All clubs', ''),
+      ...opponents.map((name) => new Option(name, name)),
+    );
+    if (opponents.includes(saved.opponent)) opponent.value = saved.opponent;
+    opponent.disabled = !opponents.length;
     const clubs = Object.entries(data.clubs).sort((a, b) => a[1].localeCompare(b[1]));
     club.replaceChildren(...clubs.map(([id, name]) => new Option(name, id)));
     club.value = data.club;
@@ -193,9 +301,9 @@ async function load(clubId = '', playerId = '', share = false) {
     club.replaceChildren(new Option('Choose the league default', ''));
     club.disabled = false;
     const retry = node('button', 'Retry goals');
-    retry.onclick = () => load(clubId, playerId, share);
+    retry.onclick = () => load(clubId, saved, share);
     const reset = node('button', 'Show league default');
-    reset.onclick = () => load('', '', true);
+    reset.onclick = () => load('', {}, true);
     byId('status').replaceChildren(
       'The club goal reports could not load. ',
       retry,
@@ -206,17 +314,23 @@ async function load(clubId = '', playerId = '', share = false) {
 
 league.onchange = () => {
   club.replaceChildren();
-  load('', '', true);
+  load('', {}, true);
 };
-club.onchange = () => load(club.value, '', true);
-split.onchange = () => {
+club.onchange = () => load(club.value, {}, true);
+peer.onchange = () => {
+  teammate = peer.value;
+  render();
+  shareView();
+};
+opponent.onchange = split.onchange = () => {
   render();
   if (report) shareView();
 };
 if ([...league.options].some((o) => o.value === query.get('goalsLeague')))
   league.value = query.get('goalsLeague');
-if (['top', 'other'].includes(query.get('goalsSplit'))) split.value = query.get('goalsSplit');
-load(
-  /^\d+$/.test(query.get('goalsClub')) ? query.get('goalsClub') : '',
-  query.get('goalsPlayer') || '',
-);
+if (bands.has(query.get('goalsSplit'))) split.value = query.get('goalsSplit');
+load(/^\d+$/.test(query.get('goalsClub')) ? query.get('goalsClub') : '', {
+  player: query.get('goalsPlayer'),
+  peer: query.get('goalsPeer'),
+  opponent: query.get('goalsOpponent'),
+});
