@@ -149,7 +149,6 @@ function comparison(games, players) {
   table.replaceChildren();
   const heads = ['Opponent group', 'Club matches', seasonTotals.players.get(selected).name];
   if (teammate) heads.push(seasonTotals.players.get(teammate).name);
-  heads.push('Coverage');
   const header = table.createTHead().insertRow();
   for (const title of heads) {
     const th = node('th', title);
@@ -173,16 +172,24 @@ function comparison(games, players) {
     };
     th.append(button);
     row.append(th);
-    row.insertCell().textContent = totals.games;
+    const sample = row.insertCell();
+    sample.textContent = totals.games;
+    if (totals.games) {
+      const coverage = totals.goals
+        ? totals.named + '/' + totals.goals + ' named'
+        : 'No team goals';
+      sample.append(node('small', coverage, 'sample-coverage'));
+    }
     for (const id of [selected, teammate].filter(Boolean)) {
       row.insertCell().textContent = totals.games ? (totals.players.get(id)?.count ?? 0) : '—';
     }
-    row.insertCell().textContent = totals.games ? totals.named + '/' + totals.goals : '—';
   }
 }
 
 function render() {
   if (!report) return;
+  byId('share-status').textContent = '';
+  byId('share-url').hidden = true;
   const versus = report.matches.filter((g) => !opponent.value || g.opponent === opponent.value);
   const games = versus.filter((g) => split.value === 'all' || split.value === g.split);
   const totals = summarize(games);
@@ -300,6 +307,22 @@ async function load(clubId = '', saved = {}, share = false) {
   }
 }
 
+byId('copy').onclick = async () => {
+  shareView();
+  const url = location.href;
+  try {
+    await navigator.clipboard.writeText(url);
+    if (location.href === url) byId('share-status').textContent = 'Link copied.';
+  } catch {
+    if (location.href !== url) return;
+    const input = byId('share-url');
+    input.hidden = false;
+    input.value = url;
+    input.focus();
+    input.select();
+    byId('share-status').textContent = 'Select and copy this link.';
+  }
+};
 league.onchange = () => {
   club.replaceChildren();
   load('', {}, true);

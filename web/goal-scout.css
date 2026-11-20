@@ -171,9 +171,6 @@
   white-space: nowrap;
   font: inherit;
 }
-#goals-matrix th {
-  overflow-wrap: anywhere;
-}
 #goals-matrix tbody td {
   font-weight: 650;
 }
@@ -196,6 +193,33 @@
     padding: 5px 3px;
   }
   #goals-matrix tbody th button {
+    padding-inline: 4px;
+    text-align: left;
     white-space: normal;
   }
+}
+
+.sample-coverage {
+  display: block;
+  font-size: 0.67rem;
+  color: var(--dim);
+  font-weight: 500;
+}
+.comparison-share {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 9px;
+  margin-top: 8px;
+}
+#goals-copy {
+  font-size: 0.78rem;
+  min-height: 32px;
+}
+#goals-share-status {
+  font-size: 0.76rem;
+  color: var(--dim);
+}
+#goals-share-url {
+  flex-basis: 100%;
 }

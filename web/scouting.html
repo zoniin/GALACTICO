@@ -22,7 +22,9 @@
 <div class="comparison-heading"><h3 id="goals-comparison-title">Compare recorded goals</h3>
 <label>Compare with a teammate<select id="goals-peer"></select></label></div>
 <div class="comparison-scroll"><table id="goals-matrix" aria-labelledby="goals-comparison-title"></table></div>
-<p class="comparison-note">Matches count club fixtures. Player minutes and appearances are unavailable in this feed. Coverage shows named player goals out of reported team goals.</p>
+<p class="comparison-note">Matches count club fixtures. Player minutes and appearances are unavailable in this feed. The fraction shows named player goals out of reported team goals.</p>
+<div class="comparison-share"><button id="goals-copy" type="button">Copy comparison link</button><span id="goals-share-status" role="status"></span>
+<input id="goals-share-url" aria-label="Comparison URL" readonly hidden></div>
 </section>
 <h3>Match log</h3><div id="goals-log"></div>
 <p class="goal-method">Club identities are checked against the <a href="https://github.com/openfootball/football.json">OpenFootball league schedule</a>. When reported scores disagree, the table uses OpenFootball and the goal log excludes that match. Opponent groups use the table before the match date once every club has played five games. Games with an unresolved sixth-place tie for that opponent stay unclassified.</p>
