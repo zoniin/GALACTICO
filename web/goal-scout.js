@@ -1,3 +1,5 @@
+import { scorer, scoutLink } from './goal-links.js';
+
 const byId = (id) => document.getElementById('goals-' + id);
 const league = byId('league'),
   club = byId('club'),
@@ -17,20 +19,17 @@ let report,
   seasonTotals,
   version = 0;
 function shareView() {
-  const url = new URL(location.href);
-  url.searchParams.set('goalsLeague', league.value);
-  url.searchParams.set('goalsClub', club.value);
-  url.searchParams.set('goalsSplit', split.value);
-  if (selected) url.searchParams.set('goalsPlayer', selected);
-  else url.searchParams.delete('goalsPlayer');
-  for (const [key, value] of [
-    ['goalsPeer', teammate],
-    ['goalsOpponent', opponent.value],
-  ]) {
-    if (value) url.searchParams.set(key, value);
-    else url.searchParams.delete(key);
-  }
-  url.hash = 'goals';
+  const url = scoutLink(
+    league.value,
+    club.value,
+    {
+      goalsSplit: split.value,
+      goalsPlayer: selected,
+      goalsPeer: teammate,
+      goalsOpponent: opponent.value,
+    },
+    location.href,
+  );
   history.replaceState(null, '', url);
 }
 
@@ -39,19 +38,6 @@ function node(tag, text, cls) {
   if (text != null) el.textContent = text;
   if (cls) el.className = cls;
   return el;
-}
-
-function scorer(event) {
-  // Two OpenLigaDB records for Madrid's Mbappé use his full and abbreviated names.
-  if (
-    report.league === 'La Liga' &&
-    event.team === 1133 &&
-    [19243, 19649].includes(event.player) &&
-    /Mbappé$/u.test(event.name)
-  ) {
-    return { id: 'mbappe', name: 'Kylian Mbappé' };
-  }
-  return { id: String(event.player || event.name), name: event.name };
 }
 
 function picks(players, filtered) {
@@ -111,7 +97,7 @@ function gameRow(game, name) {
         side,
     );
     if (isNamed(event)) {
-      const { id } = scorer(event);
+      const { id } = scorer(event, report.league);
       if (selected === id) item.className = 'picked-goal';
       else if (teammate === id) item.className = 'peer-goal';
     }
@@ -139,7 +125,7 @@ function summarize(games) {
   for (const game of games) {
     goals += game.for;
     for (const event of game.events.filter(isNamed)) {
-      const player = scorer(event);
+      const player = scorer(event, report.league);
       const entry = players.get(player.id) ?? { ...player, count: 0 };
       entry.count++;
       players.set(player.id, entry);
@@ -226,7 +212,9 @@ function render() {
   byId('status').textContent = notes.filter(Boolean).join(' ');
   const visible = selected
     ? games.filter((g) =>
-        g.events.some((e) => isNamed(e) && [selected, teammate].includes(scorer(e).id)),
+        g.events.some(
+          (e) => isNamed(e) && [selected, teammate].includes(scorer(e, report.league).id),
+        ),
       )
     : games;
   byId('log').replaceChildren(

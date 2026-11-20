@@ -4,7 +4,7 @@ import httpx
 from fastapi.testclient import TestClient
 
 from galactico.match_centre.feed import Snapshot
-from galactico.match_centre.goal_scout import parse_matches, verify_fixtures
+from galactico.match_centre.goal_scout import parse_matches, upcoming_match, verify_fixtures
 from galactico.match_centre.openfootball import OpenFootball
 from galactico.match_centre.public import create_centre
 
@@ -103,3 +103,28 @@ def test_cross_checks_competition_club_names_and_suppresses_disputed_scores():
     assert all(g["verified"] for g in checked)
     assert [g["omit_events"] for g in checked] == [False] * 5 + [True]
     assert checked[-1]["goals"] == {"home": 0, "away": 0}
+
+
+def test_match_prep_uses_next_unfinished_game_and_only_earlier_reported_results():
+    def match(i, day, finished, reference=None):
+        raw = fixture() | dict(
+            matchID=i, matchDateTimeUTC=day + "T18:00:00Z", matchIsFinished=finished
+        )
+        game = parse_matches([raw])[0]
+        game.update(omit_events=False, schedule_day=reference)
+        return game
+
+    games = [
+        match(1, "2026-09-01", True),
+        match(2, "2026-09-06", False),
+        match(3, "2026-09-11", False, "2026-09-12"),
+        match(4, "2026-09-15", False),
+        match(5, "2026-09-12", True),
+    ]
+    prep = upcoming_match(games, 22, "2026-09-10")
+    assert prep["venue"] == "A" and prep["opponent"] == {"id": 11, "name": "A"}
+    assert prep["day"] == "2026-09-11" and prep["schedule_day"] == "2026-09-12"
+    assert [g["result"] for g in prep["club_form"]] == ["L"]
+    assert [g["result"] for g in prep["opponent_form"]] == ["W"]
+    assert upcoming_match(games, 11, "2026-09-12")["day"] == "2026-09-11"
+    assert upcoming_match(games, 11, "2026-10-01") is None

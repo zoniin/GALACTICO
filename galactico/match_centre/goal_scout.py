@@ -12,7 +12,7 @@ import httpx
 
 from ..providers import assert_may_host
 from .feed import FeedCache, FeedError
-from .openfootball import OpenFootball, final_score, season_start
+from .openfootball import OpenFootball, final_score, recent_form, season_start
 from .scouting import opponent_groups, teams
 
 # Competition shortcut, display name, initial club. IDs are specific to OpenLigaDB.
@@ -163,6 +163,7 @@ def verify_fixtures(games: list[dict], schedule: list[dict]) -> list[dict]:
         game["omit_events"] = False
         if not home or not away or match is None or counts[home] != 1 or counts[away] != 1:
             continue
+        game["schedule_day"] = match.get("date")
         expected = final_score(match)
         if expected and expected != [game["goals"]["home"], game["goals"]["away"]]:
             # Keep the independent result in the league table. The inconsistent or
@@ -175,6 +176,42 @@ def verify_fixtures(games: list[dict], schedule: list[dict]) -> list[dict]:
     if not any(g["verified"] for g in games):
         raise FeedError("Club identities could not be confirmed against the league schedule.")
     return games
+
+
+def upcoming_match(rows: list[dict], club: int, today: str) -> dict | None:
+    upcoming = []
+    results = []
+    for row in rows:
+        fixture, sides = row["fixture"], row["teams"]
+        if fixture["status"]["short"] == "FT":
+            if fixture["date"] <= today and not row["omit_events"]:
+                results.append(
+                    {
+                        "date": fixture["date"],
+                        "team1": sides["home"]["name"],
+                        "team2": sides["away"]["name"],
+                        "score": [row["goals"]["home"], row["goals"]["away"]],
+                    }
+                )
+        elif club in (sides["home"]["id"], sides["away"]["id"]):
+            dates = [d for d in (fixture["date"], row.get("schedule_day")) if d and d >= today]
+            if dates:
+                upcoming.append((min(dates), fixture["id"], row))
+    if not upcoming:
+        return None
+    _, _, game = min(upcoming, key=lambda item: item[:2])
+    home = game["teams"]["home"]["id"] == club
+    own, opponent = (game["teams"][s] for s in (("home", "away") if home else ("away", "home")))
+    day = game["fixture"]["date"]
+    cutoff = min(day, game.get("schedule_day") or day)
+    return {
+        "day": day,
+        "schedule_day": game.get("schedule_day"),
+        "venue": "H" if home else "A",
+        "opponent": opponent,
+        "club_form": recent_form(results, own["name"], cutoff),
+        "opponent_form": recent_form(results, opponent["name"], cutoff),
+    }
 
 
 class GoalScout:
@@ -245,6 +282,7 @@ class GoalScout:
             "season": year,
             "club": club,
             "clubs": clubs,
+            "next_match": upcoming_match(confirmed, club, today.isoformat()),
             "matches": sorted(games, key=lambda g: (g["day"], g["id"]), reverse=True),
             "source": source,
             "credit": "OpenLigaDB; club identities checked against OpenFootball",

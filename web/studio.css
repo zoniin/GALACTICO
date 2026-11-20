@@ -809,3 +809,119 @@ select {
   font-size: 0.65rem;
   color: var(--faint);
 }
+
+.match-prep {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.match-prep summary {
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 16px;
+  list-style: none;
+}
+.match-prep summary::-webkit-details-marker {
+  display: none;
+}
+.match-prep summary:after {
+  content: '▾';
+  color: var(--violet);
+}
+.match-prep[open] summary:after {
+  transform: rotate(180deg);
+}
+.prep-label,
+.prep-body p {
+  font-size: 0.69rem;
+  font-weight: 700;
+  color: var(--faint);
+}
+.prep-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.match-prep summary strong {
+  font-size: 1rem;
+  line-height: 1.15;
+}
+#prep-date {
+  margin-left: auto;
+  font-size: 0.76rem;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.prep-body {
+  border-top: 1px solid var(--line);
+  padding: 12px 16px;
+}
+.prep-body > small {
+  display: block;
+  color: var(--faint);
+  margin-top: 5px;
+  font-size: 0.66rem;
+}
+.prep-body > small a {
+  color: inherit;
+}
+.prep-form-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(5, 27px);
+  gap: 4px;
+  align-items: center;
+  max-width: 410px;
+  margin: 7px 0;
+}
+.prep-form-row strong {
+  font-size: 0.8rem;
+  line-height: 1.15;
+}
+.prep-form-row small {
+  grid-column: span 5;
+  color: var(--faint);
+}
+.form-result {
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 4px;
+}
+.form-W {
+  background: #d5efdc;
+  color: #115538;
+}
+.form-D {
+  background: #edefea;
+  color: #3b4644;
+}
+.form-L {
+  background: #fbe0da;
+  color: #813b30;
+}
+#prep-scout,
+.profile-scout {
+  display: inline-block;
+  font-size: 0.79rem;
+  font-weight: 650;
+  margin: 4px 0;
+}
+.profile-scout {
+  display: block;
+}
+@media (max-width: 730px) {
+  .match-prep {
+    order: -1;
+  }
+  .match-prep summary {
+    flex-wrap: wrap;
+    gap: 5px 8px;
+  }
+  .prep-label {
+    width: 100%;
+  }
+}

@@ -10,7 +10,9 @@ The roster and all-competition appearances and goals come from the current seaso
 Wikipedia tables. The activity panel labels each available archive match and date.
 Import player event CSVs with 0–100 `x,y` coordinates and an optional `type` column
 for your own measured heatmap. Imported coordinates stay in the browser tab.
-The role-zone view follows the selected position in your formation.
+The role-zone view follows the selected position in your formation. Open the next league
+fixture above the pitch for venue, reported dates, both clubs’ recent form and the
+opponent’s scorers. Players with matched league goals link directly to their comparison.
 
 Live match reports use a separate [API-Football account](https://dashboard.api-football.com/).
 Set `API_FOOTBALL_KEY` in the local server’s `.env`. API-Football supplies aggregates.

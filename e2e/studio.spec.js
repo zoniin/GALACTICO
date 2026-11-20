@@ -39,11 +39,24 @@ async function openStudio(page) {
   await page.route('**/api/match-centre/goal-scout/es?club=1133', (route) =>
     route.fulfill({
       json: {
+        league: 'La Liga',
+        club: 1133,
+        clubs: { 1133: 'Real Madrid' },
+        next_match: {
+          day: '2026-09-10',
+          schedule_day: '2026-09-11',
+          venue: 'A',
+          opponent: { id: 73, name: 'Example opponent' },
+          club_form: [],
+          opponent_form: [
+            { day: '2026-09-03', opponent: 'Other club', result: 'D', score: '1–1', venue: 'H' },
+          ],
+        },
         matches: [
           {
             day: '2026-09-01',
             opponent: 'Example FC',
-            events: [{ name: 'K. Mbappé', for_club: true, own: false }],
+            events: [{ name: 'K. Mbappé', player: 19649, team: 1133, for_club: true, own: false }],
           },
         ],
       },
@@ -123,4 +136,25 @@ test('change shape, swap, substitute, undo and restore a saved XI on a phone', a
   await page.getByRole('link', { name: 'View profile' }).click();
   await expect(page.locator('#player-name')).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('open the upcoming opposition and a selected scorer from the tactics board', async ({
+  page,
+}) => {
+  await openStudio(page);
+  await page.locator('#match-prep summary').click();
+  await expect(page.locator('#prep-date')).toHaveText('Away · Date to confirm');
+  await expect(page.locator('#prep-schedule')).toContainText('OpenFootball lists Fri 11 Sept');
+  await expect(page.getByRole('link', { name: 'Scout Example opponent' })).toHaveAttribute(
+    'href',
+    /goalsClub=73#goals$/,
+  );
+  await expect(page.locator('#prep-form .form-D')).toHaveAttribute(
+    'href',
+    /goalsOpponent=Other\+club/,
+  );
+  const player = page.getByRole('link', { name: 'Compare Mbappé with a teammate' });
+  await expect(player).toHaveAttribute('href', /goalsPlayer=mbappe#goals$/);
+  await page.getByRole('button', { name: 'GK · Test Player0' }).click();
+  await expect(player).toHaveCount(0);
 });
