@@ -29,6 +29,7 @@ from fastapi.testclient import TestClient
 
 from galactico.api import player_lab as api
 from galactico.domain.constructs import CONSTRUCTS, ExternalVerdict
+from galactico.domain.labels import scan_labels
 from galactico.profiles import RESEARCH_ONLY
 from galactico.profiles.uncertainty import BOOTSTRAP_VERSION
 
@@ -328,7 +329,8 @@ def test_the_figure_check_bites(client) -> None:
 HARNESS = """
 const elements = {};
 const element = () => ({innerHTML: '', textContent: '', addEventListener(){}, setAttribute(){},
-  classList: {add(){}, remove(){}, toggle(){}}, querySelectorAll: () => []});
+  removeAttribute(){}, dataset: {}, classList: {add(){}, remove(){}, toggle(){}},
+  querySelectorAll: () => []});
 globalThis.document = {querySelector: s => (elements[s] ||= element()),
   querySelectorAll: () => [], addEventListener: () => {}};
 globalThis.window = {devicePixelRatio: 1};
@@ -375,13 +377,22 @@ class Drawn(HTMLParser):
             self.links[-1] = (href, " ".join((text + data).split()))
 
 
-def why_view(constructs: dict) -> tuple[Drawn, Drawn]:
-    """The "Why only five?" view as the page draws it from this reply: cards, then credit."""
+def why_view(constructs: dict, edit=None) -> tuple[Drawn, Drawn]:
+    """The "Why only five?" view as the page draws it: cards, then credit.
+
+    Phase 3 (ADR-0035, PL-4, R3-2, R8-5): the page draws the view from the server's words for
+    the registry (``player_answers.why_answer``, ``/api/answers/why``), which this builds from
+    the same reply; ``edit`` changes that answer before the page reads it."""
+    from galactico.api import player_answers
+
     meta = {"tier": "LAB", "competition": "Spain", "season": "2017/18", "player_count": 345,
             "minutes_floor": 900, "version_key": "v", "generated_at": "g"}
+    answer = json.loads(json.dumps(player_answers.why_answer(constructs)))
+    if edit:
+        edit(answer)
     script = PAGE.read_text(encoding="utf-8").split("<script>")[1].split("</script>")[0]
     harness = HARNESS.replace("REPLIES", json.dumps(
-        {"/api/meta": meta, "/api/constructs": constructs}))
+        {"/api/meta": meta, "/api/constructs": constructs, "/api/answers/why": answer}))
     result = subprocess.run(
         [NODE, "--input-type=module", "-e", harness + "\n" + script + "\n" + READ_THE_VIEW],
         capture_output=True, text=True, encoding="utf-8", timeout=60)
@@ -407,14 +418,18 @@ def test_the_view_shows_the_logo_the_credit_and_the_links(served_constructs) -> 
     assert logo["src"] == LOGO_PATH and logo["alt"] == "StatsBomb"
     assert not re.search(r"filter|opacity|mix-blend", logo.get("style", ""))
     assert CREDIT in credit.text
-    assert credit.links == [(STAGE_1C["url"], STAGE_1C["title"]), (E_01["url"], E_01["title"])]
-    # Each label is its own link to the note that assigned it; the conclusion links to its.
+    # Each note is linked by plain words; its title, which holds a word the copy guard refuses,
+    # stays in the linked document (R3-2).
+    second, e01 = "Research note: the second-provider test", "Research note E-01"
+    assert credit.links == [(STAGE_1C["url"], second), (E_01["url"], e01)]
+    # Each shipped measure links to the note that assigned its verdict; the conclusion to its.
+    assert cards.links == [(STAGE_1C["url"], second)] * 5 + [(E_01["url"], e01)]
     labels = [c["external_replication_label"] for c in served_constructs["shipped"]]
-    assert cards.links == [(STAGE_1C["url"], words) for words in labels] + [
-        (E_01["url"], E_01["title"])]
     assert len(labels) == 5
-    for name in ("Progression", "Ball retention", "Verticality", "Metronome fit"):
+    for name in ("Ball progression", "Ball retention", "Verticality",
+                 "Metronome (research name)", "held up on a second data provider"):
         assert name in cards.text, name
+    assert scan_labels(cards.text + " " + credit.text) == []
     # No StatsBomb elsewhere in the view than the credit: the cards hold no figure of it.
     assert "StatsBomb" not in cards.text and not cards.images
     for wrong in ("undefined", "null", "NaN", "robust_with_shift"):
@@ -428,11 +443,12 @@ def test_a_label_with_no_note_is_printed_without_a_link(served_constructs) -> No
     served_constructs["shipped"][4]["external_replication_label"] = "untested"
     served_constructs["shipped"][4]["external_replication_note"] = None
     served_constructs["research_only"][0]["note"] = None
+    served_constructs["shipped"][4]["external_replication"] = "untested"
     cards, _ = why_view(served_constructs)
     assert [href for href, _ in cards.links] == [STAGE_1C["url"]] * 4
-    assert cards.text.count("external replication:") == 5
-    assert "external replication: untested" in cards.text
-    assert "research note" not in cards.text
+    assert cards.text.count("Second data provider:") == 5
+    assert "Second data provider: not yet tested on a second data provider." in cards.text
+    assert "Research note E-01" not in cards.text
     for wrong in ("undefined", "null", "NaN"):
         assert wrong not in cards.text, wrong
 
@@ -441,14 +457,16 @@ def test_a_label_with_no_note_is_printed_without_a_link(served_constructs) -> No
 def test_the_page_prints_the_words_and_names_it_was_sent(served_constructs) -> None:
     """The page built a label's words from its token, and a rejected construct's name from
     its id, and printed "Metronome fit" over every research-only entry."""
-    for position, c in enumerate(served_constructs["shipped"]):
-        c["external_replication_label"] = f"words sent {position}"
-    for c in served_constructs["rejected"] + served_constructs["research_only"]:
-        c["label"] = f"name sent for {c['id']}"
-    cards, _ = why_view(served_constructs)
-    assert [text for _, text in cards.links[:5]] == [f"words sent {n}" for n in range(5)]
+    def edit(answer: dict) -> None:
+        for position, c in enumerate(answer["shipped"]):
+            c["replication"] = f"words sent {position}"
+        for c in answer["rejected"] + answer["research_only"]:
+            c["name"] = f"name sent for {c['id']}"
+    cards, _ = why_view(served_constructs, edit)
+    for n in range(5):
+        assert f"Second data provider: words sent {n}." in cards.text
     for sent in ("name sent for ball_retention", "name sent for verticality",
                  "name sent for metronome_fit"):
         assert sent in cards.text, sent
-    for built_by_the_page in ("robust", "Ball retention", "Verticality", "Metronome fit"):
+    for built_by_the_page in ("robust", "Ball retention", "Verticality", "Metronome"):
         assert built_by_the_page not in cards.text, built_by_the_page

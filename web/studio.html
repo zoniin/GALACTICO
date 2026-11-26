@@ -18,8 +18,8 @@
         </p>
         <p class="sr-only" id="answer-names"></p>
         <div class="page-actions ln-actions">
-          <button type="button" class="ui-btn ui-btn-primary" id="copy" disabled>
-            <svg class="ln-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <button type="button" class="ui-btn page-copy" id="copy" disabled>
+            <svg class="page-copy-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
               <path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1" />
               <path d="M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1" />
             </svg>
@@ -135,7 +135,7 @@
             <dl class="ln-stats">
               <div><dt>Appearances</dt><dd id="apps">—</dd></div>
               <div><dt>Goals</dt><dd id="goals">—</dd></div>
-              <div><dt>In this XI</dt><dd id="xi-role">—</dd></div>
+              <div><dt>In this XI</dt><dd><span id="xi-role">—</span><small class="ln-role-name" id="xi-role-name"></small></dd></div>
             </dl>
             <p class="ln-note" id="season-note">This season, all competitions.</p>
           </section>
@@ -162,13 +162,13 @@
             ></canvas>
             <div class="ln-map-caption">
               <span id="sample-count"></span
-              ><label id="action-label" hidden
-                ><span class="sr-only">Action filter</span
-                ><select id="action" aria-label="Action filter"></select
+              ><label id="action-label" class="ln-show" hidden
+                ><span>Show</span
+                ><select id="action" aria-label="Show"></select
               ></label>
             </div>
-            <div id="density-scale" class="ln-density" hidden aria-label="Relative action density">
-              Fewer actions <i aria-hidden="true"></i> More
+            <div id="density-scale" class="ln-density" hidden role="img" aria-label="How often he was there, from less often to more often">
+              <span aria-hidden="true">Less often</span> <i aria-hidden="true"></i> <span aria-hidden="true">More often</span>
             </div>
             <p class="ln-map-detail" id="map-detail"></p>
             </div>
@@ -176,28 +176,7 @@
         </aside>
       </div>
 
-      <details class="ui-disclosure ln-tools" id="tools">
-        <summary>Analyst tools <span class="ui-disclosure-summary">Import match events</span></summary>
-        <div class="ui-disclosure-body">
-          <p>
-            Draw the selected player’s actions from your own file: a CSV with <code>x</code> and
-            <code>y</code> from 0 to 100, attacking left to right with y running downwards, and an
-            optional <code>type</code>. The file stays in this tab.
-          </p>
-          <div class="ln-import">
-            <label class="ui-field"
-              ><span class="ui-label">Events for <span id="import-player">the selected player</span></span>
-              <input
-                type="file"
-                id="file"
-                accept=".csv,text/csv"
-                aria-label="Import coordinates for selected player"
-            /></label>
-            <button type="button" class="ui-btn" id="clear-import" hidden>Remove imported events</button>
-          </div>
-        </div>
-      </details>
-
+      <!--slot:tools-->
       <details class="ui-disclosure ln-about">
         <summary>About these numbers</summary>
         <div class="ui-disclosure-body">
@@ -209,7 +188,7 @@
             </li>
             <li>
               The next match comes from the schedule the Matches page reads: OpenFootball, and
-              OpenLigaDB for the Champions League. Kick-off times are local.
+              OpenLigaDB for the Champions League. Its kick-off is shown in your time zone.
             </li>
             <li>
               An activity map is an archive sample: the player’s last recorded match in the

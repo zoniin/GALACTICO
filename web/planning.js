@@ -30,6 +30,9 @@
      "listed:" in an outcome band, "Equal on this key", and the line under an
      order control (fixed words, the first level as the page was told to name it, the
      server's key label and the server's tie rule).
+   - A status token's words, where the page hands the kit the server's map of them
+     (GP.useWords, the status_words of /api/planning/targets): the token stays in the
+     element's data-status and decides the state; the words are only printed.
    - Fixed copy that varies with no value: GP.COPY, the names of the states a
      requirement that is not in force can be in, the labels of controls, and the
      line an empty or unsent list is replaced by.
@@ -112,10 +115,18 @@
     return [origin(r.origin_label), text(r.source_sentence) && !again ? esc(r.source_sentence) : ''].filter(Boolean).join(' ');
   }
 
-  // A tool's status or completeness token, verbatim.
+  // A tool's status or completeness token: the server's words for it where the page passed
+  // them (GP.useWords, from /api/planning/targets), else the token verbatim. The token stays in
+  // data-status; whether a state is certified is read off the token, never off its words.
+  const WORDS = Object.create(null);
+  function useWords(map) {
+    if (!object(map)) return;
+    for (const [token, words] of Object.entries(map)) if (word(token) && text(words)) WORDS[token] = words;
+  }
   function certificate(token) {
     const known = text(token);
-    return `<span class="badge gp-cert" data-status="${known ? esc(word(token)) : ''}">${known ? esc(token) : 'NOT SENT'}</span>`;
+    const shown = known ? (WORDS[token] ?? token) : 'NOT SENT';
+    return `<span class="badge gp-cert" data-status="${known ? esc(word(token)) : ''}">${esc(shown)}</span>`;
   }
 
   /* ---- States ---------------------------------------------------------------
@@ -191,10 +202,12 @@
     return kept.length ? `<ul id="warnings" class="gp-warnings">${kept.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : '';
   }
 
-  const slots = v => list(v).map(s => object(s) ? (s.label ?? s.slot_label ?? s.slot_id) : s).filter(s => text(s) || finite(s));
+  // A slot's name: the server's plain name for it where the page passes the server's map
+  // (planning_answers.SLOT_LABELS, /api/planning/targets), else the lab's label.
+  const slots = (v, labels) => list(v).map(s => object(s) ? ((object(labels) && text(labels[s.slot_id]) ? labels[s.slot_id] : null) ?? s.label ?? s.slot_label ?? s.slot_id) : s).filter(s => text(s) || finite(s));
 
   // The squad players in no solve, each with the server's reason. They sit beside every depth number.
-  function omitted(players) {
+  function omitted(players, labels) {
     if (!Array.isArray(players)) return '<div id="omitted" class="unavailable">No list of omitted players was sent.</div>';
     const rows = players.filter(object);
     if (!rows.length) return '<div id="omitted" class="unavailable">No squad player is outside the evidence set.</div>';
@@ -202,7 +215,7 @@
       {label: 'Player', html: `${esc(p.name ?? DASH)}${text(p.position) ? ` <span class="mono small subtle">${esc(p.position)}</span>` : ''}`},
       {label: 'Nominal minutes', html: value(p.minutes, 0)},
       {label: 'Why he is in no solve', html: say(p.reason)},
-      ...(Array.isArray(p.eligible_slots) ? [{label: 'Slots under the rule set', html: slots(p.eligible_slots).map(esc).join(', ') || DASH}] : []),
+      ...(Array.isArray(p.eligible_slots) ? [{label: 'Slots under the rule set', html: slots(p.eligible_slots, labels).map(esc).join(', ') || DASH}] : []),
     ], {data: {player: word(p.player_id), omitted: 'true'}})).join('') + '</ul>';
   }
 
@@ -294,6 +307,10 @@
   const experimental = r => r.status === 'EXPERIMENTAL_NOT_OPTED_IN' || r.evidence_class === 'EXPERIMENTAL' || r.needs_experimental_opt_in === true;
   const unmeasured = r => r.status === 'UNMEASURED' || r.declarable === false;
 
+  // A minimum as the editor shows it: two decimals, never the sixteen a float holds. The exact
+  // value stays in data-exact and is sent unless the reader edits the field.
+  const shownValue = v => String(Number(Number(v).toFixed(2)));
+
   function editor(rows, catalogue, draft, o = {}) {
     const d = object(draft) ? draft : {};
     const optIn = d.experimental_opt_in === true;
@@ -318,7 +335,7 @@
         `<legend><span class="gp-req-name">${name}</span> ${S.evidenceBadge(classOf(r))}${wide ? ` <span class="badge gp-not-opted">${UNDECLARED.EXPERIMENTAL_NOT_OPTED_IN}</span>` : ''}</legend>` +
         `<label class="control"><span class="label">Minimum source</span><select data-source aria-label="Minimum source: ${name}">${sources.map(s => option(s.source, s.label ?? s.source, s.source === source)).join('')}</select></label>` +
         part('LEAGUE_PERCENTILE', 'League percentile', `<select data-percentile required aria-label="League percentile: ${name}"${source === 'LEAGUE_PERCENTILE' ? '' : ' disabled'}>${option('', 'Choose a percentile…', !menu.includes(entry.percentile))}${menu.map(p => option(String(p), String(p), p === entry.percentile)).join('')}</select>`) +
-        part('EXPLICIT', 'Explicit minimum', `<input type="number" data-value-input min="0" max="1000" step="any" required aria-label="Explicit minimum: ${name}" value="${prefill === null ? '' : esc(String(prefill))}"${source === 'EXPLICIT' ? '' : ' disabled'}>`) +
+        part('EXPLICIT', 'Explicit minimum', `<input type="number" data-value-input min="0" max="1000" step="any" required aria-label="Explicit minimum: ${name}" value="${prefill === null ? '' : esc(shownValue(prefill))}"${prefill === null ? '' : ` data-exact="${esc(String(prefill))}" data-shown="${esc(shownValue(prefill))}"`}${source === 'EXPLICIT' ? '' : ' disabled'}>`) +
         '</fieldset>';
     }).join('');
     return `<label class="gp-optin"><input type="checkbox" id="experimental-opt-in"${optIn ? ' checked' : ''}><span>${esc(COPY.optIn)} ${optInClasses.filter((c, i) => optInClasses.indexOf(c) === i).map(c => S.evidenceBadge(c)).join(' ')}</span></label>` +
@@ -361,7 +378,8 @@
       } else if (source === 'EXPLICIT') {
         const field = block.querySelector('[data-value-input]');
         if (!field || field.reportValidity?.() === false || field.value === '' || !Number.isFinite(field.valueAsNumber)) return null;
-        entry.value = field.valueAsNumber;
+        // The exact value the field was filled with, unless the reader changed what it shows.
+        entry.value = field.dataset && field.value === field.dataset.shown && Number.isFinite(Number(field.dataset.exact)) ? Number(field.dataset.exact) : field.valueAsNumber;
       }
       requirements.push(entry);
     }
@@ -554,11 +572,15 @@
 
   // reply: any planning reply. Its declared rows, its computed rows, its research
   // reading and its provenance, in that order.
+  // The record a reader can open leaves out each "tier" key (R3-3): a data tier is a
+  // developer's word, and the reply at its API keeps it.
+  const untiered = v => Array.isArray(v) ? v.map(untiered) : object(v)
+    ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'tier').map(([k, x]) => [k, untiered(x)])) : v;
   function ledger(reply) {
     const r = object(reply) ? reply : {};
-    const sent = JSON.stringify({declared: list(r.declared), ledger: list(r.ledger), provenance: r.provenance ?? null}, null, 2);
+    const sent = JSON.stringify(untiered({declared: list(r.declared), ledger: list(r.ledger), provenance: r.provenance ?? null}), null, 2);
     return '<div id="ledger">' + S.ledger(r.declared, r.ledger) + research(r.provenance?.verdicts, r.research_statement) +
-      `<details class="gp-technical"><summary>Technical record (JSON)</summary><p class="figure-note">The ledger and provenance exactly as the server sent them, for anyone checking the arithmetic.</p><pre id="provenance">${esc(sent)}</pre></details></div>`;
+      `<details class="gp-technical"><summary>Technical record (JSON)</summary><p class="figure-note">The ledger and provenance as the server sent them, for anyone checking the arithmetic.</p><pre id="provenance">${esc(sent)}</pre></details></div>`;
   }
 
   // The shell's panel from the server's list (its nine, then the planning items), with
@@ -659,7 +681,7 @@
   }
 
   root.GP = Object.freeze({
-    signed, value, declared, origin, source, certificate,
+    signed, value, declared, origin, source, certificate, useWords,
     status, completeness,
     scope, claim, eligibility, evidence, warnings, omitted,
     scenarioOptions, formationOptions, presets, presetPressed, applyPreset, exclusions,

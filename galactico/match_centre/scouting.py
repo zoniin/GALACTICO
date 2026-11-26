@@ -179,25 +179,25 @@ def lines(role: str, metric: str, min_minutes: int, madrid: dict, coverage: list
     group, measure = ROLES[role].lower(), MEASURES[metric]
     observed, minutes = madrid.get("observed", 0), madrid.get("minutes", 0)
     if madrid.get("per90") is None:
-        reference = (f"Real Madrid's {group}: under {min_minutes} observed minutes for "
+        reference = (f"Real Madrid’s {group}: under {min_minutes} observed minutes for "
                      f"{measure}, so no reference rate ({observed} observed of {minutes} "
                      "reported minutes).")
     else:
-        reference = (f"Real Madrid's {group}: {madrid['per90']:.2f} {measure} per 90, from "
+        reference = (f"Real Madrid’s {group}: {madrid['per90']:.2f} {measure} per 90, from "
                      f"{observed} observed of {minutes} reported minutes.")
     return {
         "madrid": reference,
         "order": f"Ordered by {measure} per 90, then observed minutes, then name.",
         "coverage": [f"{c['club']}: player reports for {c['covered']} of {c['matches']} "
                      f"selected matches; {c['unclassified']} season matches not classified by "
-                     "the opponent's place." for c in coverage],
+                     "the opponent’s place." for c in coverage],
     }
 
 
 def baseline_error(detail: str) -> str:
     """A failure of OpenFootball's La Liga file in words a reader can act on."""
     if detail in ("", "Feed unavailable.", "Season file unavailable."):
-        return "OpenFootball's La Liga file can't be reached right now."
+        return "OpenFootball’s La Liga file can’t be reached right now."
     return detail
 
 
@@ -213,7 +213,7 @@ def baseline_lines(data: dict, table: dict) -> dict:
         line = f"No Real Madrid {competition} result is reported up to that date."
     else:
         matches = f"{games} reported {'match' if games == 1 else 'matches'}"
-        line = (f"From {club}'s {matches}, against {others} team matches of the other "
+        line = (f"From {club}’s {matches}, against {others} team matches of the other "
                 f"{competition} clubs.")
     fresh = table["freshness"]
     return {"club": club, "competition": competition, "line": line,

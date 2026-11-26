@@ -531,9 +531,12 @@ def test_the_editor_locks_experimental_rows_and_never_reads_a_blank_as_zero(
     # A requirement in force always has a source; unstated, it is the club median.
     assert closed.count('<option value="CLUB_MEDIAN" selected>') == 2
     assert closed.count('<option value="EXPLICIT" selected>') == 1
-    # The explicit field is prefilled with the exact number and bounded as the API bounds it.
+    # The explicit field is prefilled at two decimals and bounded as the API bounds it; the
+    # exact number is kept in data-exact and sent unless the reader edits the field (SQ-4:
+    # the editor printed a sixteen-digit value).
     assert ('min="0" max="1000" step="any" required aria-label="Explicit minimum: Positive '
-            'completed-pass xT per 90" value="8.25">') in closed
+            'completed-pass xT per 90" value="8.25" data-exact="8.25" data-shown="8.25">') \
+        in closed
     assert '<option value="75" selected>75</option>' in opened
     # No percentile is preselected: the first option is a prompt with an empty value.
     assert closed.count('<option value="" selected>Choose a percentile…</option>') == 3
@@ -794,10 +797,19 @@ def test_the_ledger_keeps_declared_apart_and_says_nothing_was_tested(tmp_path: P
         '<span class="declared gp-origin">[ Shipped default ]</span>', ""]
     assert got["cert"] == ['<span class="badge gp-cert" data-status="EXACT">EXACT</span>',
                            '<span class="badge gp-cert" data-status="">NOT SENT</span>']
-    # The reply as returned is printed whole and parses back to what was sent.
+    # The reply as returned is printed whole and parses back to what was sent, less each
+    # "tier" key (Phase 3, ADR-0035, R3-3: a data tier is a developer's word the copy guard
+    # refuses on a page; the reply at its API keeps it).
+    def untiered(v):
+        if isinstance(v, dict):
+            return {k: untiered(x) for k, x in v.items() if k != "tier"}
+        if isinstance(v, list):
+            return [untiered(x) for x in v]
+        return v
     block = re.search(r'<pre id="provenance">(.*?)</pre>', full, flags=re.S).group(1)
-    assert json.loads(html.unescape(block)) == {
-        "declared": sent["declared"], "ledger": sent["ledger"], "provenance": sent["provenance"]}
+    assert json.loads(html.unescape(block)) == untiered({
+        "declared": sent["declared"], "ledger": sent["ledger"], "provenance": sent["provenance"]})
+    assert '"tier"' not in html.unescape(block)
     assert tags(full) <= KIT_TAGS and shell.scan_labels(readable(full)) == []
 
 
@@ -995,7 +1007,10 @@ def test_the_pages_say_what_the_browser_assembles_and_map_no_token_to_words() ->
     cells = set(re.findall(r"\{label: '([^']+)'", body))
     lines = set(re.findall(r'<span class="label">([^<$]+?)\s*(?:\$\{[^<]*)?</span>', body))
     under_a_slot = set(re.findall(r'data-stage="[\w-]+">([^<$]+?:) ', body))
-    assert len(cells) >= 14 and len(lines) >= 7 and len(under_a_slot) == 7
+    # Phase 3 (ADR-0035): an eighth line under a slot, the goalkeepers' minutes beside the
+    # shipped rule that counts them whatever their minutes ("Goalkeepers count whatever their
+    # minutes:"), listed in the header like the seven.
+    assert len(cells) >= 14 and len(lines) >= 7 and len(under_a_slot) == 8
     for label in sorted(cells | lines | under_a_slot):
         assert f'"{label}"' in listed, label
     # What the page no longer words: a placement, a caption, and whether tied sets are listed.

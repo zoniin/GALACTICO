@@ -927,4 +927,176 @@
       min-height: var(--target-touch);
     }
   }
+
+  /* ------------------------------------------------------------ Phase 3 (ADR-0035) */
+
+  /* The channel bar's labels: a row of five under the bar, in the page's text colours. */
+  .zones-wrap {
+    padding-bottom: 0;
+  }
+
+  .zones div {
+    min-width: 3px;
+    box-shadow: inset -1px 0 0 var(--chart-bg);
+  }
+
+  .zones div span,
+  .zones div b {
+    display: none;
+  }
+
+  .zone-labels {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-1);
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    text-align: center;
+  }
+
+  .zone-labels i {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border: 1px solid var(--border-control);
+    border-radius: 2px;
+    vertical-align: -1px;
+  }
+
+  .zone-labels b {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* His own number under each percentile (PL-3). */
+  .m-value {
+    margin: 0 0 var(--space-2);
+    color: var(--text);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* Compare: each side's bar on the 0 to 100 percentile scale, his value and percentile
+     under it (PL-6). */
+  .cmp-side {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .cmp-side-r {
+    text-align: right;
+  }
+
+  .cmp-says {
+    display: grid;
+    margin: 0;
+    font-size: var(--text-xs);
+  }
+
+  .cmp-value {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+  }
+
+  .cmp-place {
+    color: var(--text-muted);
+  }
+
+  .cmp-sure {
+    margin-top: var(--space-1);
+  }
+
+  /* Explore: the opened player under the list, and "Show all". */
+  .ex-opened-note {
+    margin: var(--space-3) 0 var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .pl-more-rows {
+    margin: var(--space-3) 0;
+  }
+
+  .pl-more-rows [hidden] {
+    display: none;
+  }
+
+  /* The map: the legend's dots drawn on the chart's own surface, in the chart's colours, so
+     they match the plot; the league average's dashed line; the touch card; the list. */
+  .pl-legend .pl-dot {
+    border-color: var(--chart-text-muted);
+    background: var(--chart-bg);
+    box-shadow: 0 0 0 3px var(--chart-bg);
+  }
+
+  .pl-legend .pl-dot-solid {
+    border-color: var(--chart-text);
+    background: var(--chart-text);
+  }
+
+  .pl-avg {
+    display: inline-block;
+    width: 18px;
+    height: 0;
+    border-top: 2px dashed var(--text-muted);
+  }
+
+  .pl-tip.is-card {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 240px;
+    padding: var(--space-2) var(--space-3);
+    pointer-events: auto;
+  }
+
+  .pl-tip.is-card p {
+    margin: 0;
+  }
+
+  .pl-map-list {
+    margin-top: var(--space-4);
+  }
+
+  .pl-map-table td a {
+    font-weight: var(--weight-semibold);
+  }
+
+  /* Search: players under the profiles' minutes floor, greyed, with their minutes (PL-2). */
+  .results .under {
+    color: var(--text-muted);
+  }
+
+  .results .under-note {
+    margin: 0;
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  /* His matches in Match reports (AR-1). */
+  .pl-matches {
+    margin-top: var(--space-5);
+  }
+
+  .pl-match-list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding-left: var(--space-5);
+  }
+
+  /* "Why only five?": a heading per group (A11Y-5). */
+  .why-group {
+    margin-bottom: var(--space-5);
+  }
+
+  .why-heading {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-xl);
+  }
 }

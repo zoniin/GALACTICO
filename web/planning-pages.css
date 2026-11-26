@@ -817,4 +817,96 @@
       justify-content: flex-start;
     }
   }
+
+  /* ------------------------------------------------------------ plain views (Phase 3)
+     "Why cover is thin" and "Targets and the league" open on the server's lines in the
+     glossary's words; the solver's own record sits under them, closed. */
+  .sq-plain {
+    display: grid;
+    gap: var(--space-3);
+    max-width: 78ch;
+    margin: 0 0 var(--space-4);
+  }
+
+  .sq-plain p {
+    margin: 0;
+  }
+
+  .sq-why,
+  .sq-target {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .sq-why .sq-subhead {
+    margin: 0;
+  }
+
+  .sq-groups {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding-left: var(--space-5);
+  }
+
+  .sq-target-value {
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--weight-semibold);
+  }
+
+  .sq-profile {
+    margin: var(--space-2) 0 0;
+  }
+
+  .tr-lanes {
+    color: var(--text-muted);
+  }
+
+  .tr-profile {
+    margin: var(--space-2) 0 0;
+  }
+
+  #candidate-change caption {
+    caption-side: top;
+    text-align: left;
+  }
+
+  /* Phone targets (AR-2): a link to Signings is a button, every disclosure summary and
+     checkbox label is 44 px tall, and the targets menu takes the whole row so its value is
+     never cut off. */
+  @media (max-width: 640px) {
+    .pl-controls > .pl-field-targets {
+      grid-column: 1 / -1;
+    }
+
+    .tr-list-head .ui-chip {
+      min-height: var(--target-touch);
+    }
+
+    .sq-find {
+      min-height: var(--target-touch);
+      padding: 0 var(--space-3);
+      border: 1px solid var(--border-control);
+      border-radius: var(--radius-control);
+      background: var(--surface-1);
+      text-decoration: none;
+    }
+
+    .sq-slot-more > summary,
+    .pl-page details > summary,
+    .pl-page .ui-check,
+    .pl-page label:has(> input[type="checkbox"]) {
+      min-height: var(--target-touch);
+    }
+
+    .pl-page details > summary {
+      display: flex;
+      align-items: center;
+    }
+
+    .pl-page input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+    }
+  }
 }

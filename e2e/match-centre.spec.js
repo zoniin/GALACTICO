@@ -4,18 +4,30 @@ const { test, expect } = require('@playwright/test');
 // sends, in the order it sends it, and write no football sentence of their own (R10).
 //
 // Re-pinned under ADR-0034 (the review's fixes): the report names each club once, as the link to
-// its schedule (no separate "Table" link); "Results through" shows the competitions on the page
-// (the board's day, Madrid's next and last match) and keeps the rest behind "More
-// competitions"; a date is written one way, the browser's date field opening from a button; the
-// table keeps Pos on a phone and leaves GF and GA out.
+// its schedule (no separate "Table" link); a date is written one way, the browser's date field
+// opening from a button; the table keeps Pos on a phone and leaves GF and GA out.
+//
+// Re-pinned in the third review (the hosted fixes): the six "Results through" chips and "More
+// competitions" are one line, the server's, naming the competitions whose results stop early
+// (D10); the competition filter is the site's tab strip, not a select (H29); a step to another
+// day and a report opened are history entries, and the filter is in the address (H8, H9); a
+// season the feeds hold no schedule for is a designed state with the way back (H10); the
+// Table opens on Madrid's latest competition with the server's sentence across competitions
+// (H36), shows a date only when one was chosen, with "Latest table" (H16), and keeps Pts in
+// view on a 320 px phone (H4).
+// Kick-off is shown in the reader's own time zone (D2): the tests read it in Madrid's.
+test.use({timezoneId: 'Europe/Madrid'});
 const day = '2026-10-10';
 const game = {id: 'es.1-2026-0000000000000001', code: 'es.1', day, home: 'Real Madrid', away: 'Test Club',
-  madrid: true, competition: 'La Liga', round: 'Matchday 8', kickoff: '21:00', score: [0, 0], live: false, status: 'FT'};
+  madrid: true, competition: 'La Liga', round: 'Matchday 8', kickoff: '21:00', kickoff_utc: '2026-10-10T19:00:00Z',
+  score: [0, 0], live: false, status: 'FT'};
 const europe = {id: 'ucl-2026-0000000000000002', code: 'ucl', day: '2026-10-07', home: 'Test Roma', away: 'Real Madrid',
-  madrid: true, competition: 'Champions League', round: 'Matchday 2', kickoff: '21:00', score: [1, 3], live: false, status: 'FT'};
+  madrid: true, competition: 'Champions League', round: 'Matchday 2', kickoff: '21:00', kickoff_utc: '2026-10-07T19:00:00Z',
+  score: [1, 3], live: false, status: 'FT'};
 const checked = day + 'T22:05:00Z';
 const board = {source: 'openfootball', day, matches: [game], warnings: [], checked, madrid_fixture: game,
-  next: '2026-10-17', previous: '2026-10-07', through: {}};
+  next: '2026-10-17', previous: '2026-10-07', through: {}, order: 'By competition, then kick-off time.',
+  first: '2026-08-15', last: '2027-05-30', season: '2026/27', status: 'Sat 10 Oct: 1 match, La Liga.'};
 const fresh = (competition, label, stale, code) => ({code, competition, through_label: label, stale, note: null});
 const summary = {
   answer: 'Server sentence: Real Madrid host Test Club in La Liga on Sat 17 Oct.', unavailable: null,
@@ -67,12 +79,16 @@ test('browse, filter, save and reopen a public fixture on mobile', async ({ page
   await expect(page.getByRole('heading', {name: 'Recent form'})).toBeVisible();
   await expect(page.locator('#report .mc-result b')).toHaveText('0–0');
   await expect(page.getByRole('button', {name: 'Save Real Madrid v Test Club'})).toHaveAttribute('aria-pressed', 'true');
-  await page.getByLabel('Competition').selectOption('en.1');
+  // The Saved filter is in the address, so the reload kept it (H9); back to every match.
+  await expect(page).toHaveURL(/filter=saved/);
+  await page.getByRole('button', {name: 'All', exact: true}).click();
+  await page.getByRole('tab', {name: 'Premier League'}).click();
+  await expect(page.getByRole('tab', {name: 'Premier League'})).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByText('No Premier League matches on this day.')).toBeVisible();
   await expect(page).toHaveURL(/league=en\.1/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   // Every control a finger meets on the board is 44 px tall.
-  for (const control of await page.locator('.mc-board button:visible, .mc-board select:visible, .mc-board input:visible').all()) {
+  for (const control of await page.locator('.mc-board button:visible, .mc-board select:visible, .mc-board input:visible:not(#day)').all()) {
     expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44);
   }
   // The site shell: on a phone the navigation is a bottom tab bar of 44 px targets, Matches
@@ -103,16 +119,14 @@ test('the board opens on the day the server picks and the report answers who sco
   await expect(page.getByRole('heading', {level: 2, name: 'Sat 10 Oct 2026'})).toBeVisible();
   expect(asked[0]).toBeNull();
   await expect(page).toHaveURL(/day=2026-10-10/);
-  // Results through: one chip per competition, the late one marked, and the server's line.
-  await expect(page.locator('.mc-fresh-item').first()).toHaveText(/La Liga\s*Sat 10 Oct/);
-  await expect(page.locator('.mc-fresh-item')).toHaveCount(6);
-  await expect(page.locator('.mc-fresh-item[data-stale]')).toHaveText(/Serie A\s*Sun 20 Sep/);
-  await expect(page.locator('.mc-fresh-item[data-stale]')).toHaveCount(1);
-  // The chips in view are the competitions on the page: the board's day and Madrid's next and
-  // last match; the rest wait, closed, behind "More competitions".
-  await expect(page.locator('#freshness-list .mc-fresh-item')).toHaveText([/La Liga/, /Champions League/]);
-  await expect(page.locator('#freshness-more > summary')).toHaveText('More competitions (4)');
-  await expect(page.locator('#freshness-more')).not.toHaveAttribute('open', '');
+  // How far the free feeds reach: one line, the server's, the late competitions in it (D10).
+  await expect(page.locator('#freshness')).toBeVisible();
+  await expect(page.locator('#freshness')).toHaveText(new RegExp(summary.lag.replace(/[.]/g, '\\.')));
+  await expect(page.locator('.mc-fresh-item, #freshness-more')).toHaveCount(0);
+  // The board's declared order is printed under its day, with the zone of its times (R1, D2).
+  await expect(page.locator('#order')).toHaveText('By competition, then kick-off time. Times in your time zone.');
+  // A screen reader hears the day the board shows (A11Y-3).
+  await expect(page.locator('#status')).toHaveText(board.status);
   // One date format on screen: the browser's own date field opens from a button.
   await expect(page.getByRole('button', {name: 'Go to a date'})).toBeVisible();
   expect((await page.locator('#day').boundingBox()).width).toBeLessThanOrEqual(2);
@@ -139,6 +153,58 @@ test('the board opens on the day the server picks and the report answers who sco
   await page.getByRole('button', {name: 'Next match'}).click();
   await expect(page).toHaveURL(new RegExp('match=' + summary.next.id));
   await expect(page.locator('#report .mc-when')).toContainText('Sat 17 Oct 2026');
+  // The report it opened is the one in view, with focus (H1).
+  await expect(page.locator('#report')).toBeFocused();
+  await expect(page.locator('#report')).toBeInViewport();
+  // The date field offers this season's days with fixtures only (H10).
+  await expect(page.locator('#day')).toHaveAttribute('min', board.first);
+  await expect(page.locator('#day')).toHaveAttribute('max', board.last);
+});
+
+test('Back undoes a step, the filter stays in the address, and a phone shows the report first', async ({ page }) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await stubSummary(page);
+  const asked = [];
+  await page.route('**/api/match-centre/fixtures?**', route => {
+    const at = new URL(route.request().url()).searchParams.get('day') || day;
+    asked.push(at);
+    route.fulfill({json: {...board, day: at}});
+  });
+  await page.goto('/match-centre?day=' + day);
+  await expect(page.getByRole('heading', {level: 2, name: 'Sat 10 Oct 2026'})).toBeVisible();
+  // On a phone Madrid's report comes before the board of the day (H2).
+  const report = await page.locator('#report').boundingBox();
+  const boardBox = await page.locator('.mc-board').boundingBox();
+  expect(report.y).toBeLessThan(boardBox.y);
+  // A step to another day is a step in the history: Back returns to the day before (H8).
+  await page.locator('#forward').click();
+  await expect(page).toHaveURL(/day=2026-10-17/);
+  await expect(page.locator('#forward')).toBeFocused();
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp('day=' + day));
+  await expect(page.getByRole('heading', {level: 2, name: 'Sat 10 Oct 2026'})).toBeVisible();
+  // The filter is in the address, so a reload keeps it (H9).
+  await page.getByRole('button', {name: 'Real Madrid', exact: true}).click();
+  await expect(page).toHaveURL(/filter=madrid/);
+  await page.reload();
+  await expect(page.getByRole('button', {name: 'Real Madrid', exact: true})).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('a season the feeds hold no schedule for says so and leads back to today', async ({ page }) => {
+  await stubSummary(page);
+  await page.route('**/api/match-centre/fixtures?**', route => {
+    const asked = new URL(route.request().url()).searchParams.get('day');
+    return asked === '2031-01-01'
+      ? route.fulfill({status: 404, json: {detail: 'The free feeds have no fixtures for 2030/31 yet.'}})
+      : route.fulfill({json: board});
+  });
+  await page.goto('/match-centre?day=2031-01-01');
+  const box = page.locator('.mc-missing');
+  await expect(box).toContainText('The free feeds have no fixtures for 2030/31 yet.');
+  await expect(page.locator('#fixtures')).not.toContainText('can’t be loaded');
+  await box.getByRole('button', {name: 'Back to today'}).click();
+  await expect(page.getByRole('heading', {level: 2, name: 'Sat 10 Oct 2026'})).toBeVisible();
+  await expect(page).toHaveURL(new RegExp('day=' + day));
 });
 
 test('unavailable feeds get a plain sentence and a retry, never a developer message', async ({ page }) => {
@@ -254,12 +320,18 @@ test('league table opens a club schedule and links the fixture to its report', a
 
 test('the competitions are tabs and a failed table offers a retry', async ({page}) => {
   let fail = true;
+  // The first view opens on Madrid's latest competition, with the server's sentence (H36).
+  await page.route('**/api/match-centre/standings', r => r.fulfill({json: {code: 'es.1',
+    answer: 'Server sentence: Real Madrid lead the Champions League; they were 4th in La Liga.'}}));
   await page.route('**/api/match-centre/leagues/ucl?**', r => fail
     ? r.fulfill({status: 503, json: {detail: 'Feed unavailable.'}})
     : r.fulfill({json: {...table, code: 'ucl', competition: 'Champions League', stage: 'League phase',
       freshness: {...table.freshness, stale: false}}}));
   await page.route('**/api/match-centre/leagues/es.1?**', r => r.fulfill({json: table}));
   await page.goto('/match-centre/leagues');
+  await expect(page.locator('.page-answer')).toHaveText('Server sentence: Real Madrid lead the Champions League; they were 4th in La Liga.');
+  await expect(page.getByRole('tab', {name: 'La Liga'})).toHaveAttribute('aria-selected', 'true');
+  expect(new URL(page.url()).search).toBe('');
   await page.getByRole('tab', {name: 'La Liga'}).focus();
   await page.keyboard.press('ArrowRight');
   await expect(page.getByRole('tab', {name: 'Champions League'})).toBeFocused();
@@ -270,6 +342,9 @@ test('the competitions are tabs and a failed table offers a retry', async ({page
   await expect(page.getByRole('heading', {level: 2})).toHaveText('Champions League · League phase');
   await expect(page.locator('#banner')).toBeHidden();
   await expect(page.locator('#through')).toHaveText('Table after matchday 1 of 38 · Results through Sat 10 Oct');
+  // Back undoes the step to another competition (H8).
+  await page.goBack();
+  await expect(page.getByRole('tab', {name: 'La Liga'})).toHaveAttribute('aria-selected', 'true');
 });
 
 for (const width of [390, 320]) {
@@ -290,6 +365,9 @@ for (const width of [390, 320]) {
     await expect(page.locator('#table th.minor')).toHaveCount(2);
     await expect(page.locator('#table th.minor').first()).toBeHidden();
     await expect(page.locator('#table th.club')).toHaveCSS('position', 'sticky');
+    // The points, the table's order, are never the column that scrolls away (H4).
+    await expect(page.locator('#table th.pts')).toBeInViewport({ratio: 1});
+    if (width <= 360) await expect(page.locator('#table th.record').first()).toBeHidden();
   });
 }
 
@@ -307,9 +385,21 @@ test('a report that is gone says so, fills its column and offers Madrid’s last
   await expect(report.locator('.mc-goal')).toHaveCount(4);
 });
 
-test('the table is dated after its last result, in the page’s one date format', async ({ page }) => {
-  await page.route('**/api/match-centre/leagues/es.1?**', r => r.fulfill({json: table}));
+test('a date shows only when one was chosen, with the way back to the latest table', async ({ page }) => {
+  // H16: the latest table carries no date control text of its own; a chosen date is shown in
+  // the page's one date format, and "Latest table" clears it.
+  await page.route('**/api/match-centre/leagues/es.1**', r => r.fulfill({json: table}));
   await page.goto('/match-centre/leagues?league=es.1');
-  await expect(page.locator('#day-text')).toHaveText('Table after Sat 10 Oct');
+  await expect(page.locator('#day-text')).toHaveText('Choose a date');
+  await expect(page.getByRole('button', {name: 'Latest table'})).toBeHidden();
   expect((await page.locator('#day').boundingBox()).width).toBeLessThanOrEqual(2);
+  await page.goto('/match-centre/leagues?league=es.1&day=2026-10-01');
+  await expect(page.locator('#day-text')).toHaveText('Table after Thu 1 Oct');
+  await page.getByRole('button', {name: 'Latest table'}).click();
+  await expect(page.locator('#day-text')).toHaveText('Choose a date');
+  expect(new URL(page.url()).searchParams.get('day')).toBeNull();
+  // A club's schedule has no date control (H16, H34).
+  await page.getByRole('link', {name: 'Real Madrid', exact: true}).click();
+  await expect(page.getByRole('heading', {name: 'Real Madrid', exact: true})).toBeFocused();
+  await expect(page.locator('#dates')).toBeHidden();
 });

@@ -40,91 +40,35 @@
     line-height: 1;
   }
 
-  /* Results through: one chip per competition, the date it reaches. */
+  /* How far the free feeds reach, in one line: the competitions whose results stop early, with
+     the warning mark beside the server's sentence. No line when every one is up to date. */
   .mc-fresh {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-  }
-
-  .mc-fresh-list {
-    position: relative;
-    display: flex;
-    flex-wrap: wrap;
+    align-items: baseline;
     gap: var(--space-2);
+    max-width: 72ch;
     margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .mc-fresh-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 28px;
-    padding: 2px 10px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-pill);
-    background: var(--surface-1);
-    font-size: var(--text-xs);
-    line-height: 1.2;
-  }
-
-  .mc-fresh-name {
     color: var(--text-muted);
+    font-size: var(--text-sm);
   }
 
-  .mc-fresh-date {
-    color: var(--text);
-    font-weight: var(--weight-semibold);
+  .mc-fresh[hidden] {
+    display: none;
   }
 
-  .mc-fresh-item[data-stale] {
-    border-color: var(--warning);
-    background: var(--warning-soft);
-  }
-
-  .mc-fresh-item[data-stale]::before {
-    content: "!";
+  .mc-fresh-mark {
     display: inline-grid;
+    flex: none;
     place-items: center;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--warning);
     color: var(--warning-soft);
     font-size: var(--text-xs);
     font-weight: var(--weight-bold);
     line-height: 1;
-  }
-
-  .mc-fresh-more {
-    font-size: var(--text-sm);
-  }
-
-  .mc-fresh-more > summary {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
-    color: var(--link);
-    font-weight: var(--weight-semibold);
-    cursor: pointer;
-  }
-
-  .mc-fresh-more[open] {
-    flex-basis: 100%;
-  }
-
-  .mc-fresh-more[open] > .mc-fresh-list {
-    margin-top: var(--space-2);
-  }
-
-  .mc-lag {
-    flex-basis: 100%;
-    margin: 0;
-    color: var(--text-muted);
-    font-size: var(--text-sm);
+    transform: translateY(2px);
   }
 
   /* ------------------------------------------------------------ Matches: the board */
@@ -134,6 +78,13 @@
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     align-items: start;
     gap: var(--space-5);
+  }
+
+  /* The shorter column stays in view beside a long one (the script marks it). */
+  .mc-board.is-pinned,
+  .mc-side.is-pinned {
+    position: sticky;
+    top: var(--space-4);
   }
 
   .mc-board {
@@ -165,6 +116,18 @@
     font-size: var(--text-xl);
   }
 
+  .mc-day h2:focus {
+    outline: none;
+  }
+
+  /* The board's declared order and the zone of its times, under the day (R1, D2). */
+  .mc-order {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
   .mc-day-tag {
     padding: 2px 8px;
     border-radius: var(--radius-pill);
@@ -185,6 +148,21 @@
     line-height: 1;
   }
 
+  /* A step with nowhere to go, or one waiting for its day: it keeps focus (H19). */
+  .mc-step[aria-disabled="true"] {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .mc-comps {
+    margin: 0;
+    padding: 0 var(--space-3);
+  }
+
+  .mc-comps[hidden] {
+    display: none;
+  }
+
   .mc-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -195,18 +173,17 @@
     background: var(--surface-2);
   }
 
-  .mc-league {
-    flex: 0 1 13rem;
-  }
-
   /* The date is written one way on the page; the browser's date field opens from a button
      and stays out of sight (it writes dates its own way). Without a picker to open, the
-     button shows the field instead. */
+     button shows the field instead. One date control on every page, at the start of its row. */
   .mc-date {
     position: relative;
     display: flex;
     flex: none;
-    margin-left: auto;
+  }
+
+  .mc-date[hidden] {
+    display: none;
   }
 
   .mc-date .ui-btn {
@@ -325,6 +302,7 @@
   .mc-pick {
     display: grid;
     grid-template-columns: 60px minmax(0, 1fr);
+    min-width: 0;
     align-items: center;
     gap: var(--space-3);
     width: 100%;
@@ -385,11 +363,10 @@
     gap: var(--space-3);
   }
 
+  /* A long club name wraps inside its row; it never runs under the save star (H3). */
   .mc-name {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: break-word;
   }
 
   .mc-goals {
@@ -591,6 +568,10 @@
     text-align: right;
   }
 
+  .mc-goal-team {
+    display: none;
+  }
+
   .mc-goal-minute {
     color: var(--text-muted);
     font-weight: var(--weight-semibold);
@@ -601,6 +582,11 @@
   .mc-goal-tag {
     color: var(--text-muted);
     font-size: var(--text-xs);
+  }
+
+  .mc-forms {
+    display: grid;
+    gap: var(--space-3);
   }
 
   .mc-form {
@@ -714,16 +700,22 @@
     margin: 0;
   }
 
+  /* A table is read across: a club's name and its points stay within one glance (H17). */
+  .lt-frame {
+    max-width: 52rem;
+  }
+
   .lt-card {
     padding: 0;
     overflow: hidden;
   }
 
+  .tables .mc-about {
+    max-width: 52rem;
+  }
+
   .lt-head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    justify-content: space-between;
+    display: grid;
     gap: var(--space-3);
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--border);
@@ -734,12 +726,37 @@
     font-size: var(--text-xl);
   }
 
+  .lt-head h2:focus {
+    outline: none;
+  }
+
   .lt-head .mc-meta {
     margin-top: 2px;
   }
 
+  .lt-head .mc-meta:empty {
+    display: none;
+  }
+
+  /* The date control, at the start of the card head, and the way back to the latest table. */
+  .lt-dates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .lt-dates[hidden],
+  .lt-latest[hidden] {
+    display: none;
+  }
+
   .lt-day {
     flex: none;
+  }
+
+  .lt-date {
+    white-space: nowrap;
   }
 
   .lt-body > .ui-callout,
@@ -871,8 +888,71 @@
       grid-template-columns: minmax(0, 1fr);
     }
 
+    /* On a phone the report of the match the answer names sits under the answer, and the
+       board of the day follows it (H2). */
     .mc-side {
       position: static;
+      order: -1;
+    }
+
+    .mc-report {
+      scroll-margin-top: var(--space-3);
+    }
+
+    /* Each club's goals under its name: the list reads down, never squeezed to a third. */
+    .mc-goals-list {
+      gap: 4px;
+    }
+
+    .mc-goal-team {
+      display: block;
+      margin-top: var(--space-2);
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semibold);
+    }
+
+    .mc-goal-team[data-side="home"] {
+      order: 0;
+      margin-top: 0;
+    }
+
+    .mc-goal[data-side="home"] {
+      order: 1;
+    }
+
+    .mc-goal-team[data-side="away"] {
+      order: 2;
+    }
+
+    .mc-goal[data-side="away"] {
+      order: 3;
+    }
+
+    .mc-goals-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mc-goal {
+      grid-template-columns: 3rem minmax(0, 1fr);
+    }
+
+    .mc-goal-gap {
+      display: none;
+    }
+
+    .mc-goal .mc-goal-minute {
+      grid-row: 1;
+      grid-column: 1;
+      text-align: left;
+    }
+
+    .mc-goal .mc-goal-name,
+    .mc-goal[data-side="home"] .mc-goal-name {
+      grid-row: 1;
+      grid-column: 2;
+      text-align: left;
     }
 
     /* Touch: every control a finger meets is 44 px tall. */
@@ -911,13 +991,8 @@
       flex: 1 1 0;
     }
 
-    .mc-league {
-      flex: 1 1 100%;
-    }
-
     .mc-date {
       flex: 1 1 100%;
-      margin-left: 0;
     }
 
     .mc-date .ui-btn {
@@ -948,6 +1023,10 @@
       padding: var(--space-3);
     }
 
+    .mc-comps {
+      padding: 0 var(--space-1);
+    }
+
     .mc-group-head {
       padding-inline: var(--space-3);
     }
@@ -965,7 +1044,7 @@
     }
 
     .lt-day {
-      flex: 1 1 100%;
+      flex: 1 1 auto;
     }
 
     .lt-day .ui-btn {
@@ -1018,7 +1097,130 @@
     }
 
     .lt-table .lt-date {
-      white-space: normal;
+      white-space: nowrap;
+    }
+  }
+
+  /* A club's schedule on a phone: the date and the result on one line, the match under them. */
+  @media (max-width: 480px) {
+    .lt-club,
+    .lt-club tbody {
+      display: block;
+    }
+
+    .lt-club thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .lt-club tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 2px var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lt-table.lt-club td,
+    .lt-table.lt-club td:first-child,
+    .lt-table.lt-club td:last-child {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    .lt-club td:first-child {
+      grid-row: 1;
+      grid-column: 1;
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+
+    .lt-club .lt-result {
+      grid-row: 1;
+      grid-column: 2;
+    }
+
+    .lt-club .lt-fixture {
+      grid-row: 2;
+      grid-column: 1 / -1;
+    }
+
+    .lt-club .lt-fixture a {
+      min-height: 0;
+    }
+  }
+
+  /* The narrowest phones keep Pos, the club, P, GD and Pts: W, D and L go to a wider screen,
+     and the points, the table's order, never scroll out of view (H4, D8). */
+  @media (max-width: 360px) {
+    .lt-table .record {
+      display: none;
+    }
+
+    .lt-table .pts {
+      position: sticky;
+      right: 0;
+      z-index: var(--z-raised);
+      background: var(--surface-1);
+    }
+
+    .lt-table th.pts {
+      background: var(--surface-2);
+    }
+
+    .lt-table tr[data-madrid] td.pts {
+      background: var(--accent-soft);
+    }
+
+    .lt-table .club {
+      min-width: 0;
+    }
+
+  }
+
+  /* Under 360 px each form row is two lines: the result and score, then where and when (H5). */
+  @media (max-width: 359px) {
+    .mc-form-table,
+    .mc-form-table tbody,
+    .mc-form-table tr,
+    .mc-form-table td {
+      display: block;
+    }
+
+    .mc-form-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .mc-form-table tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 2px var(--space-2);
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mc-form-table td,
+    .mc-form-table td:first-child {
+      padding: 0;
+      border: 0;
+    }
+
+    .mc-form-table .mc-form-result {
+      grid-column: 1 / -1;
+    }
+
+    .mc-form-table .mc-form-date {
+      font-size: var(--text-sm);
     }
   }
 }

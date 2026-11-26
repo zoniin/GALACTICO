@@ -34,6 +34,7 @@ from galactico.match_centre.feed import FeedError
 from galactico.match_centre.openfootball import OpenFootball
 from galactico.match_centre.public import create_centre
 from galactico.match_centre.studio import (
+    ANALYST_TOOLS,
     FORMATIONS,
     GROUPS,
     SAMPLES,
@@ -58,6 +59,18 @@ from galactico.match_centre.studio import (
     short_name,
     side_of,
 )
+
+
+@pytest.fixture(autouse=True)
+def no_squad_names(monkeypatch):
+    # The squad list (Wikipedia) writes Real Madrid's scorers on the pages (names.py); no test
+    # reaches it unless it says so.
+    from galactico.match_centre.studio import Studio
+
+    async def names(self, day):
+        return []
+
+    monkeypatch.setattr(Studio, "squad_names", names)
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
@@ -229,7 +242,7 @@ def test_the_sentence_follows_the_board_against_the_proposal():
     moved[0], moved[2] = moved[2], moved[0]
     assert lineup_answer(BY_ID, "4-3-3", moved, proposed, SEASON) == (
         "This 4-3-3 starts the proposed eleven, the most 2026/27 appearances in each position, "
-        "with 2 of them in other places.")
+        "with 2 of them in other places: Name25 plays LW and Name7 RW.")
     swapped = list(proposed)
     swapped[5] = "P6"  # Name6 for Name15
     assert lineup_answer(BY_ID, "4-3-3", swapped, proposed, SEASON) == (
@@ -239,6 +252,13 @@ def test_the_sentence_follows_the_board_against_the_proposal():
     assert lineup_answer(BY_ID, "4-3-3", two, proposed, SEASON) == (
         "This 4-3-3 keeps 9 of the 11 proposed starters; Name6 and Name18 start in place of "
         "Name15 and Name4.")
+    # A substitution and a swap: the sentence names the move as well (H21).
+    both = list(swapped)
+    both[0], both[1] = both[1], both[0]
+    assert lineup_answer(BY_ID, "4-3-3", both, proposed, SEASON) == (
+        "This 4-3-3 keeps 10 of the 11 proposed starters; Name6 starts in place of Name15; "
+        f"{BY_ID[proposed[1]]['short']} plays LW and {BY_ID[proposed[0]]['short']} ST.")
+    assert scan_labels([lineup_answer(BY_ID, "4-3-3", both, proposed, SEASON)]) == []
     others = ["P13", "P2", "P3", "P12", "P18", "P22", "P23", "P14", "P20", "P27", "P9"]
     assert lineup_answer(BY_ID, "4-3-3", others, proposed, SEASON) == (
         "This 4-3-3 shares none of the 11 proposed starters, the most 2026/27 appearances in "
@@ -254,14 +274,20 @@ def test_a_link_carries_the_lineup_and_refuses_one_the_squad_cannot_hold():
     assert parse_share(CLUB, "3-5-2", "10-25-5-6-8-15-20-4-16-17-1", "2026-27", SEASON) == xi
     assert parse_share(CLUB, "3-5-2", "10-25-5-6-8-15-20-4-16-17-1", None, SEASON) == xi
     for formation, numbers_, season, said in (
-        ("5-4-1", "1-2-3-4-5-6-7-8-9-10-11", None, "formation the board doesn't have"),
-        ("4-3-3", "1-2-3", None, "doesn't hold 11 shirt numbers"),
-        ("4-3-3", "1-2-3-4-5-6-7-8-9-10-99", None, "doesn't match the 2026/27 squad"),
+        ("5-4-1", "1-2-3-4-5-6-7-8-9-10-11", None, "formation the board doesn’t have"),
+        ("4-3-3", "1-2-3", None, "doesn’t hold 11 shirt numbers"),
+        ("4-3-3", "1-2-3-4-5-6-7-8-9-10-99", None, "doesn’t match the 2026/27 squad"),
         ("4-3-3", "1-2-3-4-5-6-7-8-9-10-10", None, "names a player twice"),
         ("4-3-3", "1-2-3-4-5-6-7-8-9-10-11", "2025-26", "from another season, not 2026/27"),
     ):
         with pytest.raises(ValueError, match=said):
             parse_share(CLUB, formation, numbers_, season, SEASON)
+    # A link with no formation is of the default one, so the real problem is the one said
+    # (H20); a formation alone opens its proposed XI (FN-1).
+    with pytest.raises(ValueError, match="doesn’t hold 11 shirt numbers"):
+        parse_share(CLUB, "", "garbage", None, SEASON)
+    assert parse_share(CLUB, "4-4-2", "", None, SEASON) == propose(CLUB, "4-4-2")[0]
+    assert parse_share(CLUB, "", "", None, SEASON) == propose(CLUB, "4-3-3")[0]
 
 
 def test_the_next_match_card_comes_from_the_schedule_and_invents_nothing():
@@ -271,17 +297,22 @@ def test_the_next_match_card_comes_from_the_schedule_and_invents_nothing():
     card = next_card(fixture, date(2026, 11, 26))
     assert card["fixture"] == {
         "opponent": "Deportivo Alavés", "venue": "Home", "when": "Sun 29 Nov",
+        "kickoff": None, "kickoff_utc": None,
         "competition": "La Liga · Matchday 14", "code": "es.1", "day": "2026-11-29",
         "links": {"form": "/match-centre?day=2026-11-29&match=es.1-2026-f27c047388ef136d",
                   "table": "/match-centre/leagues?league=es.1&highlight=Real+Madrid+CF",
                   "goals": None}}
     assert card["credit"]["name"] == "OpenFootball"
     away = dict(fixture, code="ucl", competition="Champions League", home="PSV Eindhoven",
-                away="Real Madrid", kickoff="21:00", round=None)
+                away="Real Madrid", kickoff="21:00", kickoff_utc="2026-11-29T20:00:00Z",
+                round=None)
     card = next_card(away, date(2026, 11, 26))
+    # Re-pinned (D2): the day is the server's words; the kick-off travels as an instant the page
+    # shows in the reader's time zone (was "Sun 29 Nov · 21:00", the source's local time).
     assert (card["fixture"]["venue"], card["fixture"]["when"], card["fixture"]["competition"],
-            card["credit"]["name"]) == ("Away", "Sun 29 Nov · 21:00", "Champions League",
-                                        "OpenLigaDB")
+            card["credit"]["name"]) == ("Away", "Sun 29 Nov", "Champions League", "OpenLigaDB")
+    assert (card["fixture"]["kickoff"], card["fixture"]["kickoff_utc"]) == (
+        "21:00", "2026-11-29T20:00:00Z")
     assert next_card(None, date(2026, 11, 26)) == {
         "fixture": None, "empty": "No further Real Madrid fixture is listed this season."}
 
@@ -352,17 +383,29 @@ def test_the_page_is_answer_first_and_its_own_text_passes_the_copy_guard():
     header = main.find("header", class_="page-header")
     assert header.find("p", id="answer", class_="page-answer") is not None
     assert main.find(id="field") is not None
-    order = [main.find(id=i).sourceline for i in ("answer", "field", "bench-list", "next", "tools")]
+    order = [main.find(id=i).sourceline for i in ("answer", "field", "bench-list", "next")]
     assert order == sorted(order)
-    # The 2017/18 archive map, the research tool and the notes are closed by default, the notes
-    # last (ADR-0034, G3-4: an archive sample does not take a 2026/27 page's prime space).
+    # The 2017/18 archive map and the notes are closed by default, the notes last (ADR-0034,
+    # G3-4: an archive sample does not take a 2026/27 page's prime space). Re-pinned (H28): the
+    # analyst's import is not in the page file; the server fills its slot on a local install
+    # only, closed, before the notes.
     details = main.find_all("details")
     assert [d.find("summary").get_text(" ", strip=True) for d in details] == [
-        "Archive: where he played in 2017/18", "Analyst tools Import match events",
-        "About these numbers"]
+        "Archive: where he played in 2017/18", "About these numbers"]
     assert all(not d.has_attr("open") for d in details)
-    assert details[1].find("input", id="file") is not None
     assert details[0].find("canvas", id="map") is not None
+    assert html.count("<!--slot:tools-->") == 1
+    assert html.index("<!--slot:tools-->") < html.index('class="ui-disclosure ln-about"')
+    tools = BeautifulSoup(ANALYST_TOOLS, "html.parser").find("details")
+    assert tools.find("summary").get_text(" ", strip=True) == "Analyst tools Import match events"
+    assert not tools.has_attr("open") and tools.find("input", id="file") is not None
+    with TestClient(create_centre("Test")) as client:
+        hosted = client.get("/lineup").text
+    assert "Analyst tools" not in hosted and 'id="file"' not in hosted
+    from galactico.api.player_lab import app as local_app
+    with TestClient(local_app) as client:
+        local = client.get("/lineup").text
+    assert local.count("Analyst tools") == 1 and 'id="file"' in local
     # The page's own sheet is in the page layer; the old sheets are not loaded.
     sheets = [link["href"] for link in soup.find_all("link", rel="stylesheet")]
     assert sheets == ["/static/lineup.css"]
@@ -426,10 +469,11 @@ def test_studio_routes_serve_the_proposal_the_link_and_the_next_match(monkeypatc
         refused = client.get("/api/studio/lineup", params={
             "formation": "4-3-3", "xi": "7-10-25-5-8-6-4-16-17-24-99"})
         assert refused.status_code == 422
-        assert refused.json()["detail"] == "This link's lineup doesn't match the 2026/27 squad."
+        assert refused.json()["detail"] == "This link’s lineup doesn’t match the 2026/27 squad."
         card = client.get("/api/studio/next").json()
         assert card["fixture"]["opponent"] == "Deportivo Alavés"
-        assert card["fixture"]["when"] == "Sun 29 Nov · 21:00"
+        assert card["fixture"]["when"] == "Sun 29 Nov"
+        assert card["fixture"]["kickoff"] == "21:00"
         assert card["fixture"]["links"]["goals"] is None
 
 
@@ -520,3 +564,29 @@ def test_each_archive_label_is_what_the_public_data_says():
         assert sample.competition == COMPETITION[competitions[match["competitionId"]]], slug
         assert match["dateutc"].startswith(sample.day), slug
         assert max(played[sample.player])[1] == sample.match_id, slug
+
+
+def test_every_slot_is_named_in_words_and_the_archive_sample_counts_in_football_terms():
+    # D9: "LCM" reads "Left central midfield" wherever a slot is named in words; H28: the
+    # archive sample's counts are the server's, in football words.
+    from galactico.match_centre.studio import ROLE_NAMES, activity_filters
+    for formation, slots in FORMATIONS.items():
+        for slot in slots:
+            assert slot["name"] == ROLE_NAMES[slot["role"]], (formation, slot["role"])
+            assert slot["zone"] == f"Drawn area for the {slot['name'].lower()} role, not measured"
+    assert ROLE_NAMES["LCM"] == "Left central midfield"
+    assert ROLE_NAMES["RCM"] == "Right central midfield"
+    assert scan_labels(list(ROLE_NAMES.values())) == []
+    points = [{"x": 1, "y": 1, "type": kind} for kind in ("Pass", "Pass", "Duel", "Ball action")]
+    assert activity_filters(points) == [
+        {"type": "All actions", "label": "All actions",
+         "count": "4 actions in his last 2017/18 match"},
+        {"type": "Pass", "label": "Passes", "count": "2 passes in his last 2017/18 match"},
+        {"type": "Duel", "label": "Duels", "count": "1 duel in his last 2017/18 match"},
+        {"type": "Ball action", "label": "Touches",
+         "count": "1 touch in his last 2017/18 match"}]
+    assert scan_labels([f["count"] for f in activity_filters(points)]) == []
+    # The 3-5-2's wing-backs stand wider and deeper than its central midfielders (H7).
+    by = {s["role"]: s for s in FORMATIONS["3-5-2"]}
+    assert by["LWB"]["x"] < 12 and by["RWB"]["x"] > 88
+    assert by["LWB"]["y"] - by["LCM"]["y"] >= 12 and by["RWB"]["y"] - by["RCM"]["y"] >= 12

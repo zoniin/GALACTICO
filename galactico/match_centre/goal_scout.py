@@ -28,6 +28,7 @@ every sentence shape through ``scan_labels``.
 
 from __future__ import annotations
 
+import contextlib
 import re
 import unicodedata
 from collections import Counter, defaultdict
@@ -35,8 +36,6 @@ from collections.abc import Callable
 from datetime import date, datetime
 from random import randrange
 from typing import TypeGuard
-
-import httpx
 
 from ..providers import assert_may_host
 from .answers import MADRID, named
@@ -71,7 +70,7 @@ NICKNAMES = {"tasos": "anastasios", "nico": "nicolas"}
 """First names the feed writes in two forms for one player, folded (no accents, lower case):
 the form on the left is read as the one on the right when two scorers' names are compared."""
 ORDER = "Ordered by goals, then name."
-FEED_DOWN = "The free goal feed, OpenLigaDB, can't be reached right now."
+FEED_DOWN = "The free goal feed, OpenLigaDB, can’t be reached right now."
 
 
 def _number(v: object) -> TypeGuard[int]:
@@ -371,8 +370,10 @@ def tally(games: list[dict], places: int) -> tuple[list[dict], list[dict]]:
     bands = []
     for band in band_labels(places):
         chosen = [g for g in games if band["key"] == "all" or g["split"] == band["key"]]
-        bands.append({**band, "matches": len(chosen), "goals": sum(g["for"] for g in chosen),
-                      "named": sum(1 for g in chosen for e in g["events"] if e["scorer"])})
+        count = sum(g["for"] for g in chosen)
+        bands.append({**band, "matches": len(chosen), "goals": count,
+                      "named": sum(1 for g in chosen for e in g["events"] if e["scorer"]),
+                      **_band_words(band, count, len(chosen))})
     names: dict[str, str] = {}
     goals: dict[str, Counter] = defaultdict(Counter)
     for game in games:
@@ -381,10 +382,26 @@ def tally(games: list[dict], places: int) -> tuple[list[dict], list[dict]]:
                 names.setdefault(key, event.get("scorer_name") or event["name"])
                 goals[key]["all"] += 1
                 goals[key][game["split"]] += 1
-    scorers = [{"id": key, "name": name, "goals": {b: goals[key][b] for b in BAND_KEYS}}
+    scorers = [{"id": key, "name": name, "goals": {b: goals[key][b] for b in BAND_KEYS},
+                "filter_line": f"Matches with a goal by {name}",
+                "empty_line": f"No goals by {name} in these matches."}
                for key, name in names.items()]
     scorers.sort(key=lambda s: (-s["goals"]["all"], s["name"].casefold(), s["id"]))
     return bands, scorers
+
+
+def _band_words(band: dict, goals: int, matches: int) -> dict:
+    """A group's tile labels and the line the page prints when a reader picks it."""
+    if band["key"] == "all":
+        return {"matches_label": "Matches", "goals_label": "Goals", "line": None}
+    where = ("in matches not classified by the opponent’s place"
+             if band["key"] == "unclassified" else f"against clubs in {band['short'].lower()} "
+                                                   "before kick-off")
+    label = ("Matches not classified" if band["key"] == "unclassified"
+             else f"Matches against {band['short'].lower()}")
+    return {"matches_label": label, "goals_label": "Goals in them",
+            "line": (f"{where[0].upper()}{where[1:]}: {_count(goals, 'goal')} in "
+                     f"{_count(matches, 'match', 'matches')}.")}
 
 
 def answer(club: str, competition: str, games: list[dict], scorers: list[dict],
@@ -427,7 +444,7 @@ def answer(club: str, competition: str, games: list[dict], scorers: list[dict],
     if all(g["split"] == "unclassified" for g in games):
         return f"{lead_clause}."
     if unset == most:
-        return f"{lead_clause}, all in matches not classified by the opponent's place."
+        return f"{lead_clause}, all in matches not classified by the opponent’s place."
     rest = f"places 7–{places}" if places > 7 else "places 7 and below"
     parts = [f"{top} against clubs in places 1–6 before kick-off", f"{other} against {rest}"]
     if unset:
@@ -440,8 +457,8 @@ def split_note(games: list[dict], gap: bool) -> str | None:
     if not games or any(g["split"] != "unclassified" for g in games):
         return None
     if gap:
-        return ("No match is classified by the opponent's place yet: a reported match "
-                "couldn't be matched to the schedule, so later places aren't counted.")
+        return ("No match is classified by the opponent’s place yet: a reported match "
+                "couldn’t be matched to the schedule, so later places aren’t counted.")
     return "Opponent places start counting once every club has played five matches."
 
 
@@ -456,19 +473,22 @@ def unknown_league(key: str) -> str:
     """The 404 detail of a league key the explorer does not offer."""
     gone = GONE.get(key)
     if gone:
-        return (f"{gone} goals aren't in the free goal feed: OpenLigaDB has no current {gone} "
+        return (f"{gone} goals aren’t in the free goal feed: OpenLigaDB has no current {gone} "
                 "season.")
-    return "That competition isn't in the goal feed."
+    return "That competition isn’t in the goal feed."
 
 
 def missing_club(key: str) -> str:
     """The 404 detail of a club that is not in the league's current season."""
-    return f"That club isn't in this season's {LEAGUES[key][1]}."
+    return f"That club isn’t in this season’s {LEAGUES[key][1]}."
 
 
 def league_options() -> str:
-    """The competition select's options, written by the server in the explorer's order."""
-    return "".join(f'<option value="{key}">{name}</option>'
+    """The competition tabs, written by the server in the explorer's order: the one strip of
+    competitions every page uses (the page marks the one shown)."""
+    return "".join(f'<button type="button" class="ui-tab" role="tab" data-league="{key}" '
+                   f'id="goals-tab-{key}" aria-controls="goals-data" aria-selected="false" '
+                   f'tabindex="-1">{name}</button>'
                    for key, (_, name, _) in LEAGUES.items())
 
 
@@ -500,11 +520,10 @@ class GoalScout:
         source = f"{API}/{LEAGUES[league][0]}/{year}"
 
         async def fetch() -> list:
-            agent = "Galactico/1.0 (https://github.com/zoniin/GALACTICO)"
-            async with httpx.AsyncClient(timeout=12, headers={"User-Agent": agent}) as client:
-                resp = await client.get(source)
-            resp.raise_for_status()
-            games = parse_matches(resp.json())
+            # The download the Matches page makes of the same season (``OpenLigaDB.season``):
+            # one request serves both pages, and a cold page waits for one, not two.
+            snap = await self.schedules.ligadb.season(LEAGUES[league][0], year)
+            games = parse_matches(snap.rows)
             if league in UNCHECKED:
                 for game in games:
                     game.update(verified=True, omit_events=False)
@@ -515,6 +534,12 @@ class GoalScout:
             return verify_fixtures(games, schedule.rows)
 
         return await self.cache.get(source, 3600 + randrange(300), fetch), source
+
+    async def prefetch(self, today: date) -> None:
+        """The Champions League season the first view reads, fetched ahead; a failure is the
+        first view's to report."""
+        with contextlib.suppress(FeedError):
+            await self._season("ucl", season_start(today))
 
     async def _choose(self, league: str, clubs: dict[int, str], today: date,
                       year: int) -> tuple[int, str | None]:
@@ -553,8 +578,8 @@ class GoalScout:
                           f"recently: in the Champions League on {day_label(day, today)}.")
         club = min(clubs, key=lambda c: (clubs[c].casefold(), c))
         if league == "ucl":
-            return club, (f"Showing {clubs[club]}, the first club by name: Real Madrid aren't "
-                          "in this season's Champions League feed.")
+            return club, (f"Showing {clubs[club]}, the first club by name: Real Madrid aren’t "
+                          "in this season’s Champions League feed.")
         return club, (f"Showing {clubs[club]}, the first {label} club by name: no Real Madrid "
                       f"fixture against a {label} club is listed.")
 
@@ -568,6 +593,7 @@ class GoalScout:
         _, label, _ = LEAGUES[league]
         year = season_start(today)
         snap, source = await self._season(league, year)
+        book = await self.schedules.book(today)
         confirmed = [g for g in snap.rows if g["verified"]]
         omitted = [
             g["fixture"]["date"]
@@ -604,6 +630,12 @@ class GoalScout:
             events = []
             for event in row["timeline"]:
                 event = dict(event, for_club=event["team"] == club)
+                # A Real Madrid player is named as the squad list names him (names.py): the
+                # scorer of a Madrid goal, or the player of an own goal Madrid gave away.
+                if (event["team"] == MADRID_ID) != bool(event["own"]):
+                    event["name"] = book.name(event["name"]) or event["name"]
+                if not event["for_club"]:
+                    event["side_label"] = f"for {sides[opp]['name']}"
                 events.append(dict(event, scorer=scorer_key(event)))
             split = ("unclassified" if earliest_gap and earliest_gap < fixture["date"]
                      else groups[fixture["id"]])
@@ -634,15 +666,15 @@ class GoalScout:
         notes = []
         if unverified:
             matches = _count(unverified, f"reported {label} match", f"reported {label} matches")
-            notes.append(f"{matches} couldn't be matched to the league's schedule and "
+            notes.append(f"{matches} couldn’t be matched to the league’s schedule and "
                          f"{'is' if unverified == 1 else 'are'} left out.")
         if apart:
             notes.append(f"The feed lists {_listing(apart)} without a first name, and more than "
-                         "one of the club's scorers could be "
+                         "one of the club’s scorers could be "
                          f"{'him' if len(apart) == 1 else 'them'}, so "
                          f"{'his goals stay' if len(apart) == 1 else 'their goals stay'} apart.")
         if snap.warning:
-            notes.append("The goal feed didn't answer just now, so this is its last report.")
+            notes.append("The goal feed didn’t answer just now, so this is its last report.")
         through = max((g["fixture"]["date"] for g in confirmed
                        if g["fixture"]["status"]["short"] == "FT"
                        and g["fixture"]["date"] <= today.isoformat()), default=None)
@@ -657,7 +689,9 @@ class GoalScout:
             "clubs": clubs,
             "club_list": [{"id": cid, "name": name} for cid, name in
                           sorted(clubs.items(), key=lambda c: (c[1].casefold(), c[0]))],
-            "answer": answer(clubs[club], label, games, season_scorers, places),
+            "answer": (f"Against {chosen}, " if chosen else "")
+                      + answer(clubs[club], label, shown, scorers if chosen else season_scorers,
+                               places),
             "opening": opening,
             "bands": band_rows,
             "band_note": band_note(label, phase),
@@ -673,6 +707,7 @@ class GoalScout:
             "matches": shown,
             "notes": notes,
             "source": source,
+            "provider_url": "https://www.openligadb.de/",
             "credit": ("OpenLigaDB" if phase
                        else "OpenLigaDB; club identities checked against OpenFootball"),
             "unverified_league_matches": unverified,
@@ -694,8 +729,8 @@ class GoalScout:
         lead = ""
         if asked is not None and asked not in LEAGUES:
             gone = GONE.get(asked)
-            lead = (f"{gone} goals aren't in the free goal feed. " if gone
-                    else "That competition isn't in the goal feed. ")
+            lead = (f"{gone} goals aren’t in the free goal feed. " if gone
+                    else "That competition isn’t in the goal feed. ")
         failure: FeedError | None = None
         why = None
         if upcoming is not None:
@@ -705,7 +740,7 @@ class GoalScout:
             league = EXPLORER.get(upcoming["code"])
             if league in LEAGUES:
                 why = (f"Showing Real Madrid in the Champions League: their next opponent, "
-                       f"{opponent}, isn't named in the goal feed.")
+                       f"{opponent}, isn’t named in the goal feed.")
                 try:
                     snap, _ = await self._season(league, season_start(today))
                     clubs = teams([g for g in snap.rows if g["verified"]])
@@ -715,7 +750,7 @@ class GoalScout:
                 except FeedError as exc:
                     failure, found = exc, None
                     why = (f"Showing Real Madrid in the Champions League: the goal feed for "
-                           f"their next opponent, {opponent}, can't be reached right now.")
+                           f"their next opponent, {opponent}, can’t be reached right now.")
                 if found is not None:
                     found["opening"] = lead + (
                         f"Showing {opponent}: Real Madrid play them next, in "
@@ -723,12 +758,12 @@ class GoalScout:
                     return found
             elif lead and GONE.get(asked or "") == competition:
                 # The lead-in already says the feed lacks this league; say where it goes.
-                lead, why = "", (f"{competition} goals aren't in the free goal feed, so this "
+                lead, why = "", (f"{competition} goals aren’t in the free goal feed, so this "
                                  "shows Real Madrid in the Champions League.")
             else:
                 why = (f"Showing Real Madrid in the Champions League: their next match, against "
                        f"{opponent}, is in {named(competition)}, which the free goal feed "
-                       "doesn't carry.")
+                       "doesn’t carry.")
         elif listed:
             why = ("Showing Real Madrid in the Champions League: no further Real Madrid fixture "
                    "is listed.")
@@ -747,7 +782,7 @@ class GoalScout:
                 line = why or "Showing Real Madrid in the Champions League."
             else:
                 line = found["opening"] or (f"Showing {found['club_name']} in "
-                                            f"{named(found['league'])}, the page's default.")
+                                            f"{named(found['league'])}, the page’s default.")
             found["opening"] = lead + line
             return found
         raise failure or FeedError(FEED_DOWN)

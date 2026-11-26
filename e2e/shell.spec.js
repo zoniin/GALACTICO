@@ -67,9 +67,13 @@ test('an address the site does not serve gets its own page, with the shell and t
   const reply = await page.goto('/match-centre/nope', { waitUntil: 'domcontentloaded' });
   expect(reply.status()).toBe(404);
   expect(reply.headers()['content-type'] || '').toMatch(/^text\/html/);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText("That page isn't here");
+  // Re-pinned (H24): the server's words are typeset, a curly apostrophe like the pages' own.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('That page isn’t here');
   await expect(page.locator('header.site-header')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Go to Matches' })).toHaveAttribute('href', '/match-centre');
+  // The ways on are the navigation the app serves, Players included (H23).
+  await expect(page.locator('.page-missing .page-actions a')).toHaveText(
+    ['Go to Matches', 'Table', 'Players', 'Lineup', 'Squad & signings']);
   await expect(page.locator('main')).not.toContainText('detail');
 });
 
@@ -181,5 +185,34 @@ test('keyboard focus is never hidden under the phone tab bar', async ({ page }) 
       });
       expect(hidden, path).toBeNull();
     }
+  }
+});
+
+// D1: every destination opens its current-season page first, on both apps; H30: on a narrow
+// phone the tab bar shows "Squad" for "Squad & signings", every icon on one line, the link
+// still named in full.
+test('the nav opens the current season first, and a narrow tab bar keeps one line per label', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/player', { waitUntil: 'domcontentloaded' });
+  const nav = page.getByRole('navigation', { name: 'Main' });
+  await expect(nav.getByRole('link', { name: 'Players' })).toHaveAttribute('href', '/match-centre/scouting');
+  await expect(nav.getByRole('link', { name: 'Squad & signings' })).toHaveAttribute('href', '/squad');
+  const heights = await nav.locator('.site-nav-label').evaluateAll(labels => labels.map(l => l.getBoundingClientRect().height));
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+  const tops = await nav.locator('.site-nav-icon').evaluateAll(icons => icons.map(i => i.getBoundingClientRect().top));
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
+  expect(await nav.locator('[data-short]').evaluate(l => getComputedStyle(l, '::after').content)).toContain('Squad');
+  // The sub-navigation keeps each page on one line at 320 px.
+  const sub = await page.locator('nav.site-subnav a').evaluateAll(links => links.map(a => a.getBoundingClientRect().height));
+  for (const height of sub) expect(height).toBeLessThanOrEqual(48);
+});
+
+// H22: a shared link previews with the page's own words.
+test('every page carries a description and the card a shared link shows', async ({ page }) => {
+  for (const path of ['/match-centre', '/match-centre/leagues', '/match-centre/scouting', '/lineup', '/about']) {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('meta[name="description"]')).toHaveCount(1);
+    expect(await page.locator('meta[property="og:description"]').getAttribute('content'), path).toBeTruthy();
+    expect(await page.locator('meta[property="og:url"]').getAttribute('content'), path).toContain(path);
   }
 });

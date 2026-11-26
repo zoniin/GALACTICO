@@ -79,7 +79,7 @@ button.depth-name.selected{background:var(--gold);color:var(--on-selected);box-s
 <section class="ui-card pl-controls" aria-label="Your squad and targets">
 <label class="ui-field"><span class="ui-label">Squad as of</span><select id="scenario" class="ui-select" disabled></select></label>
 <label class="ui-field"><span class="ui-label">Formation</span><select id="formation" class="ui-select" disabled></select></label>
-<label class="ui-field"><span class="ui-label">Ball progression target</span><select id="targets" class="ui-select" disabled></select><span class="ui-help" id="targets-help"></span></label>
+<label class="ui-field pl-field-targets"><span class="ui-label">Ball progression target</span><select id="targets" class="ui-select" disabled></select><span class="ui-help" id="targets-help"></span></label>
 <div class="ui-field pl-wide"><span class="ui-label" id="departures-label">Departures</span><div class="pl-chips" id="departures" role="group" aria-labelledby="departures-label"></div></div>
 </section>
 
@@ -117,6 +117,8 @@ button.depth-name.selected{background:var(--gold);color:var(--on-selected);box-s
 
 <div class="pl-more">
 <details class="ui-disclosure" id="why-more"><summary>Why cover is thin <span class="ui-disclosure-summary" id="why-summary"></span></summary><div class="ui-disclosure-body">
+<div id="why-plain" class="sq-plain"></div>
+<details class="ui-disclosure pl-nested" id="why-record"><summary>Technical record: the counts as the solver states them</summary><div class="ui-disclosure-body">
 <section class="panel" aria-labelledby="thin-title"><div class="panel-head"><h2 id="thin-title" class="sq-subhead">Three causes, kept apart</h2><span class="badge">Counts, then placements decided by exact solves</span></div>
 <div id="thinness" class="thin-grid"></div>
 <p id="depth-statement" class="statement small"></p>
@@ -125,15 +127,18 @@ button.depth-name.selected{background:var(--gold);color:var(--on-selected);box-s
 <h3 class="sq-subhead">Under 900 minutes</h3>
 <div id="omitted-slot"></div>
 <p class="figure-note">These players are in the squad and in no count. Below 900 minutes a rate is not shown and not used. That is the gate, not a judgement.</p>
-</section></div></details>
+</section></div></details></div></details>
 
 <details class="ui-disclosure" id="targets-more"><summary>Targets and the league <span class="ui-disclosure-summary" id="targets-summary"></span></summary><div class="ui-disclosure-body">
 <section class="panel" aria-labelledby="minima-title"><h2 id="minima-title" class="sq-subhead">Your targets beside what league XIs did</h2>
+<div id="targets-plain" class="sq-plain"></div>
+<details id="declare"><summary>Set your own targets</summary><div id="editor"></div><p id="declare-status" class="small subtle" role="status"></p></details>
+<details class="ui-disclosure pl-nested" id="targets-record"><summary>Technical record: the targets and the league, as the solver states them</summary><div class="ui-disclosure-body">
 <p id="shortfall-statement" class="statement"></p>
 <div id="requirements"></div>
 <p id="reference-status" class="small subtle" role="status"></p>
 <p class="figure-note">The strip is what league starting elevens summed to before the cutoff: least to greatest, the box from the 25th to the 75th percentile. It describes; it does not prescribe. A target is your declaration. The gap is counted in units of this club's own median whatever the target, so gaps stay comparable across edits.</p>
-<details id="declare" open><summary>Set your own targets</summary><div id="editor"></div><p id="declare-status" class="small subtle" role="status"></p></details>
+</div></details>
 </section></div></details>
 
 <details class="ui-disclosure" id="stress-more"><summary>Advanced: when players are missing <span class="ui-disclosure-summary" id="stress-summary-line">Not run yet.</span></summary><div class="ui-disclosure-body">
@@ -195,16 +200,21 @@ button.depth-name.selected{background:var(--gold);color:var(--on-selected);box-s
      aria-label and title of a mark on the depth pitch (the player's name, the slot's label,
      which of the server's lists he is in at that slot: "available", "under 900 minutes, in no
      count" or "left out by you"; then, by his placement status there, "widens the gap to your
-     targets there" or "placement not evaluated"), the aria-label of the pitch (three server
-     counts) and the aria-label of a league reference strip (the server's label, least,
-     greatest, declared minimum and club median).
+     targets there" or "placement not evaluated") and the aria-label of a league reference
+     strip (the server's label, least, greatest, declared minimum and club median). The pitch's
+     own description is the server's (pitch_label); until it comes it is "Depth by position".
+   - The plain views of "Why cover is thin", "Targets and the league" and the player panel
+     (why, targets_view, reach, players of /api/squad/answer): every line is the server's,
+     printed as sent, with "target" before a target's figure and "Season profile" on his link.
    - Fixed labels in front of a server list, name, number or sentence, never a clause of their
      own. The cells of a row: "Slots", "Available", "Spare", "Below the gate, eligible there",
      "Absent", "Blocking slots", "Remaining there", "Excluded by you, eligible there", "Without
      them", "Change from the baseline", "Player", "Without him", "Recorded rate", "Row". The
      lines under a slot: "Under 900 minutes:", "Left out by you:", "Widens the gap to your
      targets here:", "Can play only here:", "Missing a measurement this position needs:",
-     "Declared for other positions only:", "Listed position only, no declared role:", and the
+     "Declared for other positions only:", "Listed position only, no declared role:",
+     "Goalkeepers count whatever their minutes:" (the shipped rule, before each keeper's
+     minutes), and the
      three counts beside its name ("available", "under 900 minutes", "left out"), its code (the
      server's slot id in capitals), "Thinnest" when the server named it, "Find cover" (the
      link's accessible name is the server's link label), and "Who else was considered". The lines of the player panel: "Why he is in no count", "Can play, under the
@@ -291,7 +301,6 @@ function waiting() {
 
 /* ---- The depth pitch: one mark per player and slot he is eligible for. ---------------- */
 function depthPitch(reply, selected) {
-  const counts = reply.player_counts ?? {};
   let zones = '', marks = '';
   for (const slot of list(reply.slots)) {
     const ax = 5 + slot.x * 90, ay = 5 + slot.y * 112;
@@ -314,12 +323,12 @@ function depthPitch(reply, selected) {
       let extra = '';
       if (raises) extra = `<line x1="${(+cx - 1.1).toFixed(2)}" y1="${(+cy + 2.4).toFixed(2)}" x2="${(+cx + 1.1).toFixed(2)}" y2="${(+cy + 2.4).toFixed(2)}"/>`;
       if (kind === 'excluded') extra = `<line x1="${(+cx - 1.1).toFixed(2)}" y1="${(+cy + 1.1).toFixed(2)}" x2="${(+cx + 1.1).toFixed(2)}" y2="${(+cy - 1.1).toFixed(2)}"/>`;
-      marks += `<g class="depth-mark ${kind}${p.player_id === selected ? ' selected' : ''}" data-player="${p.player_id}" data-slot="${esc(slot.slot_id)}" data-pinned="${esc(status)}" tabindex="0" role="button" aria-label="${esc(label)}"><title>${esc(label)}</title><rect x="${(+cx - 1.9).toFixed(2)}" y="${(+cy - 1.9).toFixed(2)}" width="3.8" height="3.8" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="1.6"/>${extra}${Site.focusRing(cx, cy, 2.3)}</g>`;
+      marks += `<g class="depth-mark ${kind}${p.player_id === selected ? ' selected' : ''}" data-player="${p.player_id}" data-slot="${esc(slot.slot_id)}" data-pinned="${esc(status)}" tabindex="-1" role="button" aria-label="${esc(label)}"><title>${esc(label)}</title><rect x="${(+cx - 1.9).toFixed(2)}" y="${(+cy - 1.9).toFixed(2)}" width="3.8" height="3.8" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="1.6"/>${extra}${Site.focusRing(cx, cy, 2.3)}</g>`;
     });
     const a = list(slot.available).length, b = list(slot.below_gate).length, e = list(slot.excluded).length;
     marks += `<text x="${ax}" y="${(ay + (rows - 1) * 3.8 + 4.7).toFixed(2)}" font-size="2.2" text-anchor="middle" data-slot-count="${esc(slot.slot_id)}">${a}${b ? ' +' + b : ''}${e ? ' −' + e : ''}</text>`;
   }
-  const label = `Depth by position: ${num(counts.available, 0)} available squad players, ${num(counts.below_gate, 0)} under 900 minutes, ${num(counts.excluded, 0)} left out by you`;
+  const label = typeof state.answer?.pitch_label === 'string' ? state.answer.pitch_label : 'Depth by position';
   return `<svg class="pitch depth" id="depth-pitch" viewBox="0 0 100 126" role="img" aria-label="${esc(label)}">${PITCH_MARKS}${zones}${marks}</svg>`;
 }
 
@@ -340,6 +349,7 @@ function depthList(reply, selected) {
     return `<li data-slot="${esc(slot.slot_id)}"><div class="sq-slot-head"><span class="sq-slot-title"><span class="slot-name">${esc(slotName(slot))}</span> <span class="sq-slot-code">${code(slot)}</span></span><span class="slot-count"><span data-value="${a.length}">${a.length}</span> available · <span data-value="${b.length}">${b.length}</span> under 900 minutes · <span data-value="${e.length}">${e.length}</span> left out</span><span class="sq-thin-slot"></span></div>` +
       (a.length ? `<div class="depth-names" data-stage="available">${a.map(p => nameButton(p, selected)).join('')}</div>` : '<div class="depth-line">No available player.</div>') +
       (b.length ? `<div class="depth-line" data-stage="below-gate">Under 900 minutes: ${b.map(p => `${nameButton(p, selected)} ${GP.value(p.minutes, 0)} min`).join(', ')}</div>` : '') +
+      (slot.slot_id === 'gk' && a.length ? `<div class="depth-line" data-stage="keepers">Goalkeepers count whatever their minutes: ${a.map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min`).join(', ')}</div>` : '') +
       (e.length ? `<div class="depth-line" data-stage="excluded">Left out by you: ${e.map(p => nameButton(p, selected)).join(', ')}</div>` : '') +
       (more ? `<details class="sq-slot-more"><summary>Who else was considered</summary>${more}</details>` : '') +
       '</li>';
@@ -372,7 +382,7 @@ function thinness(reply) {
       if (lines) lines = `<div class="depth-line">${lines}</div><div class="depth-line">${esc(t.placements.statement)}</div>`;
     } else {
       figure = `${GP.value(t.kappa_before, 0)}<span class="arrow">→</span>${GP.value(t.kappa_after, 0)}`;
-      if (t.kind === 'GATE' && list(t.players).length) lines = `<div class="depth-line">Under 900 minutes: ${list(t.players).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min (${list(p.eligible_slots).map(s => esc(s.label)).join(', ')})`).join('; ')}</div>`;
+      if (t.kind === 'GATE' && list(t.players).length) lines = `<div class="depth-line">Under 900 minutes: ${list(t.players).map(p => `${esc(p.name)} ${GP.value(p.minutes, 0)} min (${list(p.eligible_slots).map(s => esc(slotName(s))).join(', ')})`).join('; ')}</div>`;
     }
     return `<div class="thin" data-thinness="${esc(t.kind)}"><span class="label">${esc(t.label)}</span><div class="thin-figure">${figure}</div><div class="thin-caption" data-part="caption">${typeof t.caption === 'string' ? esc(t.caption) : ''}</div><p>${esc(t.statement)}</p>${lines}</div>`;
   }).join('');
@@ -437,15 +447,39 @@ function playerOptions() {
     (omitted.length ? `<optgroup label="Under 900 minutes">${omitted.map(option).join('')}</optgroup>` : '');
 }
 
+// The player panel: the server's plain view of him (/api/squad/answer players), printed as
+// sent. Until the answer comes, the solver's own lines below.
+function plainDetail(view, name, member) {
+  const removal = list(state.stress?.single_absences).find(r => r.player_id === state.selected);
+  return `<h3>${esc(name)}${member?.state === 'EXCLUDED' ? ' ' + GP.declared() : ''}</h3>` +
+    `<p class="player-facts">${esc(view.position)} · ${esc(view.minutes_text)}${typeof view.facts_text === 'string' ? ' · ' + esc(view.facts_text) : ''}</p>` +
+    '<ul class="player-lines">' + `<li data-part="places">${esc(view.places_text)}</li>` +
+    (list(view.rates).length ? `<li data-part="rates">${list(view.rates).map(esc).join('<br>')}</li>` : '') +
+    (typeof view.state_text === 'string' ? `<li data-part="state">${esc(view.state_text)}</li>` : '') +
+    list(view.placements).map(pl => `<li data-slot="${esc(pl.slot_id)}" data-part="placement">${esc(pl.text)}</li>`).join('') +
+    (typeof view.keeper_note === 'string' ? `<li data-part="keeper">${esc(view.keeper_note)}</li>` : '') +
+    (removal ? `<li data-removal="${esc(removal.outcome)}"><span class="label">When he is missing</span>${esc(removal.outcome_label)}${removal.objective_vector ? ': ' + pair(removal.objective_vector) : ''}.</li>` : '') +
+    '</ul>' + (typeof view.profile_href === 'string' && /^\/player\?/.test(view.profile_href) ? `<p class="sq-profile"><a class="ui-link" href="${esc(view.profile_href)}">Season profile</a></p>` : '');
+}
+
 function playerDetail() {
   const reply = depth(), id = state.selected, button = $('#exclude-player');
   button.classList.add('hidden');
   if (id === null) return `<p class="small subtle">${COPY.pick}</p>`;
   const member = squad().find(p => p.player_id === id);
+  const view = state.answer?.players?.[String(id)];
+  if (view) {
+    const out = list(reply?.omitted).find(p => p.player_id === id);
+    if (member) {
+      button.classList.remove('hidden');
+      button.textContent = (member.state === 'EXCLUDED' ? 'Put back ' : 'Leave out ') + member.name;
+    }
+    return plainDetail(view, member?.name ?? out?.name ?? '', member);
+  }
   if (!member) {
     const out = list(reply?.omitted).find(p => p.player_id === id);
     if (!out) return `<p class="small subtle">${COPY.pick}</p>`;
-    return `<h3>${esc(out.name)}</h3><p class="player-facts">${esc(out.position)} · ${GP.value(out.minutes, 0)} minutes</p><ul class="player-lines"><li><span class="label">Why he is in no count</span>${esc(out.reason)}</li><li><span class="label">Can play, under the rules, at</span>${list(out.eligible_slots).map(s => esc(s.label)).join(', ') || 'No position of this formation.'}</li></ul>`;
+    return `<h3>${esc(out.name)}</h3><p class="player-facts">${esc(out.position)} · ${GP.value(out.minutes, 0)} minutes</p><ul class="player-lines"><li><span class="label">Why he is in no count</span>${esc(out.reason)}</li><li><span class="label">Can play, under the rules, at</span>${list(out.eligible_slots).map(s => esc(slotName(s))).join(', ') || 'No position of this formation.'}</li></ul>`;
   }
   button.classList.remove('hidden');
   button.textContent = (member.state === 'EXCLUDED' ? 'Put back ' : 'Leave out ') + member.name;
@@ -463,7 +497,7 @@ function playerDetail() {
   return `<h3>${esc(member.name)}${member.state === 'EXCLUDED' ? ' ' + GP.declared() : ''}</h3>` +
     `<p class="player-facts">${esc(member.position)} · ${GP.value(member.minutes, 0)} minutes · matches ${GP.value(member.matches, 0)}, starts ${GP.value(member.starts, 0)} · age ${GP.value(member.age_years, 0)} · foot ${esc(member.foot ?? DASH)}</p>` +
     '<ul class="player-lines">' +
-    `<li><span class="label">Eligibility rule</span><span data-part="roles">${list(member.role_labels).length ? 'Declared roles: ' + list(member.role_labels).map(esc).join(', ') + '.' : 'Provider position only.'}</span> Slots: ${list(member.eligible_slots).map(s => esc(s.label)).join(', ') || 'none in this formation'}.</li>` +
+    `<li><span class="label">Eligibility rule</span><span data-part="roles">${list(member.role_labels).length ? 'Declared roles: ' + list(member.role_labels).map(esc).join(', ') + '.' : 'Provider position only.'}</span> Slots: ${list(member.eligible_slots).map(s => esc(slotName(s))).join(', ') || 'none in this formation'}.</li>` +
     `<li><span class="label">His recorded rates</span>${rates}</li>` +
     (member.state === 'EXCLUDED' ? '<li><span class="label">State</span>Left out by you from every count.</li>' : placements) +
     (removal ? `<li data-removal="${esc(removal.outcome)}"><span class="label">When he is missing</span>${esc(removal.outcome_label)}${removal.objective_vector ? ': ' + pair(removal.objective_vector) : ''}.</li>` : '') +
@@ -476,6 +510,7 @@ function markSelection() {
   for (const el of document.querySelectorAll('#removals-ledger > li[data-player]')) el.classList.toggle('gp-selected', el.dataset.player === id);
   $('#player').innerHTML = playerOptions();
   $('#player-detail').innerHTML = playerDetail();
+  rove();
 }
 
 /* ---- Absence stress. --------------------------------------------------------------- */
@@ -541,7 +576,7 @@ function removalRow(row) {
     {label: 'Player', html: `${GP.nameButton(row)}<div class="small subtle">${esc(row.position)} · ${GP.value(row.minutes, 0)} min</div>`},
     {label: 'Without him', html: without},
     {label: 'Recorded rate', html: row.outside_requirements ? 'No number on any requirement.' : requirements.map(r => `${esc(r.label)}: ${GP.value(row.requirement_values?.[r.requirement_id], 3, {approx: true})}`).join('<br>')},
-    {label: 'Slots', html: list(row.eligible_slots).map(s => esc(s.label)).join(', ') || DASH},
+    {label: 'Slots', html: list(row.eligible_slots).map(s => esc(slotName(s))).join(', ') || DASH},
   ], {selected: row.player_id === state.selected, data: {player: row.player_id, outcome: row.outcome, attribution: row.core?.attribution ?? ''}});
 }
 
@@ -613,8 +648,23 @@ function renderAnswer() {
   const links = list(a.thin).filter(t => typeof t.href === 'string' && /^\/(?!\/)/.test(t.href));
   $('#handoff').innerHTML = links.length ? links.map((t, i) => `<a class="ui-btn${i === 0 ? ' ui-btn-primary' : ''}" href="${esc(t.href)}" data-slot="${esc(t.slot_id)}">${esc(t.link_label)}</a>`).join('') : '';
   for (const [key, id] of [['why', '#why-summary'], ['targets', '#targets-summary'], ['about', '#about-summary'], ['source', '#about-source']]) $(id).textContent = a.summaries?.[key] ?? '';
-  markThin();
-  if (typeof a.share_href === 'string' && /^\/squad\?/.test(a.share_href)) history.replaceState(null, '', a.share_href);
+  if (typeof a.pitch_label === 'string') $('#depth-pitch')?.setAttribute('aria-label', a.pitch_label);
+  renderPlain(); renderTargets(); markThin(); markSelection();
+  // A reader's change adds a history entry, so Back undoes it; the first answer and a step
+  // through history only rewrite the address (AR-3).
+  if (typeof a.share_href === 'string' && /^\/squad\?/.test(a.share_href)) {
+    if (state.push && location.pathname + location.search !== a.share_href) history.pushState(null, '', a.share_href);
+    else history.replaceState(null, '', a.share_href);
+  }
+  state.push = false;
+}
+
+// "Why cover is thin" and "Targets and the league" in the glossary's words: the server's lines.
+function renderPlain() {
+  const a = state.answer, why = a?.why;
+  $('#why-plain').innerHTML = why ? list(why.items).map(i => `<div class="sq-why" data-kind="${esc(i.kind)}"><h3 class="sq-subhead">${esc(i.title)}</h3><p>${esc(i.line)}</p>${typeof i.players === 'string' ? `<p class="small subtle">${esc(i.players)}</p>` : ''}${typeof i.note === 'string' ? `<p class="small subtle">${esc(i.note)}</p>` : ''}</div>`).join('') +
+    (list(why.groups).length ? `<h3 class="sq-subhead">Groups of positions with the least spare</h3><ul class="sq-groups">${list(why.groups).map(g => `<li data-slots="${esc(list(g.slot_ids).join('-'))}"><strong>${esc(g.positions)}</strong>: ${esc(g.line)}${typeof g.under === 'string' ? `<div class="small subtle">${esc(g.under)}</div>` : ''}</li>`).join('')}</ul><p class="figure-note">${esc(why.groups_note)}</p>` : '') : '';
+  $('#targets-plain').innerHTML = list(a?.targets_view).map(t => `<div class="sq-target" data-requirement="${esc(t.requirement_id)}"><p class="sq-target-head"><strong>${esc(t.name)}</strong> target <span class="sq-target-value">${esc(t.target_text)}</span> <span class="subtle">(${esc(t.source_text)})</span></p><p class="small subtle">${esc(t.unit)}</p>${typeof t.most_text === 'string' ? `<p>${esc(t.most_text)}</p>` : ''}${typeof t.league_text === 'string' ? `<p class="small">${esc(t.league_text)}</p>` : ''}</div>`).join('');
 }
 
 /* ---- Controls and what a child question may be asked of. ----------------------------- */
@@ -656,9 +706,15 @@ const menuOffered = () => list(state.targets?.options).filter(o => list(state.ca
 function renderTargets() {
   const presets = list(state.catalogue?.presets);
   const on = menuOffered().find(o => GP.presetPressed(presets.find(p => p.id === o.preset_id), {excludes: state.excludes, draft: state.draft}));
+  // The server's target that binds for this squad (reach.binding): just above the most any XI
+  // of it reaches. Pressed when it is exactly what is declared.
+  const reach = state.answer?.reach?.binding;
+  const drafted = list(state.draft?.requirements);
+  const reachOn = !on && reach && drafted.length === 1 && drafted[0].requirement_id === 'progression' && drafted[0].source === 'EXPLICIT' && drafted[0].value === reach.value;
   $('#targets').innerHTML = menuOffered().map(o => `<option value="${esc(o.preset_id)}"${o === on ? ' selected' : ''}>${esc(o.label)}</option>`).join('') +
-    (on ? '' : `<option value="" selected>${esc(state.targets?.custom_label ?? '')}</option>`);
-  $('#targets-help').textContent = on?.help ?? '';
+    (reach ? `<option value="reach"${reachOn ? ' selected' : ''}>${esc(reach.label)}</option>` : '') +
+    (on || reachOn ? '' : `<option value="" selected>${esc(state.targets?.custom_label ?? '')}</option>`);
+  $('#targets-help').textContent = reachOn ? reach.help : [on?.help, state.answer?.reach?.line].filter(t => typeof t === 'string').join(' ');
   const offered = list(state.targets?.departures).filter(d => !Array.isArray(d.scenario_ids) || d.scenario_ids.includes(state.scenarioId));
   const covered = new Set();
   const chips = offered.map(d => {
@@ -702,9 +758,11 @@ function renderAudit() {
   statement.classList.toggle('error', unfieldable());
   statement.innerHTML = `<span data-kind="${esc(reply.baseline?.kind)}">${esc(reply.baseline?.statement)}</span>` + (unfieldable() ? ' ' + esc(reply.model_statement) : '');
   $('#requirements').innerHTML = requirementRows();
-  $('#editor').innerHTML = GP.editor(reply.inputs.requirements, state.catalogue, state.draft, {applyLabel: 'Apply these targets'});
+  // Each target by the name the pages give it (/api/planning/targets), the lab's label else.
+  const titled = list(reply.inputs.requirements).map(r => ({...r, label: state.targets?.requirement_titles?.[r.requirement_id] ?? r.label}));
+  $('#editor').innerHTML = GP.editor(titled, state.catalogue, state.draft, {applyLabel: 'Apply these targets'});
   $('#declare-status').textContent = '';
-  $('#omitted-slot').innerHTML = GP.omitted(reply.omitted);
+  $('#omitted-slot').innerHTML = GP.omitted(reply.omitted, state.targets?.slot_labels);
   $('#model-line').textContent = reply.model_line;
   $('#stress-status').textContent = stressIdle(); // every audit starts by dropping the stress reply
   const keeper = list(snapshot.slots).filter(s => s.recruitable === false);
@@ -719,7 +777,8 @@ function renderAudit() {
 }
 
 /* ---- Requests. A reply is applied only while its ticket is live. ---------------------- */
-async function audit() {
+async function audit(options = {}) {
+  state.push = options.push === true;
   const body = GP.body({scenario_id: state.scenarioId, formation: state.formation, excludes: state.excludes, locks: [], presets: []}, state.draft);
   const ticket = GP.ticket(T.audit);
   state.auditInput = null; state.busy = true;
@@ -805,35 +864,61 @@ function select(id) {
 $('#scenario').addEventListener('change', event => {
   state.scenarioId = event.target.value; state.excludes = []; state.selected = null;
   state.draft = {requirements: [], experimental_opt_in: false};
-  audit();
+  audit({push: true});
 });
-$('#formation').addEventListener('change', event => { state.formation = event.target.value; audit(); });
+$('#formation').addEventListener('change', event => { state.formation = event.target.value; audit({push: true}); });
 $('#targets').addEventListener('change', event => {
+  const reach = state.answer?.reach?.binding;
+  if (event.target.value === 'reach' && reach) {
+    state.draft = {requirements: [{requirement_id: 'progression', source: 'EXPLICIT', value: reach.value}], experimental_opt_in: state.draft?.experimental_opt_in === true};
+    audit({push: true});
+    return;
+  }
   const preset = list(state.catalogue.presets).find(p => p.id === event.target.value);
   if (!preset) { $('#targets-more').open = true; $('#editor').scrollIntoView({block: 'nearest'}); return; }
   const next = GP.applyPreset(state.draft, preset);
   if (!next) return;
   state.draft = next;
-  audit();
+  audit({push: true});
 });
 $('#departures').addEventListener('click', event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  if (button.dataset.player) { state.excludes = state.excludes.filter(id => String(id) !== button.dataset.player); audit(); return; }
+  if (button.dataset.player) { state.excludes = state.excludes.filter(id => String(id) !== button.dataset.player); audit({push: true}); return; }
   const preset = list(state.catalogue.presets).find(p => p.id === button.dataset.preset);
   const out = list(preset?.sets?.excludes);
   if (!out.length) return;
   const on = out.every(id => state.excludes.includes(id));
   state.excludes = on ? state.excludes.filter(id => !out.includes(id)) : state.excludes.concat(out.filter(id => !state.excludes.includes(id)));
-  audit();
+  audit({push: true});
 });
 $('#exclude-player').addEventListener('click', () => {
   const id = state.selected;
   if (id === null) return;
   state.excludes = state.excludes.includes(id) ? state.excludes.filter(x => x !== id) : state.excludes.concat([id]);
-  audit();
+  audit({push: true});
 });
 $('#player').addEventListener('change', event => select(event.target.value === '' ? null : Number(event.target.value)));
+// The depth pitch is one stop for the keyboard (A11Y-6): the selected mark, else the first,
+// takes the focus; the arrow keys move along the marks in drawing order.
+function rove() {
+  const marks = [...document.querySelectorAll('#depth-pitch .depth-mark')];
+  if (!marks.length) return;
+  const current = marks.find(m => m.classList.contains('selected')) ?? marks[0];
+  for (const m of marks) m.tabIndex = m === current ? 0 : -1;
+}
+$('#depth-pitch-slot').addEventListener('keydown', event => {
+  const keys = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1, Home: 'first', End: 'last'};
+  if (!(event.key in keys)) return;
+  const marks = [...document.querySelectorAll('#depth-pitch .depth-mark')], at = marks.indexOf(document.activeElement);
+  if (at < 0) return;
+  event.preventDefault();
+  const step = keys[event.key];
+  const next = step === 'first' ? 0 : step === 'last' ? marks.length - 1 : (at + step + marks.length) % marks.length;
+  for (const m of marks) m.tabIndex = -1;
+  marks[next].tabIndex = 0;
+  marks[next].focus();
+});
 for (const area of ['#depth-pitch-slot', '#depth-list', '#removals']) {
   const pick = event => {
     const el = event.target.closest('[data-player]');
@@ -858,7 +943,7 @@ editor.addEventListener('click', event => {
   const draft = GP.readDraft(editor);
   if (!draft) { $('#declare-status').textContent = GP.COPY.incomplete; return; }
   state.draft = draft;
-  audit();
+  audit({push: true});
 });
 $('#stress-k').addEventListener('click', event => {
   const button = event.target.closest('button[data-k]');
@@ -877,18 +962,31 @@ $('#brief-slot').addEventListener('change', briefChanged);
 $('#brief-leagues').addEventListener('change', briefChanged);
 $('#run-brief').addEventListener('click', runBrief);
 
+// The problem the address carries: the club, the formation, the departures and the targets.
+function readAddress() {
+  const catalogue = state.catalogue, link = GP.fromQuery(location.search);
+  const known = [...list(catalogue.scenarios), ...state.clubs].map(s => s.scenario_id);
+  state.scenarioId = known.includes(link.scenario_id) ? link.scenario_id : catalogue.default_scenario;
+  state.formation = list(catalogue.formations).includes(link.formation) ? link.formation : list(catalogue.formations)[0] ?? '4-3-3';
+  state.excludes = link.excludes;
+  state.draft = link.stated ? link.draft : {requirements: [], experimental_opt_in: false};
+}
+// Back and forward through the reader's changes: the address is read again and answered.
+window.addEventListener('popstate', () => {
+  if (!state.catalogue) return;
+  readAddress();
+  $('#scenario').value = state.scenarioId; $('#formation').value = state.formation;
+  audit();
+});
+
 async function boot() {
   try {
     const [catalogue, clubs, targets] = await Promise.all([api('/api/squad/scenarios'), api('/api/squad/clubs').then(r => r.clubs, () => []), api('/api/planning/targets').catch(() => null)]);
     state.catalogue = catalogue; state.clubs = list(clubs); state.targets = targets;
+    GP.useWords(targets?.status_words);
     // A link from Signings, or one shared, carries the problem: the club, the formation, the
     // departures and the targets. The server refuses what it does not accept.
-    const link = GP.fromQuery(location.search);
-    const known = [...list(catalogue.scenarios), ...state.clubs].map(s => s.scenario_id);
-    state.scenarioId = known.includes(link.scenario_id) ? link.scenario_id : catalogue.default_scenario;
-    state.formation = list(catalogue.formations).includes(link.formation) ? link.formation : list(catalogue.formations)[0] ?? '4-3-3';
-    state.excludes = link.excludes;
-    if (link.stated) state.draft = link.draft;
+    readAddress();
     $('#scenario').innerHTML = GP.scenarioOptions(catalogue, state.clubs, state.scenarioId, targets?.scenario_labels);
     $('#formation').innerHTML = GP.formationOptions(catalogue, state.formation);
     const scenario = list(catalogue.scenarios).find(s => s.scenario_id === state.scenarioId) ?? list(catalogue.scenarios)[0];

@@ -5,17 +5,24 @@
 
    The board opens on the day the server picks (today, or the nearest day with fixtures) and
    steps from one day with fixtures to the next. Every sentence about football on this page is
-   the server's (R10): the answer, how far each competition's results reach, the goals note. The
-   browser filters what it was sent and draws it; it orders nothing the server did not order. */
+   the server's (R10): the answer, the line on how far the free feeds' results reach, the board's
+   order and its day in words, the report's goals note and its recent-form caption. The browser
+   filters what it was sent and draws it; it orders nothing the server did not order. A kick-off
+   is shown in the reader's time zone, from the instant the server sends (Site.kickoff).
+
+   The address holds the view: the day, the competition, the filter and the match. A step to
+   another day and a report opened are steps in the browser's history (Back undoes them); a
+   filter or a competition replaces the address. */
 
 const $ = id => document.getElementById(id);
-const params = new URLSearchParams(location.search);
 const STORE = 'galactico.saved-fixtures';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const FILTERS = ['all', 'madrid', 'saved', 'live'];
 const state = {today: '', source: 'openfootball', day: '', filter: 'all', league: '', board: null,
   saved: new Set(), savedBoard: null, key: '', detail: null, section: '', summary: null,
-  listVersion: 0, reportVersion: 0, savedVersion: 0, archive: null};
+  competitions: {}, listVersion: 0, reportVersion: 0, savedVersion: 0, archive: null,
+  range: null, missing: null};
 try {
   const ids = JSON.parse(localStorage.getItem(STORE) || '[]');
   if (Array.isArray(ids)) state.saved = new Set(ids.filter(id => typeof id === 'string'));
@@ -53,6 +60,9 @@ function season(day) {
   const [year, month] = day.split('-').map(Number);
   return month >= 7 ? year : year - 1;
 }
+function kickoff(game) {
+  return window.Site && Site.kickoff ? Site.kickoff(game) : (game.kickoff ? {text: game.kickoff, local: false} : null);
+}
 class Unavailable extends Error {}
 // Public replies may come from the shared cache; the private feed's never do.
 async function get(url) {
@@ -66,6 +76,7 @@ async function get(url) {
     const body = await response.json().catch(() => ({}));
     const error = response.status === 503 ? new Unavailable(body.detail) : new Error(body.detail);
     error.status = response.status;
+    error.detail = body.detail;
     throw error;
   }
   return response.json();
@@ -80,13 +91,21 @@ function problem(error, what, retry) {
   box.append(button('Retry', retry, 'ui-btn'));
   return box;
 }
-function updateUrl() {
+function address() {
   const query = new URLSearchParams();
   if (state.day) query.set('day', state.day);
   if (state.source !== 'openfootball') query.set('source', state.source);
   if (state.league) query.set('league', state.league);
+  if (state.filter !== 'all') query.set('filter', state.filter);
   if (state.key) query.set('match', state.key);
-  history.replaceState(null, '', location.pathname + (query.toString() ? '?' + query : ''));
+  return location.pathname + (query.toString() ? '?' + query : '');
+}
+// A step (another day, a report opened) is a history entry; a filter replaces the address.
+function updateUrl(step = false) {
+  const next = address();
+  if (next === location.pathname + location.search) return;
+  if (step) history.pushState(null, '', next);
+  else history.replaceState(null, '', next);
 }
 function storeSaved() {
   try { localStorage.setItem(STORE, JSON.stringify([...state.saved])); } catch { /* this visit only */ }
@@ -95,41 +114,21 @@ function storeSaved() {
 // ------------------------------------------------------------------ the answer
 
 function renderSummary() {
-  const data = state.summary, answer = $('answer'), actions = $('answer-actions');
-  answer.replaceChildren(data.answer || data.unavailable);
-  actions.replaceChildren();
+  const data = state.summary;
+  $('answer').replaceChildren(data.answer || data.unavailable);
+  const jumps = [];
   for (const [game, label] of [[data.last, 'Last result'], [data.next, 'Next match']]) {
     if (!game) continue;
     const open = button(label, () => changeDay(game.day, game.id, true), 'ui-btn');
     open.append(el('span', '›', 'mc-arrow'));
     open.lastChild.setAttribute('aria-hidden', 'true');
-    actions.append(open);
+    jumps.push(open);
   }
-  renderFreshness();
+  $('jumps').replaceChildren(...jumps);
+  // How far the free feeds reach, in one line: the competitions whose feeds end early,
+  // in the server's words. Nothing when every competition is up to date.
   $('lag').textContent = data.lag || '';
-  $('lag').hidden = !data.lag;
-}
-// Results through: a chip for each competition the page shows now (the board's day, Real
-// Madrid's next and last match); the others behind "More competitions".
-function freshChip(item) {
-  const entry = el('li', null, 'mc-fresh-item');
-  if (item.stale) entry.dataset.stale = 'true';
-  entry.append(el('span', item.competition, 'mc-fresh-name'),
-    el('span', item.through_label || 'none yet', 'mc-fresh-date'));
-  if (item.stale) entry.append(el('span', ', later results missing', 'sr-only'));
-  return entry;
-}
-function renderFreshness() {
-  const items = state.summary?.freshness || [];
-  const shown = new Set([state.summary?.next?.code, state.summary?.last?.code]);
-  if (state.filter !== 'saved') for (const game of state.board?.matches || []) shown.add(game.code);
-  const near = items.filter(item => shown.has(item.code));
-  const rest = items.filter(item => !shown.has(item.code));
-  $('freshness-list').replaceChildren(...near.map(freshChip));
-  $('freshness-more-list').replaceChildren(...rest.map(freshChip));
-  $('freshness-more-count').textContent = rest.length;
-  $('freshness-more').hidden = !rest.length;
-  $('freshness').hidden = !items.length;
+  $('freshness').hidden = !data.lag;
 }
 async function loadSummary() {
   try {
@@ -142,7 +141,7 @@ async function loadSummary() {
     if (state.filter === 'madrid') renderBoard();
   } catch (error) {
     $('answer').replaceChildren(problem(error, 'Real Madrid’s fixtures', loadSummary));
-    $('answer-actions').replaceChildren();
+    $('jumps').replaceChildren();
     if (!state.key && !state.detail) clearReport();
   }
 }
@@ -154,14 +153,17 @@ function fixture(game) {
   if (game.madrid) row.dataset.madrid = 'true';
   const winner = game.score && game.score[0] !== game.score[1]
     ? (game.score[0] > game.score[1] ? 0 : 1) : -1;
-  const pick = button('', () => openReport(game.id, {focus: true}), 'mc-pick');
+  const pick = button('', () => openReport(game.id, {focus: true, step: true}), 'mc-pick');
+  pick.dataset.id = game.id;
   pick.setAttribute('aria-label', game.home + ' v ' + game.away + ', ' + game.status);
   pick.setAttribute('aria-current', String(state.key === game.id));
-  const phase = game.live ? game.status : game.status === 'Scheduled' ? game.kickoff || 'TBC'
+  const time = game.status === 'Scheduled' ? kickoff(game) : null;
+  const phase = game.live ? game.status : game.status === 'Scheduled' ? (time ? time.text : 'TBC')
     : game.status === 'Result pending' ? 'Pending' : game.status;
   const status = el('span', phase, 'mc-phase');
   if (game.live) status.dataset.live = 'true';
   if (game.status === 'Result pending') status.dataset.pending = 'true';
+  if (time && !time.local) status.title = 'Local time, as the source publishes it';
   const teams = el('span', null, 'mc-teams');
   [game.home, game.away].forEach((name, side) => {
     const line = el('span', null, 'mc-teamline');
@@ -203,11 +205,16 @@ function empty(list, message, ...jumps) {
   const box = el('div', null, 'ui-empty mc-empty');
   box.append(el('p', message));
   const row = el('div', null, 'mc-empty-actions');
-  for (const [label, day, key] of jumps) if (day) row.append(button(label, () => changeDay(day, key || '')));
+  for (const [label, day, key] of jumps) if (day) row.append(button(label, () => changeDay(day, key || '', Boolean(key))));
   if (row.childNodes.length) box.append(row);
   list.append(box);
 }
-function renderDaybar() {
+function setStep(control, target) {
+  // A step with nowhere to go says so, and stays where focus can rest (H19).
+  control.setAttribute('aria-disabled', String(!target));
+  control.dataset.day = target || '';
+}
+function renderDaybar(loading = false) {
   const saved = state.filter === 'saved', board = state.board;
   $('board-day').textContent = saved ? 'Saved matches' : state.day ? niceDay(state.day) : 'Fixtures';
   $('day-tag').hidden = saved || !state.day || state.day !== state.today;
@@ -216,20 +223,53 @@ function renderDaybar() {
     control.hidden = saved;
     // The public feeds say which days have fixtures; the private feed steps one day at a time.
     const target = state.source === 'api_football' ? (state.day ? shift(state.day, offset) : '') : board?.[key];
-    control.disabled = !target;
-    control.dataset.day = target || '';
+    // While the day loads the step keeps its place and its focus; it waits for the reply.
+    if (!loading) setStep(control, target);
+    if (loading) control.setAttribute('aria-disabled', 'true');
     control.querySelector('.mc-step-text').textContent = target ? niceDay(target, false) : fallback;
     control.setAttribute('aria-label', (offset < 0 ? 'Previous day with fixtures' : 'Next day with fixtures')
       + (target ? ': ' + niceDay(target) : ''));
   }
   $('day').closest('.mc-date').hidden = saved;
-  $('league').closest('label').hidden = saved || state.source !== 'openfootball';
+  $('comps').hidden = saved || state.source !== 'openfootball';
+  // The board's declared order and the zone its times are in, said once under the day.
+  const order = !saved && board?.order;
+  $('order').hidden = !order;
+  if (order) {
+    const games = board.matches || [];
+    const published = games.some(g => g.kickoff && !g.kickoff_utc);
+    $('order').textContent = order + (published ? ' Times as each source publishes them.' : ' Times in your time zone.');
+  }
+  // The season the board shows, in the header's chip, when it is not the current one.
+  if (window.Site && Site.season) {
+    Site.season(board?.season && state.day && season(state.day) !== season(state.today) ? board.season : null);
+  }
+}
+function renderComps() {
+  const tabs = $('comps');
+  const codes = ['', ...Object.keys(state.competitions)];
+  tabs.replaceChildren(...codes.map(code => {
+    const tab = button(code ? state.competitions[code] : 'All', () => chooseLeague(code), 'ui-tab');
+    tab.setAttribute('role', 'tab');
+    tab.dataset.code = code;
+    tab.setAttribute('aria-selected', String(code === state.league));
+    tab.setAttribute('aria-controls', 'fixtures');
+    tab.tabIndex = code === state.league ? 0 : -1;
+    return tab;
+  }));
+}
+function chooseLeague(code, focus = false) {
+  state.league = code;
+  renderComps();
+  if (focus) $('comps').querySelector('[aria-selected="true"]')?.focus();
+  updateUrl();
+  renderBoard();
 }
 function renderBoard() {
   renderDaybar();
-  renderFreshness();
   const list = $('fixtures');
   if (state.filter === 'saved') return renderSaved(list);
+  if (state.missing) return renderMissing(list);
   if (!state.board) return;
   list.replaceChildren();
   list.setAttribute('aria-busy', 'false');
@@ -247,6 +287,7 @@ function renderBoard() {
       group = [];
     }
   }
+  fitColumns();
   if (visible.length) return;
   const jumps = [['‹ ' + (state.board.previous ? niceDay(state.board.previous, false) : ''), state.board.previous],
     [(state.board.next ? niceDay(state.board.next, false) : '') + ' ›', state.board.next]];
@@ -257,10 +298,22 @@ function renderBoard() {
   } else if (state.filter === 'live') {
     empty(list, 'No match is live right now.');
   } else if (state.league) {
-    empty(list, 'No ' + ($('league').selectedOptions[0]?.text || 'matches') + ' matches on this day.', ...jumps);
+    empty(list, 'No ' + (state.competitions[state.league] || '') + ' matches on this day.', ...jumps);
   } else {
     empty(list, 'No matches on this day.', ...jumps);
   }
+  fitColumns();
+}
+// A day the free feeds hold no schedule for: the server's line, and the way back (H10).
+function renderMissing(list) {
+  list.setAttribute('aria-busy', 'false');
+  const box = el('div', null, 'ui-empty mc-empty mc-missing');
+  box.append(el('p', state.missing));
+  const row = el('div', null, 'mc-empty-actions');
+  row.append(button('Back to today', () => changeDay('', '', false, true), 'ui-btn ui-btn-primary'));
+  box.append(row);
+  list.replaceChildren(box);
+  fitColumns();
 }
 function renderSaved(list) {
   list.replaceChildren();
@@ -287,8 +340,9 @@ function renderSaved(list) {
       group = [];
     }
   }
-  const gone = data.missing.filter(id => state.saved.has(id)).length;
-  if (gone) list.append(el('p', gone + (gone === 1 ? ' saved match is' : ' saved matches are') + ' no longer in the feeds.', 'mc-meta'));
+  // The line for saved matches gone from the feeds is the server's (R10).
+  if (data.missing_note && data.missing.some(id => state.saved.has(id))) list.append(el('p', data.missing_note, 'mc-meta'));
+  fitColumns();
 }
 function skeleton() {
   const box = el('div', null, 'mc-skeleton');
@@ -304,7 +358,7 @@ async function loadSaved() {
   try {
     const query = new URLSearchParams();
     for (const id of ids) query.append('id', id);
-    const data = ids.length ? await get('/api/match-centre/saved?' + query) : {matches: [], missing: []};
+    const data = ids.length ? await get('/api/match-centre/saved?' + query) : {matches: [], missing: [], missing_note: null};
     if (version !== state.savedVersion) return;
     state.savedBoard = data;
   } catch (error) {
@@ -324,6 +378,7 @@ async function refreshBoard(background = false) {
   const list = $('fixtures');
   if (!background) {
     $('meta').textContent = '';
+    state.missing = null;
     if (state.filter !== 'saved') {
       list.setAttribute('aria-busy', 'true');
       list.replaceChildren(skeleton());
@@ -335,23 +390,57 @@ async function refreshBoard(background = false) {
     const data = await get('/api/match-centre/fixtures?' + query);
     if (version !== state.listVersion) return;
     state.board = data;
-    if (!state.day && data.day) { state.day = data.day; $('day').value = data.day; updateUrl(); }
+    if (!state.day && data.day) { state.day = data.day; updateUrl(); }
+    $('day').value = state.day;
+    // The date field offers the current season's days with fixtures, and no others.
+    if (data.first && data.last && state.day && season(state.day) === season(state.today)) {
+      $('day').min = data.first;
+      $('day').max = data.last;
+    }
     $('meta').textContent = data.warnings.join(' · ');
+    if (!background && data.status && state.filter !== 'saved') $('status').textContent = data.status;
     renderBoard();
   } catch (error) {
     if (version !== state.listVersion || background) return;
+    if (error.status === 404 && error.detail) {
+      state.board = null;
+      state.missing = error.detail;
+      renderBoard();
+      $('status').textContent = error.detail;
+      return;
+    }
     renderDaybar();
     list.setAttribute('aria-busy', 'false');
     list.replaceChildren(problem(error, 'Fixtures', () => refreshBoard()));
   }
 }
-async function changeDay(day, key = '', focus = false) {
+// Another day: a step in the history. ``focus`` brings the report of ``key`` into view once
+// both the board and the report are drawn, so the board drawn above it on a phone can't push
+// it away (H1).
+async function changeDay(day, key = '', focus = false, step = true) {
   if (state.filter === 'saved' || state.filter === 'live') setFilter('all', false);
   state.day = day || ''; $('day').value = state.day; state.board = null;
-  updateUrl(); renderDaybar();
-  const loading = refreshBoard();
-  if (key) await openReport(key, {focus});
-  await loading;
+  if (key) { state.key = key; }
+  updateUrl(step);
+  renderDaybar(true);
+  await Promise.all([refreshBoard(), key ? openReport(key, {remember: true}) : null]);
+  if (focus) showReport();
+}
+function showReport() {
+  const report = $('report');
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  report.scrollIntoView({block: 'start', behavior: still ? 'auto' : 'smooth'});
+  report.focus({preventScroll: true});
+}
+
+// A short column stays in view beside a long one on a wide screen (H35).
+function fitColumns() {
+  const wide = matchMedia('(min-width: 961px)').matches;
+  const room = innerHeight - 32;
+  for (const node of [document.querySelector('.mc-board'), document.querySelector('.mc-side')]) {
+    if (!node) continue;
+    node.classList.toggle('is-pinned', wide && node.offsetHeight < room);
+  }
 }
 
 // ------------------------------------------------------------------ the report
@@ -367,12 +456,21 @@ function clearReport() {
   const box = $('report');
   box.replaceChildren(reportHeading(),
     el('p', 'Choose a match on the board to open its report.', 'mc-meta'));
+  fitColumns();
 }
 function goals(data) {
   const game = data.match, box = el('div', null, 'mc-block');
   box.append(el('h3', 'Goals'));
   if (data.goals?.length) {
     const list = el('ol', null, 'mc-goals-list');
+    // On a narrow screen each club's goals sit under its name (the sheet shows these heads
+    // there and orders the goals by side); on a wide one they meet in the middle.
+    for (const [side, name] of [['home', game.home], ['away', game.away]]) {
+      const head = el('li', name, 'mc-goal-team');
+      head.dataset.side = side;
+      head.setAttribute('aria-hidden', 'true');
+      list.append(head);
+    }
     for (const goal of data.goals) {
       const item = el('li', null, 'mc-goal');
       item.dataset.side = goal.side;
@@ -382,7 +480,8 @@ function goals(data) {
       if (goal.own) who.append(el('span', ' (own goal)', 'mc-goal-tag'));
       const minute = el('span', goal.minute == null ? '–' : goal.minute + '′', 'mc-goal-minute');
       const team = el('span', goal.side === 'home' ? game.home : game.away, 'sr-only');
-      item.append(goal.side === 'home' ? who : el('span'), minute, goal.side === 'away' ? who : el('span'), team);
+      item.append(goal.side === 'home' ? who : el('span', null, 'mc-goal-gap'), minute,
+        goal.side === 'away' ? who : el('span', null, 'mc-goal-gap'), team);
       list.append(item);
     }
     box.append(list);
@@ -392,14 +491,16 @@ function goals(data) {
   return box;
 }
 function form(data) {
-  const box = el('div', null, 'mc-block');
+  const box = el('div', null, 'mc-block mc-form-block');
   box.append(el('h3', 'Recent form'));
-  box.append(el('p', 'The last five reported results in this competition before the match, newest first.', 'mc-meta'));
+  // The caption counts what the lists hold, in the server's words (R8).
+  if (data.form_note) box.append(el('p', data.form_note, 'mc-meta'));
+  const both = el('div', null, 'mc-forms');
   for (const team of [data.match.home, data.match.away]) {
     const rows = data.form[team] || [];
     const part = el('div', null, 'mc-form');
     part.append(el('h4', team));
-    if (!rows.length) { part.append(el('p', 'No earlier result this season.', 'mc-meta')); box.append(part); continue; }
+    if (!rows.length) { part.append(el('p', 'No earlier result this season.', 'mc-meta')); both.append(part); continue; }
     const wrap = el('div', null, 'ui-table-wrap'), t = el('table', null, 'ui-table mc-form-table');
     t.createCaption().textContent = team + ', newest first';
     t.caption.className = 'sr-only';
@@ -409,18 +510,23 @@ function form(data) {
     for (const r of rows) {
       const row = body.insertRow();
       const result = row.insertCell();
+      result.className = 'mc-form-result';
       const badge = el('span', r.result, 'ui-badge');
       badge.dataset.result = r.result;
       result.append(badge, el('span', r.score, 'mc-form-score'));
       const opponent = row.insertCell();
+      opponent.className = 'mc-form-opponent';
       opponent.append(el('span', r.venue, 'mc-venue'), r.opponent);
       opponent.firstChild.title = r.venue === 'H' ? 'Home' : 'Away';
-      row.insertCell().textContent = niceDay(r.day, false);
+      const when = row.insertCell();
+      when.className = 'mc-form-date';
+      when.textContent = niceDay(r.day, false);
     }
     wrap.append(t);
     part.append(wrap);
-    box.append(part);
+    both.append(part);
   }
+  box.append(both);
   return box;
 }
 function privateTable(head, rows) {
@@ -519,7 +625,8 @@ function renderReport() {
   const title = el('h2', game.home + ' v ' + game.away, 'sr-only');
   title.id = 'report-title';
   const status = game.status === 'FT' ? 'Full time' : game.status === 'Scheduled' ? null : game.status;
-  const when = el('p', [niceDay(game.day), game.kickoff, status].filter(Boolean).join(' · '), 'mc-when');
+  const time = kickoff(game);
+  const when = el('p', [niceDay(game.day), time?.text, status].filter(Boolean).join(' · '), 'mc-when');
   box.replaceChildren(head, title, scoreboard(data), when);
   if (data.source === 'openfootball') {
     const scored = goals(data);
@@ -541,6 +648,7 @@ function renderReport() {
     privateSections(box, data);
   }
   if (data.warnings?.length) box.append(el('p', data.warnings.join(' · '), 'mc-meta'));
+  fitColumns();
 }
 // A 2017/18 Madrid league match: where the app serves the archive's Match reports page, the
 // report links to that match there, found by its date. No link when the archive lacks it.
@@ -556,14 +664,14 @@ async function findArchive(data) {
     }
   } catch { /* No archive on this server: no link. */ }
 }
-async function openReport(id, {focus = false, remember = true} = {}) {
+async function openReport(id, {focus = false, remember = true, step = false} = {}) {
   const version = ++state.reportVersion;
-  if (state.key !== id || !state.detail) {
+  if (state.key !== id || !state.detail || state.detail.match?.id !== id) {
     state.key = remember ? id : ''; state.section = ''; state.detail = null; state.archive = null;
-    updateUrl(); if (state.board) renderBoard();
+    updateUrl(step); if (state.board) renderBoard();
     $('report').replaceChildren(reportHeading(), skeleton());
   }
-  if (focus) $('report').focus();
+  if (focus) showReport();
   try {
     const data = await get('/api/match-centre/fixtures/' + encodeURIComponent(id));
     if (version !== state.reportVersion) return;
@@ -581,22 +689,52 @@ async function openReport(id, {focus = false, remember = true} = {}) {
         box.append(button('Show Real Madrid’s last result', () => changeDay(last.day, last.id, true)));
       }
       $('report').replaceChildren(reportHeading(), box);
+      fitColumns();
       return;
     }
     $('report').replaceChildren(reportHeading(), problem(error, 'The match report', () => openReport(id, {remember})));
+    fitColumns();
   }
 }
 
 // ------------------------------------------------------------------ controls
 
 function setFilter(key, render = true) {
-  state.filter = key;
-  for (const control of document.querySelectorAll('[data-filter]')) control.setAttribute('aria-pressed', String(control.dataset.filter === key));
-  if (key === 'saved') loadSaved();
-  if (render) renderBoard();
+  state.filter = FILTERS.includes(key) ? key : 'all';
+  for (const control of document.querySelectorAll('[data-filter]')) control.setAttribute('aria-pressed', String(control.dataset.filter === state.filter));
+  if (state.filter === 'saved') loadSaved();
+  if (render) { updateUrl(); renderBoard(); }
+}
+// The view an address holds: on arrival, and on Back and Forward.
+function readAddress() {
+  const params = new URLSearchParams(location.search);
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(params.get('day') || '') ? params.get('day') : '';
+  const key = params.get('match') || '';
+  const league = Object.hasOwn(state.competitions, params.get('league') || '') ? params.get('league') : '';
+  const filter = FILTERS.includes(params.get('filter')) ? params.get('filter') : 'all';
+  return {day, key: /^[a-z0-9.-]{1,48}$/.test(key) ? key : '', league, filter};
+}
+async function followAddress() {
+  const view = readAddress();
+  if (view.league !== state.league) { state.league = view.league; renderComps(); }
+  if (view.filter !== state.filter) setFilter(view.filter, false);
+  const dayChanged = view.day !== state.day;
+  const keyChanged = view.key !== state.key;
+  if (dayChanged) {
+    state.day = view.day; state.board = null; renderDaybar(true);
+    refreshBoard();
+  } else {
+    renderBoard();
+  }
+  if (keyChanged) {
+    if (view.key) openReport(view.key);
+    else if (state.summary?.last) openReport(state.summary.last.id, {remember: false});
+    else clearReport();
+  }
 }
 async function init() {
   let config;
+  const view = readAddress();
   try {
     config = await get('/api/match-centre');
   } catch (error) {
@@ -606,7 +744,8 @@ async function init() {
     return;
   }
   state.today = config.today;
-  for (const [code, name] of Object.entries(config.competitions || config.public_leagues || {})) $('league').add(new Option(name, code));
+  state.competitions = config.competitions || config.public_leagues || {};
+  const params = new URLSearchParams(location.search);
   if (config.private_feed) {
     $('source').add(new Option('API-Football · live', 'api_football'));
     // A choice of one is no choice: the source control shows only where a second source exists.
@@ -617,21 +756,40 @@ async function init() {
   }
   $('source').value = state.source;
   $('source').onchange = () => { state.source = $('source').value; setFilter('all', false); changeDay(state.day); };
-  if ([...$('league').options].some(o => o.value && o.value === params.get('league'))) state.league = params.get('league');
-  $('league').value = state.league;
-  $('league').onchange = () => { state.league = $('league').value; updateUrl(); renderBoard(); };
+  const asked = readAddress();
+  state.league = asked.league;
+  renderComps();
+  $('comps').addEventListener('keydown', event => {
+    const codes = ['', ...Object.keys(state.competitions)], at = codes.indexOf(state.league);
+    const step = {ArrowRight: 1, ArrowLeft: -1}[event.key];
+    const to = event.key === 'Home' ? 0 : event.key === 'End' ? codes.length - 1 : step ? (at + step + codes.length) % codes.length : -1;
+    if (to < 0) return;
+    event.preventDefault();
+    chooseLeague(codes[to], true);
+  });
   $('day').onchange = () => { if ($('day').value) changeDay($('day').value); };
   // The date is shown one way ("Fri 27 Nov 2026", the day bar); the browser's own date field,
   // which writes dates its own way, opens from a button and stays out of sight.
   $('day-pick').onclick = () => {
     try { $('day').showPicker(); } catch { $('day').closest('.mc-date').dataset.open = 'true'; $('day').focus(); }
   };
-  for (const id of ['back', 'forward']) $(id).onclick = () => { if ($(id).dataset.day) changeDay($(id).dataset.day); };
+  for (const id of ['back', 'forward']) {
+    $(id).onclick = () => {
+      if ($(id).getAttribute('aria-disabled') === 'true' || !$(id).dataset.day) return;
+      changeDay($(id).dataset.day);
+    };
+  }
   for (const control of document.querySelectorAll('[data-filter]')) control.onclick = () => setFilter(control.dataset.filter);
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(params.get('day') || '') ? params.get('day') : '';
-  const key = params.get('match') || '';
+  $('copy').onclick = () => window.Site?.copyLink(location.href);
+  addEventListener('popstate', followAddress);
+  addEventListener('resize', fitColumns);
+  setFilter(asked.filter, false);
   loadSummary();
-  await changeDay(day, /^[a-z0-9.-]{1,48}$/.test(key) ? key : '');
+  state.day = view.day;
+  if (view.key) state.key = view.key;
+  $('day').value = state.day;
+  renderDaybar(true);
+  await Promise.all([refreshBoard(), view.key ? openReport(view.key) : null]);
   // Only a match in play is polled, once a minute while the page is in view.
   function poll() {
     if (document.hidden) return;

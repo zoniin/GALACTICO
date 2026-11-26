@@ -42,6 +42,10 @@
     // One line on screen; the whole lead sits in a closed disclosure under it.
     short: 'Each asks one question about the XI above and runs only when you press its button.',
     optIn: 'Also check the two wide-channel targets (experimental)',
+    // The three targets in the page's words, for the frontier's menus (the page's own names,
+    // /api/answers/xi/scenarios); an id this does not know keeps the server's label.
+    names: Object.freeze({progression: 'Ball progression', left_pass_origins: 'Passes from the left channel',
+      right_pass_origins: 'Passes from the right channel'}),
     // True in every state: without the opt-in the ranges and the risk rule hold ball
     // progression alone while the XI above holds three targets, and their replies say so.
     lead: 'Each asks one question with the match, formation, locks and exclusions of the XI above, and sends nothing until you press its button. Where an answer holds other targets than the XI above, it says so. Every answer is arithmetic on past rates under the stated rules: not a forecast, not a ranking.',
@@ -394,7 +398,9 @@
     if (!host || typeof host.querySelector !== 'function') return;
     host.innerHTML = frame();
     const doc = host.ownerDocument;
-    const $ = selector => host.querySelector(selector);
+    // The page may move a panel out of the host (the clash panel sits under the XI): a part not
+    // in the host is found in the document, by its id.
+    const $ = selector => host.querySelector(selector) || doc.querySelector(selector);
     const st = {version: 0, solved: null, menus: null, busy: {}, seq: {}};
 
     function setBody(key, markup) { $(`#xi-${key}-body`).innerHTML = markup; }
@@ -437,7 +443,7 @@
       const offered = list(st.menus?.requirements).filter(r => object(r) && (optIn() || r.experimental === false));
       for (const id of DIMENSIONS) {
         const select = $('#' + id), kept = select.value;
-        select.innerHTML = options(COPY.choose, offered.map(r => [String(r.requirement_id), String(r.label)]));
+        select.innerHTML = options(COPY.choose, offered.map(r => [String(r.requirement_id), String(COPY.names[r.requirement_id] || r.label)]));
         select.value = offered.some(r => r.requirement_id === kept) ? kept : '';
       }
     }
@@ -554,6 +560,9 @@
       if (!object(menus)) throw new Error('the reply is not a menu');
       st.menus = menus;
       $('#xi-experimental-opt-in').disabled = false;
+      // The XI above holds all three targets, so the panels hold them too until the reader
+      // unticks the two channel targets (XI-6).
+      $('#xi-experimental-opt-in').checked = true;
       const labels = object(st.menus.world_count_texts) ? st.menus.world_count_texts : {};
       $('#risk-worlds').innerHTML = options(COPY.chooseWorlds, list(st.menus.world_counts).map((b, i) => [String(i), String(labels[String(b)] ?? '')]));
       frontierOptions();

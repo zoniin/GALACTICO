@@ -18,6 +18,18 @@ from galactico.match_centre.local import create_app
 from galactico.match_centre.openfootball import OpenFootball
 from galactico.match_centre.openligadb import OpenLigaDB
 
+
+@pytest.fixture(autouse=True)
+def no_squad_names(monkeypatch):
+    # The squad list (Wikipedia) writes Real Madrid's scorers on the pages (names.py); no test
+    # reaches it unless it says so.
+    from galactico.match_centre.studio import Studio
+
+    async def names(self, day):
+        return []
+
+    monkeypatch.setattr(Studio, "squad_names", names)
+
 DAY = date(2026, 10, 10)
 CHECKED = datetime(2026, 10, 10, 12, tzinfo=UTC).isoformat()
 GAMES = [

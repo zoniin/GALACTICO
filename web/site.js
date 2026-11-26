@@ -26,6 +26,19 @@
    pressed chip, the current page), the row is scrolled to bring it into view, the row only,
    never the page.
 
+   The season a page shows. Site.season(label) writes the header chip's season ("2017/18")
+   when the board or the table a reader opened is of another season than the current one, and
+   Site.season() puts the chip back.
+
+   Sharing a view. Site.copyLink(url) copies the address of the view on screen (every page that
+   keeps its view in the address has one "Copy link" in its page actions) and says so in a toast,
+   or, where the browser won't copy, says where the link is. Site.toast(text) is that toast.
+
+   Kick-off. Site.kickoff(game) is a fixture's kick-off in the reader's own time zone, from the
+   instant the server sends (kickoff_utc), with the weekday added where the reader's date is not
+   the fixture's own day; without an instant, the time as the source published it, marked as
+   such. Formatting a time is not a sentence (R10): the words about the match are the server's.
+
    Declares one global, Site. */
 (function () {
   'use strict';
@@ -121,8 +134,75 @@
   function focusRing(x, y, r) { return rect('ring', +x, +y, +r) + rect('ring core', +x, +y, +r); }
   function hitArea(x, y) { return rect('hit', +x, +y, 0.01); }
 
+  var chipSeason = null;
+  function season(label) {
+    var chip = document.querySelector('.site-header .season-chip');
+    if (!chip) return;
+    var text = chip.lastChild;
+    if (!text || text.nodeType !== 3) return;
+    if (chipSeason === null) chipSeason = text.textContent;
+    text.textContent = label || chipSeason;
+    if (label && label !== chipSeason) chip.setAttribute('data-shown', 'other');
+    else chip.removeAttribute('data-shown');
+  }
+
+  var toastTimer = 0;
+  function toast(message) {
+    var old = document.querySelector('.ui-toast');
+    if (old) old.remove();
+    var note = document.createElement('div');
+    note.className = 'ui-toast';
+    note.setAttribute('role', 'status');
+    note.textContent = message;
+    document.body.appendChild(note);
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () { note.remove(); }, 2600);
+  }
+
+  function copyLink(url) {
+    var address = url || window.location.href;
+    function done(copied) {
+      toast(copied ? 'Link copied. It opens this view.' : 'Copy the link from the address bar.');
+      return copied;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(address).then(function () { return done(true); },
+        function () { return done(fallbackCopy(address)); });
+    }
+    return Promise.resolve(done(fallbackCopy(address)));
+  }
+
+  function fallbackCopy(address) {
+    var field = document.createElement('textarea');
+    field.value = address;
+    field.setAttribute('readonly', '');
+    field.className = 'sr-only';
+    document.body.appendChild(field);
+    field.select();
+    var copied = false;
+    try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+    field.remove();
+    return copied;
+  }
+
+  var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function kickoff(game) {
+    if (!game) return null;
+    if (game.kickoff_utc) {
+      var when = new Date(game.kickoff_utc);
+      if (!isNaN(when.getTime())) {
+        var local = when.getFullYear() + '-' + pad(when.getMonth() + 1) + '-' + pad(when.getDate());
+        var time = pad(when.getHours()) + ':' + pad(when.getMinutes());
+        return { text: local === game.day ? time : time + ' ' + DAYS[when.getDay()], local: true };
+      }
+    }
+    return game.kickoff ? { text: game.kickoff, local: false } : null;
+  }
+
   window.Site = Object.freeze({
     archiveMissing: archiveMissing, fitText: fit, focusRing: focusRing, hitArea: hitArea,
-    ARCHIVE_MISSING: ARCHIVE_MISSING,
+    ARCHIVE_MISSING: ARCHIVE_MISSING, season: season, toast: toast, copyLink: copyLink,
+    kickoff: kickoff,
   });
 })();

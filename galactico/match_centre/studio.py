@@ -44,7 +44,7 @@ from bs4 import BeautifulSoup, Tag
 from ..providers import assert_may_host
 from . import goal_scout
 from .answers import MADRID
-from .feed import FeedCache, FeedError
+from .feed import FeedCache, FeedError, Snapshot
 from .freshness import day_label
 from .openfootball import CREDITS, season_start
 from .openligadb import EUROPE
@@ -86,9 +86,22 @@ GROUPS = ("GK", "DF", "MF", "FW")
 LINES = {"GK": "in goal", "DF": "in defence", "MF": "in midfield", "FW": "up front"}
 
 
+ROLE_NAMES = {
+    "GK": "Goalkeeper", "LB": "Left-back", "LCB": "Left centre-back", "CB": "Centre-back",
+    "RCB": "Right centre-back", "RB": "Right-back", "LWB": "Left wing-back",
+    "RWB": "Right wing-back", "DM": "Defensive midfield", "LDM": "Left defensive midfield",
+    "RDM": "Right defensive midfield", "LCM": "Left central midfield",
+    "RCM": "Right central midfield", "LM": "Left midfield", "RM": "Right midfield",
+    "LAM": "Left attacking midfield", "AM": "Attacking midfield",
+    "RAM": "Right attacking midfield", "LW": "Left wing", "RW": "Right wing",
+    "LS": "Left striker", "RS": "Right striker", "ST": "Striker",
+}
+"""Each slot's position in words, as the page names it beside the short label on the pitch."""
+
+
 def _slot(role: str, group: str, x: int, y: int) -> dict:
-    return {"role": role, "group": group, "x": x, "y": y,
-            "zone": f"Drawn area for the {role} role, not measured"}
+    return {"role": role, "name": ROLE_NAMES[role], "group": group, "x": x, "y": y,
+            "zone": f"Drawn area for the {ROLE_NAMES[role].lower()} role, not measured"}
 
 
 _BACK_FOUR = (_slot("LB", "DF", 13, 68), _slot("LCB", "DF", 37, 71),
@@ -104,10 +117,10 @@ FORMATIONS: dict[str, tuple[dict, ...]] = {
     "4-4-2": (_slot("LS", "FW", 36, 16), _slot("RS", "FW", 64, 16), _slot("LM", "MF", 13, 42),
               _slot("LCM", "MF", 37, 47), _slot("RCM", "MF", 63, 47), _slot("RM", "MF", 87, 42),
               *_BACK_FOUR, _KEEPER),
-    "3-5-2": (_slot("LS", "FW", 36, 15), _slot("RS", "FW", 64, 15), _slot("LWB", "MF", 12, 43),
-              _slot("LCM", "MF", 32, 39), _slot("DM", "MF", 50, 54), _slot("RCM", "MF", 68, 39),
-              _slot("RWB", "MF", 88, 43), _slot("LCB", "DF", 25, 71), _slot("CB", "DF", 50, 73),
-              _slot("RCB", "DF", 75, 71), _KEEPER),
+    "3-5-2": (_slot("LS", "FW", 36, 15), _slot("RS", "FW", 64, 15), _slot("LWB", "MF", 11, 52),
+              _slot("LCM", "MF", 33, 35), _slot("DM", "MF", 50, 55), _slot("RCM", "MF", 67, 35),
+              _slot("RWB", "MF", 89, 52), _slot("LCB", "DF", 25, 72), _slot("CB", "DF", 50, 74),
+              _slot("RCB", "DF", 75, 72), _KEEPER),
 }
 """Each formation's eleven slots: the board's coordinates (the opponent's goal at the top), the
 position of the squad list a slot takes its player from, and the caption of its drawn area."""
@@ -162,7 +175,7 @@ def parse_positions(payload: object) -> dict[str, str]:
     lists, following the reply's normalisations and redirects back to the title asked for."""
     query = payload.get("query") if isinstance(payload, dict) else None
     if not isinstance(query, dict):
-        raise FeedError("The players' articles couldn't be read.")
+        raise FeedError("The players’ articles couldn’t be read.")
     back: dict[str, str] = {}
     for step in (query.get("normalized") or []) + (query.get("redirects") or []):
         if isinstance(step, dict) and isinstance(step.get("to"), str):
@@ -296,7 +309,7 @@ def rule_line(season: str, sides: bool = True) -> str:
              "(a left-back on the left, a centre-back in the middle, an attacking midfielder "
              "in the more advanced places); where it says neither, the players stand left to "
              "right by shirt number" if sides else
-             "the players stand left to right by shirt number: the players' articles couldn't "
+             "the players stand left to right by shirt number: the players’ articles couldn’t "
              "be read just now, so no side is known")
     return (f"The proposed XI takes, in each position of the Wikipedia squad list (goalkeeper, "
             f"defender, midfielder, forward), the players with the most {season} appearances "
@@ -408,15 +421,30 @@ def lineup_answer(by_id: dict[str, dict], formation: str, xi: list[str], propose
         moved = sum(1 for a, b in zip(xi, proposed, strict=True) if a != b)
         places = "another place" if moved == 1 else "other places"
         return (f"This {formation} starts the proposed eleven, the most {season} appearances "
-                f"in each position, with {moved} of them in {places}.")
+                f"in each position, with {moved} of them in {places}: "
+                f"{_moved(by_id, formation, xi, proposed)}.")
     ins = [by_id[pid]["short"] for pid in xi if pid not in proposed]
     outs = [by_id[pid]["short"] for pid in proposed if pid not in xi]
     if not kept:
         return (f"This {formation} shares none of the {len(proposed)} proposed starters, the "
                 f"most {season} appearances in each position.")
     verb = "starts" if len(ins) == 1 else "start"
+    moved = _moved(by_id, formation, xi, proposed)
     return (f"This {formation} keeps {len(kept)} of the {len(proposed)} proposed starters; "
-            f"{_listing(ins)} {verb} in place of {_listing(outs)}.")
+            f"{_listing(ins)} {verb} in place of {_listing(outs)}"
+            + (f"; {moved}." if moved else "."))
+
+
+def _moved(by_id: dict[str, dict], formation: str, xi: list[str], proposed: list[str]) -> str:
+    """"Diomande plays DM and Valverde RW": the proposed starters the lineup puts in another
+    slot, in slot order, by the slot's short label; empty when none moved."""
+    slots = FORMATIONS[formation]
+    where = {pid: i for i, pid in enumerate(proposed)}
+    moves = [f"{by_id[pid]['short']} plays {slots[i]['role']}" for i, pid in enumerate(xi)
+             if pid in where and where[pid] != i]
+    if not moves:
+        return ""
+    return _listing(moves[:1] + [move.replace(" plays ", " ", 1) for move in moves[1:]])
 
 
 def share_query(players: list[dict], formation: str, xi: list[str], season: str) -> str:
@@ -429,14 +457,18 @@ def share_query(players: list[dict], formation: str, xi: list[str], season: str)
 def parse_share(players: list[dict], formation: str, xi: str, season: str | None,
                 current: str) -> list[str]:
     """The player ids of a shared lineup, in slot order, or ``ValueError`` with a sentence a
-    reader can act on."""
+    reader can act on. A link that names no formation is of the default one; a link that
+    names a formation and no lineup opens that formation's proposed XI."""
+    formation = formation or DEFAULT_FORMATION
     if formation not in FORMATIONS:
-        raise ValueError("This link names a formation the board doesn't have.")
+        raise ValueError("This link names a formation the board doesn’t have.")
     if season is not None and season.replace("-", "/") != current:
         raise ValueError(f"This link holds a lineup from another season, not {current}.")
     slots = len(FORMATIONS[formation])
+    if not xi:
+        return propose(players, formation)[0]
     if not re.fullmatch(rf"[0-9]{{1,2}}(-[0-9]{{1,2}}){{{slots - 1}}}", xi):
-        raise ValueError(f"This link doesn't hold {slots} shirt numbers.")
+        raise ValueError(f"This link doesn’t hold {slots} shirt numbers.")
     by_number: dict[int, list[str]] = {}
     for p in players:
         by_number.setdefault(p["number"], []).append(p["id"])
@@ -444,7 +476,7 @@ def parse_share(players: list[dict], formation: str, xi: str, season: str | None
     for number in (int(n) for n in xi.split("-")):
         found = by_number.get(number, [])
         if len(found) != 1:
-            raise ValueError(f"This link's lineup doesn't match the {current} squad.")
+            raise ValueError(f"This link’s lineup doesn’t match the {current} squad.")
         ids.append(found[0])
     if len(set(ids)) != len(ids):
         raise ValueError("This link names a player twice.")
@@ -476,7 +508,8 @@ def next_card(fixture: dict | None, today: date) -> dict:
     return {
         "fixture": {
             "opponent": opponent, "venue": "Home" if home else "Away",
-            "when": day_label(fixture["day"], today) + (f" · {kickoff}" if kickoff else ""),
+            "when": day_label(fixture["day"], today), "kickoff": kickoff,
+            "kickoff_utc": fixture.get("kickoff_utc"),
             "competition": competition, "code": code, "day": fixture["day"],
             "links": {
                 "form": "/match-centre?" + urlencode({"day": fixture["day"],
@@ -508,6 +541,54 @@ async def opponent_goals_link(goals: goal_scout.GoalScout, code: str, opponent: 
         return None
     return ("/match-centre/scouting?" + urlencode({"goalsLeague": league, "goalsClub": club})
             + "#goals")
+
+
+# ------------------------------------------------------------------ the analyst's import
+
+
+ANALYST_TOOLS = (
+    '<details class="ui-disclosure ln-tools" id="tools">'
+    '<summary>Analyst tools <span class="ui-disclosure-summary">Import match events</span>'
+    '</summary><div class="ui-disclosure-body">'
+    '<p>Draw the selected player’s actions from your own file: a CSV with <code>x</code> and '
+    '<code>y</code> from 0 to 100, attacking left to right with y running downwards, and an '
+    'optional <code>type</code>. The file stays in this tab.</p>'
+    '<div class="ln-import"><label class="ui-field"><span class="ui-label">Events for '
+    '<span id="import-player">the selected player</span></span>'
+    '<input type="file" id="file" accept=".csv,text/csv" '
+    'aria-label="Import coordinates for selected player"></label>'
+    '<button type="button" class="ui-btn" id="clear-import" hidden>Remove imported events'
+    '</button></div></div></details>'
+)
+"""The import of a reader's own event file: an analyst's tool, which the Lineup page shows on
+a local install only (the app that also serves the 2017/18 archive), never on the hosted site
+(H28)."""
+
+
+# ------------------------------------------------------------------ the archive sample
+
+
+ACTION_WORDS = {"Pass": ("pass", "passes"), "Duel": ("duel", "duels"),
+                "Shot": ("shot", "shots"), "Ball action": ("touch", "touches"),
+                "Set piece": ("set piece", "set pieces"), "Save": ("save", "saves")}
+"""Each Wyscout event kind the sample draws, as the page names it."""
+ALL_ACTIONS = "All actions"
+
+
+def activity_filters(points: list[dict]) -> list[dict]:
+    """The sample's filters, all actions first, then each kind it holds in ``ACTION_WORDS``'s
+    order: each with its label and the count line the map shows ("23 passes in his last
+    2017/18 match")."""
+    counts = {kind: sum(1 for point in points if point["type"] == kind) for kind in ACTION_WORDS}
+
+    def line(n: int, one: str, many: str) -> str:
+        return f"{n} {one if n == 1 else many} in his last 2017/18 match"
+
+    found = [{"type": ALL_ACTIONS, "label": ALL_ACTIONS,
+              "count": line(len(points), "action", "actions")}]
+    found += [{"type": kind, "label": many[:1].upper() + many[1:], "count": line(n, one, many)}
+              for kind, (one, many) in ACTION_WORDS.items() if (n := counts[kind])]
+    return found
 
 
 # ------------------------------------------------------------------ the service
@@ -588,7 +669,7 @@ class Studio:
                         if position:
                             found[title] = position
             if not found:
-                raise FeedError("The players' articles couldn't be read.")
+                raise FeedError("The players’ articles couldn’t be read.")
             return [{"title": title, "position": position} for title, position in found.items()]
 
         try:
@@ -597,10 +678,15 @@ class Studio:
             return {}
         return {row["title"].replace(" ", "_"): row["position"] for row in snap.rows}
 
-    async def roster(self, day: date) -> dict:
+    @staticmethod
+    def _article(day: date) -> tuple[int, str, str]:
         year = season_start(day)
         season = f"{year}–{(year+1)%100:02}"
-        url = f"https://en.wikipedia.org/wiki/{season}_Real_Madrid_CF_season"
+        return year, season, f"https://en.wikipedia.org/wiki/{season}_Real_Madrid_CF_season"
+
+    async def squad(self, day: date) -> Snapshot:
+        """The squad list of ``day``'s season article (``parse_roster``), kept six hours."""
+        year, _, url = self._article(day)
         assert_may_host("wikipedia")
 
         async def fetch() -> list:
@@ -611,19 +697,29 @@ class Studio:
             self._revised[year] = revised_on(response.text)
             return players
 
-        snap = await self.cache.get(f"roster/{year}", 6*3600, fetch)
+        return await self.cache.get(f"roster/{year}", 6*3600, fetch)
+
+    async def squad_names(self, day: date) -> list[str]:
+        """The squad's names, as the list writes them (``names.NameBook`` reads them)."""
+        return [player["name"] for player in (await self.squad(day)).rows]
+
+    def _credit(self, day: date, snap: Snapshot) -> dict:
+        year, season, url = self._article(day)
+        revised = self._revised.get(year)
+        return {"season": season, "checked": snap.checked, "warning": snap.warning,
+                "source": url, "credit": "Wikipedia contributors",
+                "licence": "https://creativecommons.org/licenses/by-sa/4.0/",
+                "revised": revised, "revised_label": long_day(revised) if revised else None}
+
+    async def roster(self, day: date) -> dict:
+        snap = await self.squad(day)
         # A side matters only where it places a player the proposals start.
         starters = {pid for formation in FORMATIONS for pid in propose(snap.rows, formation)[0]}
         found = await self.positions([p["id"] for p in snap.rows
                                       if p["id"] in starters and p["group"] != "GK"])
         players = [{**p, "position": found.get(p["id"]), "side": side_of(found.get(p["id"])),
                     "depth": depth_of(found.get(p["id"]))} for p in snap.rows]
-        revised = self._revised.get(year)
-        return {"players": players, "season": season, "checked": snap.checked,
-                "warning": snap.warning, "source": url, "credit": "Wikipedia contributors",
-                "licence": "https://creativecommons.org/licenses/by-sa/4.0/",
-                "sides": bool(found), "revised": revised,
-                "revised_label": long_day(revised) if revised else None}
+        return {"players": players, **self._credit(day, snap), "sides": bool(found)}
 
     async def lineup(self, day: date) -> dict:
         """The squad, the formations, and the proposed XI of each formation with its
@@ -644,9 +740,11 @@ class Studio:
 
     async def scorers(self, day: date) -> dict:
         """The squad's scorers this season, all competitions, with the sentence and credit."""
-        roster = await self.roster(day)
-        return {**scorers(roster["players"], season_label(day)),
-                **{key: roster[key] for key in ("source", "credit", "licence", "checked",
+        # The squad list alone: the players' own articles (their sides) play no part here.
+        snap = await self.squad(day)
+        credit = self._credit(day, snap)
+        return {**scorers(snap.rows, season_label(day)),
+                **{key: credit[key] for key in ("source", "credit", "licence", "checked",
                                                 "warning", "revised", "revised_label")},
                 "season_label": season_label(day)}
 
@@ -654,6 +752,7 @@ class Studio:
         """A lineup from a link or from the board: its ids and its sentence."""
         roster = await self.roster(day)
         players, label = roster["players"], season_label(day)
+        formation = formation or DEFAULT_FORMATION
         ids = parse_share(players, formation, xi, season, label)
         proposed, _ = propose(players, formation)
         by_id = {p["id"]: p for p in players}
@@ -700,7 +799,7 @@ class Studio:
 
         snap = await self.cache.get(f"activity/{slug}", 24*3600, fetch)
         return {"player": slug, "match": sample.match, "competition": sample.competition,
-                "date": sample.day,
+                "date": sample.day, "filters": activity_filters(snap.rows),
                 "label": (f"Archive sample: {sample.match}, {sample.competition}, "
                           f"{long_day(sample.day)} (his last recorded match in the public "
                           "2017/18 data)"),

@@ -27,10 +27,23 @@ from galactico.domain.labels import scan_labels
 from galactico.match_centre import answers
 from galactico.match_centre.feed import FeedError, Snapshot
 from galactico.match_centre.freshness import day_label, progress
+from galactico.match_centre.kickoff import to_utc
 from galactico.match_centre.local import create_app
 from galactico.match_centre.openfootball import OpenFootball, _fixture
 from galactico.match_centre.openligadb import OpenLigaDB, europe, fill
 from galactico.match_centre.public import create_centre
+
+
+@pytest.fixture(autouse=True)
+def no_squad_names(monkeypatch):
+    # The squad list (Wikipedia) writes Real Madrid's scorers on the pages (names.py); no test
+    # reaches it unless it says so.
+    from galactico.match_centre.studio import Studio
+
+    async def names(self, day):
+        return []
+
+    monkeypatch.setattr(Studio, "squad_names", names)
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "web"
@@ -58,8 +71,9 @@ def ol(match_id, day, rnd, home, away, result=None, goals=(), group=None, clubs=
                         "matchMinute": minute, "goalGetterName": name,
                         "scoringTeamId": clubs[(home, away)[side]], "isPenalty": False,
                         "isOwnGoal": False})
+    # A real reply's UTC instant is its German time in Central European time (kickoff.py).
     return {"matchID": match_id, "matchDateTime": f"{day}T21:00:00",
-            "matchDateTimeUTC": f"{day}T20:00:00Z",
+            "matchDateTimeUTC": to_utc(day, "21:00", "CET"),
             "group": {"groupOrderID": rnd, "groupName": group or f"{rnd}. Spieltag"},
             "team1": {"teamId": clubs[home], "teamName": home},
             "team2": {"teamId": clubs[away], "teamName": away},
@@ -192,7 +206,7 @@ def test_board_table_and_report_read_the_filled_league(monkeypatch, hosted):
     first = next(m for m in hosted.get("/api/match-centre/fixtures",
                                        params={"day": "2026-08-28"}).json()["matches"])
     partial = hosted.get("/api/match-centre/fixtures/" + first["id"]).json()
-    assert partial["goals_note"] == "2 goals are missing from the feed's goal list."
+    assert partial["goals_note"] == "2 goals are missing from the feed’s goal list."
 
 
 def test_a_failed_fill_leaves_the_league_on_its_free_file(monkeypatch, hosted):
@@ -321,8 +335,10 @@ def test_saved_matches_are_found_across_dates_and_seasons(monkeypatch, hosted):
     data = reply.json()
     assert [m["id"] for m in data["matches"]] == [es, ucl]  # by date
     assert data["missing"] == [gone] and data["warnings"] == []
+    # The line for a saved match gone from the feeds is the server's (R10).
+    assert data["missing_note"] == "1 saved match is no longer in the feeds."
     assert hosted.get("/api/match-centre/saved").json() == {
-        "matches": [], "missing": [], "warnings": []}
+        "matches": [], "missing": [], "warnings": [], "missing_note": None}
 
 
 # ------------------------------------------------------------------ the answers
@@ -335,12 +351,12 @@ def test_the_matches_answer_names_the_next_fixture_and_the_latest_result(monkeyp
     # the order of their first goal (G1-2: "who scored?" is answered on a phone too).
     assert data["answer"] == ("Real Madrid host Test Getafe in La Liga on Sun 29 Nov, after a "
                               "3–1 away win at Test Roma in the Champions League on Tue 24 Nov, "
-                              "with goals from K. Forward (2) and J. Mid.")
+                              "with goals from K.\u00a0Forward (2) and J.\u00a0Mid.")
     assert data["next"]["day"] == "2026-11-29" and data["last"]["day"] == "2026-11-24"
     by = {item["competition"]: item for item in data["freshness"]}
     assert by["La Liga"]["through"] == "2026-09-20" and by["La Liga"]["later"] == 1
     assert by["La Liga"]["chip"] == "La Liga: results through Sun 20 Sep"
-    assert data["lag"] == ("Results stop at Sun 20 Sep for La Liga; later results aren't in "
+    assert data["lag"] == ("Results stop at Sun 20 Sep for La Liga; later results aren’t in "
                            "the free feeds yet.")
     assert scan_labels([data["answer"], data["lag"]]) == []
 
@@ -361,7 +377,7 @@ def test_the_answer_is_withheld_when_one_of_madrids_competitions_fails(monkeypat
     reply = hosted.get("/api/match-centre/summary")
     data = reply.json()
     assert data["answer"] is None and data["next"] is None and data["last"] is None
-    assert data["unavailable"] == "Real Madrid's fixtures can't be loaded right now."
+    assert data["unavailable"] == "Real Madrid’s fixtures can’t be loaded right now."
     assert data["warnings"] == ["Champions League · Feed unavailable."]
     assert "vercel-cdn-cache-control" not in reply.headers
 
@@ -388,9 +404,11 @@ def test_every_sentence_shape_is_clean_and_carries_only_the_datas_numbers():
              {"side": "away", "name": "D. Defender", "own": True},
              {"side": "away", "name": "K. Forward"}]
     named = dict(away, score=[1, 3], day="2026-11-24", goals=goals)
-    assert answers.scorers_clause(named) == ", with goals from K. Forward (2) and an own goal"
+    # An initial stays on the line of its surname (H26).
+    assert answers.scorers_clause(named) == (
+        ", with goals from K.\u00a0Forward (2) and an own goal")
     assert answers.scorers_clause(dict(named, score=[1, 1], goals=goals[:2])) == (
-        ", with a goal from K. Forward")
+        ", with a goal from K.\u00a0Forward")
     assert answers.scorers_clause(dict(named, goals=goals[:2])) == ""  # 3 goals, 1 named
     assert answers.scorers_clause(dict(named, goals=[dict(g, name=None) for g in goals])) == ""
     assert answers.scorers_clause(dict(named, goals=None)) == ""
@@ -467,7 +485,7 @@ def test_every_sentence_shape_is_clean_and_carries_only_the_datas_numbers():
     lag = answers.lag_answer([fresh, single, dict(fresh, competition="Premier League",
                                                   through_label="Sat 7 Nov")])
     assert lag == ("Results stop at Wed 2 Sep for Serie A and Ligue 1, and at Sat 7 Nov for the "
-                   "Premier League; later results aren't in the free feeds yet.")
+                   "Premier League; later results aren’t in the free feeds yet.")
     assert answers.lag_answer([empty]) is None
     sentences += [fresh["label"], fresh["chip"], fresh["banner"], fresh["note"], single["note"],
                   empty["label"], lag]
@@ -488,16 +506,16 @@ def test_the_reports_say_plainly_where_no_scorer_is_named(monkeypatch, hosted):
     board = hosted.get("/api/match-centre/fixtures", params={"day": "2026-08-30"}).json()
     report = hosted.get("/api/match-centre/fixtures/" + board["matches"][0]["id"]).json()
     assert report["goals"] is None
-    assert report["goals_note"] == "The free La Liga feed doesn't name scorers."
+    assert report["goals_note"] == "The free La Liga feed doesn’t name scorers."
     goalless = hosted.get("/api/match-centre/fixtures", params={"day": "2026-09-25"}).json()
     report = hosted.get("/api/match-centre/fixtures/" + goalless["matches"][0]["id"]).json()
     assert (report["goals"], report["goals_note"]) == ([], "No goals.")
     upcoming = hosted.get("/api/match-centre/fixtures", params={"day": "2026-11-29"}).json()
     report = hosted.get("/api/match-centre/fixtures/" + upcoming["matches"][0]["id"]).json()
     assert (report["goals"], report["goals_note"]) == (None, None)
-    for text in (report["through"], "The free La Liga feed doesn't name scorers.",
+    for text in (report["through"], "The free La Liga feed doesn’t name scorers.",
                  "The feed has no goal list for this match.", "No goals.",
-                 "2 goals are missing from the feed's goal list."):
+                 "2 goals are missing from the feed’s goal list."):
         assert scan_labels([text]) == []
 
 
@@ -605,3 +623,129 @@ def test_the_scripts_leave_sentences_to_the_server_and_cache_public_calls():
                    and not re.search(r"[(){}=;]|\w\.\w", text)]
         assert len(strings) > 20, name
         assert scan_labels(strings) == [], (name, scan_labels(strings))
+
+
+# ------------------------------------------------------------------ Phase 3 (the hosted review)
+
+
+def test_kick_off_is_one_instant_from_each_sources_published_zone():
+    # D2: OpenFootball's Premier League is in UK time and its other leagues in Central European
+    # time; OpenLigaDB states UTC. Summer time ends on the last Sunday of October.
+    from galactico.match_centre.kickoff import from_utc, to_utc
+    assert to_utc("2026-09-16", "21:00", "CET") == "2026-09-16T19:00:00Z"
+    assert to_utc("2026-11-24", "21:00", "CET") == "2026-11-24T20:00:00Z"
+    assert to_utc("2026-08-22", "12:30", "UK") == "2026-08-22T11:30:00Z"
+    assert to_utc("2026-12-26", "15:00", "UK") == "2026-12-26T15:00:00Z"
+    assert to_utc("2026-10-25", "16:00", "CET") == "2026-10-25T15:00:00Z"  # the change-over day
+    assert to_utc("2026-10-24", "16:00", "CET") == "2026-10-24T14:00:00Z"
+    assert to_utc("2026-11-24", None, "CET") is None and to_utc("2026-11-24", "21:00", None) is None
+    from datetime import UTC, datetime
+    assert f"{from_utc(datetime(2026, 9, 16, 19, tzinfo=UTC), 'CET'):%H:%M}" == "21:00"
+    # Each fixture carries its instant; a Champions League row the one OpenLigaDB states.
+    pl = _fixture("en.1", 2026, dict(round="Matchday 1", date="2026-08-22", time="12:30",
+                                    team1="A", team2="B"), TODAY)
+    es = _fixture("es.1", 2026, dict(ES[0], time="21:00"), TODAY)
+    ucl = _fixture("ucl", 2026, europe(UCL)[0], TODAY)
+    assert (pl["kickoff"], pl["kickoff_utc"]) == ("12:30", "2026-08-22T11:30:00Z")
+    assert (es["kickoff"], es["kickoff_utc"]) == ("21:00", "2026-08-30T19:00:00Z")
+    assert (ucl["kickoff"], ucl["kickoff_utc"]) == ("21:00", "2026-09-16T19:00:00Z")
+    assert _fixture("es.1", 2026, ES[0], TODAY)["kickoff_utc"] is None  # no time published
+    # A filled Premier League result is written in UK time, the league's own zone.
+    epl = [dict(row, team1=row["team1"], team2=row["team2"]) for row in DE]
+    rows, _ = fill(epl, BL1, "en.1")
+    filled = next(r for r in rows if r.get("filled"))
+    assert (filled["time"], filled["utc"]) == ("20:00", "2026-08-29T19:00:00Z")
+
+
+def test_the_board_says_its_day_range_its_day_and_a_season_no_feed_holds(monkeypatch, hosted):
+    # H10, A11Y-3: the board's day range, a line for a screen reader, and a 404 with a plain
+    # line for a season the free feeds hold no schedule for.
+    stub(monkeypatch)
+    board = hosted.get("/api/match-centre/fixtures", params={"day": "2026-11-24"}).json()
+    assert (board["first"], board["last"], board["season"]) == (
+        "2026-08-28", "2026-12-09", "2026/27")
+    assert board["status"] == "Tue 24 Nov: 1 match, Champions League."
+    empty = hosted.get("/api/match-centre/fixtures", params={"day": "2026-10-11"}).json()
+    assert empty["status"] == "Sun 11 Oct: no matches."
+
+    async def no_file(self, code, year):
+        if year != 2026:
+            raise FeedError("Season file unavailable.")
+        return Snapshot(ES if code == "es.1" else [], CHECKED)
+
+    monkeypatch.setattr(OpenFootball, "season", no_file)
+    later = hosted.get("/api/match-centre/fixtures", params={"day": "2031-01-01"})
+    assert later.status_code == 404
+    assert later.json()["detail"] == "The free feeds have no fixtures for 2030/31 yet."
+    earlier = hosted.get("/api/match-centre/fixtures", params={"day": "1999-01-01"})
+    assert earlier.json()["detail"] == "The free feeds have no fixtures for 1998/99."
+    assert hosted.get("/api/match-centre/leagues/es.1",
+                      params={"day": "2031-01-01"}).status_code == 404
+    assert scan_labels([board["status"], empty["status"], later.json()["detail"]]) == []
+
+
+def test_the_table_opens_on_madrids_latest_competition_and_names_each_place(monkeypatch,
+                                                                            hosted):
+    # H36: Madrid's latest reported result is in the Champions League (24 Nov), so the Table
+    # opens there, and its first sentence says their place in each competition.
+    stub(monkeypatch)
+    data = hosted.get("/api/match-centre/standings").json()
+    assert data["code"] == "ucl"
+    assert data["answer"] == (
+        "Real Madrid CF lead the Champions League with 6 points from 2 games; they led La Liga "
+        "with 3 points from 2 games, after matchday 2 of 4.")
+    assert scan_labels([data["answer"]]) == []
+    numbers = set(re.findall(r"\d+", data["answer"]))
+    es = hosted.get("/api/match-centre/leagues/es.1").json()
+    ucl = hosted.get("/api/match-centre/leagues/ucl").json()
+    served = {str(v) for t in (es, ucl) for row in t["table"] for v in row.values()
+              if isinstance(v, int)} | {str(es["freshness"]["matchday"]),
+                                        str(es["freshness"]["matchdays"])}
+    assert numbers <= served
+
+
+def test_the_report_says_how_many_results_its_form_holds_and_its_one_line(monkeypatch, hosted):
+    # R8-3: "the last five" only where five are listed.
+    stub(monkeypatch)
+    board = hosted.get("/api/match-centre/fixtures", params={"day": "2026-11-24"}).json()
+    report = hosted.get("/api/match-centre/fixtures/" + board["matches"][0]["id"]).json()
+    assert [len(rows) for rows in report["form"].values()] == [1, 1]
+    assert report["form_note"] == ("Up to five reported results in this competition before the "
+                                   "match, newest first.")
+    assert answers.form_note({"a": [1] * 4, "b": [1] * 4}).startswith("The last 4 ")
+    assert answers.form_note({"a": [1] * 5, "b": [1] * 5}).startswith("The last five ")
+    assert report["line"] == "Test Roma 1–3 Real Madrid CF in the Champions League on Tue 24 Nov."
+    # The page's card for a shared match link carries that line (H22).
+    page = hosted.get("/match-centre", params={"match": board["matches"][0]["id"]}).text
+    assert ('<meta name="description" content="Test Roma 1–3 Real Madrid CF in the Champions '
+            'League on Tue 24 Nov.">') in page
+    assert scan_labels([report["form_note"], report["line"]]) == []
+
+
+def test_a_madrid_scorer_takes_the_squad_lists_name_on_every_reply(monkeypatch, hosted):
+    # D3, H33: one name per player. Surname and first initial match one squad player and no
+    # other; a name that matches no one stays as the feed writes it; the opponent's keep theirs.
+    from galactico.match_centre.names import NameBook
+    from galactico.match_centre.studio import Studio
+
+    async def names(self, day):
+        return ["Kévin Forward", "Jean Mid", "Jules Mid", "Endrick"]
+
+    monkeypatch.setattr(Studio, "squad_names", names)
+    stub(monkeypatch)
+    summary = hosted.get("/api/match-centre/summary").json()
+    # "J. Mid" could be Jean or Jules: it stays as the feed writes it.
+    assert summary["answer"].endswith("with goals from Kévin Forward (2) and J. Mid.")
+    board = hosted.get("/api/match-centre/fixtures", params={"day": "2026-11-24"}).json()
+    report = hosted.get("/api/match-centre/fixtures/" + board["matches"][0]["id"]).json()
+    assert [g["name"] for g in report["goals"]] == ["R. Two", "Kévin Forward", "J. Mid",
+                                                    "Kévin Forward"]
+    book = NameBook(["Federico Valverde", "Vinícius Júnior", "Carlos Espí", "Endrick"])
+    assert [book.name(n) for n in ("F. Valverde", "Vinicius Junior", "C. Espi", "Endrick",
+                                   "D. Valverde", "Nobody")] == [
+        "Federico Valverde", "Vinícius Júnior", "Carlos Espí", "Endrick", "D. Valverde",
+        "Nobody"]
+    # An own goal Madrid gave away names a Madrid player; one they were given does not.
+    goals = [{"side": "home", "name": "F. Valverde", "own": True},
+             {"side": "away", "name": "F. Valverde", "own": True}]
+    assert [g["name"] for g in book.goals(goals, "home")] == ["F. Valverde", "Federico Valverde"]

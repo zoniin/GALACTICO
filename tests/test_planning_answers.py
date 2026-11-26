@@ -65,10 +65,15 @@ def _depth(**more) -> dict:
 
 def test_the_squad_answer_names_the_thinnest_group_with_the_counts_the_reply_carries():
     got = planning_answers.squad_answer(_depth())
+    # R8-6: with no target stated the one in force is the starting one, and the answer says so.
     assert got["answer"] == (
         "Cover is thinnest at left centre back, right centre back and right back: 4 players "
-        "for 3 places, so 2 absences there leave no XI. At least one XI meets every target "
-        "you set.")
+        "for 3 places, so 2 absences there leave no XI. At least one XI meets the starting "
+        "target (the club's median XI).")
+    stated = _depth()
+    stated["inputs"]["requirements"][0].update(stated=True, source="EXPLICIT", minimum=2.5)
+    assert planning_answers.squad_answer(stated)["answer"].endswith(
+        "At least one XI meets every target you set.")
     # R8: every number is a count the reply carries (4 available, 3 slots, kappa 2).
     assert _numbers(got["answer"]) == ["4", "3", "2"]
     assert got["thin_slot_ids"] == ["lcb", "rcb", "rb"]
@@ -110,21 +115,22 @@ def test_every_branch_of_the_squad_answer_passes_the_copy_guard_and_says_only_wh
     cases = {
         "two": (two, "Cover is thinnest at left centre back, right centre back and right back "
                      "(4 players for 3 places) and at centre forward (2 players for 1 place): 2 "
-                     "absences in either group leave no XI. At least one XI meets every target "
-                     "you set."),
+                     "absences in either group leave no XI. At least one XI meets the starting "
+                     "target (the club's median XI)."),
         "excluded": (excluded, "Without Cristiano Ronaldo, cover is thinnest at left centre "
                                "back, right centre back and right back: 4 players for 3 places, "
-                               "so 2 absences there leave no XI. At least one XI meets every "
-                               "target you set."),
+                               "so 2 absences there leave no XI. At least one XI meets the "
+                               "starting target (the club's median XI)."),
         "shortfall": (_depth(baseline={"kind": "SHORTFALL"}),
                       "Cover is thinnest at left centre back, right centre back and right back: "
                       "4 players for 3 places, so 2 absences there leave no XI. No XI meets "
-                      "every target you set."),
+                      "the starting target (the club's median XI)."),
         "unsettled": (_depth(baseline={"kind": "NOT_CERTIFIED"},
                              budget={"completeness": "DEADLINE"}),
                       "Cover is thinnest at left centre back, right centre back and right back: "
                       "4 players for 3 places, so 2 absences there leave no XI. Whether any XI "
-                      "meets every target was not settled in time: treat this as incomplete. "
+                      "meets the starting target was not settled in time: treat this as "
+                      "incomplete. "
                       "Some counts were not settled in time: treat them as incomplete."),
         "empty": (empty, "No XI can be fielded from this squad: nobody is available at right "
                          "back."),
@@ -218,16 +224,18 @@ def test_the_list_is_in_the_order_of_the_declared_key_and_never_of_the_outcome()
     assert got["order"]["statement"] == (
         "Listed by age at the cutoff, youngest first, then anyone with no recorded age. This "
         "is not an order of merit.")
+    # R8-1: the outcome is of the squad with him added (the solver free not to use him), and
+    # the count clause says so; "placed there" was what the outcome did not compute.
     assert got["answer"] == (
-        "Of 4 La Liga defenders with 900 or more minutes eligible at right back, placed "
-        "there with the rates each recorded at his club, 1 closes the gap to your targets, 1 "
-        "narrows it and 2 leave it as it is.")
+        "Of 4 La Liga defenders with 900 or more minutes eligible at right back, each added "
+        "to the squad with the rates he recorded at his club, 1 closes the gap to your targets, "
+        "1 narrows it and 2 leave it as it is.")
     first = got["rows"][0]
     # G6-6 (ADR-0034): the club and league are printed above the facts line, so it holds only
     # what they do not say.
     assert (first["facts_sentence"], first["outcome_sentence"]) == (
         "Defender · 3,000 minutes · age 21 · left foot.",
-        "Placed at right back, he narrows the gap to your targets but does not close it.")
+        "Added to the squad, he narrows the gap to your targets but does not close it.")
     assert got["share_href"].endswith("&slot=rb&order=age")
     assert shell.scan_labels(got) == []
 
@@ -237,8 +245,8 @@ def test_every_state_of_signings_has_one_sentence_that_passes_the_copy_guard():
     cases = {
         "none": (_universe("NO_DECLARED_DEFICIENCY", "NO_DECLARED_DEFICIENCY"), None, pool,
                  "4 La Liga defenders with 900 or more minutes are eligible at right back; "
-                 "Real Madrid already meet every target you set, so none of them has a gap to "
-                 "close."),
+                 "Real Madrid already meet the starting target (the club's median XI), so none "
+                 "of them has a gap to close."),
         "empty": (_universe(search_state="EMPTY_POOL", listed=0), None, [],
                   "No La Liga defender with 900 or more minutes is eligible at right back."),
         "empty, filtered": (_universe(search_state="EMPTY_POOL", listed=0,
@@ -257,9 +265,9 @@ def test_every_state_of_signings_has_one_sentence_that_passes_the_copy_guard():
         "open": (_universe(), {"outcome_counts": {"UNCHANGED": 2, "NOT_EVALUABLE": 1,
                                                   "UNDETERMINED": 1}}, ROWS,
                  "Of 4 La Liga defenders with 900 or more minutes eligible at right back, "
-                 "placed there with the rates each recorded at his club, none closes the gap to "
-                 "your targets, 2 leave it as it is, 1 has no recorded rate on your targets and "
-                 "1 was not settled in time."),
+                 "each added to the squad with the rates he recorded at his club, none closes "
+                 "the gap to your targets, 2 leave it as it is, 1 has no recorded rate on your "
+                 "targets and 1 was not settled in time."),
     }
     for name, (universe, search, rows, sentence) in cases.items():
         got = planning_answers.transfer_answer(universe, search, rows, "minutes")
@@ -270,9 +278,55 @@ def test_every_state_of_signings_has_one_sentence_that_passes_the_copy_guard():
             assert {r["outcome_sentence"] for r in got["rows"]} <= {None}, name
     no_xi = planning_answers.transfer_answer(*list(cases["no xi"][:3]), "name")
     assert {r["outcome_sentence"] for r in no_xi["rows"]} == {
-        "Placed at right back, there is still no XI.",
-        "Placed at right back, he closes the gap: at least one XI then meets every target.",
-        "Placed at right back, he narrows the gap to your targets but does not close it."}
+        "Added to the squad, there is still no XI.",
+        "Added to the squad, he closes the gap: at least one XI then meets every target.",
+        "Added to the squad, he narrows the gap to your targets but does not close it."}
+
+
+def test_a_row_whose_placement_widens_the_gap_never_says_placed_there_it_is_unchanged():
+    """R8-1: the lab's UNCHANGED is of the squad with him added; placed at the position the gap
+    can widen (forced_inclusion_change > 0). The row says both, the second worked out from the
+    two figures his panel prints at two places."""
+    def injected(change, membership="NOT_POSSIBLE", forced=0.17356):
+        return {**_row(9, "Gerard Moreno", 3412, 26, "UNCHANGED", "FW"),
+                "injection": {"membership": membership,
+                              "forced_inclusion_change": [change, change],
+                              "forced_inclusion_objective": [forced, forced]}}
+    rows = [injected(0.0452), injected(0.0, "POSSIBLE", 0.12836)]
+    got = planning_answers.transfer_answer(
+        _universe(), {"outcome_counts": {"UNCHANGED": 2}}, rows, "minutes")
+    widened, same = (r["outcome_sentence"] for r in got["rows"])
+    assert widened == ("Added to the squad, he is in none of the closest XIs, so the gap to "
+                       "your targets stays as it is; placed at right back it widens by 0.04, "
+                       "in units of the club's median XI.")
+    assert same == "Added to the squad, he leaves the gap to your targets as it is."
+    for row in got["rows"]:
+        assert not re.search(r"[Pp]laced at [^,;]+, he leaves the gap", row["outcome_sentence"])
+    assert shell.scan_labels(got) == []
+
+
+def test_the_list_can_be_narrowed_by_where_passes_started_and_by_surname():
+    """TR-2, TR-3: a declared lane filter (half or more of his completed passes started there)
+    narrows the list and the sentence counts what is listed; the name key is the surname."""
+    def laned(pid, name, left, central, right, outcome="UNCHANGED"):
+        return {**_row(pid, name, 2000 - pid, 25, outcome),
+                "lane_shares": {"left": left, "central": central, "right": right}}
+    rows = [laned(1, "Jordi Alba", 0.81, 0.18, 0.01), laned(2, "A. Aquilani", 0.1, 0.8, 0.1),
+            laned(3, "Alfonso Pedraza", 0.7, 0.2, 0.1, "LOWERS_SHORTFALL")]
+    got = planning_answers.transfer_answer(_universe(), {"outcome_counts": {}}, rows, "name",
+                                           lane="left")
+    assert [r["name"] for r in got["rows"]] == ["Jordi Alba", "Alfonso Pedraza"]
+    assert got["answer"] == (
+        "Of 2 La Liga defenders with 900 or more minutes eligible at right back whose "
+        "completed passes started mostly from the left, each added to the squad with the rates "
+        "he recorded at his club, none closes the gap to your targets, 1 narrows it and 1 "
+        "leaves it as it is.")
+    assert got["rows"][0]["lanes_text"] == "Passes started: left 81%, centre 18%, right 1%"
+    assert got["share_href"].endswith("&order=name&lane=left")
+    every = planning_answers.transfer_answer(_universe(), {"outcome_counts": {}}, rows, "name")
+    assert [r["name"] for r in every["rows"]] == ["Jordi Alba", "A. Aquilani", "Alfonso Pedraza"]
+    assert every["order"]["statement"] == ("Listed by surname, A to Z. This is not an order of "
+                                           "merit.")
 
 
 # --------------------------------------------------------------------- the endpoints
@@ -312,7 +366,15 @@ def test_the_squad_answer_is_about_the_depth_reply_of_the_same_declarations(
     thesis_guard(got)
     assert shell.scan_labels(got) == []
     assert got["provenance"]["providers"] == ["pappalardo"]
-    assert got == planning_answers.squad_answer(depth)
+    # Every field the depth reply alone decides is as squad_answer writes it from that reply;
+    # the plain views read the snapshot, the reference and the reach of the same declarations.
+    from_depth = planning_answers.squad_answer(depth)
+    views = {"players", "targets_view", "reach"}
+    assert {k: v for k, v in got.items() if k not in views} == \
+        {k: v for k, v in from_depth.items() if k not in views}
+    snapshot = squad_client.post("/api/squad/snapshot", json=body).json()
+    assert set(got["players"]) == {str(p["player_id"]) for p in snapshot["squad"]} | \
+        {str(p["player_id"]) for p in depth.get("omitted") or []}
     assert got["answer"].startswith("Without P3322, no XI can be fielded")
     assert [t["href"] for t in got["thin"]] == [
         "/transfer?scenario=madrid-planning-2018-05-21&formation=4-3-3&exclude=3322&slot=lw"]
@@ -379,14 +441,41 @@ def test_flagship_answers_on_the_real_corpus(corpus_root, lab_client, thesis_gua
     thesis_guard(squad)
     assert squad["answer"] == (
         "Cover is thinnest at left centre back, right centre back and right back: 4 players "
-        "for 3 places, so 2 absences there leave no XI. At least one XI meets every target "
-        "you set.")
+        "for 3 places, so 2 absences there leave no XI. At least one XI meets the starting "
+        "target (the club's median XI).")
+    # SQ-1: the first-level explanation in the glossary's words, no solver token.
+    gate = next(i for i in squad["why"]["items"] if i["kind"] == "GATE")
+    assert gate["line"] == ("Players under 900 minutes are left out of these counts: counting "
+                            "them, 3 absences leave no XI instead of 2.")
+    assert "Left midfield" not in str(squad["why"]) and "Dani Ceballos 397 min (left central "\
+        "midfield and right central midfield)" in gate["players"]
+    # SQ-3: what the squad reaches, and a target just above it that binds.
+    reach = squad["reach"]
+    assert reach["binding"]["value"] > float(reach["line"].split(" is ")[1].split(" ")[0])
+    # SQ-2: Modrić in plain words, one slot name, his rate at two places with its unit.
+    modric = squad["players"]["8287"]
+    assert modric["position"] == "Midfielder"
+    assert modric["rates"] == ["Ball progression: 0.37 per 90"]
+    assert all("least declared shortfall" not in pl["text"] for pl in modric["placements"])
+    assert modric["profile_href"] == "/player?player=8287"
     signings = client.post("/api/transfer/answer", json={"slot_id": "rb"}).json()
     thesis_guard(signings)
     assert shell.scan_labels(signings) == []
     assert signings["answer"].endswith(
-        "are eligible at right back; Real Madrid already meet every target you set, so none of "
-        "them has a gap to close.")
+        "are eligible at right back; Real Madrid already meet the starting target (the club's "
+        "median XI), so none of them has a gap to close.")
+    # D4: arriving from Squad depth with no gap, the question opens on Squad depth's own answer
+    # for the position (two absences there leave no XI), said in the sentence and returned so
+    # the page shows it as departures the reader can remove.
+    opened = client.post("/api/transfer/answer", json={"slot_id": "rb", "open_gap": True}).json()
+    thesis_guard(opened)
+    assert shell.scan_labels(opened) == []
+    assert len(opened["opened"]["excludes"]) == 2
+    assert opened["answer"].startswith(
+        "Your targets leave no gap, so this opens on Squad depth's answer for right back, where "
+        "2 absences leave no XI: the squad without ")
+    assert opened["search_state"] != "NO_DECLARED_DEFICIENCY"
+    assert all(f"exclude={pid}" in opened["share_href"] for pid in opened["opened"]["excludes"])
     minutes = [r["facts_sentence"] for r in signings["rows"]]
     assert len(minutes) == signings["count"] > 0
 

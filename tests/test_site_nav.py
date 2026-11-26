@@ -74,9 +74,23 @@ def test_the_module_is_dependency_free_and_ships_with_the_hosted_function():
 def test_five_destinations_in_one_order():
     assert [item.label for item in site_nav.NAV] == [
         "Matches", "Table", "Players", "Lineup", "Squad & signings"]
+    # Re-pinned (D1): every destination opens its current-season page first where one exists,
+    # on both apps; Players was ("/player", "/match-centre/scouting").
     assert [item.hrefs for item in site_nav.NAV] == [
-        ("/match-centre", "/"), ("/match-centre/leagues",), ("/player", "/match-centre/scouting"),
+        ("/match-centre", "/"), ("/match-centre/leagues",), ("/match-centre/scouting", "/player"),
         ("/lineup", "/xi"), ("/squad", "/transfer")]
+    for item in site_nav.NAV:
+        current = [href for href in item.hrefs
+                   if site_nav._PAGE_AT.get(href) and site_nav.PAGES[
+                       site_nav._PAGE_AT[href]].season == "current"]
+        if current:
+            assert item.hrefs[0] == current[0], item.key
+    # The phone tab bar's short label, the only one: the link is still named in full (H30).
+    assert [(item.key, item.short) for item in site_nav.NAV if item.short] == [("squad", "Squad")]
+    nav = site_nav.nav_markup(None, ALL_ROUTES)
+    assert ('<span class="site-nav-label" data-short="Squad">Squad &amp; signings</span>'
+            in nav)
+    assert scan_labels([item.short for item in site_nav.NAV if item.short]) == []
     assert "opponent" not in str(site_nav.NAV) and "desk" not in str(site_nav.NAV)
     assert scan_labels([item.label for item in site_nav.NAV]) == []
 
@@ -84,8 +98,8 @@ def test_five_destinations_in_one_order():
 def test_the_nav_lists_only_what_the_app_serves_and_links_its_first_route():
     full = NAV_LINK.findall(site_nav.nav_markup(None, ALL_ROUTES))
     assert [(href, key) for href, key, _ in full] == [
-        ("/match-centre", "matches"), ("/match-centre/leagues", "table"), ("/player", "players"),
-        ("/lineup", "lineup"), ("/squad", "squad")]
+        ("/match-centre", "matches"), ("/match-centre/leagues", "table"),
+        ("/match-centre/scouting", "players"), ("/lineup", "lineup"), ("/squad", "squad")]
     hosted = NAV_LINK.findall(site_nav.nav_markup(None, HOSTED_ROUTES))
     assert [(href, key) for href, key, _ in hosted] == [
         ("/match-centre", "matches"), ("/match-centre/leagues", "table"),
@@ -330,16 +344,19 @@ def test_a_missing_page_is_the_sites_own_page_and_an_api_keeps_its_json(hosted):
     # S2 (ADR-0034): a browser gets a designed page with the shell and the ways on, never the
     # framework's JSON; an archive page on the hosted app says where the archive runs.
     browser = {"accept": "text/html,application/xhtml+xml"}
-    for path, heading in (("/nope", "That page isn't here"),
-                          ("/player", "The 2017/18 archive isn't on this site"),
-                          ("/match?id=1", "The 2017/18 archive isn't on this site")):
+    for path, heading in (("/nope", "That page isn’t here"),
+                          ("/player", "The 2017/18 archive isn’t on this site"),
+                          ("/match?id=1", "The 2017/18 archive isn’t on this site")):
         reply = hosted.get(path, headers=browser)
         assert reply.status_code == 404 and reply.headers["content-type"].startswith("text/html")
         page = html.unescape(reply.text)
         assert f"<h1>{heading}</h1>" in page and '<header class="site-header"' in page
         assert "<title>Page not found · Galáctico</title>" in page
+        # Re-pinned (H23): the ways on are the navigation the app serves, Players included
+        # (was Matches, Table and Lineup only).
         assert re.findall(r'<a class="ui-btn[^"]*" href="([^"]+)"', page) == [
-            "/match-centre", "/match-centre/leagues", "/lineup"]
+            "/match-centre", "/match-centre/leagues", "/match-centre/scouting", "/lineup"]
+        assert page.count("ui-btn-primary") == 1
         assert '"detail"' not in page
         assert scan_labels(shell.visible_text(reply.text)) == []
     assert "runs only on a local install" in hosted.get("/squad", headers=browser).text
@@ -358,8 +375,9 @@ def test_the_local_app_answers_a_missing_page_with_the_same_designed_page(local)
     reply = local.get("/nope", headers=browser)
     assert reply.status_code == 404 and reply.headers["content-type"].startswith("text/html")
     page = html.unescape(reply.text)
-    assert "<h1>That page isn't here</h1>" in page and '<header class="site-header"' in page
-    assert re.findall(r'<a class="ui-btn[^"]*" href="([^"]+)"', page)[0] == "/match-centre"
+    assert "<h1>That page isn’t here</h1>" in page and '<header class="site-header"' in page
+    assert re.findall(r'<a class="ui-btn[^"]*" href="([^"]+)"', page) == [
+        "/match-centre", "/match-centre/leagues", "/match-centre/scouting", "/lineup", "/squad"]
     assert scan_labels(shell.visible_text(reply.text)) == []
     for path, headers in (("/api/nope", browser), ("/static/nope.css", browser), ("/nope", {})):
         reply = local.get(path, headers=headers)
@@ -378,7 +396,7 @@ def test_about_the_numbers_lists_what_this_app_serves(hosted, local):
     # The hosted site serves no archive and no StatsBomb-derived analysis (R7).
     assert "StatsBomb" not in hosted_page and "Pappalardo" in hosted_page
     # It promises what it holds.
-    said = ("How this season's results, tables and goals are gathered and where every number "
+    said = ("How this season’s results, tables and goals are gathered and where every number "
             "comes from.")
     assert answer.findall(html.unescape(hosted_page)) == [said]
     assert "Results through" in hosted_page and "five games" in hosted_page
@@ -387,7 +405,7 @@ def test_about_the_numbers_lists_what_this_app_serves(hosted, local):
         "why-only-five", "evidence-classes", "verdicts", "not-measured", "this-season", "sources"]
     assert answer.findall(html.unescape(local_page)) == [
         "Why only five measures are shown, what kind of number each one is, which claims have "
-        "been tested and how they stand, what this site does not measure, how this season's "
+        "been tested and how they stand, what this site does not measure, how this season’s "
         "results, tables and goals are gathered and where every number comes from."]
     contents = re.search(r'<nav class="about-contents".*?</nav>', local_page, re.S).group(0)
     assert re.findall(r'href="#([\w-]+)"', contents) == sections.findall(local_page)
@@ -454,3 +472,48 @@ def test_about_says_so_when_the_archive_is_missing(monkeypatch, local):
     page = local.get("/about").text
     assert about.UNAVAILABLE in page and "profile artifacts" not in page
     assert scan_labels(shell.visible_text(page)) == []
+
+
+# ---------------------------------------------------------------- what a link shows, and /static
+
+
+def test_every_page_carries_a_description_and_the_card_a_shared_link_shows(hosted):
+    # H22: a shared table, lineup or match link previews with the page's own words.
+    for spec in site_nav.PAGES.values():
+        assert spec.description and scan_labels([spec.description]) == [], spec.key
+        head = site_nav.head_markup(spec, url="https://example.test/x")
+        assert f'<meta name="description" content="{site_nav._e(spec.description)}">' in head
+        for prop in ("og:title", "og:description", "og:type", "og:site_name", "og:url"):
+            assert f'<meta property="{prop}"' in head, (spec.key, prop)
+    page = hosted.get("/match-centre/leagues").text
+    assert page.count('<meta name="description"') == 1
+    assert '<meta property="og:url" content="http://testserver/match-centre/leagues">' in page
+    about = hosted.get("/about").text
+    assert about.count('<meta name="description"') == 1
+    # A route that has the server's sentence for the view hands it over.
+    said = site_nav.head_markup(site_nav.PAGES["lineup"], description="This 4-3-3 keeps 10.")
+    assert '<meta property="og:description" content="This 4-3-3 keeps 10.">' in said
+
+
+HOSTED_STATIC_GONE = ("index.html", "xi.html", "match.html", "squad.html", "transfer.html",
+                      "match-centre.html", "missing.html", "assets/statsbomb-logo.png",
+                      "planning.js", "xi-extensions.js", "labs-shared.js", "labs.css")
+
+
+def test_the_hosted_app_serves_under_static_only_what_its_pages_load(hosted, local):
+    # R7-1, H32: no page template and no file of the archive pages under /static on the hosted
+    # app; the shell serves every page.
+    for path in HOSTED_STATIC_GONE:
+        assert hosted.get(f"/static/{path}").status_code == 404, path
+    loaded: set[str] = set()
+    for path in ("/", "/match-centre/leagues", "/match-centre/scouting", "/lineup", "/about",
+                 "/nope"):
+        page = hosted.get(path, headers={"accept": "text/html"}).text
+        loaded |= set(re.findall(r'(?:href|src)="/static/([^"#?]+)"', page))
+    for script in [name for name in loaded if name.endswith(".js")]:
+        text = (ROOT / "web" / script).read_text(encoding="utf-8")
+        loaded |= {name for name in re.findall(r"from '\./([\w.-]+\.js)'", text)}
+        loaded |= set(re.findall(r"/static/([\w./-]+\.\w+)", text))
+    for name in sorted(loaded):
+        assert hosted.get(f"/static/{name}").status_code == 200, name
+    assert "assets/studio-kit.webp" in loaded and "goal-links.js" in loaded

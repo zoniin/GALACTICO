@@ -32,6 +32,7 @@ def _match(row: dict) -> dict:
         "away": teams["away"]["name"], "madrid": 541 in (
             teams["home"].get("id"), teams["away"].get("id")),
         "day": kickoff.date().isoformat(), "kickoff": f"{kickoff:%H:%M} UTC",
+        "kickoff_utc": kickoff.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "score": score if any(g is not None for g in score) else None,
         "live": short in LIVE, "status": label,
     }

@@ -80,8 +80,10 @@
 <label class="ui-field"><span class="ui-label">Age from</span><input type="number" id="filter-min-age" class="ui-input" min="15" max="45" step="1" placeholder="Any" inputmode="numeric"></label>
 <label class="ui-field"><span class="ui-label">Age to</span><input type="number" id="filter-max-age" class="ui-input" min="15" max="45" step="1" placeholder="Any" inputmode="numeric"></label>
 <label class="ui-field"><span class="ui-label">Foot</span><select id="filter-foot" class="ui-select"><option value="">Any</option><option value="left">Left</option><option value="right">Right</option><option value="both">Both</option></select></label>
+<label class="ui-field"><span class="ui-label">Passes mostly from</span><select id="filter-lane" class="ui-select"><option value="">Anywhere</option><option value="left">The left</option><option value="central">The centre</option><option value="right">The right</option></select></label>
 <label class="ui-field tr-order"><span class="ui-label">List by</span><select id="order" class="ui-select"></select></label>
 </div>
+<p class="ui-help" id="lane-note"></p>
 <fieldset class="tr-leagues-field" id="leagues-field"><legend class="ui-label">Also search</legend><div class="tr-leagues" id="leagues"></div></fieldset>
 <p class="ui-help">Players from other leagues are listed as they are, with no league adjustment.</p>
 </div>
@@ -134,7 +136,7 @@
    - Fixed labels in front of a server value, name or list, never a clause of their own: "least declared
      shortfall (largest, sum):", "change against the squad's own (largest, sum):", "Left out before any
      filter:", "Earlier this season:", the label of the players no longer in every least-shortfall XI, the
-     pool line, the facts line of a candidate, the five counts under the world strip ("in every
+     pool line, "Season profile" on a candidate's link, the five counts under the world strip ("in every
      least-shortfall XI", "in some", "in none", "no XI without him, or none with him", "set aside"), the
      season chip (the server's season and "archive"), "Without" before a name on a departure chip, "Show
      all" before the server's count, and the texts of the buttons.
@@ -145,7 +147,9 @@
      pool section when the search state is EMPTY_POOL; "Opened on the thinnest position on Squad depth."
      when the page took the position from the server's answer there.
    No sentence about football is assembled here from a number, and none of these is worded here: the
-   answer, a candidate's facts and what placing him does (facts_sentence, outcome_sentence), the order in
+   answer, a candidate's facts and what placing him does (facts_sentence, outcome_sentence), where his
+   passes started (lanes_text), the gap a hand-off opened on (opened), the leads when there is no gap
+   (leads, attained_text, squad_options), the order in
    force (order.statement), what the outcome groups and the break-even are when one requirement is in force
    (single_requirement_statement), the class of the facts and of the recorded rate beside a candidate
    (facts_evidence_statement), what the reference row says of a candidate and its outcome label
@@ -178,7 +182,7 @@ const answerT = GP.tracker(), detailT = GP.tracker(), candT = GP.tracker();
 let catalogue = null, clubs = [], targets = null;
 let excludes = [], draft = {requirements: [], experimental_opt_in: false};
 let answer = null, problem = null, search = null, problemInput = null, busy = false;
-let orderKey = 'minutes', selectedId = null, showAll = false;
+let orderKey = 'minutes', selectedId = null, showAll = false, openGap = false, push = false, restore = null;
 let candidate = null, candidateCarry = null;
 
 /* ---- Figures: server values placed on a fixed grid. Nothing is added up. ---- */
@@ -230,8 +234,9 @@ function lanes(p, small) {
     `<div class="tl-facts" data-lane-text>${esc(p.lane_text)}</div>`;
 }
 
+// A shortfall range at two places ("0.13", or "0.13 to 0.17"); not a number is a dash.
+const range = (a, b) => !finite(a) || !finite(b) ? DASH : (a.toFixed(2) === b.toFixed(2) ? a.toFixed(2) : `${a.toFixed(2)} to ${b.toFixed(2)}`);
 const pair = (p, o = {}) => Array.isArray(p) ? `${GP.value(p[0], 3, o)}, ${GP.value(p[1], 3, o)}` : `<span class="mono">${DASH}</span>`;
-const factsLine = p => `${esc(p.provider_position)} · ${p.foot_label ? esc(p.foot_label) : 'foot not recorded'} · age ${finite(p.age_years) ? esc(p.age_years) : DASH} · ${GP.value(p.minutes, 0)} min`;
 const rates = p => list(problem?.inputs?.requirements).filter(r => r.declared === true).map(r =>
   `<div class="tl-facts" data-requirement="${esc(r.requirement_id)}">${esc(r.label)}: ${GP.value(p.requirement_values?.[r.requirement_id], 3, {approx: true})}</div>`).join('');
 const slotLabel = () => answer?.slot?.label ?? '';
@@ -252,7 +257,7 @@ function candidateRow(row) {
   return `<li class="tr-row${selected ? ' gp-selected' : ''}" data-player="${esc(row.player_id)}"${row.outcome ? ` data-outcome="${esc(row.outcome)}"` : ''}>` +
     `<button type="button" class="gp-name tr-row-btn" data-player="${esc(row.player_id)}" aria-pressed="${selected}">` +
     `<span class="tr-who"><span class="tr-name">${esc(row.name)}</span><span class="tr-club">${esc(row.team_name)} · ${esc(row.competition_label)}</span></span>` +
-    `<span class="tr-says">${typeof row.outcome_sentence === 'string' ? `<span class="tr-outcome" data-part="outcome">${esc(row.outcome_sentence)}</span>` : ''}<span class="tr-facts" data-part="facts">${esc(row.facts_sentence)}</span></span></button></li>`;
+    `<span class="tr-says">${typeof row.outcome_sentence === 'string' ? `<span class="tr-outcome" data-part="outcome">${esc(row.outcome_sentence)}</span>` : ''}<span class="tr-facts" data-part="facts">${esc(row.facts_sentence)}</span>${typeof row.lanes_text === 'string' ? `<span class="tr-facts tr-lanes" data-part="lanes">${esc(row.lanes_text)}</span>` : ''}</span></button></li>`;
 }
 
 /* ---- Controls ---- */
@@ -339,7 +344,10 @@ function body() {
     slot_id: $('slot').value, include_leagues: [...$('leagues').querySelectorAll('input:checked')].map(i => i.value), filters});
 }
 
-function solve() {
+// A reader's change adds a history entry (Back undoes it); the first answer only rewrites the
+// address (AR-3). The lane filter and the gap a hand-off opens on are the answer's own fields.
+function solve(options = {}) {
+  push = options.push === true;
   if (!$('slot').value) { showAnswer(esc(COPY.pick)); return; }
   const asked = body();
   if (!asked) { say(esc(COPY.invalid), 'caution'); return; }
@@ -352,8 +360,18 @@ function solve() {
   $('more-rows').classList.add('hidden');
   $('next').classList.add('hidden');
   setBusy(true);
-  return GP.run(t, () => api('/api/transfer/answer', {...asked, order_key: orderKey}), {
-    apply: reply => { answer = reply; problemInput = asked; showAll = false; renderAnswer(); fetchDetail(); },
+  const lane = $('filter-lane').value || null, opening = openGap;
+  openGap = false;
+  return GP.run(t, () => api('/api/transfer/answer', {...asked, order_key: orderKey, lane, open_gap: opening}), {
+    apply: reply => {
+      answer = reply;
+      // The gap a hand-off opened on is the reader's to remove: its absences become departures.
+      const opened = list(reply.opened?.excludes);
+      if (opened.length) { excludes = [...new Set(excludes.concat(opened))]; asked.excludes = excludes.slice(); renderDeclarations(); }
+      problemInput = asked; showAll = restore?.all === true; renderAnswer(); fetchDetail();
+      const wanted = restore?.candidate; restore = null;
+      if (Number.isInteger(wanted) && list(answer.rows).some(p => p.player_id === wanted)) selectCandidate(wanted, {quiet: true});
+    },
     fail: error => {
       const text = S.errorText('Signings', error);
       showAnswer(`<span class="pl-answer-error">${error?.status === 503 ? text : esc(COPY.failed)}</span>`);
@@ -368,7 +386,9 @@ function renderAnswer() {
   const a = answer;
   showAnswer(esc(a.answer));
   $('eyebrow').textContent = a.scope_line ?? '';
-  if (local(a.share_href)) history.replaceState(null, '', a.share_href);
+  if (local(a.share_href)) address(a.share_href, push);
+  push = false;
+  $('lane-note').textContent = a.lane ? a.lane_note ?? '' : '';
   $('next-actions').innerHTML = local(a.squad_href) ? `<a href="${esc(a.squad_href)}">← Squad depth for these targets</a>` : '';
   $('about-summary').textContent = a.summaries?.about ?? '';
   $('order').innerHTML = list(a.order?.options).map(o => `<option value="${esc(o.key)}"${o.key === a.order.key ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
@@ -464,21 +484,25 @@ function renderSearch() {
 function roster(lineup, note) {
   const rows = list(lineup);
   if (!rows.length) return `<div class="unavailable">${esc(note ?? 'No XI was sent.')}</div>`;
-  return '<ul class="tl-xi">' + rows.map(x => `<li data-player="${esc(x.player_id)}"${x.added ? ' class="added"' : ''}><span class="slot">${esc(x.slot_label)}</span>${esc(x.name ?? DASH)}${x.added ? ` <span class="tl-facts">Added · placed at ${esc(x.slot_label)}</span>` : ''}</li>`).join('') + `</ul><p class="figure-note">${esc(note)}</p>`;
+  if (note === null) note = undefined;
+  const place = x => slotName({slot_id: x.slot_id, label: x.slot_label});
+  return '<ul class="tl-xi">' + rows.map(x => `<li data-player="${esc(x.player_id)}"${x.added ? ' class="added"' : ''}><span class="slot">${esc(place(x))}</span>${esc(x.name ?? DASH)}${x.added ? ` <span class="tl-facts">Added · placed at ${esc(answer?.slot?.slot_id === x.slot_id && typeof answer.slot.words === 'string' ? answer.slot.words : place(x))}</span>` : ''}</li>`).join('') + '</ul>' + (typeof note === 'string' ? `<p class="figure-note">${esc(note)}</p>` : '');
 }
 
 // No declared shortfall: the three ways to declare one, each acting on the declarations above.
 function leads(r) {
   const offered = list(catalogue.presets).filter(p => !Array.isArray(p.scenario_ids) || p.scenario_ids.includes(r.scenario_id));
   const button = p => `<button type="button" class="ui-btn" data-preset="${esc(p.id)}">${esc(menuOffered().find(o => o.preset_id === p.id)?.label ?? p.label)}</button>`;
+  const options = list(answer?.squad_options);
   const inner = {
-    exclusion: () => `<div class="actions">${offered.filter(p => p.kind === 'EXCLUSION' && !GP.presetPressed(p, {excludes, draft})).map(p => `<button type="button" class="ui-btn" data-preset="${esc(p.id)}">${esc(list(targets?.departures).find(d => d.preset_id === p.id)?.label ?? p.label)}</button>`).join('')}<label class="control"><span class="label">Squad player</span><select id="exclude-player">${list(r.squad).filter(p => !p.excluded).map(p => `<option value="${esc(p.player_id)}">${esc(p.name)} · ${esc(p.position)}</option>`).join('')}</select></label><button type="button" class="ui-btn" id="exclude">Leave him out</button></div>`,
-    'explicit-minimum': () => list(r.inputs.requirements).filter(q => q.declared === true).map(q => `<div class="actions" data-requirement="${esc(q.requirement_id)}"><label class="control"><span class="label">${esc(q.label)} · now ${GP.value(q.minimum, 3, {approx: true})}</span><input type="number" data-lead-minimum min="0" max="1000" step="any" required></label><button type="button" class="ui-btn" data-lead-apply>Set this target</button></div>` + list(r.deficiency?.attained).filter(a => a.requirement_id === q.requirement_id).map(a => `<p class="small statement" data-attained="${esc(a.requirement_id)}" data-status="${esc(a.status)}">${esc(a.statement)}</p>`).join('')).join(''),
+    exclusion: () => `<div class="actions">${offered.filter(p => p.kind === 'EXCLUSION' && !GP.presetPressed(p, {excludes, draft})).map(p => `<button type="button" class="ui-btn" data-preset="${esc(p.id)}">${esc(list(targets?.departures).find(d => d.preset_id === p.id)?.label ?? p.label)}</button>`).join('')}<label class="control"><span class="label">Squad player</span><select id="exclude-player">${options.map(o => `<option value="${esc(o.player_id)}">${esc(o.label)}</option>`).join('')}</select></label><button type="button" class="ui-btn" id="exclude">Leave him out</button></div>`,
+    'explicit-minimum': () => list(r.inputs.requirements).filter(q => q.declared === true).map(q => `<div class="actions" data-requirement="${esc(q.requirement_id)}"><label class="control"><span class="label">${esc(targets?.requirement_titles?.[q.requirement_id] ?? q.label)} · now ${GP.value(q.minimum, 2)}</span><input type="number" data-lead-minimum min="0" max="1000" step="any" required></label><button type="button" class="ui-btn" data-lead-apply>Set this target</button></div>`).join('') + (typeof answer?.attained_text === 'string' ? `<p class="small statement" data-attained="progression">${esc(answer.attained_text)}</p>` : ''),
     'league-percentile': () => `<div class="actions">${offered.filter(p => p.kind === 'MINIMA' && !p.needs_experimental_opt_in && list(p.sets?.requirements).some(q => q.source === 'LEAGUE_PERCENTILE') && !GP.presetPressed(p, {excludes, draft})).map(button).join('')}</div>`,
   };
-  return '<div class="tl-leads" id="leads"><h3>No gap to close yet: declare one to compare them</h3>' +
-    list(catalogue.deficiency_leads).map((lead, i) => `<div class="tl-lead" data-lead="${esc(lead.id)}"><span class="tl-step">${'abc'[i] ?? ''}</span><div><strong>${esc(lead.label)}.</strong> ${esc(lead.sentence)}${(inner[lead.id] ?? (() => ''))()}</div></div>`).join('') +
-    `<p class="figure-note">${esc(catalogue.deficiency_lead_note)}</p></div>`;
+  const leadList = list(answer?.leads).length ? answer.leads : list(catalogue.deficiency_leads);
+  return '<div class="tl-leads" id="leads"><h3>No gap to close yet: give the list one to work on</h3>' +
+    leadList.map((lead, i) => `<div class="tl-lead" data-lead="${esc(lead.id)}"><span class="tl-step">${i + 1}</span><div><strong>${esc(lead.label)}.</strong> ${esc(lead.sentence)}${(inner[lead.id] ?? (() => ''))()}</div></div>`).join('') +
+    `<p class="figure-note">${esc(answer?.lead_note ?? catalogue.deficiency_lead_note)}</p></div>`;
 }
 
 const candidateBody = (id, more) => {
@@ -488,11 +512,23 @@ const candidateBody = (id, more) => {
 
 /* ---- The selected candidate ---- */
 
-function selectCandidate(id) {
+// The open candidate and "Show all" are in the address (TR-1): a reload or a shared link opens him.
+function address(href, add) {
+  const url = new URL(href, location.origin);
+  if (selectedId !== null) url.searchParams.set('candidate', String(selectedId));
+  if (showAll) url.searchParams.set('all', '1');
+  const next = url.pathname + url.search;
+  if (next === location.pathname + location.search) return;
+  if (add) history.pushState(null, '', next); else history.replaceState(null, '', next);
+}
+
+function selectCandidate(id, o = {}) {
   if (!answer || !problemInput) return;
   const row = list(answer.rows).find(p => p.player_id === id);
   if (!row) return;
   selectedId = id; candidate = null; candidateCarry = null;
+  if (row && !showAll && list(answer.rows).indexOf(row) >= SHOWN) showAll = true;
+  if (local(answer.share_href)) address(answer.share_href, o.quiet !== true);
   const t = GP.ticket(candT, answerT);
   renderList(); renderLedger();  // the previous candidate's rows leave the ledger with his panel
   $('candidate-detail').classList.add('hidden');
@@ -510,7 +546,7 @@ function selectCandidate(id) {
 }
 
 function renderCandidate(worlds, conclusion) {
-  const r = candidate, c = r.candidate, co = candidateCarry.carry_over, wc = c.world_counts, slot = r.slot.label;
+  const r = candidate, c = r.candidate, co = candidateCarry.carry_over, wc = c.world_counts, slot = typeof answer?.slot?.words === 'string' ? answer.slot.words : slotName(r.slot);
   const row = list(answer?.rows).find(p => p.player_id === c.player_id);
   const cell = (label, inner) => `<td data-label="${label}"><div>${inner}</div></td>`;
   // His recorded rates, with the class the server gives a recorded rate: the rows of this reply's
@@ -518,22 +554,26 @@ function renderCandidate(worlds, conclusion) {
   const rateRows = list(r.ledger).filter(x => String(x.row_id).startsWith(`candidate-${c.player_id}-rates-`));
   $('candidate-status').classList.add('hidden');
   $('candidate-detail').dataset.player = c.player_id;
+  // Plain facts and the XI with him first; the certificate of his re-solve, his rates with their
+  // evidence and the claims under "Technical record" (D6).
+  const gapRows = list(c.requirement_ranges).map(q => `<tr data-requirement="${esc(q.requirement_id)}">${cell('Target', esc(targets?.requirement_titles?.[q.requirement_id] ?? q.label))}${cell('Without him', range(q.baseline_least, q.baseline_greatest))}${cell('With him', range(q.least_shortfall, q.greatest_shortfall))}</tr>`).join('');
   $('candidate-detail').innerHTML =
     `<section id="candidate-facts"><h3>${esc(c.name)}</h3><div class="small subtle">${esc(c.team_name)} · ${esc(c.competition_label)}</div>` +
       (typeof row?.outcome_sentence === 'string' ? `<p class="tr-outcome" data-part="outcome">${esc(row.outcome_sentence)}</p>` : '') +
-      `<div class="tl-facts">${factsLine(c)}</div>` +
+      `<div class="tl-facts" data-part="facts">${esc(row?.facts_sentence ?? '')}</div>` +
       list(c.other_stints).map(s => `<div class="tl-facts">Earlier this season: ${esc(s.team_name)}, ${GP.value(s.minutes, 0)} min (not pooled)</div>`).join('') +
-      `<p class="small">${esc(c.admissible_note)}</p></section>` +
-    `<section><h4>With him at ${esc(slot)}</h4><div class="tl-facts">${injectionCell(c.injection, true)}</div><div id="injected-roster">${roster(c.forced_lineup, c.lineup_note)}</div><p id="candidate-displaced" class="small">${esc(c.tie_statement)}</p>` +
-      (list(c.no_longer_necessary?.names).length ? `<p class="small subtle" id="candidate-freed">In every least-shortfall XI without him, not in every one with him available: ${list(c.no_longer_necessary.names).map(esc).join(', ')}</p>` : '') +
-      `<table class="ledger" id="candidate-change"><thead><tr><th>Requirement</th><th>Shortfall without him</th><th>With him at ${esc(slot)}</th></tr></thead><tbody>` +
-      list(c.requirement_ranges).map(q => `<tr data-requirement="${esc(q.requirement_id)}">${cell('Requirement', esc(q.label))}${cell('Without him', `${GP.value(q.baseline_least, 3, {approx: true})} to ${GP.value(q.baseline_greatest, 3, {approx: true})}`)}${cell('With him', `${GP.value(q.least_shortfall, 3, {approx: true})} to ${GP.value(q.greatest_shortfall, 3, {approx: true})}`)}</tr>`).join('') +
-      '</tbody></table></section>' +
+      (local(row?.profile_href) ? `<p class="tr-profile"><a class="ui-link" href="${esc(row.profile_href)}">Season profile</a></p>` : '') + '</section>' +
+    `<section><h4>The XI with him at ${esc(slot)}</h4><div id="injected-roster">${roster(c.forced_lineup, null)}</div><p class="figure-note">One XI as close to your targets as any with him at ${esc(slot)}; others may tie with it.</p>` +
+      `<table class="ledger" id="candidate-change"><caption class="small subtle">The gap to your targets, in units of the club's median XI</caption><thead><tr><th>Target</th><th>Without him</th><th>With him at ${esc(slot)}</th></tr></thead><tbody>${gapRows}</tbody></table></section>` +
     `<section id="candidate-lanes"><h4>Where his completed passes started</h4>${lanes(c, false)}<p class="figure-note" id="lane-statement">${esc(c.lane_statement ?? '')}</p><aside class="cannot-say">${S.cannotSay(['No role is inferred from it.'])}</aside></section>` +
-    `<section id="transport"><h4>The rates he recorded</h4><p id="recorded-statement" class="small">${esc(c.recorded_statement)}</p>` +
+    `<details class="ui-disclosure" id="candidate-record"><summary>Technical record: his re-solve and his recorded rates</summary><div class="ui-disclosure-body">` +
+      `<div class="tl-facts">${injectionCell(c.injection, true)}</div><p class="small subtle">${esc(c.lineup_note)}</p><p id="candidate-displaced" class="small">${esc(c.tie_statement)}</p>` +
+      (list(c.no_longer_necessary?.names).length ? `<p class="small subtle" id="candidate-freed">In every least-shortfall XI without him, not in every one with him available: ${list(c.no_longer_necessary.names).map(esc).join(', ')}</p>` : '') +
+      `<p class="small">${esc(c.admissible_note)}</p>` +
+      `<section id="transport"><h4>The rates he recorded</h4><p id="recorded-statement" class="small">${esc(c.recorded_statement)}</p>` +
       rateRows.map(x => `<div class="tl-facts" data-rate-row="${esc(x.row_id)}">${esc(x.quantity)}: <span class="mono">${esc(x.value_text ?? DASH)}</span> ${S.evidenceBadge(x.evidence)} ${S.verdictBadge(x.verdict)}</div>`).join('') +
       (c.flag ? `<p class="notice small" data-flag="NOT_STRENGTH_ADJUSTED">${esc(c.flag)}</p>` : '') +
-      GP.claim(r).replace('id="claim"', 'id="candidate-claim"').replace('id="non-claim"', 'id="candidate-non-claim"') + GP.warnings(r.warnings).replace('id="warnings"', 'id="candidate-warnings"') + '</section>' +
+      GP.claim(r).replace('id="claim"', 'id="candidate-claim"').replace('id="non-claim"', 'id="candidate-non-claim"') + GP.warnings(r.warnings).replace('id="warnings"', 'id="candidate-warnings"') + '</section></div></details>' +
     `<details class="ui-disclosure" id="carry-more"><summary>Advanced: how much of his output must carry over <span class="ui-disclosure-summary" id="carry-short">${esc(co.short)}</span></summary><div class="ui-disclosure-body">` +
       `<label class="control"><span class="label">Conclusion the break-even tests</span><select id="conclusion" aria-label="Conclusion the break-even tests">${list(catalogue.conclusions).map(x => `<option value="${esc(x.id)}"${x.id === conclusion ? ' selected' : ''}>${esc(x.sentence)}</option>`).join('')}</select></label>` +
       `<h4>${esc(co.label)} · ${esc(co.conclusion_sentence)}</h4><div id="carry-figure">${carry(co, 'large', true, c.name)}</div>` +
@@ -576,7 +616,7 @@ function applyPreset(id) {
     draft = next;
   }
   renderDeclarations();
-  solve();
+  solve({push: true});
 }
 
 function resetForScenario() {
@@ -584,20 +624,22 @@ function resetForScenario() {
   excludes = []; draft = {requirements: [], experimental_opt_in: false};
   invalidateCandidate();
   renderSlots($('slot').value); renderLeagues([]); renderDeclarations();
-  solve();
+  solve({push: true});
 }
 
 function wire() {
+  const again = () => solve({push: true});
   $('scenario').addEventListener('change', resetForScenario);
-  $('formation').addEventListener('change', () => { renderSlots($('slot').value); solve(); });
-  $('slot').addEventListener('change', () => { $('slot-note').textContent = ''; solve(); });
-  $('foot-hint').addEventListener('click', () => { const foot = $('foot-hint').dataset.foot; $('filter-foot').value = $('filter-foot').value === foot ? '' : foot; solve(); });
+  $('formation').addEventListener('change', () => { renderSlots($('slot').value); again(); });
+  $('slot').addEventListener('change', () => { $('slot-note').textContent = ''; again(); });
+  $('foot-hint').addEventListener('click', () => { const foot = $('foot-hint').dataset.foot; $('filter-foot').value = $('filter-foot').value === foot ? '' : foot; again(); });
   $('targets').addEventListener('change', () => { if ($('targets').value) applyPreset($('targets').value); });
-  $('leagues').addEventListener('change', solve);
+  $('leagues').addEventListener('change', again);
   // The order control sits in the filter row; a new order is its own request, not a filter's.
-  $('filters').addEventListener('change', event => { if (event.target.id !== 'order') solve(); });
-  $('order').addEventListener('change', () => { orderKey = $('order').value; const keep = selectedId; solve()?.then(() => { if (keep !== null && list(answer?.rows).some(p => p.player_id === keep)) selectCandidate(keep); }); });
-  $('more-rows').addEventListener('click', () => { showAll = true; renderList(); });
+  $('filters').addEventListener('change', event => { if (event.target.id !== 'order') again(); });
+  $('order').addEventListener('change', () => { orderKey = $('order').value; const keep = selectedId; solve({push: true})?.then(() => { if (keep !== null && list(answer?.rows).some(p => p.player_id === keep)) selectCandidate(keep, {quiet: true}); }); });
+  window.addEventListener('popstate', () => location.reload());
+  $('more-rows').addEventListener('click', () => { showAll = true; renderList(); if (local(answer?.share_href)) address(answer.share_href, true); });
   document.addEventListener('change', event => {
     if (event.target.id === 'conclusion' || event.target.id === 'worlds') { if (selectedId !== null) selectCandidate(selectedId); }
   });
@@ -607,15 +649,15 @@ function wire() {
     const preset = el.closest('#departures [data-preset], #next [data-preset]');
     if (preset) return void applyPreset(preset.dataset.preset);
     const chip = el.closest('#departures button[data-player]');
-    if (chip) { excludes = excludes.filter(x => String(x) !== chip.dataset.player); renderDeclarations(); return void solve(); }
-    if (el.closest('#exclude')) { excludes = [...new Set(excludes.concat(Number($('exclude-player').value)))]; return void solve(); }
+    if (chip) { excludes = excludes.filter(x => String(x) !== chip.dataset.player); renderDeclarations(); return void solve({push: true}); }
+    if (el.closest('#exclude')) { excludes = [...new Set(excludes.concat(Number($('exclude-player').value)))]; return void solve({push: true}); }
     const lead = el.closest('[data-lead-apply]');
     if (lead) {
       const block = lead.closest('[data-requirement]'), field = block.querySelector('[data-lead-minimum]');
       if (!field.reportValidity() || !Number.isFinite(field.valueAsNumber)) return;
       const id = block.dataset.requirement;
       draft = {requirements: draft.requirements.filter(q => q.requirement_id !== id).concat({requirement_id: id, source: 'EXPLICIT', value: field.valueAsNumber}), experimental_opt_in: draft.experimental_opt_in};
-      return void solve();
+      return void solve({push: true});
     }
     const name = el.closest('#candidates [data-player].gp-name');
     if (name) return void selectCandidate(Number(name.dataset.player));
@@ -649,6 +691,12 @@ async function boot() {
   if (Object.keys(catalogue.slots ?? {}).length) renderSlots(null);
   for (const [key, id] of [['min_minutes', 'filter-min-minutes'], ['min_age', 'filter-min-age'], ['max_age', 'filter-max-age']]) if (link.filters[key] !== undefined) $(id).value = String(link.filters[key]);
   if (link.filters.foot) $('filter-foot').value = link.filters.foot;
+  const query = new URLSearchParams(location.search);
+  if (['left', 'central', 'right'].includes(query.get('lane'))) $('filter-lane').value = query.get('lane');
+  restore = {candidate: /^\d{1,10}$/.test(query.get('candidate') ?? '') ? Number(query.get('candidate')) : null, all: query.get('all') === '1'};
+  // A link that names the position (Squad depth's hand-off, or one shared) opens on a gap when
+  // its targets leave none (D4): the server says which, once.
+  openGap = Boolean(link.slot_id);
   if (['minutes', 'age', 'name'].includes(link.order)) orderKey = link.order;
   $('not-measured-slot').innerHTML = GP.notMeasured(catalogue);
   renderLeagues(link.leagues); renderDeclarations(); wire(); fold();

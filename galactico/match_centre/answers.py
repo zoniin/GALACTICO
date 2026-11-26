@@ -14,6 +14,7 @@ through ``scan_labels``.
 
 from __future__ import annotations
 
+import re
 from datetime import date
 
 from .freshness import day_label
@@ -39,6 +40,14 @@ def _ordinal(n: int) -> str:
 
 def _listing(names: list[str]) -> str:
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+_INITIAL = re.compile(r"\b([A-Z]\.) (?=\w)")
+
+
+def unbroken(name: str) -> str:
+    """A name with an initial kept on the line of the surname ("F.\u00a0Valverde")."""
+    return _INITIAL.sub("\\1\u00a0", name)
 
 
 def _side(game: dict) -> tuple[bool, str]:
@@ -78,7 +87,7 @@ def scorers_clause(game: dict) -> str:
     for goal in mine:
         key = "" if goal.get("own") else goal["name"]
         counts[key] = counts.get(key, 0) + 1
-    names = [(f"{name} ({n})" if n > 1 else name) if name
+    names = [(f"{unbroken(name)} ({n})" if n > 1 else unbroken(name)) if name
              else ("an own goal" if n == 1 else f"{n} own goals")
              for name, n in counts.items()]
     return f", with {'a goal' if own == 1 else 'goals'} from {_listing(names)}"
@@ -186,5 +195,72 @@ def lag_answer(freshness: list[dict]) -> str | None:
         return None
     parts = [f"at {day} for {_listing(names)}" for day, names in stopped.items()]
     joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + ", and " + parts[-1]
-    return f"Results stop {joined}; later results aren't in the free feeds yet."
+    return f"Results stop {joined}; later results aren’t in the free feeds yet."
 
+
+
+def match_line(game: dict, today: date) -> str:
+    """One match in one line, for a shared link's card: "Real Madrid CF 5–1 PSV Eindhoven in
+    the Champions League on Tue 24 Nov." or, before a result, "Real Madrid CF v Deportivo
+    Alavés in La Liga on Sun 29 Nov."."""
+    score = game.get("score")
+    middle = f" {score[0]}–{score[1]} " if score else " v "
+    return (f"{game['home']}{middle}{game['away']} in {named(game['competition'])} on "
+            f"{day_label(game['day'], today)}.")
+
+
+def board_status(day: str, games: list[dict], today: date) -> str:
+    """The board's day in one line, for a screen reader when the day changes: "Fri 27 Nov: 2
+    matches, Bundesliga and Ligue 1." Competitions in the board's order."""
+    when = day_label(day, today)
+    if not games:
+        return f"{when}: no matches."
+    competitions = list(dict.fromkeys(game["competition"] for game in games))
+    return f"{when}: {_count(len(games), 'match', 'matches')}, {_listing(competitions)}."
+
+
+def form_note(form: dict[str, list]) -> str:
+    """The caption of a report's recent form: how many results each list holds, said truly."""
+    counts = {len(rows) for rows in form.values()}
+    tail = "reported results in this competition before the match, newest first."
+    if counts == {5}:
+        return f"The last five {tail}"
+    if len(counts) == 1 and (n := counts.pop()) > 1:
+        return f"The last {n} {tail}"
+    return f"Up to five {tail}"
+
+
+def _standing(subject: str, row: dict, table: list[dict], competition: str,
+              fresh: dict | None) -> str:
+    past = bool(fresh and fresh.get("stale"))
+    where = named(competition)
+    points, games = _count(row["points"], "point"), _count(row["played"], "game")
+    level = [other for other in table if other["rank"] == row["rank"]]
+    if row["rank"] == 1 and len(level) == 1:
+        text = f"{subject} {'led' if past else 'lead'} {where} with {points} from {games}"
+    elif row["rank"] == 1:
+        text = (f"{subject} {'shared' if past else 'share'} the lead in {where} on {points} "
+                f"from {games}")
+    else:
+        place = ("joint " if len(level) > 1 else "") + _ordinal(row["rank"])
+        verb = "were" if past else "are"
+        text = f"{subject} {verb} {place} in {where} with {points} from {games}"
+    if past and fresh and fresh.get("matchday") and fresh.get("matchdays"):
+        text += f", after matchday {fresh['matchday']} of {fresh['matchdays']}"
+    return text
+
+
+def standings_answer(items: list[tuple[str, list[dict], dict | None]]) -> str:
+    """Table's first view: Madrid's place in each of their competitions with a table, the
+    competition of their latest result first. ``items`` holds (competition, table, freshness)
+    in that order. A table whose results stop early is in the past tense, with its matchday."""
+    clauses = []
+    for competition, table, fresh in items:
+        row = next((r for r in table if r["team"] in MADRID), None)
+        if row is None or not row["played"]:
+            continue
+        clauses.append(_standing(row["team"] if not clauses else "they", row, table,
+                                 competition, fresh))
+    if not clauses:
+        return "No Real Madrid result is reported yet this season."
+    return "; ".join(clauses) + "."

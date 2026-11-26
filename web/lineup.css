@@ -275,10 +275,13 @@
   }
 
   .ln-slot {
+    --slot-half: 33px;
     position: absolute;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     justify-items: center;
     gap: 2px;
+    width: max-content;
     min-width: 66px;
     max-width: 23%;
     margin: 0;
@@ -746,6 +749,18 @@
     font: var(--weight-bold) var(--text-2xl) / 1.1 var(--font-display);
   }
 
+  /* The position in words under its short label: "Left central midfield". */
+  .ln-role-name {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font: var(--weight-medium) var(--text-xs) / 1.25 var(--font-sans);
+  }
+
+  .ln-role-name:empty {
+    display: none;
+  }
+
   .ln-note {
     margin: 0;
     padding: 0 var(--space-4) var(--space-4);
@@ -804,6 +819,16 @@
     font-size: var(--text-sm);
   }
 
+  .ln-show {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .ln-show[hidden] {
+    display: none;
+  }
+
   .ln-map-caption select {
     border-color: var(--border-control);
     background: var(--surface-1);
@@ -849,11 +874,22 @@
     flex-wrap: wrap;
     align-items: end;
     gap: var(--space-3);
+    min-width: 0;
   }
 
+  .ln-import .ui-field {
+    flex: 1 1 16rem;
+    min-width: 0;
+  }
+
+  /* The file field wraps within a phone's width, its button and its name on their own lines
+     where they must (UI-1). */
   .ln-import input[type="file"] {
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     font-size: var(--text-sm);
+    white-space: normal;
   }
 
   .ln-about-list {
@@ -957,6 +993,7 @@
     }
 
     .ln-slot {
+      --slot-half: 11.5%;
       width: 23%;
       min-width: 0;
     }

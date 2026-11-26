@@ -460,7 +460,58 @@
     }
   }
 
+  /* A narrow phone: a label that would wrap in the tab bar shows its short form ("Squad"),
+     drawn by the sheet; the link keeps its full name for a screen reader (H30). Every icon
+     then sits on one line. */
+  @media (max-width: 480px) {
+    .site-nav-label[data-short] {
+      position: relative;
+      display: block;
+      width: 100%;
+      overflow: hidden;
+      color: transparent;
+      white-space: nowrap;
+    }
+
+    .site-nav-label[data-short]::after {
+      content: attr(data-short);
+      content: attr(data-short) / "";
+      position: absolute;
+      inset: 0;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .site-nav a:hover .site-nav-label[data-short]::after,
+    .site-nav a[aria-current] .site-nav-label[data-short]::after {
+      color: var(--accent-strong);
+    }
+
+    /* The sub-navigation keeps each page on one line, its season beside its name; the row
+       scrolls sideways, its edge fading, where the two don't fit (H30). */
+    .site-subnav-inner {
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .site-subnav a {
+      flex: none;
+      flex-direction: row;
+      align-items: center;
+      gap: var(--space-2);
+      white-space: nowrap;
+    }
+  }
+
   @media (forced-colors: active) {
+    .site-nav-label[data-short] {
+      forced-color-adjust: none;
+    }
+
+    .site-nav-label[data-short]::after {
+      color: LinkText;
+    }
+
     .site-nav a[aria-current]::after,
     .site-subnav a[aria-current="page"]::after {
       background: Highlight;
@@ -529,6 +580,27 @@
 
   .page-actions:empty {
     display: none;
+  }
+
+  /* One "Copy link" on every page whose view is in its address, the last of the actions. */
+  .page-copy {
+    gap: var(--space-2);
+  }
+
+  .page-copy-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .page-actions > .mc-jumps,
+  .page-actions > .page-actions-group {
+    display: contents;
   }
 
   .page-controls {

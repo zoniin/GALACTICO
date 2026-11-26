@@ -70,6 +70,7 @@
     --c-amber-300: #f0b35a;
     --c-amber-100: #fbefdc;
     --c-amber-900: #3d2c12;
+    --c-teal-300: #6fd0d6;
 
     /* Pitch and chart surfaces: dark in both themes. */
     --c-grass-700: #1e5a3c;
@@ -283,8 +284,9 @@
     --pitch-mark: var(--c-lime-300);
     --on-pitch-mark: var(--c-grass-900);
     --kit-ink: var(--c-kit-ink);
-    /* The goalkeeper's shirt: its own colour, never the lime of the player looked at. */
-    --kit-keeper: var(--c-amber-300);
+    /* The goalkeeper's shirt: its own colour, never the lime of the player looked at nor the
+       gold of the selected subject (H18): teal, in both themes. */
+    --kit-keeper: var(--c-teal-300);
 
     /* The player card's gradient and the text on it. */
     --hero-from: var(--c-indigo-900);

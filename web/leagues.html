@@ -13,27 +13,35 @@
     <header class="page-header">
       <h1>League tables</h1>
       <p class="page-answer" id="answer" aria-live="polite"><span class="ui-skeleton mc-line"></span><span class="sr-only">Loading the table…</span></p>
+      <div class="page-actions">
+        <button type="button" class="ui-btn page-copy" id="copy"><svg class="page-copy-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1"/></svg>Copy link</button>
+      </div>
     </header>
 
-    <div class="ui-tablist lt-tabs" role="tablist" aria-label="Competition" id="tabs"></div>
-    <div id="banner" class="ui-callout lt-banner" data-tone="caution" hidden></div>
+    <div class="lt-frame">
+      <div class="ui-tablist lt-tabs" role="tablist" aria-label="Competition" id="tabs"></div>
+      <div id="banner" class="ui-callout lt-banner" data-tone="caution" hidden></div>
 
-    <section class="ui-card lt-card" id="report" role="tabpanel" aria-labelledby="report-title">
-      <div class="lt-head">
-        <div class="lt-title">
-          <h2 id="report-title">Table</h2>
-          <p class="mc-meta" id="through"></p>
+      <section class="ui-card lt-card" id="report" role="tabpanel" aria-labelledby="report-title">
+        <div class="lt-head">
+          <div class="lt-title">
+            <h2 id="report-title" tabindex="-1">Table</h2>
+            <p class="mc-meta" id="through"></p>
+          </div>
+          <div class="lt-dates" id="dates">
+            <div class="mc-date lt-day">
+              <button type="button" class="ui-btn mc-date-btn" id="day-pick"><svg class="mc-cal" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg><span id="day-text">Choose a date</span></button>
+              <input type="date" id="day" class="ui-input" aria-label="Table after this date" tabindex="-1">
+            </div>
+            <button type="button" class="ui-btn ui-btn-ghost lt-latest" id="latest" hidden>Latest table</button>
+          </div>
         </div>
-        <div class="mc-date lt-day">
-          <button type="button" class="ui-btn ui-btn-ghost" id="day-pick"><svg class="mc-cal" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg><span id="day-text">Table after</span></button>
-          <input type="date" id="day" class="ui-input" aria-label="Table after this date" tabindex="-1">
+        <div class="lt-body" id="body" aria-busy="true">
+          <div class="lt-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
         </div>
-      </div>
-      <div class="lt-body" id="body" aria-busy="true">
-        <div class="lt-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
-      </div>
-      <p class="lt-credit" id="credit" hidden></p>
-    </section>
+        <p class="lt-credit" id="credit" hidden></p>
+      </section>
+    </div>
 
     <details class="ui-disclosure mc-about">
       <summary>About these numbers</summary>
@@ -43,7 +51,8 @@
           <li>Results come from OpenFootball’s free files, which volunteers update after play. Where a league’s results stop early, the banner says after which matchday the table stands.</li>
           <li>Bundesliga and Premier League results missing from OpenFootball are filled in from OpenLigaDB, once both clubs and the matchday match. A result OpenFootball already has is never replaced.</li>
           <li>The Champions League table is its league phase, from OpenLigaDB. Clubs take the name OpenFootball gives them, or the English form.</li>
-          <li>Choose a date to see the table after that day’s results. When a league’s results stop early, the answer above says which matchday the table is after, in the past tense.</li>
+          <li>Choose a date to see the table after that day’s results, and “Latest table” to come back. When a league’s results stop early, the answer above says which matchday the table is after, in the past tense.</li>
+          <li>With no competition chosen, the page opens on the competition of Real Madrid’s latest reported result, and its first sentence gives their place in each of their competitions.</li>
         </ul>
       </div>
     </details>

@@ -11,8 +11,23 @@ const { test, expect } = require('@playwright/test');
 // the proposal's sentence says how the XI was picked and leaves its eleven names to the pitch and a
 // screen-reader line; the 2017/18 archive map sits in a closed disclosure; a sentence that would
 // describe another lineup is never left on the page while the next one loads or if it fails.
+//
+// Re-pinned in the third review (the hosted fixes): a formation changed while the board is the
+// proposal shows the server's proposal for it, still "Proposed" (H6; was the same eleven
+// reshaped as "Your changes"); an edited lineup moves from the formation it was edited in,
+// whatever shapes were tried on the way; the next match's kick-off is shown in the reader's
+// time zone (D2: the day is the server's "Sun 29 Nov", the time from its UTC instant); the
+// archive sample's counts and filter names are the server's ("2 actions in his last 2017/18
+// match", "Show"), not "2 located actions" (R10, H28); a link that names only a formation opens
+// that formation's proposal (FN-1); a slot's position is named in words beside its short label
+// (D9); focus stays on the board after a substitute is picked (H19).
+test.use({ timezoneId: 'Europe/Madrid' });
 
-const slot = (role, group, x, y) => ({ role, group, x, y, zone: `Drawn area for the ${role} role, not measured` });
+const ROLE_NAMES = { LW: 'Left wing', ST: 'Striker', RW: 'Right wing', LCM: 'Left central midfield', DM: 'Defensive midfield',
+  RCM: 'Right central midfield', LB: 'Left-back', LCB: 'Left centre-back', RCB: 'Right centre-back', RB: 'Right-back',
+  GK: 'Goalkeeper', LS: 'Left striker', RS: 'Right striker', LWB: 'Left wing-back', RWB: 'Right wing-back', CB: 'Centre-back' };
+const slot = (role, group, x, y) => ({ role, name: ROLE_NAMES[role], group, x, y,
+  zone: `Drawn area for the ${ROLE_NAMES[role].toLowerCase()} role, not measured` });
 const BACK_FOUR = [slot('LB', 'DF', 13, 68), slot('LCB', 'DF', 37, 71), slot('RCB', 'DF', 63, 71), slot('RB', 'DF', 87, 68)];
 const KEEPER = slot('GK', 'GK', 50, 88);
 const FORMATIONS = {
@@ -50,8 +65,8 @@ const SQUAD_REPLY = {
 };
 const NEXT_REPLY = {
   fixture: {
-    opponent: 'Example Club', venue: 'Away', when: 'Sun 29 Nov · 21:00', competition: 'La Liga · Matchday 14',
-    code: 'es.1', day: '2026-11-29',
+    opponent: 'Example Club', venue: 'Away', when: 'Sun 29 Nov', kickoff: '21:00', kickoff_utc: '2026-11-29T20:00:00Z',
+    competition: 'La Liga · Matchday 14', code: 'es.1', day: '2026-11-29',
     links: { form: '/match-centre?day=2026-11-29&match=es.1-2026-0123456789abcdef', table: '/match-centre/leagues?league=es.1&highlight=Real+Madrid+CF', goals: null },
   },
   credit: { name: 'OpenFootball', licence: 'CC0 1.0', url: 'https://github.com/openfootball/football.json', licence_url: 'https://github.com/openfootball/football.json/blob/master/LICENSE.md' },
@@ -65,6 +80,11 @@ async function openStudio(page, { squad = SQUAD_REPLY, next = NEXT_REPLY, path =
   await page.route((url) => url.pathname === '/api/studio/lineup', (route) => {
     const query = new URL(route.request().url()).searchParams;
     asked.push(query.toString());
+    const formation = query.get('formation') || '4-3-3';
+    // A link that names a formation and no lineup opens that formation's proposal (FN-1).
+    if (!query.get('xi') && SQUAD_REPLY.proposals[formation])
+      return route.fulfill({ json: { formation, xi: SQUAD_REPLY.proposals[formation].xi, proposed: true, warning: null,
+        answer: SQUAD_REPLY.proposals[formation].answer } });
     const numbers = (query.get('xi') || '').split('-').map(Number);
     if (numbers.length !== 11 || numbers.some((n) => !byNumber.has(n)))
       return route.fulfill({ status: 422, json: { detail: "This link's lineup doesn't match the 2026/27 squad." } });
@@ -80,6 +100,9 @@ async function openStudio(page, { squad = SQUAD_REPLY, next = NEXT_REPLY, path =
       match: 'Test A v Test B', competition: 'World Cup', date: '2018-07-15',
       label: 'Archive sample: Test A v Test B, World Cup, Sun 15 Jul 2018 (his last recorded match in the public 2017/18 data)',
       points: [{ x: 15, y: 45, type: 'Pass' }, { x: 70, y: 45, type: 'Shot' }],
+      filters: [{ type: 'All actions', label: 'All actions', count: '2 actions in his last 2017/18 match' },
+        { type: 'Pass', label: 'Passes', count: '1 pass in his last 2017/18 match' },
+        { type: 'Shot', label: 'Shots', count: '1 shot in his last 2017/18 match' }],
     } }));
   await page.goto(path);
   return asked;
@@ -108,6 +131,10 @@ test('the page answers first: the proposed XI, its key, the next match and a lab
   await expect(next.locator('.ln-opponent')).toHaveText('v Example Club');
   await expect(next.locator('#next-venue')).toHaveText('Away');
   await expect(next.locator('.ln-when')).toHaveText('Sun 29 Nov · 21:00');
+  // A slot's position in words, in the profile under its short label (D9).
+  await expect(page.locator('#xi-role')).toHaveText('ST');
+  await expect(page.locator('#xi-role-name')).toHaveText('Striker');
+  await expect(page.getByRole('button', { name: 'LCM · Test Player6' })).toHaveAttribute('title', 'Left central midfield · Test Player6');
   await expect(next.getByRole('link', { name: 'Recent form' })).toHaveAttribute('href', /match=es\.1-2026-0123456789abcdef/);
   await expect(next.getByRole('link', { name: 'Table' })).toHaveAttribute('href', /highlight=Real\+Madrid\+CF/);
   await expect(next.getByRole('link', { name: 'Goals by opponent' })).toHaveCount(0);
@@ -120,11 +147,11 @@ test('the page answers first: the proposed XI, its key, the next match and a lab
   await map.locator('summary').click();
   await expect(page.locator('#sample')).toHaveText(/^Archive sample: Test A v Test B, World Cup, Sun 15 Jul 2018 \(his last recorded match/);
   await expect(page.locator('#map-season')).toBeVisible();
-  await expect(page.locator('#sample-count')).toHaveText('2 located actions');
-  await page.getByLabel('Action filter').selectOption('Pass');
-  await expect(page.locator('#sample-count')).toHaveText('1 located action');
+  await expect(page.locator('#sample-count')).toHaveText('2 actions in his last 2017/18 match');
+  await page.getByLabel('Show', { exact: true }).selectOption('Pass');
+  await expect(page.locator('#sample-count')).toHaveText('1 pass in his last 2017/18 match');
   await page.getByRole('button', { name: 'Role area' }).click();
-  await expect(page.locator('#sample')).toHaveText('Drawn area for the ST role, not measured');
+  await expect(page.locator('#sample')).toHaveText('Drawn area for the striker role, not measured');
   await expect(page.locator('#map-season')).toBeHidden();
   // A player with no archive sample shows no map at all.
   await page.getByRole('button', { name: 'GK · Test Player1' }).click();
@@ -162,6 +189,8 @@ for (const width of [390, 320]) {
     await reserve.click();
     await expect(reserve).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.ln-slot.is-target')).toHaveCount(11);
+    // Focus goes on to the board, where the next tap lands (H19).
+    await expect(page.locator('.ln-slot:focus')).toHaveCount(1);
     await expect(page.locator('#picked')).toHaveText('Choose the position Player12 takes.');
     // Escape puts him back; a second tap picks him again.
     await page.keyboard.press('Escape');
@@ -203,12 +232,27 @@ test('change shape, swap, undo, save on this device and restore it', async ({ pa
   const names = async () =>
     starters.evaluateAll((nodes) => nodes.map((n) => n.ariaLabel.split(' · ')[1]).sort());
   const original = await names();
+  // The proposal stays the proposal: another formation shows the server's XI for it (H6).
   await page.getByLabel('Formation', { exact: true }).selectOption('3-5-2');
-  expect(await names()).toEqual(original);
-  // Each centre-back comes from the starting back four, even after moving to three at the back.
-  await expect(page.getByRole('button', { name: /^(LCB|CB|RCB) · Test Player[2-5]$/ })).toHaveCount(3);
+  await expect(page.locator('#xi-status')).toHaveText('Proposed');
+  expect(await names()).toEqual(SQUAD_REPLY.proposals['3-5-2'].xi.map((id) => players.find((p) => p.id === id).name).sort());
   await expect(page).toHaveURL(/formation=3-5-2/);
+  // An edited lineup moves from the formation it was edited in, whatever was tried on the way;
+  // each centre-back comes from the back four the reader picked.
+  await page.getByLabel('Formation', { exact: true }).selectOption('4-3-3');
+  await page.getByRole('button', { name: 'Substitute Test Player14' }).click();
+  await page.getByRole('button', { name: 'RB · Test Player5' }).click();
+  await expect(page.locator('#xi-status')).toHaveText('Your changes');
+  const edited = await names();
+  await page.getByLabel('Formation', { exact: true }).selectOption('3-5-2');
+  const direct = await page.locator('.ln-slot').evaluateAll((nodes) => nodes.map((n) => n.ariaLabel));
+  expect(await names()).toEqual(edited);
+  await expect(page.getByRole('button', { name: /^(LCB|CB|RCB) · Test Player(2|3|4|14)$/ })).toHaveCount(3);
+  await page.getByLabel('Formation', { exact: true }).selectOption('4-3-3');
+  await page.getByLabel('Formation', { exact: true }).selectOption('3-5-2');
+  expect(await page.locator('.ln-slot').evaluateAll((nodes) => nodes.map((n) => n.ariaLabel))).toEqual(direct);
   const keeper = page.getByRole('button', { name: 'GK · Test Player1' });
+  await page.getByRole('button', { name: /· Kylian Mbappé$/ }).click();
   await page.getByRole('button', { name: 'Swap position' }).click();
   await keeper.click();
   await expect(page.getByRole('button', { name: 'GK · Kylian Mbappé' })).toHaveAttribute('aria-pressed', 'true');
@@ -227,6 +271,14 @@ test('change shape, swap, undo, save on this device and restore it', async ({ pa
   await page.getByRole('link', { name: 'View profile' }).click();
   await expect(page.locator('#player-name')).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('a link that names only a formation opens its proposal, with no notice', async ({ page }) => {
+  await openStudio(page, { path: '/lineup?formation=3-5-2' });
+  await expect(page.getByLabel('Formation', { exact: true })).toHaveValue('3-5-2');
+  await expect(page.locator('#xi-status')).toHaveText('Proposed');
+  await expect(page.locator('#answer')).toHaveText('The proposed 3-5-2.');
+  await expect(page.locator('#notice')).toBeHidden();
 });
 
 test('a link the squad cannot hold opens the proposed XI and says why', async ({ page }) => {
@@ -279,4 +331,19 @@ test('a lineup whose summary is loading or failed never keeps the old sentence',
   await page.locator('#answer').getByRole('button', { name: 'Retry' }).click();
   await expect(page.locator('#answer')).toHaveText('This 4-3-3 differs from the proposed XI.');
   await expect(page.locator('#answer')).not.toHaveAttribute('aria-busy', 'true');
+});
+
+// UI-1: an open disclosure fits a 320 px phone too: the analyst's import (on a local install,
+// the app under test) and "About these numbers".
+test('every disclosure of the page, open, fits a 320 px screen', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await openStudio(page);
+  await expect(page.locator('.ln-slot')).toHaveCount(11);
+  for (const summary of await page.locator('main details > summary').all()) {
+    if (await summary.isVisible()) await summary.click();
+  }
+  await expect(page.locator('#tools')).toHaveAttribute('open', '');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  const right = await page.locator('#tools *').evaluateAll(nodes => Math.max(...nodes.map(n => n.getBoundingClientRect().right)));
+  expect(right).toBeLessThanOrEqual(320);
 });

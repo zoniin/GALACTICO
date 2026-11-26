@@ -1072,4 +1072,157 @@
       min-height: var(--target-touch);
     }
   }
+
+  /* ------------------------------------------------------------ waiting, and stopping a wait
+     The seconds so far and a Cancel that aborts the request, under the board's skeleton and in
+     "How often each player is picked" (XI-1). */
+  .xi-wait {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    margin: 0 0 var(--space-4);
+  }
+
+  .xi-wait[hidden] {
+    display: none;
+  }
+
+  .xi-wait-text {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-wait-seconds {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ------------------------------------------------------------ no XI: why, under the pitch
+     The clash panel of web/xi-extensions.js is moved here, under the board's callout, when no
+     XI can be shown (XI-5); it is a light card on the dark board, and the kit's table rules are
+     restated for it because they are scoped to the kit's mount. */
+  /* No XI: the empty pitch gives way to the reason and the clash panel. */
+  .xi-board.is-empty .xi-board-field,
+  .xi-board.is-empty .xi-board-foot {
+    display: none;
+  }
+
+  .xi-board.is-empty {
+    padding-bottom: var(--space-4);
+  }
+
+  .xi-clash-slot {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .xi-clash-slot > .xi-panel {
+    margin: var(--space-3) var(--space-4) 0;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--surface-1);
+    color: var(--text);
+  }
+
+  .xi-clash-slot > .xi-panel.hidden {
+    display: none;
+  }
+
+  .xi-clash-slot .xi-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: end;
+    margin: var(--space-2) 0;
+  }
+
+  .xi-clash-slot .xi-controls button {
+    max-width: 100%;
+    min-height: var(--target-touch);
+    white-space: normal;
+    text-align: left;
+  }
+
+  .xi-clash-slot .xi-table {
+    width: 100%;
+    margin: var(--space-2) 0;
+    border-collapse: collapse;
+  }
+
+  .xi-clash-slot .xi-table caption {
+    padding: var(--space-2) 0 var(--space-1);
+    font-weight: var(--weight-semibold);
+    text-align: left;
+    caption-side: top;
+  }
+
+  .xi-clash-slot .xi-table th,
+  .xi-clash-slot .xi-table td {
+    padding: var(--space-2) var(--space-3) var(--space-2) 0;
+    font-size: var(--text-sm);
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+
+  .xi-clash-slot .xi-cert dl,
+  .xi-clash-slot .xi-body dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .xi-clash-slot dd {
+    margin: 0;
+  }
+
+  .xi-target-note {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .xi-target[data-reach="none"] .xi-target-status {
+    border-color: var(--danger);
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .xi-player-places {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+  }
+
+  .xi-player-links {
+    margin: var(--space-2) 0 0;
+  }
+
+  .xi-tradeoff-total {
+    margin: var(--space-2) 0;
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* Phone targets (AR-2): every disclosure summary, the opt-in and its box are 44 px tall. */
+  @media (max-width: 640px) {
+    .xi-page .xi-more > summary,
+    .xi-page .xi-cert > summary,
+    .xi-page .xi-about details > summary,
+    .xi-page .xi-optin {
+      display: flex;
+      align-items: center;
+      min-height: var(--target-touch);
+    }
+
+    .xi-page .xi-optin input[type="checkbox"] {
+      flex: none;
+      width: 24px;
+      height: 24px;
+    }
+
+    .xi-page .xi-tool > summary {
+      display: grid;
+      align-items: start;
+    }
+  }
 }

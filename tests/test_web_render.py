@@ -138,6 +138,7 @@ const replies = {
 const elements = {};
 const requested = [];
 const element = () => ({innerHTML: '', textContent: '', addEventListener(){}, setAttribute(){},
+  removeAttribute(){}, querySelector: () => null,
   classList: {add(){}, remove(){}, toggle(){}}, querySelectorAll: () => []});
 globalThis.document.querySelector = s => (elements[s] ||= element());
 globalThis.fetch = url => { requested.push(url); return Promise.resolve({ok: true,

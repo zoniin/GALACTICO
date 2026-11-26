@@ -52,6 +52,18 @@ from galactico.match_centre.goal_scout import (
 from galactico.match_centre.openfootball import OpenFootball
 from galactico.match_centre.public import create_centre
 
+
+@pytest.fixture(autouse=True)
+def no_squad_names(monkeypatch):
+    # The squad list (Wikipedia) writes Real Madrid's scorers on the pages (names.py); no test
+    # reaches it unless it says so.
+    from galactico.match_centre.studio import Studio
+
+    async def names(self, day):
+        return []
+
+    monkeypatch.setattr(Studio, "squad_names", names)
+
 WEB = Path(__file__).resolve().parents[1] / "web"
 TODAY = date(2026, 11, 26)
 
@@ -138,7 +150,7 @@ def test_failed_source_returns_service_unavailable_in_plain_words(monkeypatch):
         assert reply.status_code == 503
         # The cache's bare "Feed unavailable." names the feed for the reader.
         assert reply.json()["detail"] == goal_scout.FEED_DOWN == (
-            "The free goal feed, OpenLigaDB, can't be reached right now.")
+            "The free goal feed, OpenLigaDB, can’t be reached right now.")
 
 
 def test_la_liga_is_not_offered_and_its_old_keys_answer_404_without_a_request(monkeypatch):
@@ -158,11 +170,13 @@ def test_la_liga_is_not_offered_and_its_old_keys_answer_404_without_a_request(mo
         for key in ("es", "la1"):
             reply = client.get("/api/match-centre/goal-scout/" + key)
             assert reply.status_code == 404
-            assert reply.json()["detail"] == ("La Liga goals aren't in the free goal feed: "
+            assert reply.json()["detail"] == ("La Liga goals aren’t in the free goal feed: "
                                               "OpenLigaDB has no current La Liga season.")
         page = client.get("/match-centre/scouting").text
     assert calls == []
-    options = re.findall(r'<option value="(\w+)">([^<]+)</option>', page)
+    # Re-pinned (H29): the competitions are the site's one tab strip, not a select.
+    options = re.findall(r'<button type="button" class="ui-tab" role="tab" data-league="(\w+)"'
+                         r'[^>]*>([^<]+)</button>', page)
     assert options[:3] == [("ucl", "Champions League"), ("en", "Premier League"),
                            ("de", "Bundesliga")]
     assert ("es", "La Liga") not in options
@@ -308,13 +322,20 @@ def test_champions_league_goals_split_by_the_league_phase_table_before_kick_off(
     assert scan_labels(report, keys=False) == []
 
 
-def test_an_opponent_narrows_the_counts_and_the_matches_but_not_the_answer(europe):
+def test_an_opponent_narrows_the_counts_the_matches_and_the_answer(europe):
+    # Re-pinned (H11): the answer was the whole season's whatever the opponent; it now says
+    # what the page shows, against that opponent, with the counts of its one match.
     scout = GoalScout(OpenFootball())
     whole = asyncio.run(scout.report("ucl", MADRID, TODAY))
     narrow = asyncio.run(scout.report("ucl", MADRID, TODAY, "Club Seven"))
     assert narrow["opponent"] == "Club Seven" and [g["id"] for g in narrow["matches"]] == [90]
     assert narrow["bands"][0] | {} == {**narrow["bands"][0], "matches": 1, "goals": 2}
-    assert narrow["answer"] == whole["answer"] and narrow["opponents"] == whole["opponents"]
+    assert narrow["answer"] == ("Against Club Seven, Real Madrid CF have scored 2 goals in 1 "
+                                "Champions League match; Jude Bellingham and Kylian Mbappé "
+                                "scored 1 each.")
+    assert whole["answer"].startswith("Real Madrid CF have scored 8 goals in 7 ")
+    assert narrow["opponents"] == whole["opponents"]
+    assert scan_labels([narrow["answer"]]) == []
     # An opponent the club has not played is no filter at all.
     other = asyncio.run(scout.report("ucl", MADRID, TODAY, "Nobody"))
     assert other["opponent"] is None and len(other["matches"]) == len(whole["matches"])
@@ -335,10 +356,10 @@ def test_the_page_opens_on_madrids_next_opponent_where_the_feed_carries_it(europ
     found = asyncio.run(scout.opening(TODAY, nxt))
     assert found["club"] == MADRID and found["opening"] == (
         "Showing Real Madrid in the Champions League: their next match, against Deportivo "
-        "Alavés, is in La Liga, which the free goal feed doesn't carry.")
+        "Alavés, is in La Liga, which the free goal feed doesn’t carry.")
     # An old La Liga link says so first.
     found = asyncio.run(scout.opening(TODAY, nxt, asked="es"))
-    assert found["opening"] == ("La Liga goals aren't in the free goal feed, so this shows Real "
+    assert found["opening"] == ("La Liga goals aren’t in the free goal feed, so this shows Real "
                                 "Madrid in the Champions League.")
     # No fixture listed; or the schedule could not be read.
     assert asyncio.run(scout.opening(TODAY, None))["opening"] == (
@@ -444,7 +465,7 @@ def test_the_answer_names_only_the_counts_and_every_sentence_shape_is_clean():
         "one": "Club have scored 1 goal in 1 Premier League match, all of them by A: 0 against "
                "clubs in places 1–6 before kick-off and 1 against places 7 and below.",
         "leader_unset": "Club have scored 3 goals in 2 Premier League matches, 2 of them by A, "
-                        "all in matches not classified by the opponent's place.",
+                        "all in matches not classified by the opponent’s place.",
         "partial": "Club have scored 5 goals in 2 Premier League matches; the feed names the "
                    "scorers of 3 of them, and A scored 2: 2 against clubs in places 1–6 before "
                    "kick-off and 0 against places 7–20.",
@@ -541,3 +562,45 @@ def test_the_scripts_leave_sentences_counts_and_order_to_the_server():
     explorer = (WEB / "goal-scout.js").read_text(encoding="utf-8")
     assert "/api/match-centre/goal-scout" in explorer and "report.answer" in explorer
     assert "report.opening" in explorer and "error.message" in explorer
+
+
+# ------------------------------------------------------------------ Phase 3 (the hosted review)
+
+
+def test_a_group_a_scorer_and_an_opponents_goal_come_with_the_servers_words(europe):
+    # H11, R10-1: the tiles' labels and the line of a picked group, a scorer's filter and empty
+    # lines and an opponent's goal's side are the server's; the credit names the provider's
+    # site, not the API (H15).
+    report = asyncio.run(GoalScout(OpenFootball()).report("ucl", MADRID, TODAY))
+    bands = {b["key"]: b for b in report["bands"]}
+    assert (bands["all"]["matches_label"], bands["all"]["line"]) == ("Matches", None)
+    assert bands["places_1_6"]["matches_label"] == "Matches against places 1–6"
+    assert bands["places_1_6"]["line"] == (
+        "Against clubs in places 1–6 before kick-off: 1 goal in 1 match.")
+    assert bands["unclassified"]["line"] == (
+        "In matches not classified by the opponent’s place: 5 goals in 5 matches.")
+    mbappe = report["scorers"][0]
+    assert (mbappe["filter_line"], mbappe["empty_line"]) == (
+        "Matches with a goal by Kylian Mbappé", "No goals by Kylian Mbappé in these matches.")
+    game = next(g for g in report["matches"] if g["id"] == 90)
+    against = [e for e in game["events"] if not e["for_club"]]
+    assert [e["side_label"] for e in against] == ["for Club Seven"]
+    assert report["provider_url"] == "https://www.openligadb.de/"
+    lines = [*(b["line"] for b in report["bands"] if b["line"]),
+             *(b["matches_label"] for b in report["bands"]),
+             *(s["filter_line"] for s in report["scorers"]),
+             *(s["empty_line"] for s in report["scorers"]), *(e["side_label"] for e in against)]
+    assert scan_labels(lines) == []
+
+
+def test_a_madrid_scorer_in_the_explorer_takes_the_squad_lists_name(europe):
+    # D3, H33: the explorer names Real Madrid's scorers as the squad list does; an opponent's
+    # scorer keeps the feed's name.
+    async def names(day):
+        return ["K. Mbappé", "Jude Bellingham", "S. Forward"]
+
+    report = asyncio.run(GoalScout(OpenFootball(names=names)).report("ucl", MADRID, TODAY))
+    assert [s["name"] for s in report["scorers"]] == ["K. Mbappé", "Jude Bellingham"]
+    game = next(g for g in report["matches"] if g["id"] == 90)
+    assert [e["name"] for e in game["events"]] == ["K. Mbappé", "Seven Forward",
+                                                   "Jude Bellingham"]

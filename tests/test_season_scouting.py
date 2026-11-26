@@ -24,6 +24,18 @@ from galactico.match_centre.scouting import (
 )
 
 
+@pytest.fixture(autouse=True)
+def no_squad_names(monkeypatch):
+    # The squad list (Wikipedia) writes Real Madrid's scorers on the pages (names.py); no test
+    # reaches it unless it says so.
+    from galactico.match_centre.studio import Studio
+
+    async def names(self, day):
+        return []
+
+    monkeypatch.setattr(Studio, "squad_names", names)
+
+
 def game(fid, home, away, goals=(1, 0), day="2026-08-01"):
     return {"fixture": {"id": fid, "date": day+"T20:00:00Z", "status": {"short": "FT"}},
             "teams": {side: {"id": i, "name": f"Club {i}"}
@@ -101,16 +113,16 @@ def test_compare_uses_only_metric_supported_minutes_and_reports_coverage(monkeyp
                                        "unclassified": 3}
         # The lines the page prints are the server's (R10), with the reports' numbers only.
         assert data["lines"] == {
-            "madrid": "Real Madrid's midfielders: 1.00 key passes per 90, from 180 observed of "
+            "madrid": "Real Madrid’s midfielders: 1.00 key passes per 90, from 180 observed of "
                       "180 reported minutes.",
             "order": "Ordered by key passes per 90, then observed minutes, then name.",
             "coverage": ["Club 52: player reports for 2 of 3 selected matches; 3 season "
-                         "matches not classified by the opponent's place.",
+                         "matches not classified by the opponent’s place.",
                          "Club 541: player reports for 2 of 2 selected matches; 2 season "
-                         "matches not classified by the opponent's place."]}
+                         "matches not classified by the opponent’s place."]}
         gated = await service.compare(39, 2026, 52, "M", "key_passes", "top", 90)
         assert gated["players"] == [] and gated["madrid"]["per90"] is None
-        assert gated["lines"]["madrid"].startswith("Real Madrid's midfielders: under 90 "
+        assert gated["lines"]["madrid"].startswith("Real Madrid’s midfielders: under 90 "
                                                    "observed minutes for key passes")
         assert scan_labels([data["lines"], gated["lines"]]) == []
 
@@ -145,7 +157,7 @@ def test_madrid_against_the_league_is_said_by_the_server_with_its_schedule():
              "freshness": {"note": "La Liga results stop at Sun 20 Sep: 61 later fixtures have "
                                    "no result in the free feed yet.", "label": "", "stale": True}}
     said = baseline_lines(data, table)
-    assert said["line"] == ("From Real Madrid CF's 7 reported matches, against 131 team matches "
+    assert said["line"] == ("From Real Madrid CF’s 7 reported matches, against 131 team matches "
                             "of the other La Liga clubs.")
     assert said["schedule"] == "/match-centre/leagues?league=es.1&team=Real+Madrid+CF"
     assert said["stale"] is True and said["note"].startswith("La Liga results stop")
@@ -155,9 +167,9 @@ def test_madrid_against_the_league_is_said_by_the_server_with_its_schedule():
     assert fresh["line"] == "No Real Madrid La Liga result is reported up to that date."
     assert fresh["note"] == "No results reported yet."
     assert baseline_error("Season file unavailable.") == (
-        "OpenFootball's La Liga file can't be reached right now.")
+        "OpenFootball’s La Liga file can’t be reached right now.")
     assert baseline_error("Invalid season file.") == "Invalid season file."
     assert scan_labels([said, fresh, baseline_error("")]) == []
     assert lines("D", "goals", 270, {"per90": None}, [])["madrid"] == (
-        "Real Madrid's defenders: under 270 observed minutes for goals, so no reference rate "
+        "Real Madrid’s defenders: under 270 observed minutes for goals, so no reference rate "
         "(0 observed of 0 reported minutes).")

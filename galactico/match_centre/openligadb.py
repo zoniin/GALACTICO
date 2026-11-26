@@ -11,13 +11,15 @@ board, the table and the match report read every competition the same way. Its c
 OpenFootball's name for them where OpenFootball carries their league, else the English form
 (``CLUB_NAMES``), so a club has one name on every page.
 
-A filled result also takes the date and kick-off OpenLigaDB gives the match (its local time,
-Central European): OpenFootball's date for a fixture it has no result for can be provisional.
-The original date stays as ``scheduled_date``.
+A filled result also takes the date and kick-off OpenLigaDB gives the match: OpenFootball's
+date for a fixture it has no result for can be provisional. The original date stays as
+``scheduled_date``. OpenLigaDB states each kick-off in UTC (``matchDateTimeUTC``); a row keeps
+that instant as ``utc`` (``kickoff``), and its date and time in the league's own published zone,
+the convention of OpenFootball's files (UK time for the Premier League, Central European time
+otherwise).
 
 Goals (the scorer as the feed names him, the minute where it gives one) ride with each
-confirmed fixture. Kick-off is the feed's local time (Central European), the convention
-OpenFootball's files follow.
+confirmed fixture.
 
 Non-claim: nothing here invents a result, a scorer or a minute. A goal the feed does not name
 stays unnamed, and a fixture it has not finished has no result.
@@ -33,6 +35,7 @@ import httpx
 
 from ..providers import assert_may_host
 from .feed import FeedCache, FeedError, Snapshot
+from .kickoff import ZONES, from_utc, utc_text
 
 API = "https://api.openligadb.de/getmatchdata"
 LICENCE = "https://opendatacommons.org/licenses/odbl/1-0/"
@@ -144,6 +147,15 @@ def _goals(game: dict) -> list[dict]:
             for goal in game["timeline"]]
 
 
+def _instant(raw: dict) -> datetime | None:
+    """The kick-off the feed states in UTC, or ``None``."""
+    try:
+        value = datetime.fromisoformat(str(raw["matchDateTimeUTC"]).replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return value if value.tzinfo is not None else None
+
+
 def _finished(game: dict) -> list[int] | None:
     goals = [game["goals"]["home"], game["goals"]["away"]]
     if game["fixture"]["status"]["short"] == "FT" and all(type(n) is int for n in goals):
@@ -151,9 +163,10 @@ def _finished(game: dict) -> list[int] | None:
     return None
 
 
-def fill(schedule: list[dict], payload: list) -> tuple[list[dict], int]:
+def fill(schedule: list[dict], payload: list, code: str | None = None) -> tuple[list[dict], int]:
     """``schedule``'s rows, each one OpenLigaDB confirms carrying its goals, and each one
     without a result taking OpenLigaDB's final result. Returns the rows and how many it filled.
+    ``code`` is the league's (``FILLS``): a filled row's date and time are written in its zone.
 
     The schedule itself is left as it was; the rows are copies.
     """
@@ -166,12 +179,11 @@ def fill(schedule: list[dict], payload: list) -> tuple[list[dict], int]:
         games = verify_fixtures(parse_matches(payload), schedule)
     except FeedError:
         return rows, 0
+    zone = ZONES.get(code or "", "CET")
     kickoffs = {}
     for raw in payload:
-        try:
-            kickoffs[raw["matchID"]] = datetime.fromisoformat(str(raw["matchDateTime"]))
-        except (KeyError, TypeError, ValueError):
-            continue
+        if isinstance(raw, dict) and (instant := _instant(raw)) is not None:
+            kickoffs[raw.get("matchID")] = instant
     found = {(game["round"], game["teams"]["home"]["name"], game["teams"]["away"]["name"]): game
              for game in games if game["verified"]}
     filled = 0
@@ -191,11 +203,13 @@ def fill(schedule: list[dict], payload: list) -> tuple[list[dict], int]:
             # The schedule's date can be a provisional one; the result's is when it was played.
             # The fixture id does not hash the date, so a saved match keeps its id.
             kickoff = kickoffs.get(game["fixture"]["id"])
-            if kickoff is not None and kickoff.date().isoformat() != row["date"]:
-                row["scheduled_date"] = row["date"]
-                row["date"] = kickoff.date().isoformat()
             if kickoff is not None:
-                row["time"] = f"{kickoff:%H:%M}"
+                local = from_utc(kickoff, zone)
+                if local.date().isoformat() != row["date"]:
+                    row["scheduled_date"] = row["date"]
+                    row["date"] = local.date().isoformat()
+                row["time"] = f"{local:%H:%M}"
+                row["utc"] = utc_text(kickoff)
         if not game["omit_events"]:
             row["goals"] = _goals(game)
     return rows, filled
@@ -213,16 +227,17 @@ def europe(payload: list) -> list[dict]:
         game = games.get(raw.get("matchID")) if isinstance(raw, dict) else None
         if game is None:
             continue
-        try:
-            kickoff = datetime.fromisoformat(str(raw["matchDateTime"]))
-        except (KeyError, ValueError):
+        instant = _instant(raw)
+        if instant is None:
             continue
+        kickoff = from_utc(instant, ZONES["ucl"])
         name = str((raw.get("group") or {}).get("groupName") or "")
         phase = _LEAGUE_PHASE.search(name)
         row = {"round": f"Matchday {phase[1]}" if phase else _STAGES.get(
                    re.sub(r"[^a-z]", "", name.lower())),
                "stage": "league" if phase else "knockout",
                "date": kickoff.date().isoformat(), "time": f"{kickoff:%H:%M}",
+               "utc": utc_text(instant),
                "team1": club_name(game["teams"]["home"]["name"]),
                "team2": club_name(game["teams"]["away"]["name"])}
         result = _finished(game)

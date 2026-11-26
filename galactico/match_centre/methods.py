@@ -19,14 +19,14 @@ from ..site_nav import Section
 
 __all__ = ["CURRENT_ANSWERS", "POINTS", "current_season"]
 
-CURRENT_ANSWERS = "how this season's results, tables and goals are gathered"
+CURRENT_ANSWERS = "how this season’s results, tables and goals are gathered"
 """The clause of the page's opening sentence that this section answers."""
 
 POINTS: tuple[tuple[str, str], ...] = (
     ("Results and tables",
-     "Fixtures, results and league tables come from OpenFootball's free files, which "
+     "Fixtures, results and league tables come from OpenFootball’s free files, which "
      "volunteers update after play, so results can arrive days or weeks late. Each page says "
-     "how far a competition's results reach (\"Results through Sun 20 Sep\"): the latest date "
+     "how far a competition’s results reach (\"Results through Sun 20 Sep\"): the latest date "
      "with a reported result. A later fixture without a result is counted as missing, never "
      "guessed, and a table whose results stop early says which matchday it is after."),
     ("Filled-in results",
@@ -39,20 +39,31 @@ POINTS: tuple[tuple[str, str], ...] = (
      "the league phase, ordered by points, goal difference and goals scored. Clubs take the "
      "name OpenFootball gives them, or the English form."),
     ("Scorers",
-     "Scorers and minutes are OpenLigaDB's, for the Champions League, the Premier League and "
-     "the Bundesliga. The free La Liga, Serie A and Ligue 1 feeds don't name scorers. Where "
+     "Scorers and minutes are OpenLigaDB’s, for the Champions League, the Premier League and "
+     "the Bundesliga. The free La Liga, Serie A and Ligue 1 feeds don’t name scorers. Where "
      "the feed lists one player under two forms of his name (\"N. Jackson\" and \"Nicolas "
      "Jackson\"), his goals are counted once; different initials are never joined."),
     ("Goals by opponent",
-     "Each match goes in a group by the opponent's place before kick-off, from a table of "
-     "that competition's results dated before the match: places 1-6, places 7 and below, or "
+     "Each match goes in a group by the opponent’s place before kick-off, from a table of "
+     "that competition’s results dated before the match: places 1–6, places 7 and below, or "
      "not classified. A match is not classified while any club has played fewer than five "
      "games, or when the opponent is level on sixth place."),
     ("Squad, appearances and goals",
-     "The squad, each player's appearances and his goals come from the Wikipedia article on "
-     "Real Madrid's season, in all competitions, as of the article's last edit, which the "
-     "pages date. The proposed lineup puts each player where the first position in his own "
+     "The squad, each player’s appearances and his goals come from the Wikipedia article on "
+     "Real Madrid’s season, in all competitions, as of the article’s last edit; each page gives "
+     "that date. The proposed lineup puts each player where the first position in his own "
      "Wikipedia article places him, else by shirt number."),
+    ("One name per player",
+     "Where OpenLigaDB writes a Real Madrid scorer differently from the Wikipedia squad list "
+     "(\"F. Valverde\" and \"Federico Valverde\"), the pages use the squad list’s name: the "
+     "two are joined when the surname and the first initial match one player of the squad and "
+     "no other. A name that matches no one, or more than one, stays as the feed writes it."),
+    ("Kick-off times",
+     "Each source publishes kick-off in its own local time: OpenFootball the Premier League in "
+     "UK time and its other leagues in Central European time, and OpenLigaDB in UTC beside its "
+     "German time. The server turns each into one instant and the pages show it in your time "
+     "zone. Dates in sentences are Madrid’s. A time whose zone is not known is shown as "
+     "published, and says so."),
 )
 """Each rule as the section states it: a short heading and one paragraph."""
 
@@ -62,5 +73,5 @@ def current_season() -> Section:
     items = "".join(f"<li><strong>{html.escape(head)}.</strong> {html.escape(text)}</li>"
                     for head, text in POINTS)
     body = f'<ul class="about-list">{items}</ul>'
-    return Section("this-season", "This season's results, tables and goals", body,
+    return Section("this-season", "This season’s results, tables and goals", body,
                    answers=CURRENT_ANSWERS)

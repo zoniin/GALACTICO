@@ -32,6 +32,49 @@
     font-size: var(--text-sm);
   }
 
+  /* ------------------------------------------------------------ layout */
+
+  /* On a wide screen the squad's scorers and Real Madrid in La Liga sit beside the explorer, so
+     a name and its number are never a screen apart (H17); on a narrower one the page reads
+     down: the scorers, the explorer, then La Liga. */
+  .gs-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 var(--space-5);
+    align-items: start;
+  }
+
+  .gs-aside {
+    display: contents;
+  }
+
+  .gs-squad {
+    order: 1;
+  }
+
+  .gs-explorer {
+    order: 2;
+  }
+
+  .gs-baseline {
+    order: 3;
+  }
+
+  @media (min-width: 1100px) {
+    .gs-layout {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    }
+
+    .gs-aside {
+      display: block;
+      order: 1;
+    }
+
+    .gs-explorer {
+      order: 2;
+    }
+  }
+
   /* ------------------------------------------------------------ cards */
 
   .gs-card {
@@ -68,8 +111,37 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 15rem));
     gap: var(--space-3);
-    flex: 0 1 auto;
     min-width: 0;
+    margin: 0 0 var(--space-4);
+  }
+
+  .gs-comps {
+    margin: 0 0 var(--space-4);
+  }
+
+  /* The explorer's own sentence: the club in the competition shown, the server's words. */
+  .gs-said {
+    max-width: 68ch;
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-md);
+  }
+
+  .gs-said:empty {
+    display: none;
+  }
+
+  .gs-explorer .gs-opening {
+    margin: 0 0 var(--space-4);
+  }
+
+  .gs-band-line {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .gs-schedule {
+    margin-top: var(--space-4);
   }
 
   .gs-subtitle {
@@ -89,7 +161,17 @@
   }
 
   .gs-stats {
+    max-width: 40rem;
     margin: 0 0 var(--space-2);
+  }
+
+  .gs-chips {
+    margin: 0 0 var(--space-3);
+  }
+
+  .gs-share-url {
+    width: 100%;
+    margin-top: var(--space-3);
   }
 
   .gs-stats .ui-stat {
@@ -570,7 +652,6 @@
     }
 
     .gs-pickers {
-      flex: 1 1 100%;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -594,13 +675,21 @@
       grid-template-columns: minmax(0, 1fr);
     }
 
+    /* The squad's scorers keep a name on one line: the number columns take what they need. */
+    .gs-squad-table .num {
+      width: auto;
+      padding-inline: 6px;
+    }
+
     .gs-skeleton-stats .ui-skeleton {
       height: 72px;
     }
 
     /* The stat row stays one row of three. */
     .gs-stats {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: none;
+      grid-auto-columns: minmax(0, 1fr);
+      grid-auto-flow: column;
       gap: var(--space-2);
     }
 
@@ -674,6 +763,12 @@
 
     .gs-matrix td[data-band="all"]::before {
       content: "All ";
+    }
+
+    /* One column (no match classified yet): the number alone, no label to repeat (H13). */
+    .gs-matrix.is-single td::before,
+    .gs-matrix.is-single td[data-band="all"]::before {
+      content: none;
     }
 
     .gs-matrix .is-band {

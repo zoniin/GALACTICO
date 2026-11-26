@@ -1,37 +1,52 @@
 // The board's formations come from the server (galactico/match_centre/studio.py), with the XI
-// it proposes for each. This module only moves a lineup from one formation to another: each
-// player keeps his role where the new formation has it, and the rest move as little as they
-// can across the whole shape.
+// it proposes for each. This module only moves a lineup the reader edited from one formation to
+// another: each player keeps his role where the new formation has it; the rest go to the places
+// of their own position (goalkeeper, defender, midfielder, forward) first, and move as little
+// as they can across the whole shape. A defender is never put in a midfield or forward place
+// while a place of his own position is open to him.
 export const positions = { GK: 'Goalkeeper', DF: 'Defender', MF: 'Midfielder', FW: 'Forward' };
 export const groupNames = { GK: 'Goalkeepers', DF: 'Defenders', MF: 'Midfielders', FW: 'Forwards' };
 
-export function reshape(lineup, previous, target) {
+const LINES = { GK: 0, DF: 1, MF: 2, FW: 3 };
+
+export function reshape(lineup, previous, target, groupOf = () => null) {
+  // A player's own position: his squad position where it is known, else his place's.
+  const own = (index) => groupOf(lineup[index]) || previous[index].group;
   const sourceByRole = new Map(previous.map((slot, index) => [slot.role, index]));
-  const sourceForTarget = target.map((slot) => sourceByRole.get(slot.role) ?? -1);
-  const remaining = previous.filter((_, index) => !sourceForTarget.includes(index));
-  const open = target.filter((_, index) => sourceForTarget[index] === -1);
-  const lines = { GK: 0, DF: 1, MF: 2, FW: 3 };
-  // Choose the least disruptive assignment across the entire shape. A greedy
-  // wide-role pick can otherwise leave a forward as the last available centre-back.
+  const sourceForTarget = target.map((slot) => {
+    const index = sourceByRole.get(slot.role);
+    return index != null && own(index) === slot.group ? index : -1;
+  });
+  const remaining = previous.map((_, index) => index).filter((index) => !sourceForTarget.includes(index));
+  const open = target.map((_, index) => index).filter((index) => sourceForTarget[index] === -1);
+  // The least disruptive assignment across the whole shape: a place of another position costs
+  // far more than any distance, and a line further away more than a nearer one.
   const memo = new Map();
-  function cheapest(index, used) {
-    if (index === open.length) return { cost: 0, slots: [] };
-    if (memo.has(used)) return memo.get(used);
-    const destination = open[index];
-    let winner = { cost: Infinity, slots: [] };
+  function cheapest(at, used) {
+    if (at === open.length) return { cost: 0, picks: [] };
+    const key = at + ':' + used;
+    if (memo.has(key)) return memo.get(key);
+    const destination = target[open[at]];
+    let winner = { cost: Infinity, picks: [] };
     for (const [j, origin] of remaining.entries()) {
       if (used & (1 << j)) continue;
-      const rest = cheapest(index + 1, used | (1 << j));
+      const rest = cheapest(at + 1, used | (1 << j));
+      const from = previous[origin];
+      const group = own(origin);
       const cost =
         rest.cost +
-        Math.hypot(destination.x - origin.x, destination.y - origin.y) +
-        45 * (lines[destination.group] - lines[origin.group]) ** 2;
-      if (cost < winner.cost) winner = { cost, slots: [origin, ...rest.slots] };
+        Math.hypot(destination.x - from.x, destination.y - from.y) +
+        45 * (LINES[destination.group] - LINES[group]) ** 2 +
+        (group === destination.group ? 0 : 1000);
+      if (cost < winner.cost) winner = { cost, picks: [origin, ...rest.picks] };
     }
-    memo.set(used, winner);
+    memo.set(key, winner);
     return winner;
   }
-  const origins = cheapest(0, 0).slots;
-  open.forEach((slot, i) => sourceByRole.set(slot.role, previous.indexOf(origins[i])));
-  return target.map((slot) => lineup[sourceByRole.get(slot.role)]);
+  const picks = cheapest(0, 0).picks;
+  const result = target.map((_, index) => (sourceForTarget[index] >= 0 ? lineup[sourceForTarget[index]] : null));
+  open.forEach((index, i) => {
+    result[index] = lineup[picks[i]];
+  });
+  return result;
 }

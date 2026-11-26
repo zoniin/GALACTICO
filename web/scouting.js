@@ -1,6 +1,7 @@
 'use strict';
 // Goals by opponent (scouting.html), its other parts: Real Madrid's scorers this season in all
-// competitions (Wikipedia), Real Madrid against the rest of La Liga, and, only where
+// competitions (Wikipedia), whose sentence is the page's answer, Real Madrid against the rest of
+// La Liga, and, only where
 // /api/match-centre says the private feed is mounted (an install with a licensed API-Football
 // key), the player comparison. The hosted app shows nothing of the
 // comparison. The server writes every sentence (routes.madrid_baseline, scouting.lines; R10);
@@ -79,7 +80,9 @@
       const data = await get('/api/studio/scorers');
       if (version !== squadVersion) return;
       $('squad-meta').textContent = 'All competitions, ' + data.season_label;
-      const parts = [element('p', data.answer, 'gs-line-text gs-squad-answer')];
+      // The page's answer: who scores for Real Madrid this season, in all competitions (H12).
+      $('page-answer').textContent = data.answer;
+      const parts = [];
       if (data.rows.length) {
         const wrap = element('div', null, 'ui-table-wrap');
         const table = element('table', null, 'ui-table gs-squad-table');
@@ -130,6 +133,7 @@
       output.replaceChildren(...parts);
     } catch (error) {
       if (version !== squadVersion) return;
+      $('page-answer').textContent = 'Real Madrid’s scorers can’t be loaded right now.';
       output.replaceChildren(unavailable('The squad list can’t be loaded right now.', error.message, squad));
     } finally {
       if (version === squadVersion) output.setAttribute('aria-busy', 'false');

@@ -136,12 +136,15 @@ def test_a_goalkeeper_is_told_why_no_measure_is_shown():
     rows = [_row(key, "out_of_context", notes=reason) for key in LABELS]
     got = _clean(player_answers.player_answer(_profile(rows, position="GK", name="K. Navas"),
                                               LABELS, 900))
-    assert got["answer"] == ("No measure is shown for K. Navas: defined for outfield players; "
-                             "this player is recorded as GK.")
+    # R8-7: the registry's note named the position by its code, with a capital after a colon;
+    # the answer and each measure say it in plain words.
+    assert got["answer"] == "These measures cover outfield players; K. Navas is a goalkeeper."
     assert got["facts"][1] == "Goalkeeper"
     assert got["reference_line"] is None  # no percentile, so no population for one
     for line in got["measures"]:
-        assert line["status_title"] == "Withheld" and line["status_line"] == reason
+        assert line["status_title"] == "Withheld"
+        assert line["status_line"] == ("These measures cover outfield players; he is a "
+                                       "goalkeeper.")
         assert not {"place", "percentile_line", "value_line"} & set(line)
 
 
@@ -173,13 +176,12 @@ def test_the_routes_answer_a_profile_and_a_comparison_over_the_bundle(lab):
         assert got["title"] == name and got["answer"]
         assert got["provenance"]["providers"] == ["pappalardo"]
     keeper = lab.get(f"/api/answers/player/{ids['Keeper']}").json()
-    assert keeper["answer"].startswith("No measure is shown for Keeper:")
+    assert keeper["answer"] == "These measures cover outfield players; Keeper is a goalkeeper."
     pair = lab.get("/api/answers/compare", params={"a": ids["First"], "b": ids["Keeper"]})
     assert pair.status_code == 200
     assert _clean(pair.json())["title"] == "First v Keeper"
-    assert pair.json()["answer"] == (
-        "First and Keeper cannot be compared on these measures: withheld for Keeper. Defined "
-        "for outfield players; this player is recorded as GK.")
+    # R8-7: the goalkeeper's reason in plain words, not the registry's note twice.
+    assert pair.json()["answer"] == "Keeper is a goalkeeper; these measures cover outfield players."
     # The lab's own refusals, unchanged: an unknown player is a 404.
     assert lab.get("/api/answers/player/999999").status_code == 404
     assert lab.get("/api/answers/compare", params={"a": 1, "b": 999999}).status_code == 404
@@ -233,9 +235,13 @@ def test_each_comparison_row_has_a_guard_clean_caption_of_the_servers():
     got = _clean(player_answers.compare_answer(reply, LABELS))
     rows = {r["construct_id"]: r for r in got["rows"]}
     assert [r["construct_id"] for r in got["rows"]] == [d["construct_id"] for d in reply["deltas"]]
-    assert rows["progression"] == {"construct_id": "progression", "strong": None, "caption":
-                                   "Isco is higher in this sample, within what the data can "
-                                   "separate."}
+    assert {k: rows["progression"][k] for k in ("construct_id", "strong", "caption")} == {
+        "construct_id": "progression", "strong": None,
+        "caption": "Isco is higher in this sample, within what the data can separate."}
+    # D5, PL-6: each row names the measure as the page does and carries both sides' words; the
+    # raw values sit in the detail for "How sure is this?".
+    assert rows["progression"]["name"] == LABELS["progression"]
+    assert rows["width"]["detail"] is None or "Exact values" in rows["width"]["detail"]
     assert rows["progression_per_action"]["strong"] == "L. Messi"
     assert rows["progression_per_action"]["caption"] == (
         "L. Messi is higher, by more than the data's uncertainty.")
@@ -306,7 +312,7 @@ def test_an_own_goal_counts_for_the_other_club_and_a_brace_is_counted():
      "Real Madrid drew 1–1 at home to Levante in La Liga on Sun 6 May 2018, with a goal from "
      "Lucas Vázquez; Ivi scored for Levante."),
     ((675, "Real Madrid", 0), (692, "Real Betis", 1), [_goal(692, "Sanabria", "90+4′")],
-     "Real Madrid lost 0–1 at home to Real Betis in La Liga on Sun 6 May 2018; Sanabria scored "
+     "Real Madrid lost 1–0 at home to Real Betis in La Liga on Sun 6 May 2018; Sanabria scored "
      "for Real Betis."),
     ((682, "Atlético Madrid", 0), (675, "Real Madrid", 0), [],
      "Real Madrid drew 0–0 away at Atlético Madrid in La Liga on Sun 6 May 2018."),
@@ -425,7 +431,8 @@ def test_every_madrid_match_has_a_clean_sentence_whose_scorers_add_up():
             # The scoreline the sentence gives is the provider's recorded score.
             ours, theirs = ((row["home_goals"], row["away_goals"]) if row["venue"] == "home"
                             else (row["away_goals"], row["home_goals"]))
-            assert f" {ours}–{theirs} " in got["answer"]
+            # MR-5: the winner's score first, as a result is said ("lost 3–0").
+            assert f" {max(ours, theirs)}–{min(ours, theirs)} " in got["answer"]
             assert got["scorers_listed"]
             for side in ("home", "away"):
                 credited = sum(len(s["minutes"]) for s in got[side]["scorers"])
@@ -533,8 +540,10 @@ def test_an_explore_listing_says_its_order_and_each_value_with_its_unit():
     reply = {"construct_id": "progression", "family": "quality", "order": "value",
              "reference": None, "count": 319, "rows": rows}
     got = _clean(player_answers.explore_answer(reply, "Progression"))
+    # R1: the order is the reply's declared key, and no player is named as first.
     assert got["answer"] == ("319 players have a row here, listed by ball progression per 90, "
-                             "highest first; Marcelo is first, at 0.63.")
+                             "highest first. One measure of one season: not an order of merit.")
+    assert "Marcelo" not in got["answer"]
     assert got["values"] == {"1": "0.63 ball progression per 90",
                              "2": "0.051 ball progression per 90", "3": "Withheld"}
     style = {"construct_id": "width", "family": "style", "order": "distance_from_reference",

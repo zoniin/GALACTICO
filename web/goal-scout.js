@@ -1,14 +1,27 @@
 // Goals by opponent (scouting.html): the explorer. Every number and every sentence on it is the
-// server's (galactico/match_centre/goal_scout.py, R10): the answer, the line that says which
-// club the page opened on, each group's counts, each scorer's goals, the order of the lists and
-// the notes. This script places them, filters the match list by the group or the scorer a reader
-// picks, and keeps the view in the address so it can be shared.
+// server's (galactico/match_centre/goal_scout.py, R10): the explorer's sentence, the line that
+// says which club the page opened on, each group's counts, labels and line, each scorer's goals
+// and lines, the order of the lists and the notes. This script places them, filters the match
+// list by the group or the scorer a reader picks, and keeps the view in the address so it can
+// be shared: a competition, a club or an opponent is a step in the browser's history (Back
+// undoes it); a group or a scorer replaces the address.
 import { scoutLink } from './goal-links.js';
 
 const $ = (id) => document.getElementById('goals-' + id);
 const league = $('league'),
   club = $('club'),
   opponent = $('opponent');
+const tabs = () => [...league.querySelectorAll('[role="tab"]')];
+const leagueValue = () => league.querySelector('[aria-selected="true"]')?.dataset.league || tabs()[0]?.dataset.league || '';
+function setLeague(code) {
+  for (const tab of tabs()) {
+    const on = tab.dataset.league === code;
+    tab.setAttribute('aria-selected', String(on));
+    tab.tabIndex = on ? 0 : -1;
+  }
+  const chosen = league.querySelector('[aria-selected="true"]');
+  if (chosen) $('data').setAttribute('aria-labelledby', chosen.id);
+}
 const SPLITS = ['all', 'places_1_6', 'other', 'unclassified'];
 const OLD_SPLITS = { top: 'places_1_6' }; // an old link's group key
 const SHOWN = 8;
@@ -65,8 +78,12 @@ function viewLink() {
   );
 }
 
-function remember() {
-  if (state.report) history.replaceState(null, '', viewLink());
+function remember(step = false) {
+  if (!state.report) return;
+  const next = viewLink();
+  if (next.href === location.href) return;
+  if (step) history.pushState(null, '', next);
+  else history.replaceState(null, '', next);
 }
 
 // ------------------------------------------------------------------ the parts
@@ -81,11 +98,19 @@ function bands() {
   return state.report.classified ? state.report.bands : state.report.bands.filter((b) => b.key === 'all');
 }
 
+// The tiles say which group they count, in the server's words, and the group's line says it
+// once more in a sentence (H11). "Credited to a player" shows only where it differs from the
+// goals (H14).
 function stats() {
   const chosen = band(state.split);
   $('games').textContent = chosen.matches;
   $('total').textContent = chosen.goals;
   $('named').textContent = chosen.named;
+  $('games-label').textContent = chosen.matches_label || 'Matches';
+  $('total-label').textContent = chosen.goals_label || 'Goals';
+  $('named-tile').hidden = chosen.named === chosen.goals;
+  $('band-line').textContent = chosen.line || '';
+  $('band-line').hidden = !chosen.line || state.split === 'all';
 }
 
 function pick(id, name) {
@@ -108,14 +133,18 @@ function matrix() {
     : 'Scorers';
   const table = $('matrix');
   table.replaceChildren();
+  table.classList.toggle('is-single', shownBands.length === 1);
   $('scorers').hidden = !scorers.length;
   if (!scorers.length) return;
+  // One column only (no match classified yet): it is the goals, and a stacked row on a phone
+  // needs no label for it (D7, H13).
+  const single = shownBands.length === 1;
   const head = table.createTHead().insertRow();
   const corner = node('th', 'Scorer');
   corner.scope = 'col';
   head.append(corner);
   for (const b of shownBands) {
-    const th = node('th', b.short);
+    const th = node('th', single ? 'Goals' : b.short);
     th.scope = 'col';
     th.dataset.band = b.key;
     if (b.key === state.split && state.report.classified) th.className = 'is-band';
@@ -124,7 +153,7 @@ function matrix() {
   const cells = (row, values) => {
     shownBands.forEach((b, i) => {
       const td = row.insertCell();
-      td.dataset.label = b.short;
+      if (!single) td.dataset.label = b.short;
       td.dataset.band = b.key;
       if (b.key === state.split && state.report.classified) td.className = 'is-band';
       td.textContent = b.matches ? values[i] : '—';
@@ -172,7 +201,7 @@ function matrix() {
     row.append(th);
     shownBands.forEach((b) => {
       const td = row.insertCell();
-      td.dataset.label = b.short;
+      if (!single) td.dataset.label = b.short;
       td.dataset.band = b.key;
       if (b.key === state.split && state.report.classified) td.className = 'is-band';
       td.textContent = field === 'goals' && !b.matches ? '—' : b[field];
@@ -224,7 +253,8 @@ function goal(event, game) {
   if (event.own) item.append(node('span', 'Own goal', 'gs-tag'));
   if (!event.for_club) {
     item.classList.add('is-against');
-    item.append(node('span', 'for ' + game.opponent, 'gs-side'));
+    // Whose goal it was, in the server's words.
+    if (event.side_label) item.append(node('span', event.side_label, 'gs-side'));
   }
   return item;
 }
@@ -265,17 +295,19 @@ function log() {
   const games = state.report.matches
     .filter((g) => state.split === 'all' || g.split === state.split)
     .filter((g) => !state.player || g.events.some((e) => e.scorer === state.player));
+  const scorer = state.report.scorers.find((s) => s.id === state.player);
   $('filtered').hidden = !state.player;
-  $('filtered-name').textContent = state.player ? 'Matches with a goal by ' + state.playerName : '';
+  $('filtered-name').textContent = scorer ? scorer.filter_line : '';
   let empty = 'No matches in this group.';
   if (!state.report.matches.length) empty = 'No completed matches yet.';
-  else if (state.player) empty = 'No goals by ' + state.playerName + ' in these matches.';
+  else if (scorer) empty = scorer.empty_line;
   $('log').replaceChildren(...(games.length ? games.map(match) : [node('li', empty, 'ui-empty')]));
 }
 
 function credit(report) {
   const source = node('a', 'OpenLigaDB');
-  source.href = report.source;
+  // The provider's own site, never the raw reply (H15).
+  source.href = report.provider_url || 'https://www.openligadb.de/';
   const licence = node('a', 'ODbL 1.0');
   licence.href = report.licence;
   const parts = ['Goals adapted from ', source, ' (', licence, ')'];
@@ -304,9 +336,9 @@ function show(report) {
   $('answer').textContent = report.answer;
   $('opening').textContent = report.opening || '';
   $('opening').hidden = !report.opening;
-  $('title').textContent = report.club_name;
-  $('meta').textContent = report.league + (report.opponent ? ' · against ' + report.opponent : '');
-  league.value = report.code;
+  $('title').textContent = 'Goals by opponent · ' + report.league;
+  $('meta').textContent = report.club_name + (report.opponent ? ' · against ' + report.opponent : '');
+  setLeague(report.code);
   club.replaceChildren(...report.club_list.map((c) => new Option(c.name, c.id)));
   club.value = String(report.club);
   opponent.replaceChildren(new Option('All opponents', ''), ...report.opponents.map((name) => new Option(name, name)));
@@ -327,7 +359,7 @@ function busy(on) {
   const card = document.getElementById('goals');
   card.setAttribute('aria-busy', String(on));
   card.classList.toggle('is-busy', on && Boolean(state.report));
-  for (const control of [league, club, opponent]) control.disabled = on;
+  for (const control of [...tabs(), club, opponent]) control.disabled = on;
   if (!on && !state.report) club.disabled = true;
 }
 
@@ -339,12 +371,12 @@ function fail(error, asked) {
       ? 'The page couldn’t reach the server.'
       : 'Goals can’t be loaded right now.';
   state.report = null;
-  if (asked.league) league.value = asked.league;
+  if (asked.league) setLeague(asked.league);
   $('answer').textContent = title;
   $('opening').hidden = true;
   $('skeleton').hidden = true;
   $('data').hidden = true;
-  $('title').textContent = 'Goals';
+  $('title').textContent = 'Goals by opponent';
   $('meta').textContent = '';
   const box = node('div', null, 'ui-callout');
   box.dataset.tone = missing ? 'info' : 'unavailable';
@@ -387,51 +419,75 @@ async function load(asked = {}) {
 
 // ------------------------------------------------------------------ the controls
 
-league.onchange = () => {
+function chooseLeague(code, focus = false) {
+  if (!code || code === state.report?.code) return;
   state.player = '';
   state.split = 'all';
-  load({ league: league.value }).then(remember);
-};
+  setLeague(code);
+  if (focus) league.querySelector('[aria-selected="true"]')?.focus();
+  load({ league: code }).then(() => remember(true));
+}
+for (const tab of tabs()) tab.onclick = () => chooseLeague(tab.dataset.league);
+league.addEventListener('keydown', (event) => {
+  const codes = tabs().map((t) => t.dataset.league),
+    at = codes.indexOf(leagueValue());
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+  const to = event.key === 'Home' ? 0 : event.key === 'End' ? codes.length - 1 : step ? (at + step + codes.length) % codes.length : -1;
+  if (to < 0) return;
+  event.preventDefault();
+  chooseLeague(codes[to], true);
+});
 club.onchange = () => {
   state.player = '';
   state.split = 'all';
-  load({ league: league.value, club: club.value }).then(remember);
+  load({ league: leagueValue(), club: club.value }).then(() => remember(true));
 };
 opponent.onchange = () => {
-  load({ league: state.report.code, club: state.report.club, opponent: opponent.value }).then(remember);
+  load({ league: state.report.code, club: state.report.club, opponent: opponent.value }).then(() => remember(true));
 };
 $('more').onclick = () => {
   state.every = !state.every;
   matrix();
 };
-$('unpick').onclick = () => pick('', '');
+// "Show every match": the list comes back and focus goes to the scorer who was picked (H19).
+$('unpick').onclick = () => {
+  const was = state.player;
+  pick('', '');
+  ($('matrix').querySelector('[data-id="' + CSS.escape(was) + '"]') || $('matrix').querySelector('.gs-name'))?.focus();
+};
 $('copy').onclick = async () => {
-  if (!state.report) return;
   remember();
   const url = location.href;
-  try {
-    await navigator.clipboard.writeText(url);
-    $('share-status').textContent = 'Link copied.';
-  } catch {
-    const input = $('share-url');
-    input.hidden = false;
-    input.value = url;
-    input.focus();
-    input.select();
-    $('share-status').textContent = 'Select and copy this link.';
+  if (navigator.clipboard && window.Site?.copyLink) {
+    Site.copyLink(url);
+    return;
   }
+  // No clipboard: the link, selected, to copy by hand.
+  const input = $('share-url');
+  input.hidden = false;
+  input.value = url;
+  input.focus();
+  input.select();
+  $('share-status').textContent = 'Select and copy this link.';
 };
 
 // ------------------------------------------------------------------ the first view
 
-const leagues = [...league.options].map((o) => o.value);
-const askedLeague = query.get('goalsLeague');
-const askedSplit = OLD_SPLITS[query.get('goalsSplit')] || query.get('goalsSplit');
-if (SPLITS.includes(askedSplit)) state.split = askedSplit;
-state.player = query.get('goalsPlayer') || '';
-if (askedLeague && leagues.includes(askedLeague)) {
-  const askedClub = /^\d+$/.test(query.get('goalsClub') || '') ? query.get('goalsClub') : '';
-  load({ league: askedLeague, club: askedClub, opponent: query.get('goalsOpponent') || '' });
-} else {
-  load(askedLeague ? { gone: askedLeague } : {});
+const leagues = tabs().map((t) => t.dataset.league);
+// The view an address holds: on arrival, and on Back and Forward.
+function follow(params) {
+  const askedLeague = params.get('goalsLeague');
+  const askedSplit = OLD_SPLITS[params.get('goalsSplit')] || params.get('goalsSplit');
+  state.split = SPLITS.includes(askedSplit) ? askedSplit : 'all';
+  state.player = params.get('goalsPlayer') || '';
+  state.playerName = '';
+  if (askedLeague && leagues.includes(askedLeague)) {
+    const askedClub = /^\d+$/.test(params.get('goalsClub') || '') ? params.get('goalsClub') : '';
+    setLeague(askedLeague);
+    load({ league: askedLeague, club: askedClub, opponent: params.get('goalsOpponent') || '' });
+  } else {
+    load(askedLeague ? { gone: askedLeague } : {});
+  }
 }
+addEventListener('popstate', () => follow(new URLSearchParams(location.search)));
+follow(query);

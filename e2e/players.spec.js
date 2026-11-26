@@ -15,6 +15,13 @@ const { test, expect } = require('@playwright/test');
 // split is not shown at all and the server's line says why; the page dates its results
 // ("Results through"), not its fetch; and Real Madrid's scorers in all competitions open the
 // page, ordered by the server.
+//
+// Re-pinned in the third review (the hosted fixes): the page's answer is the squad's leading
+// scorer in all competitions (H12), and the explorer's own sentence sits in its card, titled
+// "Goals by opponent · <competition>", the club in its subtitle; the competition is the site's
+// tab strip (H29) and a step in the history (H8); a group's tiles and line are the server's
+// (H11); a scorer's filter and empty lines are the server's (R10); with one column (no match
+// classified) the column is "Goals" (H13); "Copy link" is the page's one share action.
 
 const checked = '2026-11-26T12:00:00Z';
 const goal = (player, name, minute, extra = {}) => ({
@@ -22,11 +29,15 @@ const goal = (player, name, minute, extra = {}) => ({
   scorer: player ? String(player) : null, ...extra,
 });
 const BANDS = [
-  { key: 'all', label: 'All opponents', short: 'All', matches: 2, goals: 3, named: 3 },
-  { key: 'places_1_6', label: 'Places 1–6 before kick-off', short: 'Places 1–6', matches: 1, goals: 2, named: 2 },
-  { key: 'other', label: 'Places 7–36 before kick-off', short: 'Places 7–36', matches: 0, goals: 0, named: 0 },
-  { key: 'unclassified', label: 'Not classified', short: 'Not classified', matches: 1, goals: 1, named: 1 },
+  { key: 'all', label: 'All opponents', short: 'All', matches: 2, goals: 3, named: 3, matches_label: 'Matches', goals_label: 'Goals', line: null },
+  { key: 'places_1_6', label: 'Places 1–6 before kick-off', short: 'Places 1–6', matches: 1, goals: 2, named: 2,
+    matches_label: 'Matches against places 1–6', goals_label: 'Goals in them', line: 'Against clubs in places 1–6 before kick-off: 2 goals in 1 match.' },
+  { key: 'other', label: 'Places 7–36 before kick-off', short: 'Places 7–36', matches: 0, goals: 0, named: 0,
+    matches_label: 'Matches against places 7–36', goals_label: 'Goals in them', line: 'Against clubs in places 7–36 before kick-off: 0 goals in 0 matches.' },
+  { key: 'unclassified', label: 'Not classified', short: 'Not classified', matches: 1, goals: 1, named: 1,
+    matches_label: 'Matches not classified', goals_label: 'Goals in them', line: 'In matches not classified by the opponent’s place: 1 goal in 1 match.' },
 ];
+const lines = (name) => ({ filter_line: 'Matches with a goal by ' + name, empty_line: 'No goals by ' + name + ' in these matches.' });
 const MATCHES = [
   { id: 1, day: '2026-10-10', day_label: 'Sat 10 Oct', venue: 'H', opponent: 'North FC', split: 'places_1_6',
     split_label: 'Places 1–6', for: 2, against: 1, result: 'W', note: 'The feed lists 2 of 3 goals.',
@@ -49,12 +60,12 @@ function report(over = {}) {
     answer: ANSWER, opening: OPENING, bands: BANDS,
     band_note: 'Places are from the Champions League league-phase table before kick-off.',
     scorers: [
-      { id: '9', name: 'Example forward', goals: { all: 2, places_1_6: 1, other: 0, unclassified: 1 } },
-      { id: '7', name: 'Example winger', goals: { all: 1, places_1_6: 1, other: 0, unclassified: 0 } },
+      { id: '9', name: 'Example forward', goals: { all: 2, places_1_6: 1, other: 0, unclassified: 1 }, ...lines('Example forward') },
+      { id: '7', name: 'Example winger', goals: { all: 1, places_1_6: 1, other: 0, unclassified: 0 }, ...lines('Example winger') },
     ],
     order: 'Ordered by goals, then name.', opponents: ['North FC', 'South FC'], opponent: null,
     matches: MATCHES, notes: [], next_match: null,
-    source: 'https://api.openligadb.de/getmatchdata/ucl/2026', credit: 'OpenLigaDB',
+    source: 'https://api.openligadb.de/getmatchdata/ucl/2026', provider_url: 'https://www.openligadb.de/', credit: 'OpenLigaDB',
     licence: 'https://opendatacommons.org/licenses/odbl/1-0/', checked, warning: null,
     unverified_league_matches: 0, classified: true, split_note: null,
     through: 'Results through Sat 10 Oct', ...over,
@@ -112,10 +123,12 @@ test('answers first, splits by the place before kick-off and restores a shared s
   await page.goto('/match-centre/scouting');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Goals by opponent');
   // The server's sentence and the line that says which club the page opened on, as written.
-  await expect(page.locator('.page-answer')).toHaveText(ANSWER);
+  await expect(page.locator('.page-answer')).toHaveText(SQUAD.answer);
+  await expect(page.locator('#goals-answer')).toHaveText(ANSWER);
   await expect(page.locator('#goals-opening')).toHaveText(OPENING);
-  await expect(page.locator('#goals-title')).toHaveText('Example Madrid');
-  await expect(page.getByLabel('Competition')).toHaveValue('ucl');
+  await expect(page.locator('#goals-title')).toHaveText('Goals by opponent · Champions League');
+  await expect(page.locator('#goals-meta')).toHaveText('Example Madrid');
+  await expect(page.getByRole('tab', { name: 'Champions League' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#goals-club')).toHaveValue('1133');
   // The scorer table: the server's order and counts; a group with no match is a dash, not 0.
   await expect(page.locator('#goals-matrix tbody th')).toHaveText(['Example forward', 'Example winger']);
@@ -130,11 +143,18 @@ test('answers first, splits by the place before kick-off and restores a shared s
   // The results are dated by the feed's latest result, never by a fetch time.
   await expect(page.locator('#goals-through')).toHaveText('Results through Sat 10 Oct');
   await expect(page.locator('#goals-credit')).not.toContainText('checked');
+  // The credit links to the provider's site, not to its raw reply (H15).
+  await expect(page.locator('#goals-credit').getByRole('link', { name: 'OpenLigaDB' })).toHaveAttribute('href', 'https://www.openligadb.de/');
+  // Every goal is credited to a player here, so the tile that would repeat "Goals" is gone (H14).
+  await expect(page.locator('#goals-named-tile')).toBeHidden();
   await expect(page.locator('main')).not.toContainText(/top six|Top six|Opponent strength/);
   await expect(page.locator('#goals-log > li')).toHaveCount(2);
   await chips.filter({ hasText: 'Places 1–6' }).click();
   await expect(page.locator('#goals-games')).toHaveText('1');
   await expect(page.locator('#goals-total')).toHaveText('2');
+  // The tiles say which group they count, and the group's line says it in a sentence (H11).
+  await expect(page.locator('#goals-games-label')).toHaveText('Matches against places 1–6');
+  await expect(page.locator('#goals-band-line')).toHaveText(BANDS[1].line);
   await expect(page.locator('#goals-log > li')).toHaveCount(1);
   await expect(page.locator('#goals-log')).toContainText('North FC');
   // Picking a scorer lists his matches, opens them and marks his goals.
@@ -151,7 +171,7 @@ test('answers first, splits by the place before kick-off and restores a shared s
   await noOverflow(page);
   // Every control a thumb uses is 44 px tall.
   for (const control of [chips.first(), page.locator('#goals-club'), page.getByRole('button', { name: 'Example winger' }),
-    page.getByRole('button', { name: 'Copy link to this view' })]) {
+    page.getByRole('button', { name: 'Copy link' }), page.getByRole('tab', { name: 'Premier League' })]) {
     expect((await control.boundingBox()).height).toBeGreaterThanOrEqual(44);
   }
   // The shared view comes back as it was, from the club's own report.
@@ -162,6 +182,8 @@ test('answers first, splits by the place before kick-off and restores a shared s
   expect(asked.at(-1)).toContain('/api/match-centre/goal-scout/ucl?club=1133');
   await page.getByRole('button', { name: 'Show every match' }).click();
   await expect(page.locator('#goals-filtered')).toBeHidden();
+  // Focus goes back to the scorer who was picked, not to the page (H19).
+  await expect(page.getByRole('button', { name: 'Example forward' })).toBeFocused();
   await page.setViewportSize({ width: 320, height: 700 });
   await noOverflow(page);
 });
@@ -169,10 +191,11 @@ test('answers first, splits by the place before kick-off and restores a shared s
 test('an opponent narrows the counts on the server and the link can be copied by hand', async ({ page }) => {
   const narrow = report({
     opening: null, opponent: 'North FC', matches: [MATCHES[0]],
+    answer: 'Against North FC, Example Madrid have scored 2 goals in 1 Champions League match; Example forward and Example winger scored 1 each.',
     bands: BANDS.map((b) => ({ ...b, ...(b.key === 'unclassified' ? { matches: 0, goals: 0, named: 0 }
       : b.key === 'all' ? { matches: 1, goals: 2, named: 2 } : {}) })),
-    scorers: [{ id: '7', name: 'Example winger', goals: { all: 1, places_1_6: 1, other: 0, unclassified: 0 } },
-      { id: '9', name: 'Example forward', goals: { all: 1, places_1_6: 1, other: 0, unclassified: 0 } }],
+    scorers: [{ id: '7', name: 'Example winger', goals: { all: 1, places_1_6: 1, other: 0, unclassified: 0 }, ...lines('Example winger') },
+      { id: '9', name: 'Example forward', goals: { all: 1, places_1_6: 1, other: 0, unclassified: 0 }, ...lines('Example forward') }],
   });
   const asked = await stub(page, {
     first: { json: report() },
@@ -181,15 +204,23 @@ test('an opponent narrows the counts on the server and the link can be copied by
   await page.goto('/match-centre/scouting');
   await expect(page.locator('#goals-matrix tbody th')).toHaveText(['Example forward', 'Example winger']);
   await page.getByLabel('Opponent', { exact: true }).selectOption('North FC');
-  await expect(page.locator('#goals-meta')).toHaveText('Champions League · against North FC');
+  await expect(page.locator('#goals-meta')).toHaveText('Example Madrid · against North FC');
   expect(new URL(asked.at(-1)).searchParams.get('opponent')).toBe('North FC');
   // The server's order, as served, even where it differs from the season's.
   await expect(page.locator('#goals-matrix tbody th')).toHaveText(['Example winger', 'Example forward']);
   expect(await cells(page, 'Example forward')).toEqual(['1', '1', '—', '—']);
   await expect(page.locator('#goals-log > li')).toHaveCount(1);
-  await expect(page.locator('.page-answer')).toHaveText(ANSWER);
+  // The explorer's sentence is the server's for the opponent shown (H11); the page's answer is
+  // the squad's.
+  await expect(page.locator('#goals-answer')).toHaveText(narrow.answer);
+  await expect(page.locator('.page-answer')).toHaveText(SQUAD.answer);
+  // An opponent is a step in the history: Back returns to every opponent (H8).
+  await page.goBack();
+  await expect(page.getByLabel('Opponent', { exact: true })).toHaveValue('');
+  await page.goForward();
+  await expect(page.getByLabel('Opponent', { exact: true })).toHaveValue('North FC');
   await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }));
-  await page.getByRole('button', { name: 'Copy link to this view' }).click();
+  await page.getByRole('button', { name: 'Copy link' }).click();
   await expect(page.getByLabel('Link to this view')).toHaveValue(page.url());
   expect(new URL(page.url()).searchParams.get('goalsOpponent')).toBe('North FC');
   await page.reload();
@@ -203,7 +234,7 @@ test('a feed that is down is said in the server’s words, with no junk in the c
     ? r.fulfill({ status: 503, json: { detail: 'The free goal feed, OpenLigaDB, can’t be reached right now.' } })
     : r.fulfill({ json: report() })));
   await page.goto('/match-centre/scouting');
-  await expect(page.locator('.page-answer')).toHaveText('Goals can’t be loaded right now.');
+  await expect(page.locator('#goals-answer')).toHaveText('Goals can’t be loaded right now.');
   const callout = page.locator('#goals-state .ui-callout');
   await expect(callout).toHaveAttribute('data-tone', 'unavailable');
   await expect(callout).toContainText('The free goal feed, OpenLigaDB, can’t be reached right now.');
@@ -212,7 +243,7 @@ test('a feed that is down is said in the server’s words, with no junk in the c
   await expect(page.locator('#goals-data')).toBeHidden();
   fail = false;
   await callout.getByRole('button', { name: 'Try again' }).click();
-  await expect(page.locator('.page-answer')).toHaveText(ANSWER);
+  await expect(page.locator('#goals-answer')).toHaveText(ANSWER);
   await expect(page.locator('#goals-state')).toBeEmpty();
 });
 
@@ -231,9 +262,9 @@ test('an old La Liga link and a club the season does not list each open the defa
   const callout = page.locator('#goals-state .ui-callout');
   await expect(callout).toContainText('That club isn’t in this season’s Premier League.');
   await expect(callout.getByRole('button', { name: 'Try again' })).toHaveCount(0);
-  await expect(page.getByLabel('Competition')).toHaveValue('en');
+  await expect(page.getByRole('tab', { name: 'Premier League' })).toHaveAttribute('aria-selected', 'true');
   await callout.getByRole('button', { name: 'Open the default view' }).click();
-  await expect(page.locator('.page-answer')).toHaveText(ANSWER);
+  await expect(page.locator('#goals-answer')).toHaveText(ANSWER);
 });
 
 test('Madrid against the league is a stat row with the schedule, and the hosted page shows no comparison', async ({ page }) => {
@@ -294,9 +325,11 @@ test('before any match is classified the split is not offered, and an old link s
   });
   await stub(page, { first: { json: unset } });
   await page.goto('/match-centre/scouting');
-  await expect(page.locator('.page-answer')).toHaveText(unset.answer);
-  // One column, no chips, no per-match tag: the server's one line says why.
-  await expect(page.locator('#goals-matrix thead th')).toHaveText(['Scorer', 'All']);
+  await expect(page.locator('#goals-answer')).toHaveText(unset.answer);
+  // One column, headed "Goals", no chips, no per-match tag: the server's one line says why
+  // (D7, H13).
+  await expect(page.locator('#goals-matrix thead th')).toHaveText(['Scorer', 'Goals']);
+  await expect(page.locator('#goals-matrix td[data-label]')).toHaveCount(0);
   await expect(page.locator('#scorers-title')).toHaveText('Scorers');
   await expect(page.locator('#goals-split')).toBeHidden();
   await expect(page.locator('#goals-band-note')).toHaveText(unset.split_note);
@@ -323,13 +356,14 @@ test('Real Madrid’s scorers in all competitions open the page, in the server�
   await expect(card).toContainText('The current squad list is unavailable.');
   down = false;
   await card.getByRole('button', { name: 'Try again' }).click();
-  await expect(card.locator('.gs-squad-answer')).toHaveText(SQUAD.answer);
+  // The squad's sentence is the page's answer (H12).
+  await expect(page.locator('.page-answer')).toHaveText(SQUAD.answer);
   await expect(card.locator('tbody th')).toHaveText(['Example forward', 'Example winger']);
   await expect(card.locator('tbody tr').last().locator('td')).toHaveText(['FW', '—', '2']);
   await expect(card).toContainText('By goals, then name.');
   await expect(card.getByRole('link', { name: 'Wikipedia contributors' })).toHaveAttribute('href', SQUAD.source);
   await expect(card).toContainText('as edited on Wed 25 Nov 2026');
   // The squad card comes before the explorer, under the page's answer.
-  const order = await page.evaluate(() => ['goals-answer', 'squad', 'goals'].map((id) => document.getElementById(id).getBoundingClientRect().top));
+  const order = await page.evaluate(() => ['page-answer', 'squad', 'goals'].map((id) => document.getElementById(id).getBoundingClientRect().top));
   expect(order).toEqual([...order].sort((a, b) => a - b));
 });

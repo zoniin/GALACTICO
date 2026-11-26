@@ -92,12 +92,14 @@ _ICON = ('<svg class="site-nav-icon" viewBox="0 0 24 24" fill="none" stroke="cur
 
 @dataclass(frozen=True)
 class NavItem:
-    """One destination. ``hrefs`` in preference order: the first the app serves is the link."""
+    """One destination. ``hrefs`` in preference order: the first the app serves is the link.
+    ``short`` is the label the phone tab bar shows where the full one would wrap."""
 
     key: str
     label: str
     hrefs: tuple[str, ...]
     icon: str
+    short: str | None = None
 
 
 NAV: tuple[NavItem, ...] = (
@@ -105,14 +107,14 @@ NAV: tuple[NavItem, ...] = (
             '<circle cx="12" cy="12" r="9"/><path d="M12 7.5l4 2.9-1.5 4.6h-5L8 10.4z"/>'),
     NavItem("table", "Table", ("/match-centre/leagues",),
             '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 4v16"/>'),
-    NavItem("players", "Players", ("/player", "/match-centre/scouting"),
+    NavItem("players", "Players", ("/match-centre/scouting", "/player"),
             '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>'),
     NavItem("lineup", "Lineup", ("/lineup", "/xi"),
             '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 12h18"/>'
             '<circle cx="12" cy="12" r="3"/>'),
     NavItem("squad", "Squad & signings", ("/squad", "/transfer"),
             '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/>'
-            '<path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.3c2.1.7 3.5 2.6 3.5 5.7"/>'),
+            '<path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.3c2.1.7 3.5 2.6 3.5 5.7"/>', "Squad"),
 )
 """The five destinations, in the one order every page shows them."""
 
@@ -165,26 +167,46 @@ class Page:
     name: str
     sources: tuple[str, ...] = ()
     aliases: tuple[str, ...] = ()
+    description: str = ""
 
 
 PAGES: dict[str, Page] = {item.key: item for item in (
     Page("matches", "match-centre.html", "/match-centre", "matches", "current", "Matches",
-         ("openfootball", "openligadb"), aliases=("/",)),
+         ("openfootball", "openligadb"), aliases=("/",),
+         description="Real Madrid’s latest result and next match, and each day’s fixtures "
+                     "and results in six competitions this season."),
     Page("table", "leagues.html", "/match-centre/leagues", "table", "current", "Table",
-         ("openfootball", "openligadb")),
+         ("openfootball", "openligadb"),
+         description="This season’s league tables, worked out from the reported results: "
+                     "La Liga, the Champions League, the Premier League, the Bundesliga, "
+                     "Serie A and Ligue 1."),
     Page("scouting", "scouting.html", "/match-centre/scouting", "players", "current",
-         "Goals by opponent", ("openligadb", "openfootball", "wikipedia")),
+         "Goals by opponent", ("openligadb", "openfootball", "wikipedia"),
+         description="Who scores for Real Madrid this season, and against which opponents."),
     Page("lineup", "studio.html", "/lineup", "lineup", "current", "Lineup",
-         ("wikipedia", "openligadb", "openfootball", "pappalardo")),
+         ("wikipedia", "openligadb", "openfootball", "pappalardo"),
+         description="Real Madrid’s XI by most appearances this season, on a board you can "
+                     "change and share."),
     Page("player", "index.html", "/player", "players", "archive", "Player profiles",
-         ("pappalardo",)),
+         ("pappalardo",),
+         description="Player profiles from the 2017/18 La Liga archive: each measure as a "
+                     "percentile among players in the same position."),
     Page("match", "match.html", "/match", "matches", "archive", "Match reports",
-         ("pappalardo",)),
-    Page("xi", "xi.html", "/xi", "lineup", "archive", "Check against targets", ("pappalardo",)),
-    Page("squad", "squad.html", "/squad", "squad", "archive", "Squad depth", ("pappalardo",)),
+         ("pappalardo",),
+         description="Match reports from the 2017/18 La Liga archive: lineups, goals and key "
+                     "moments."),
+    Page("xi", "xi.html", "/xi", "lineup", "archive", "Check against targets", ("pappalardo",),
+         description="Check a Real Madrid XI against targets you set, from the 2017/18 La Liga "
+                     "archive."),
+    Page("squad", "squad.html", "/squad", "squad", "archive", "Squad depth", ("pappalardo",),
+         description="Where is Real Madrid’s cover thin? Squad depth by position, from the "
+                     "2017/18 La Liga archive."),
     Page("transfer", "transfer.html", "/transfer", "squad", "archive", "Signings",
-         ("pappalardo",)),
-    Page("about", "about.html", "/about", None, None, "About the numbers"),
+         ("pappalardo",),
+         description="Who could fill a position in Real Madrid’s squad, from the 2017/18 La "
+                     "Liga archive."),
+    Page("about", "about.html", "/about", None, None, "About the numbers",
+         description="How every number on this site is gathered, and where it comes from."),
 )}
 """Every page the apps serve through the shell, the current season's first within a
 destination (the sub-navigation's order). ``/`` serves the Matches page."""
@@ -271,11 +293,14 @@ def nav_markup(current: str | None, routes: Collection[str], shown: str | None =
         if href is None:
             continue
         mark = ""
+        # The tab bar's short label is drawn by the sheet; the link is still named in full.
+        short = f' data-short="{_e(item.short)}"' if item.short else ""
         if item.key == current:
             here = shown is not None and _PAGE_AT.get(href) == shown
             mark = ' aria-current="page"' if here else ' aria-current="true"'
         links.append(f'<a href="{_e(href)}" data-nav="{item.key}"{mark}>'
-                     f'{_ICON.format(item.icon)}<span>{_e(item.label)}</span></a>')
+                     f'{_ICON.format(item.icon)}<span class="site-nav-label"{short}>'
+                     f'{_e(item.label)}</span></a>')
     return f'<nav class="site-nav" aria-label="Main">{"".join(links)}</nav>'
 
 
@@ -305,7 +330,7 @@ def subnav_markup(spec: Page, routes: Collection[str], *, today: date | None = N
         f'{_e(_season_label(other.season, today, short=True) or "")}</span></a>'
         for other in pages)
     return (f'<nav class="site-subnav" aria-label="{_e(label)} pages" data-shell>'
-            f'<div class="site-frame site-subnav-inner">{links}</div></nav>')
+            f'<div class="site-frame site-subnav-inner ui-strip">{links}</div></nav>')
 
 
 def header_markup(spec: Page, routes: Collection[str], *, today: date | None = None) -> str:
@@ -357,14 +382,28 @@ PRELOADED_FONTS = ("dm-sans.woff2", "barlow.woff2", "barlow-italic.woff2")
 """The type above the fold of every page: the text, the headings and the wordmark."""
 
 
-def head_markup(spec: Page) -> str:
-    """What every page loads before its own sheets: its title, the type above the fold, the
-    three sheets in layer order, the theme switch and the site script, the icon and the chrome
-    colour per theme."""
+def head_markup(spec: Page, *, description: str | None = None, url: str | None = None) -> str:
+    """What every page loads before its own sheets: its title, its description and the card a
+    shared link shows (Open Graph), the type above the fold, the three sheets in layer order,
+    the theme switch and the site script, the icon and the chrome colour per theme.
+
+    ``description`` is the page's own (``Page.description``) unless the route hands over the
+    server's sentence for the view a link opens (a shared lineup, a match); ``url`` is the
+    address asked for."""
     fonts = "".join(f'<link rel="preload" href="/static/assets/type/{name}" as="font" '
                     'type="font/woff2" crossorigin>' for name in PRELOADED_FONTS)
+    said = description or spec.description
+    card = ""
+    if said:
+        card = (f'<meta name="description" content="{_e(said)}">'
+                '<meta property="og:type" content="website">'
+                f'<meta property="og:site_name" content="{_e(BRAND)}">'
+                f'<meta property="og:title" content="{_e(title(spec))}">'
+                f'<meta property="og:description" content="{_e(said)}">')
+        if url:
+            card += f'<meta property="og:url" content="{_e(url)}">'
     return (
-        f'<title>{_e(title(spec))}</title>{fonts}'
+        f'<title>{_e(title(spec))}</title>{card}{fonts}'
         '<link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">'
         '<meta name="color-scheme" content="light dark">'
         f'<meta name="theme-color" media="(prefers-color-scheme: light)" '
@@ -380,21 +419,24 @@ def head_markup(spec: Page) -> str:
 
 
 def render(markup: str, spec: Page, routes: Collection[str], *, today: date | None = None,
-           slots: dict[str, str] | None = None) -> str:
+           slots: dict[str, str] | None = None, description: str | None = None,
+           url: str | None = None) -> str:
     """``markup`` with the shell filled in. Each placeholder must occur exactly once.
 
-    ``slots`` fills further ``<!--slot:name-->`` placeholders of the page with server markup.
+    ``slots`` fills further ``<!--slot:name-->`` placeholders of the page with server markup;
+    ``description`` and ``url`` go to the head (``head_markup``).
     """
     for placeholder in PLACEHOLDERS:
         found = markup.count(placeholder)
         if found != 1:
             raise ValueError(f"{spec.file}: {placeholder} occurs {found} times, not once")
     if "<title>" in markup[:markup.find("</head>")]:
-        raise ValueError(f"{spec.file}: the shell writes the <title>; the page's head holds none")
+        raise ValueError(f"{spec.file}: the shell writes the <title>; the page’s head holds none")
     # The skip link's target takes focus, so a keyboard reader goes on from there.
     if markup.count('<main id="main"') == 1:
         markup = markup.replace('<main id="main"', '<main id="main" tabindex="-1"')
-    filled = (markup.replace(PLACEHOLDERS[0], head_markup(spec))
+    filled = (markup.replace(PLACEHOLDERS[0], head_markup(spec, description=description,
+                                                          url=url))
               .replace(PLACEHOLDERS[1], header_markup(spec, routes, today=today))
               .replace(PLACEHOLDERS[2], footer_markup(spec, routes)))
     for name, value in (slots or {}).items():
@@ -405,11 +447,21 @@ def render(markup: str, spec: Page, routes: Collection[str], *, today: date | No
     return filled
 
 
-def page(request: Any, key: str, *, slots: dict[str, str] | None = None) -> str:
-    """The page ``key`` as the app serving ``request`` shows it. Routes return it as HTML."""
+def page(request: Any, key: str, *, slots: dict[str, str] | None = None,
+         description: str | None = None) -> str:
+    """The page ``key`` as the app serving ``request`` shows it. Routes return it as HTML.
+
+    ``description`` is the server's sentence for the view the address opens, where the route
+    has one (a shared lineup, a match); else the page's own."""
     spec = PAGES[key]
     markup = (WEB / spec.file).read_text(encoding="utf-8")
-    return render(markup, spec, served_paths(request.app), slots=slots)
+    return render(markup, spec, served_paths(request.app), slots=slots,
+                  description=description, url=_address(request))
+
+
+def _address(request: Any) -> str | None:
+    url = getattr(request, "url", None)
+    return str(url) if url is not None else None
 
 
 # ------------------------------------------------------------------ a page that isn't here
@@ -418,8 +470,6 @@ def page(request: Any, key: str, *, slots: dict[str, str] | None = None) -> str:
 MISSING = Page("missing", "missing.html", "", None, None, "Page not found")
 """The page a request for an address the app does not serve is answered with (status 404)."""
 
-_WAYS_ON = ("matches", "table", "lineup")
-"""The destinations a missing page offers, the first as the primary action."""
 
 
 def not_found(request: Any, *, today: date | None = None) -> str:
@@ -430,14 +480,15 @@ def not_found(request: Any, *, today: date | None = None) -> str:
     path = str(request.url.path).rstrip("/") or "/"
     archive = path in {spec.path for spec in PAGES.values() if spec.season == "archive"}
     if archive:
-        heading = "The 2017/18 archive isn't on this site"
+        heading = "The 2017/18 archive isn’t on this site"
         answer = ("The 2017/18 archive runs only on a local install. This site shows the "
                   "current season.")
     else:
-        heading = "That page isn't here"
+        heading = "That page isn’t here"
         answer = "The address may be mistyped, or the page has moved."
-    ways = [(item.label, href) for item in NAV if item.key in _WAYS_ON
-            and (href := _link(item, routes)) is not None]
+    # The ways on are the navigation's destinations the app serves, in its order: the first as
+    # the primary action.
+    ways = [(item.label, href) for item in NAV if (href := _link(item, routes)) is not None]
     actions = "".join(
         f'<a class="ui-btn{" ui-btn-primary" if i == 0 else ""}" href="{_e(href)}">'
         f'{_e(("Go to " + label) if i == 0 else label)}</a>'
@@ -488,7 +539,7 @@ def sources_section(routes: Collection[str]) -> Section:
     if PAGES["player"].path in routes:
         said += (' The research analysis under Why only five? on the Player profiles page '
                  'comes from elsewhere: it is formed from StatsBomb data, shown only on a local '
-                 "install, and credited there with the provider's logo.")
+                 "install, and credited there with the provider’s logo.")
     body = (f'<p>{_e(said)}</p>'
             '<div class="ui-table-wrap"><table class="ui-table ui-table-stack">'
             '<caption>Data sources and licences, in the order the pages use them</caption>'
@@ -514,8 +565,7 @@ def about(request: Any) -> str:
     sections = [section for build in builders if (section := build()) is not None]
     sections.append(sources_section(routes))
     answer = _answer(sections)
-    return page(request, "about", slots={
-        "description": _e(answer),
+    return page(request, "about", description=answer or None, slots={
         "answer": _e(answer),
         "contents": _contents(sections),
         "sections": "".join(_section(section) for section in sections),

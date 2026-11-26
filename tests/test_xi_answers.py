@@ -107,8 +107,10 @@ def test_the_menu_is_the_labs_own_with_the_pages_words_beside_it(client):
     assert first["option_label"] == "Barcelona · Sun 6 May 2018"
     assert first["when"] == "Before the match against Barcelona on Sun 6 May 2018"
     assert menu["scenarios"][1]["option_label"] == "Atlético Madrid · Sun 8 Apr 2018"
+    # XI-3: a lock keeps a player in the XI, never at one place, so the diamond pick names the
+    # formation, not the tip; the answer says where he was placed.
     assert [p["plain_label"] for p in menu["presets"]] == [
-        "Ronaldo, Benzema and Bale together", "Isco at the tip of a diamond"]
+        "Ronaldo, Benzema and Bale together", "Isco in a 4-3-1-2 diamond"]
     # The glossary's two aims, in the page's order; the targets in the lab's declared order.
     assert menu["aims"] == [
         {"mode": "BALANCE", "label": "Get as close as possible to every target"},
@@ -118,6 +120,14 @@ def test_the_menu_is_the_labs_own_with_the_pages_words_beside_it(client):
     assert menu["status_labels"] == {"COVERED": "Met", "DEFICIT": "Short",
                                      "UNMEASURED": "Not measured",
                                      "NOT_EVALUATED": "Not checked"}
+    # One precision per target, served (XI-8, D9), and the pages' slot words (D9).
+    assert {t["requirement_id"]: t["decimals"] for t in menu["targets"] if t["measured"]} == {
+        "progression": 2, "left_pass_origins": 1, "right_pass_origins": 1}
+    assert menu["slot_labels"] == {"lcm": "Left central midfield",
+                                   "rcm": "Right central midfield"}
+    # Every solver and search status the panels print has words (XI-7), none a raw token.
+    for words in (*menu["solution_words"].values(), *menu["search_words"].values()):
+        assert not re.search(r"[A-Z]{2,}_[A-Z]", words) and scan_labels(words) == []
     assert menu["provenance"]["providers"] == list(runtime.HOSTED_PROVIDERS)
 
 
@@ -197,10 +207,12 @@ def test_a_gap_inside_the_solvers_rounding_is_never_said_to_rule_out_every_xi(cl
 def test_meet_every_target_with_no_xi_is_said_with_a_next_step(client):
     data = answer(client, {"mode": "SATISFY"})
     assert data["verdict"] == "none" and data["verdict_label"] == "No XI meets every target"
-    assert data["answer"] == (f"Before the match against Barcelona on Sun 6 May 2018, no XI "
-                              f"from the {POOL} players in the pool meets every target.")
+    assert data["answer"].startswith(f"Before the match against Barcelona on Sun 6 May 2018, "
+                                     f"no XI from the {POOL} players in the pool meets every "
+                                     "target.")
     assert data["xi"] == []
     assert data["next_step"].startswith("Lower a target")
+    assert data["next_step"].endswith("Which of your choices clash is shown under the XI.")
     assert data["method_line"] == ("No XI was found, so there is no gap to report. No overall "
                                    "rating is used.")
 
@@ -214,10 +226,18 @@ def test_locks_and_exclusions_are_named_and_what_they_changed_is_said(client):
     assert changes["comparison_available"] is True
     came_in, went_out = changes["in"], changes["out"]
     assert came_in and len(came_in) == len(went_out)
-    # The count is the lab's; the page lists who came in and who went out under it.
-    players = "player changes" if len(came_in) == 1 else "players change"
-    assert locked["changes_line"] == ("Against the XI picked without your choices, "
-                                      f"{answers._count(len(came_in))} {players}.")
+    # XI-4: the count is of the XI shown (the lab's, or an XI as close that changes fewer
+    # players), never more than the lab's; the page lists who came in and went out under it.
+    served = locked["changes"]
+    assert len(served["in"]) == len(served["out"]) <= len(came_in)
+    players = "player changes" if len(served["in"]) == 1 else "players change"
+    assert locked["changes_line"] == served["line"] == (
+        "Against the XI picked without your choices, "
+        f"{answers._count(len(served['in']))} {players}.")
+    # P9 is locked in and placed somewhere: the answer says where (XI-3).
+    placed = next(a for a in locked["assignments"] if a["player_id"] == 9)
+    assert locked["answer"].endswith(
+        f" P9 is placed at {placed['slot_label'][:1].lower() + placed['slot_label'][1:]}.")
     both = answer(client, {**MET, "locks": [3563], "excludes": [3321]})
     assert "with P3563 locked in and P3321 left out, " in both["answer"]
     impossible = answer(client, {**MET, "locks": [3563], "excludes": [3563]})
@@ -266,6 +286,10 @@ def test_every_number_in_a_sentence_is_one_the_labs_reply_carries(client, body):
     out = set(reply.get("excluded") or [])
     left = sum(1 for c in reply["candidates"] if c["player_id"] not in out)
     allowed = {str(len(reply["candidates"])), str(left), day.group(1), day.group(2)}
+    # XI-5: an infeasible "Meet every target" answer names each target no XI reaches and the
+    # most any XI reaches, figures the reply carries in the target's row (its target and note).
+    for row in data["targets"]:
+        allowed |= set(re.findall(r"\d+", f"{row['target_text']} {row['note'] or ''}"))
     # The synthetic players' names hold digits (P9, P3563): they are names, not numbers.
     said = re.sub(r"\bP\d+\b", "", data["answer"])
     assert set(re.findall(r"\d+", said)) <= allowed, data["answer"]
@@ -339,7 +363,7 @@ def test_the_page_asks_a_question_and_prints_the_servers_sentence():
     # The answer and every sentence beside it are the server's, printed as text, never built
     # in the page (R10).
     script = page[page.index("<script>\nconst $="):]
-    assert "api('/api/answers/xi',input)" in script
+    assert "api('/api/answers/xi',input,signal)" in script
     assert "$('#answer').textContent=a.answer;" in script
     assert "api('/api/answers/xi/scenarios')" in script
     # The research tools are closed under "Advanced", each with one line saying what it does.
@@ -371,3 +395,138 @@ def test_an_exclusion_is_counted_out_of_the_pool_the_xi_is_picked_from(client):
     pool = len(reply["candidates"])
     assert any(c["player_id"] == 3321 for c in reply["candidates"])
     assert f"the {pool - 1} players left in the pool of {pool}" in data["answer"]
+
+
+# ------------------------------------------------------------------ Phase 3 review (ADR-0035)
+
+
+def test_figures_are_printed_at_one_precision_per_target_and_never_as_a_false_zero():
+    """XI-8, R8: ball progression at two places, a pass count at one; a value that is not zero
+    is never printed as zero, and a change is worked out from the two figures printed."""
+    assert answers.figure("progression", 3.2343) == "3.23"
+    assert answers.figure("left_pass_origins", 117.0421) == "117.0"
+    assert answers.figure("progression", 0.004) == "under 0.01"
+    assert answers.figure("left_pass_origins", 0.04) == "under 0.1"
+    assert answers.figure("progression", 0) == "0.00"
+    assert answers.figure("progression", None) == "—"
+    assert answers.figure("progression", 0.0122, signed=True) == "+0.01"
+    assert answers.figure("left_pass_origins", -1.75, signed=True) == "-1.8"
+    assert answers.figure("progression", 0.0, signed=True) == "0.00"
+
+
+def test_the_page_view_carries_every_figure_at_its_precision_with_its_unit(client):
+    data = answer(client, MET)
+    assert data["xi"] == data["lab_xi"] and data["closest"] is False
+    assert [t["requirement_id"] for t in data["targets"]] == list(answers.MEASURED)
+    for row in data["targets"]:
+        places = answers.DECIMALS[row["requirement_id"]]
+        assert re.fullmatch(rf"[\d,]+\.\d{{{places}}}", row["target_text"]), row
+        assert row["status_label"] in answers.STATUS_LABELS.values()
+    for a in data["assignments"]:
+        # The targets' declared order, never the order of a dict's keys (R1-2).
+        keys = [c["requirement_id"] for c in a["contributions"]]
+        assert keys == [k for k in answers.MEASURED if k in keys]
+        for c in a["contributions"]:
+            assert c["text"].endswith(answers.SHORT_UNITS[c["requirement_id"]])
+    # The pages' slot words (D9) and a profile link per player (AR-1).
+    lab = solved(MET)
+    by_slot = {a["slot_id"]: a["slot_label"] for a in data["assignments"]}
+    for slot_id, words in answers.SLOT_LABELS.items():
+        if slot_id in by_slot:
+            assert by_slot[slot_id] == words
+    for c in lab["candidates"]:
+        player = data["players"][str(c["player_id"])]
+        assert player["profile_href"] == f"/player?player={c['player_id']}"
+        assert player["position"] in answers.POSITION_WORDS.values()
+    assert data["cutoff_line"] == "Uses matches before Sun 6 May 2018 only."
+    assert data["status_line"] == "The search proved that no XI is closer to these targets."
+
+
+def test_a_gap_is_worked_out_from_the_two_figures_printed_beside_it(client):
+    data = answer(client, {"minimums": {"progression": 50}})
+    row = next(t for t in data["targets"] if t["requirement_id"] == "progression")
+    assert row["status"] == "DEFICIT"
+    value = float(row["value_text"].replace(",", ""))
+    goal = float(row["target_text"].replace(",", ""))
+    assert row["gap_text"] == f"short by {goal - value:,.2f}"
+
+
+def test_what_changed_keeps_every_player_the_choices_do_not_move(client):
+    """XI-4: excluding one player of the XI picked without choices changes one player where an
+    XI as close exists; the comparison is of the XI shown, at one precision per target."""
+    first = solved(MET)
+    # A central midfielder: three others in the synthetic squad can take his place.
+    outfield = next(a["player_id"] for a in first["assignments"] if a["slot_id"] == "lcm")
+    data = answer(client, {**MET, "excludes": [outfield]})
+    changes = data["changes"]
+    assert changes["out"] == [f"P{outfield}"]
+    assert len(changes["in"]) == 1
+    assert changes["line"] == "Against the XI picked without your choices, one player changes."
+    assert set(data["xi"]) == ({a["player_id"] for a in first["assignments"]} - {outfield}) \
+        | {int(changes["in"][0][1:])}
+    for row in changes["rows"]:
+        places = answers.DECIMALS[row["requirement_id"]]
+        before, after = (float(row[k].replace(",", "")) for k in ("before", "after"))
+        assert row["change"] == answers.figure(row["requirement_id"],
+                                               round(after - before, places), signed=True)
+    assert changes["note"] in (
+        "No XI as close to your targets changes fewer players.",
+        "Several XIs are as close to your targets as this one. Of them, this is one that "
+        "changes the fewest players from the XI picked without your choices.")
+
+
+def test_an_infeasible_meet_every_target_says_which_target_no_xi_reaches(client):
+    """XI-5: the answer names the target no XI reaches with the most any XI reaches, and that
+    target's row says so; the next step points under the XI, where the clash panel sits."""
+    data = answer(client, {"mode": "SATISFY", "minimums": {"progression": 50}})
+    assert data["verdict"] == "none"
+    assert "No XI reaches ball progression 50.00; the most any XI reaches is" in data["answer"]
+    assert data["infeasible_line"] in data["answer"]
+    row = next(t for t in data["targets"] if t["requirement_id"] == "progression")
+    assert row["status_label"] == answers.UNREACHABLE and row["reach"] == "none"
+    assert row["note"].startswith("The most any XI reaches is ")
+
+
+def test_the_answer_is_cached_per_snapshot(client, monkeypatch):
+    """XI-2, SPD-1: the same declarations on the same snapshot are solved once."""
+    calls = []
+    real = decision_lab.solve
+    monkeypatch.setattr(decision_lab, "solve", lambda r: calls.append(1) or real(r))
+    body = {**MET, "minimums": {"progression": 4.75, "left_pass_origins": 5.0,
+                                "right_pass_origins": 5.0}}
+    first = answer(client, body)
+    second = answer(client, body)
+    assert first == second and len(calls) == 1
+
+
+def test_how_often_each_player_is_picked_is_words_by_name_with_the_uninformative_rows_counted():
+    """XI-7, R1-2: rows by name; a player in some equal XI in every season and needed in none
+    is counted in one line, not listed; every row is counts of seasons, never a share."""
+    reply = {"provenance": {"bootstrap_used_worlds": list(range(12)),
+                            "bootstrap_requested_worlds": 12},
+             "selection_frequencies": [
+                 {"player_id": 3, "name": "Zed", "necessary_frequency": 0.0,
+                  "possible_frequency": 1.0},
+                 {"player_id": 2, "name": "Ann", "necessary_frequency": 1 / 3,
+                  "possible_frequency": 1.0},
+                 {"player_id": 1, "name": "Bob", "necessary_frequency": 1.0,
+                  "possible_frequency": 1.0},
+                 {"player_id": 4, "name": "Cid", "necessary_frequency": 0.0,
+                  "possible_frequency": 0.0}]}
+    data = answers.frequency_answer(reply)
+    assert [r["name"] for r in data["rows"]] == ["Ann", "Bob", "Cid"]
+    assert data["rows"][0]["text"] == ("Picked by every equal XI in 4 of 12 seasons, and by "
+                                       "some equal XI in 12 of 12.")
+    assert data["rows"][1]["text"] == "Picked by every equal XI in 12 of 12 seasons."
+    assert data["rows"][2]["text"] == "Picked by no equal XI in any of the 12 seasons."
+    assert data["others_line"] == ("The other one player picked in any season is in some "
+                                   "equal XI in every resampled season, and needed in none.")
+    assert "%" not in str(data) and scan_labels(data) == []
+
+
+def test_the_frequency_route_runs_the_resampled_seasons_only_when_asked(client, snap):
+    response = client.post("/api/answers/xi/frequency", json=MET)
+    assert response.status_code == 200, response.text[:300]
+    assert scan_labels(response.json()) == []
+    refused = client.post("/api/answers/xi/frequency", json={**MET, "bootstrap_worlds": 0})
+    assert refused.status_code == 422

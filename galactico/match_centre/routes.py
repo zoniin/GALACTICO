@@ -8,6 +8,7 @@ is sent to ``/player`` where the app serves it.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -21,7 +22,7 @@ from .api_football import ApiFootball
 from .feed import FeedError
 from .goal_scout import LEAGUES as GOAL_LEAGUES
 from .goal_scout import GoalScout, goal_error, league_options, missing_club, unknown_league
-from .openfootball import COMPETITIONS, LEAGUES, OpenFootball, parse_key, season_start
+from .openfootball import COMPETITIONS, LEAGUES, NoSeason, OpenFootball, parse_key, season_start
 from .scouting import LEAGUES as SCOUT_LEAGUES
 from .scouting import (
     METRICS,
@@ -33,7 +34,11 @@ from .scouting import (
     baseline_lines,
     teams,
 )
-from .studio import Studio, next_card, opponent_goals_link
+from .studio import ANALYST_TOOLS, Studio, next_card, opponent_goals_link
+
+LINK_WAIT = 2.5
+"""Seconds a page waits for the sentence of the view its link opens (the card a shared link
+shows); past it, the page's own description stands."""
 
 WEB = Path(__file__).resolve().parents[2] / "web"
 
@@ -42,27 +47,54 @@ PLAYER_LAB_QUERY = ("player", "view")
 
 
 def make_router(private: ApiFootball | None = None) -> APIRouter:
-    router, public = APIRouter(), OpenFootball()
-
+    router = APIRouter()
     studio = Studio()
+    # A Real Madrid scorer is written as the squad list writes him on every page (names.py).
+    public = OpenFootball(names=lambda day: studio.squad_names(day))
+
+    async def in_time(work, fallback=None):
+        # The sentence a shared link's card shows, if it comes in time; else the page's own.
+        try:
+            return await asyncio.wait_for(work, LINK_WAIT)
+        except (TimeoutError, FeedError, ValueError):
+            return fallback
+
+    async def match_page(request: Request):
+        key = request.query_params.get("match", "")
+        line = None
+        if (parsed := parse_key(key)) is not None:
+            found = await in_time(public.detail(*parsed, key, datetime.now(UTC).date()))
+            line = (found or {}).get("line")
+        return site_nav.page(request, "matches", description=line)
 
     @router.get("/", include_in_schema=False, response_class=HTMLResponse)
-    def home(request: Request):
+    async def home(request: Request):
         player_lab = site_nav.PAGES["player"].path
         if (any(key in request.query_params for key in PLAYER_LAB_QUERY)
                 and player_lab in site_nav.served_paths(request.app)):
             query = urlencode(list(request.query_params.multi_items()))
             # Player Lab moved for good: a permanent redirect that keeps the method (308).
             return RedirectResponse(player_lab + (f"?{query}" if query else ""), 308)
-        return site_nav.page(request, "matches")
+        return await match_page(request)
 
     @router.get("/about", include_in_schema=False, response_class=HTMLResponse)
     def about(request: Request):
         return site_nav.about(request)
 
     @router.get("/lineup", include_in_schema=False, response_class=HTMLResponse)
-    def lineup(request: Request):
-        return site_nav.page(request, "lineup")
+    async def lineup(request: Request):
+        query = request.query_params
+        said = None
+        if "xi" in query or "formation" in query:
+            found = await in_time(studio.compare(datetime.now(UTC).date(),
+                                                 query.get("formation", "")[:8],
+                                                 query.get("xi", "")[:40],
+                                                 query.get("season", "")[:8] or None))
+            said = (found or {}).get("answer")
+        # The analyst's import shows only on a local install, the app that serves the archive.
+        local = site_nav.PAGES["player"].path in site_nav.served_paths(request.app)
+        return site_nav.page(request, "lineup", description=said,
+                             slots={"tools": ANALYST_TOOLS if local else ""})
 
     # Lineup's replies. The CDN keeps a reply that carries no warning for a while and serves it
     # stale while it refreshes; nothing at all when the private feed is mounted.
@@ -93,8 +125,8 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
 
     # A lineup from a link or from the board, with its sentence (F12, R10).
     @router.get("/api/studio/lineup")
-    async def studio_lineup(response: Response, formation: str = Query(max_length=8),
-                            xi: str = Query(max_length=40),
+    async def studio_lineup(response: Response, formation: str = Query("", max_length=8),
+                            xi: str = Query("", max_length=40),
                             season: str | None = Query(None, max_length=8)):
         try:
             payload = await studio.compare(datetime.now(UTC).date(), formation, xi, season)
@@ -133,8 +165,8 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
         return studio_cache(response, sample, 86400)
 
     @router.get("/match-centre", include_in_schema=False, response_class=HTMLResponse)
-    def centre(request: Request):
-        return site_nav.page(request, "matches")
+    async def centre(request: Request):
+        return await match_page(request)
 
     @router.get("/match-centre/leagues", include_in_schema=False, response_class=HTMLResponse)
     def leagues_page(request: Request):
@@ -157,6 +189,17 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
         today = datetime.now(UTC).date()
         try:
             payload = await public.competition(code, day or today, today, team)
+        except NoSeason as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except FeedError as exc:
+            raise HTTPException(503, str(exc)) from exc
+        return shared_cache(response, payload)
+
+    # Table's first view: Madrid's place in each of their competitions, and the tab to open on.
+    @router.get("/api/match-centre/standings")
+    async def standings(response: Response):
+        try:
+            payload = await public.standings(datetime.now(UTC).date())
         except FeedError as exc:
             raise HTTPException(503, str(exc)) from exc
         return shared_cache(response, payload)
@@ -205,9 +248,12 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     @router.get("/api/match-centre/goal-scout")
     async def goal_default(response: Response, asked: str | None = Query(None, max_length=8)):
         today = datetime.now(UTC).date()
-        try:
-            summary = await public.summary(today)
-        except FeedError:
+        # The schedules and the Champions League's goals are asked for at once (SPD-4).
+        summary, _ = await asyncio.gather(public.summary(today), goals.prefetch(today),
+                                          return_exceptions=True)
+        if isinstance(summary, BaseException):
+            if not isinstance(summary, FeedError):
+                raise summary
             summary = None
         listed = summary is not None and not summary.get("unavailable")
         try:
@@ -298,6 +344,9 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
             else:
                 day = day or await public.nearest(today)
                 payload = await public.fixtures(day, today)
+        except NoSeason as exc:
+            # A season the free feeds hold no schedule for is not an outage (H10).
+            raise HTTPException(404, str(exc)) from exc
         except FeedError as exc:
             raise HTTPException(503, str(exc)) from exc
         return shared_cache(response, {"source": source, "day": day, **payload})

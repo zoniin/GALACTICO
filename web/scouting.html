@@ -13,92 +13,93 @@
   <main id="main" class="page-main goals-page">
     <header class="page-header">
       <h1>Goals by opponent</h1>
-      <p class="page-answer" id="goals-answer" aria-live="polite"><span class="ui-skeleton gs-line"></span><span class="ui-skeleton gs-line gs-line-short"></span><span class="sr-only">Loading this season’s goals…</span></p>
-      <p class="gs-opening" id="goals-opening" hidden></p>
+      <p class="page-answer" id="page-answer" aria-live="polite"><span class="ui-skeleton gs-line"></span><span class="ui-skeleton gs-line gs-line-short"></span><span class="sr-only">Loading this season’s goals…</span></p>
+      <div class="page-actions">
+        <button type="button" class="ui-btn page-copy" id="goals-copy"><svg class="page-copy-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1"/><path d="M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1"/></svg>Copy link</button>
+        <span class="sr-only" id="goals-share-status" role="status"></span>
+      </div>
     </header>
 
-    <section class="ui-card gs-card gs-squad" id="squad" aria-labelledby="squad-title">
-      <div class="gs-head">
-        <div class="gs-title">
-          <h2 id="squad-title">Real Madrid scorers</h2>
-          <p class="gs-meta" id="squad-meta">All competitions</p>
-        </div>
-      </div>
-      <div id="squad-body" aria-live="polite" aria-busy="true">
-        <div class="gs-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
-      </div>
-    </section>
+    <div class="gs-layout">
+      <div class="gs-aside">
+        <section class="ui-card gs-card gs-squad" id="squad" aria-labelledby="squad-title">
+          <div class="gs-head">
+            <div class="gs-title">
+              <h2 id="squad-title">Real Madrid scorers</h2>
+              <p class="gs-meta" id="squad-meta">All competitions</p>
+            </div>
+          </div>
+          <div id="squad-body" aria-live="polite" aria-busy="true">
+            <div class="gs-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+          </div>
+        </section>
 
-    <section class="ui-card gs-card" id="goals" aria-labelledby="goals-title">
-      <div class="gs-head">
-        <div class="gs-title">
-          <h2 id="goals-title">Goals</h2>
-          <p class="gs-meta" id="goals-meta"></p>
-        </div>
-        <div class="gs-pickers">
-          <div class="ui-field"><label class="ui-label" for="goals-league">Competition</label>
-            <select id="goals-league" class="ui-select"><!--slot:leagues--></select></div>
-          <div class="ui-field"><label class="ui-label" for="goals-club">Club</label>
-            <select id="goals-club" class="ui-select" disabled><option value="">Loading clubs…</option></select></div>
-        </div>
-      </div>
-
-      <div id="goals-state"></div>
-
-      <div class="gs-skeleton" id="goals-skeleton" aria-hidden="true">
-        <div class="gs-skeleton-stats"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
-        <span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
+        <section class="ui-card gs-card gs-baseline" id="baseline" aria-labelledby="baseline-title">
+          <div class="gs-head">
+            <div class="gs-title">
+              <h2 id="baseline-title">Real Madrid in La Liga</h2>
+              <p class="gs-meta">Goals per match, against the other clubs of the league</p>
+            </div>
+          </div>
+          <div id="baseline-body" aria-live="polite">
+            <div class="gs-skeleton-stats" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+          </div>
+          <a class="ui-btn gs-schedule" id="baseline-schedule" href="/match-centre/leagues?league=es.1">Real Madrid’s La Liga schedule <span aria-hidden="true">›</span></a>
+        </section>
       </div>
 
-      <div id="goals-data" hidden>
-        <div class="ui-stats gs-stats">
-          <div class="ui-stat"><span class="ui-stat-label">Matches</span><strong class="ui-stat-value" id="goals-games"></strong></div>
-          <div class="ui-stat"><span class="ui-stat-label">Goals</span><strong class="ui-stat-value" id="goals-total"></strong></div>
-          <div class="ui-stat"><span class="ui-stat-label">Credited to a player</span><strong class="ui-stat-value" id="goals-named"></strong></div>
-        </div>
-        <p class="gs-stats-note"><span class="gs-through" id="goals-through"></span> Own goals, and goals the feed doesn’t name, are not credited to a player.</p>
-
-        <div id="goals-scorers">
-          <h3 class="gs-subtitle" id="scorers-title">Scorers, by the opponent’s place before kick-off</h3>
-          <p class="gs-order"><span id="goals-order"></span> Pick a scorer to list the matches he scored in.</p>
-          <div class="gs-matrix-wrap"><table class="gs-matrix" id="goals-matrix" aria-labelledby="scorers-title"></table></div>
-          <button type="button" class="ui-btn ui-btn-ghost gs-more" id="goals-more" hidden></button>
-          <p class="gs-band-note" id="goals-band-note"></p>
-        </div>
-
-        <h3 class="gs-subtitle" id="log-title">Matches <span class="gs-order">Newest first</span></h3>
-        <div class="gs-log-head">
-          <div class="gs-filters">
-            <div class="gs-chips" role="group" aria-label="Opponent’s place before kick-off" id="goals-split"></div>
-            <div class="ui-field gs-opponent"><label class="ui-label" for="goals-opponent">Opponent</label>
-              <select id="goals-opponent" class="ui-select"><option value="">All opponents</option></select></div>
+      <section class="ui-card gs-card gs-explorer" id="goals" aria-labelledby="goals-title">
+        <div class="gs-head">
+          <div class="gs-title">
+            <h2 id="goals-title">Goals by opponent</h2>
+            <p class="gs-meta" id="goals-meta"></p>
           </div>
         </div>
-        <p class="gs-filtered" id="goals-filtered" hidden><span class="ui-selected-mark" aria-hidden="true"></span><span id="goals-filtered-name"></span><button type="button" class="ui-btn ui-btn-ghost" id="goals-unpick">Show every match</button></p>
-        <ol class="gs-log" id="goals-log" aria-labelledby="log-title"></ol>
-
-        <div class="gs-share">
-          <button type="button" class="ui-btn" id="goals-copy">Copy link to this view</button>
-          <span class="gs-share-status" id="goals-share-status" role="status"></span>
-          <input id="goals-share-url" class="ui-input" aria-label="Link to this view" readonly hidden>
+        <div class="ui-tablist gs-comps" role="tablist" aria-label="Competition" id="goals-league"><!--slot:leagues--></div>
+        <div class="gs-pickers">
+          <div class="ui-field"><label class="ui-label" for="goals-club">Club</label>
+            <select id="goals-club" class="ui-select" disabled><option value="">Loading clubs…</option></select></div>
+          <div class="ui-field gs-opponent"><label class="ui-label" for="goals-opponent">Opponent</label>
+            <select id="goals-opponent" class="ui-select"><option value="">All opponents</option></select></div>
         </div>
-        <ul class="gs-notes" id="goals-notes" hidden></ul>
-        <p class="gs-credit" id="goals-credit"></p>
-      </div>
-    </section>
+        <p class="gs-said" id="goals-answer" aria-live="polite"></p>
+        <p class="gs-opening" id="goals-opening" hidden></p>
 
-    <section class="ui-card gs-card gs-baseline" id="baseline" aria-labelledby="baseline-title">
-      <div class="gs-head">
-        <div class="gs-title">
-          <h2 id="baseline-title">Real Madrid in La Liga</h2>
-          <p class="gs-meta">Goals per match, against the other clubs of the league</p>
+        <div id="goals-state"></div>
+
+        <div class="gs-skeleton" id="goals-skeleton" aria-hidden="true">
+          <div class="gs-skeleton-stats"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+          <span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
         </div>
-        <a class="ui-btn" id="baseline-schedule" href="/match-centre/leagues?league=es.1">Real Madrid’s La Liga schedule <span aria-hidden="true">›</span></a>
-      </div>
-      <div id="baseline-body" aria-live="polite">
-        <div class="gs-skeleton-stats" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
-      </div>
-    </section>
+
+        <div id="goals-data" role="tabpanel" hidden>
+          <div class="gs-chips" role="group" aria-label="Opponent’s place before kick-off" id="goals-split"></div>
+          <p class="gs-band-line" id="goals-band-line" hidden></p>
+          <div class="ui-stats gs-stats">
+            <div class="ui-stat"><span class="ui-stat-label" id="goals-games-label">Matches</span><strong class="ui-stat-value" id="goals-games"></strong></div>
+            <div class="ui-stat"><span class="ui-stat-label" id="goals-total-label">Goals</span><strong class="ui-stat-value" id="goals-total"></strong></div>
+            <div class="ui-stat" id="goals-named-tile"><span class="ui-stat-label">Credited to a player</span><strong class="ui-stat-value" id="goals-named"></strong></div>
+          </div>
+          <p class="gs-stats-note"><span class="gs-through" id="goals-through"></span> Own goals, and goals the feed doesn’t name, are not credited to a player.</p>
+
+          <div id="goals-scorers">
+            <h3 class="gs-subtitle" id="scorers-title">Scorers, by the opponent’s place before kick-off</h3>
+            <p class="gs-order"><span id="goals-order"></span> Pick a scorer to list the matches he scored in.</p>
+            <div class="gs-matrix-wrap"><table class="gs-matrix" id="goals-matrix" aria-labelledby="scorers-title"></table></div>
+            <button type="button" class="ui-btn ui-btn-ghost gs-more" id="goals-more" hidden></button>
+            <p class="gs-band-note" id="goals-band-note"></p>
+          </div>
+
+          <h3 class="gs-subtitle" id="log-title">Matches <span class="gs-order">Newest first</span></h3>
+          <p class="gs-filtered" id="goals-filtered" hidden><span class="ui-selected-mark" aria-hidden="true"></span><span id="goals-filtered-name"></span><button type="button" class="ui-btn ui-btn-ghost" id="goals-unpick">Show every match</button></p>
+          <ol class="gs-log" id="goals-log" aria-labelledby="log-title"></ol>
+
+          <input id="goals-share-url" class="ui-input gs-share-url" aria-label="Link to this view" readonly hidden>
+          <ul class="gs-notes" id="goals-notes" hidden></ul>
+          <p class="gs-credit" id="goals-credit"></p>
+        </div>
+      </section>
+    </div>
 
     <section class="ui-card gs-card gs-compare" id="compare" aria-labelledby="compare-title" hidden>
       <div class="gs-title">

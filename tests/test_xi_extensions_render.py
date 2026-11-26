@@ -856,8 +856,19 @@ def test_every_table_cell_carries_its_own_label(tmp_path, make_client):
 # --------------------------------------------------------------------- the page edits
 
 
-SHIPPED_XI_HTML = "9200a696c1ea572f5035e7ae803a4efc472eb087136467c9e8ae274f6a7906e6"
+SHIPPED_XI_HTML = "ba4d28e1f029ad42bb8ad60b3a4554f1726694c28b0dad2f25d3833f23814768"
 """LF-normalised sha256 of web/xi.html without the five additive edits.
+
+Re-pinned under ADR-0035 (the Phase 3 review fixes), from
+9200a696c1ea572f5035e7ae803a4efc472eb087136467c9e8ae274f6a7906e6: the main solve asks no
+resampled season (``bootstrap_worlds`` 0, XI-1, XI-2, SPD-1) and is drawn with the server's view
+of it (``/api/answers/xi``: the XI as close as the lab's that changes the fewest players, each
+target and share at one precision with its unit, the pages' slot words, why no XI exists); the
+wait shows its seconds and a Cancel that aborts the request; "How often each player is picked"
+asks ``/api/answers/xi/frequency`` only when opened; the clash panel moves under the XI; the
+technical records leave out the provenance and the warnings (R3-3); a reader's change adds a
+history entry (AR-3); the player panel links his season profile (AR-1). Every id, event, the
+gold rule and the five additive edits are kept.
 
 Re-pinned again under ADR-0034 (the review fixes), from
 18f108a2639ea42b5517183b719eae61b739283b8cb649a934a4927c3aaa2920: the XI is drawn as on Lineup,

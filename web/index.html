@@ -45,6 +45,7 @@
     <header class="page-header">
       <h1 id="compare-title">Compare two players</h1>
       <p class="page-answer" id="compare-answer" aria-live="polite">Pick two players. Where a gap is smaller than the measurement can separate, it says so.</p>
+      <div id="compare-note" class="ui-callout" data-tone="info" role="status" hidden></div>
     </header>
     <div class="pl-pair">
       <div class="ui-field search"><label class="ui-label" for="qa">First player</label>
@@ -54,34 +55,38 @@
         <input type="search" id="qb" class="ui-input" placeholder="Name or club" autocomplete="off" aria-controls="rb">
         <div class="results" id="rb" role="listbox" aria-label="Players found" hidden></div></div>
     </div>
-    <div id="cmp" aria-live="polite"></div>
+    <div id="cmp"></div>
   </section>
 
   <!-- EXPLORE ----------------------------------------------------------- -->
   <section id="view-explore" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-explore">
     <header class="page-header">
       <h1 id="explore-title">Explore a measure</h1>
-      <p class="page-answer" id="explore-answer"></p>
+      <p class="page-answer" id="explore-answer" aria-live="polite"></p>
     </header>
     <div id="explore-tabs" class="pl-chips" role="group" aria-label="Measure"></div>
-    <div id="explore-body" aria-live="polite"></div>
+    <div id="explore-body"></div>
+    <p class="pl-more-rows"><button type="button" class="ui-btn" id="explore-all" hidden></button></p>
   </section>
 
   <!-- MAP --------------------------------------------------------------- -->
   <section id="view-map" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-map">
     <header class="page-header">
-      <h1>Progression: how much, and how efficiently</h1>
-      <p class="page-answer">Each dot is one outfield player: progression per 90 minutes (up) against progression per completed pass (across). Select a dot to open his profile.</p>
+      <h1>Ball progression: how much, and per pass</h1>
+      <p class="page-answer">Each dot is one outfield player: ball progression per 90 (up) against ball progression per completed pass (across). Point at a dot for both numbers; select it to open his profile.</p>
     </header>
     <div class="pl-map">
-      <canvas id="scatter" role="img" aria-label="Scatter of progression per 90 against progression per completed pass"></canvas>
+      <canvas id="scatter" role="img" aria-label="Scatter of ball progression per 90 against ball progression per completed pass"></canvas>
       <div class="pl-tip" id="scatter-tip" hidden></div>
     </div>
     <ul class="ui-legend pl-legend">
       <li><span class="pl-dot pl-dot-solid" aria-hidden="true"></span>Real Madrid</li>
       <li><span class="pl-dot" aria-hidden="true"></span>Other clubs</li>
       <li><span class="ui-selected-mark" aria-hidden="true"></span><span id="map-subject">The player you opened</span></li>
+      <li><span class="pl-avg" aria-hidden="true"></span><span id="map-average">League average</span></li>
     </ul>
+    <details class="ui-disclosure pl-map-list"><summary>The players on this map, as a list</summary>
+      <div class="ui-disclosure-body"><p class="ui-help">By surname, A to Z. Each name opens his profile.</p><div id="map-list"></div></div></details>
     <div class="quad">
       <span>↖ high volume, low efficiency</span>
       <span>↗ high volume, high efficiency</span>
@@ -94,10 +99,10 @@
   <section id="view-why" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-why">
     <header class="page-header">
       <h1>Why only five measures?</h1>
-      <p class="page-answer">Every candidate went through the same tests: definition, reliability, confounds, validity, added information and a second data provider. Three failed, at three different stages.</p>
+      <p class="page-answer" id="why-answer"></p>
     </header>
     <p id="hero" class="pl-counts"></p>
-    <div class="why" id="why"></div>
+    <div id="why"></div>
     <div class="credit" id="why-credit"></div>
   </section>
 
@@ -122,14 +127,17 @@ const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
 // A count of minutes, written one way in every browser. The browser's own format writes
 // 1,800 as "1.800" under a German or a Spanish locale, inside an English sentence.
 const whole = n => n.toLocaleString('en-US');
-let META = null, CONSTRUCTS = null;
+// A date in the site's one format ("Thu 26 Nov 2026"), read from an ISO timestamp.
+const dateWords = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? String(iso ?? '')
+  : d.toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}).replace(/,/g, ''); };
+let META = null, CONSTRUCTS = null, NAMES = {}, POSITIONS = {};
 
 /* ---------- views and the address ---------- */
 /* What is on screen is in the address: the view, the player, the pair compared and the measure
    explored. Back, forward and a shared link open the same screen. */
 const VIEWS = ['player', 'compare', 'explore', 'map', 'why'];
 const DEFAULT_PLAYER = 'modric';  // the profile a bare /player opens on
-const state = {view: 'player', player: null, a: null, b: null, measure: null};
+const state = {view: 'player', player: null, a: null, b: null, measure: null, all: false};
 function readAddress(){
   const q = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
   const id = k => (/^\d+$/.test(q.get(k) || '') ? Number(q.get(k)) : null);
@@ -137,6 +145,7 @@ function readAddress(){
   // A view whose address names no player keeps the one last opened, for the Profile tab.
   state.player = id('player') ?? state.player; state.a = id('a'); state.b = id('b');
   state.measure = q.get('measure');
+  state.all = q.get('all') === '1';
 }
 function address(){
   const q = new URLSearchParams();
@@ -144,6 +153,7 @@ function address(){
   if (state.player && ['player', 'map', 'explore'].includes(state.view)) q.set('player', state.player);
   if (state.view === 'compare') { if (state.a) q.set('a', state.a); if (state.b) q.set('b', state.b); }
   if (state.view === 'explore' && state.measure) q.set('measure', state.measure);
+  if (state.view === 'explore' && state.all) q.set('all', '1');
   const query = q.toString();
   return (typeof location === 'undefined' ? '/player' : location.pathname) + (query ? '?' + query : '');
 }
@@ -219,7 +229,7 @@ document.querySelectorAll('.pl-views [role="tab"]').forEach((tab, i, tabs) => {
 });
 
 /* ---------- search ---------- */
-function wireSearch(input, box, onPick){
+function wireSearch(input, box, onPick, onUnder){
   let t, asked = 0;
   const close = () => { box.hidden = true; input.setAttribute('aria-expanded', 'false'); };
   input.addEventListener('input', () => {
@@ -227,19 +237,26 @@ function wireSearch(input, box, onPick){
     t = setTimeout(async () => {
       const q = input.value.trim(), mine = ++asked;
       if (q.length < 2){ close(); return; }
-      let d;
-      try { d = await api('/api/players?q=' + encodeURIComponent(q) + '&limit=10'); }
+      let d, under;
+      // The profiles' players, then the archive's players under their minutes floor (PL-2):
+      // listed greyed with their minutes, each opening what he played and his matches.
+      try { [d, under] = await Promise.all([api('/api/players?q=' + encodeURIComponent(q) + '&limit=10'),
+        api('/api/answers/players/under-floor?q=' + encodeURIComponent(q) + '&limit=6').catch(() => null)]); }
       catch (failed) { if (mine === asked) { box.innerHTML = '<p class="none">Search is unavailable right now.</p>'; box.hidden = false; } return; }
       if (mine !== asked) return;
-      box.innerHTML = d.players.map(p =>
+      const below = (under && under.players) || [];
+      box.innerHTML = (d.players.map(p =>
         `<button type="button" role="option" data-id="${p.player_id}"><span>${esc(p.name)}</span>
-         <span class="t">${esc(p.team)} · ${esc(p.position)}</span>
-         <span class="m">${whole(p.minutes)}′</span></button>`).join('')
+         <span class="t">${esc(p.team)} · ${esc(POSITIONS[p.position] || p.position)}</span>
+         <span class="m">${whole(p.minutes)}′</span></button>`).join('') +
+        (below.length && onUnder ? `<p class="under-note">${esc(under.note)}</p>` + below.map(p =>
+        `<button type="button" role="option" class="under" data-id="${p.player_id}" data-under="true"><span>${esc(p.name)}</span>
+         <span class="t">${esc(p.team)} · ${esc(p.minutes_text)}</span></button>`).join('') : ''))
         || '<p class="none">No player found. Try a surname or a club.</p>';
       box.hidden = false; input.setAttribute('aria-expanded', 'true');
       box.querySelectorAll('button[data-id]').forEach(btn => {
         btn.onclick = () => { close(); input.value = btn.querySelector('span').textContent;
-          onPick(+btn.dataset.id); };
+          (btn.dataset.under === 'true' ? onUnder : onPick)(+btn.dataset.id); };
         btn.onkeydown = e => {
           const sib = e.key === 'ArrowDown' ? btn.nextElementSibling : e.key === 'ArrowUp' ? btn.previousElementSibling : null;
           if (e.key === 'Escape') { close(); input.focus(); }
@@ -283,11 +300,15 @@ function strip(pct, population){
 // The five channels left to right, each labelled with the server's name and percentage
 // (/api/answers/player zones): the page writes no share of its own.
 function zoneBar(zones){
-  // Shaded by distance from the centre on a chart surface, dark in both themes.
+  // Shaded by distance from the centre on a chart surface, dark in both themes. The labels sit
+  // in a row of their own under the bar, one per channel whatever its width, in the page's
+  // text colours (A11Y-4): a narrow channel is never left unnamed, and no label sits on a
+  // segment it cannot be read against.
   const tone = ["var(--chart-bg-2)","var(--chart-grid)","var(--chart-axis)","var(--chart-grid)","var(--chart-bg-2)"];
   return `<div class="zones" role="img" aria-label="${esc(zones.map(z => z.label + ' ' + z.share_text).join(', '))}">` +
     zones.map((z, i) => `<div style="flex:${Math.max(z.share, 0.001)};background:${tone[i] || tone[2]}"
-        title="${esc(z.label)} ${esc(z.share_text)}"><span>${esc(z.short)}</span><b>${esc(z.share_text)}</b></div>`).join('') + `</div>`;
+        title="${esc(z.label)} ${esc(z.share_text)}"></div>`).join('') + `</div>` +
+    `<ul class="zone-labels" aria-hidden="true">${zones.map((z, i) => `<li><i style="background:${tone[i] || tone[2]}"></i><span>${esc(z.short)}</span> <b>${esc(z.share_text)}</b></li>`).join('')}</ul>`;
 }
 
 /* ---------- a measure with no number ---------- */
@@ -305,6 +326,26 @@ const belowFloor = (c, s) => noNumber(s.status_title || 'Not enough minutes to j
 
 /* ---------- profile ---------- */
 let profileVersion = 0;
+// His matches in Match reports (AR-1): the server's heading and links, closed.
+const matchLinks = A => A && (A.matches || []).length && A.matches_title
+  ? `<details class="ui-disclosure pl-matches" id="his-matches"><summary>${esc(A.matches_title)}</summary>
+      <div class="ui-disclosure-body"><ul class="pl-match-list">${A.matches.map(m =>
+        `<li><a href="${esc(m.href)}">${esc(m.label)}</a></li>`).join('')}</ul></div></details>` : '';
+// A player of the archive under the profiles' minutes floor (PL-2): the server's sentence
+// says what he played and what a profile needs; his matches are linked.
+function belowFloorState(A){
+  $('#profile-loading').hidden = true;
+  $('#player-title').textContent = A.title;
+  if (typeof document !== 'undefined' && 'title' in document) document.title = A.title + ' · Player profiles · Galáctico';
+  $('#player-facts').innerHTML = (A.facts || []).map(f => `<span>${esc(f)}</span>`).join('');
+  const answer = $('#player-answer');
+  answer.textContent = A.answer; answer.hidden = false;
+  $('#player-actions').innerHTML = '';
+  const el = $('#profile');
+  el.innerHTML = matchLinks(A);
+  el.classList.toggle('hidden', !el.innerHTML);
+  const opened = el.querySelector('details'); if (opened) opened.open = true;
+}
 async function openProfile(){
   if (!state.player && state.a) state.player = state.a;
   if (!state.player) {
@@ -324,10 +365,14 @@ async function showPlayer(id){
   const mine = ++profileVersion;
   $('#profile-loading').hidden = false;
   $('#profile').classList.add('hidden');
-  // The profile and the sentences the server wrote about it. A profile still draws if its
-  // sentences cannot load; the answer line is then left out, never written here.
-  const [p, ANSWER] = await Promise.all([api('/api/players/' + id),
-    api('/api/answers/player/' + id).catch(() => null)]);
+  // The sentences the server wrote about him first: a player of the archive under the
+  // profiles' minutes floor has an answer (what he played) and no profile, and an unknown id
+  // is refused there, so the profile is asked only for a player who has one. A profile still
+  // draws if its sentences cannot load; the answer line is then left out, never written here.
+  const ANSWER = await api('/api/answers/player/' + id).catch(failed => failed === 404 ? Promise.reject(404) : null);
+  if (mine !== profileVersion) return;
+  if (ANSWER && ANSWER.below_floor) { belowFloorState(ANSWER); return; }
+  const p = await api('/api/players/' + id);
   if (mine !== profileVersion) return;
   const q = p.constructs.filter(c => c.family === 'quality');
   const s = p.constructs.filter(c => c.family === 'style');
@@ -344,20 +389,22 @@ async function showPlayer(id){
     const signal = c.signal;
     const place = say.place ? `<p class="m-place"><span class="pct">${esc(say.place)}</span>
         <span class="pct-unit">percentile</span></p>` : '';
+    // PL-3: his own number beside the percentile, in the server's words, with its unit.
+    const value = say.value_text ? `<p class="m-value">${esc(say.value_text)}</p>` : '';
     return `<article class="card measure">${head}${place}
-      <div class="m-strip"><div class="strip">${strip(c.percentile, POPULATION[c.construct_id])}</div>
+      <div class="m-strip">${value}<div class="strip">${strip(c.percentile, POPULATION[c.construct_id])}</div>
         <div class="scale" aria-hidden="true"><span>0</span><span>50</span><span>100</span></div>
         <p class="pctsub${say.place ? ' sr-only' : ''}">${esc(say.percentile_line || c.percentile_note)}</p></div>
       <details class="ui-disclosure how-sure"><summary>How sure is this?
           <span class="ui-disclosure-summary">${esc(say.reliability_label || 'Reliability: ' + signal)}</span></summary>
         <div class="ui-disclosure-body">
-          <p class="val-line"><span class="val">${esc(c.display ?? '—')}</span>
-            <span class="unit">${esc(say.value_line ? say.value_line.replace(/^[^:]*:\s*/, '') : UNITS[c.construct_id] || '')}</span></p>
+          ${say.reliability_text ? `<p class="note">${esc(say.reliability_text)}</p>`
+            : `<p class="note"><span class="badge g-${signal}"
+            title="${esc(c.signal_note)}">Reliability: ${esc(signal)}</span></p>`}
           ${c.quantiles ? `<div class="dots-row">${quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
             ${say.uncertainty_line ? `<p class="note">${esc(say.uncertainty_line)}</p>` : ''}` : ''}
-          <p class="note"><span class="badge g-${signal}"
-            title="${esc(c.signal_note)}">Reliability: ${esc(signal)}</span></p>
-          <p class="note">${esc(c.signal_note)}</p>
+          <p class="val-line"><span class="val">${esc(c.display ?? '—')}</span>
+            <span class="unit">${esc(say.value_line ? say.value_line.replace(/^[^:]*:\s*/, '') : UNITS[c.construct_id] || '')}</span></p>
         </div></details>
     </article>`;
   }).join('');
@@ -396,7 +443,7 @@ async function showPlayer(id){
         : Object.keys(p.zone_shares || {}).length ? ''
         : `<div class="spectrum" id="zones-withheld">The channel breakdown is withheld with the
         pass-origin shares above, which it restates. ${esc((s.find(outOfContext) || {}).notes)}</div>`}
-    </section>`;
+    </section>${matchLinks(ANSWER)}`;
 
   // The header: his name, the facts, the server's sentence, and where to go next.
   $('#player-title').textContent = p.name;
@@ -477,10 +524,14 @@ function quantileDots(quantiles, lo, hi){
 
 // Display names come from the registry, so a narrowed claim cannot leave the
 // interface still using the stronger word. No name is built here from an id.
-const label = k => (CONSTRUCTS.shipped.find(c => c.id === k) || {}).label || k;
+// The plain name the server serves for each measure (/api/answers/measures, D5), else the
+// registry's label.
+const label = k => NAMES[k] || (CONSTRUCTS.shipped.find(c => c.id === k) || {}).label || k;
 
 /* ---------- map ---------- */
 let scatterData = null, scatterDrawn = null;
+// A number on the map's axes and in its tooltip: two significant figures, as every view.
+const sig = v => Number.isFinite(v) ? Number(v.toPrecision(2)).toLocaleString('en-US', {maximumSignificantDigits: 2}) : '—';
 async function drawScatter(){
   if (!scatterData) scatterData = await api('/api/scatter');
   const cv = $('#scatter'), dpr = window.devicePixelRatio || 1;
@@ -488,7 +539,7 @@ async function drawScatter(){
   if (!w) return;
   cv.width = w * dpr; cv.height = h * dpr;
   const g = cv.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0,0,w,h);
-  const pts = scatterData.points, pad = w < 520 ? 40 : 54;
+  const pts = scatterData.points, pad = w < 520 ? 44 : 58;
   const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
   const xr = [Math.min(...xs), Math.max(...xs)], yr = [Math.min(...ys), Math.max(...ys)];
   const X = v => pad + (v - xr[0]) / (xr[1]-xr[0]) * (w - pad*1.5);
@@ -497,13 +548,30 @@ async function drawScatter(){
 
   // The chart's roles, read where tokens.css defines them: the plot is dark in both themes.
   const role = name => getComputedStyle(cv).getPropertyValue(name).trim();
-  g.strokeStyle = role('--chart-grid'); g.lineWidth = 1;
+  g.font = `400 12px ${role('--font-sans')}`;
+  // Axis ticks with their values (PL-5): least, middle and greatest of each axis.
+  g.strokeStyle = role('--chart-axis'); g.fillStyle = role('--chart-text-muted'); g.lineWidth = 1;
+  [xr[0], (xr[0] + xr[1]) / 2, xr[1]].forEach((v, i) => {
+    g.beginPath(); g.moveTo(X(v), h - pad); g.lineTo(X(v), h - pad + 5); g.stroke();
+    g.textAlign = i === 0 ? 'left' : i === 2 ? 'right' : 'center'; g.fillText(sig(v), X(v), h - pad + 18);
+  });
+  [yr[0], (yr[0] + yr[1]) / 2, yr[1]].forEach(v => {
+    g.beginPath(); g.moveTo(pad - 5, Y(v)); g.lineTo(pad, Y(v)); g.stroke();
+    g.textAlign = 'right'; g.fillText(sig(v), pad - 8, Y(v) + 4);
+  });
+  g.textAlign = 'left';
+  // The league average of each axis, dashed and named, over every player on the map.
+  g.strokeStyle = role('--chart-grid'); g.setLineDash([4, 4]);
   g.beginPath(); g.moveTo(X(mx), pad*0.5); g.lineTo(X(mx), h-pad); g.stroke();
   g.beginPath(); g.moveTo(pad, Y(my)); g.lineTo(w-pad*0.5, Y(my)); g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = role('--chart-text-muted');
+  g.fillText('league average', X(mx) + 4, pad * 0.5 + 12);
+  $('#map-average').textContent = `League average (${whole(pts.length)} players), dashed`;
 
   // Real Madrid's players solid, everyone else open: the same colour, told apart by shape.
   // The player opened last is the selected subject: gold, drawn last, with his name.
-  const r = w < 520 ? 3.2 : 2.8;
+  const r = w < 520 ? 4 : 3.2;
   pts.forEach(p => {
     if (p.player_id === state.player) return;
     g.beginPath(); g.arc(X(p.x), Y(p.y), r, 0, 7);
@@ -524,30 +592,46 @@ async function drawScatter(){
     g.textAlign = 'left';
   }
   g.fillStyle = role('--chart-text-muted');
-  g.fillText('progression per completed pass →', pad, h - 14);
-  g.save(); g.translate(16, h-pad); g.rotate(-Math.PI/2);
-  g.fillText('progression per 90 →', 0, 0); g.restore();
+  g.fillText((NAMES.progression_per_action || 'Ball progression per completed pass') + ' →', pad, h - 4);
+  g.save(); g.translate(14, h-pad); g.rotate(-Math.PI/2);
+  g.fillText((NAMES.progression || 'Ball progression') + ' per 90 →', 0, 0); g.restore();
 
   scatterDrawn = {pts, X, Y};
   const near = e => {
     const box = cv.getBoundingClientRect(), mxp = e.clientX - box.left, myp = e.clientY - box.top;
-    let found = null, best = 12;
+    let found = null, best = e.pointerType === 'touch' ? 22 : 12;
     pts.forEach(p => { const d = Math.hypot(X(p.x) - mxp, Y(p.y) - myp); if (d < best) { best = d; found = p; } });
     return found;
   };
   const tip = $('#scatter-tip');
-  cv.onmousemove = e => {
+  const place = p => { tip.style.left = Math.max(4, Math.min(X(p.x) + 12, w - 240)) + 'px'; tip.style.top = Math.max(Y(p.y) - 64, 4) + 'px'; };
+  // Both numbers in the tooltip (PL-5): per 90 and per completed pass, two significant figures.
+  const facts = p => `${p.name} · ${p.team} · ${whole(p.minutes)}′ · ${sig(p.y)} per 90 · ${sig(p.x)} per completed pass`;
+  cv.onpointermove = e => {
+    if (e.pointerType === 'touch') return;
     const p = near(e);
     cv.style.cursor = p ? 'pointer' : 'default';
-    tip.hidden = !p;
-    if (p) {
-      tip.textContent = `${p.name} · ${p.team} · ${whole(p.minutes)}′`;
-      tip.style.left = Math.min(X(p.x) + 12, w - 220) + 'px';
-      tip.style.top = Math.max(Y(p.y) - 36, 4) + 'px';
-    }
+    tip.hidden = !p; tip.classList.remove('is-card');
+    if (p) { tip.textContent = facts(p); place(p); }
   };
-  cv.onmouseleave = () => { tip.hidden = true; };
-  cv.onclick = e => { const p = near(e); if (p) openPlayer(p.player_id); };
+  cv.onpointerleave = e => { if (e.pointerType !== 'touch') tip.hidden = true; };
+  // A mouse opens the profile at once; a touch first shows a card with both numbers and an
+  // "Open profile" button, so a tap never jumps to a profile unseen.
+  cv.onpointerup = e => {
+    const p = near(e);
+    if (!p) { tip.hidden = true; return; }
+    if (e.pointerType !== 'touch') { openPlayer(p.player_id); return; }
+    tip.classList.add('is-card');
+    tip.innerHTML = `<p>${esc(facts(p))}</p><button type="button" class="ui-btn" id="tip-open">Open profile</button>`;
+    tip.hidden = false; place(p);
+    $('#tip-open').onclick = () => openPlayer(p.player_id);
+  };
+  // The same players as a list a keyboard reaches, by surname, with both numbers (PL-5).
+  const surname = n => n.split(' ').slice(-1)[0].normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const listed = [...pts].sort((a, b) => surname(a.name).localeCompare(surname(b.name)) || a.player_id - b.player_id);
+  $('#map-list').innerHTML = `<table class="ui-table pl-map-table"><thead><tr><th>Player</th><th data-num>Per 90</th><th data-num>Per completed pass</th></tr></thead><tbody>` +
+    listed.map(p => `<tr${p.player_id === state.player ? ' aria-current="true"' : ''}><td><a href="?player=${p.player_id}" data-player="${p.player_id}">${esc(p.name)}</a> <span class="pctsub">${esc(p.team)}</span></td><td data-num>${sig(p.y)}</td><td data-num>${sig(p.x)}</td></tr>`).join('') + '</tbody></table>';
+  $('#map-list').querySelectorAll('a[data-player]').forEach(a => a.onclick = e => { e.preventDefault(); openPlayer(a.dataset.player); });
 }
 let resized;
 window.addEventListener?.('resize', () => {
@@ -565,7 +649,7 @@ async function initExplore(){
     exploreInit = true;
     tabs.innerHTML = CONSTRUCTS.shipped.map(c =>
       `<button type="button" class="ui-chip" data-c="${c.id}" aria-pressed="false">${esc(label(c.id))}</button>`).join('');
-    tabs.querySelectorAll('button').forEach(b => b.onclick = () => go({view: 'explore', measure: b.dataset.c}));
+    tabs.querySelectorAll('button').forEach(b => b.onclick = () => go({view: 'explore', measure: b.dataset.c, all: false}));
   }
   tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === id));
   const def = CONSTRUCTS.shipped.find(c => c.id === id) || {};
@@ -578,8 +662,12 @@ async function loadExplore(id){
   // how many rows it listed. This draws the rows as they arrive and sorts nothing: the sort
   // that was here ran on a list already cut to the highest values, under a sentence that
   // said "in either direction".
-  const [d, ANSWER] = await Promise.all([api('/api/explore/' + id + '?limit=40'),
-    api('/api/answers/explore/' + id + '?limit=40').catch(() => null)]);
+  // Forty rows, or every row once the reader asks (PL-1, &all=1); the player opened is
+  // appended, gold, when the rows above do not hold him.
+  const limit = state.all ? 400 : 40, body = $('#explore-body');
+  body.setAttribute('aria-busy', 'true');
+  const [d, ANSWER] = await Promise.all([api('/api/explore/' + id + '?limit=' + limit),
+    api('/api/answers/explore/' + id + '?limit=' + limit + (state.player ? '&player=' + state.player : '')).catch(() => null)]);
   const top = d.population_range ? d.population_range[1] : 0;
   // The sentence above the list and each row's value with its unit are the server's.
   if (ANSWER) { $('#explore-title').textContent = ANSWER.title || label(id); $('#explore-answer').textContent = ANSWER.answer; }
@@ -588,18 +676,25 @@ async function loadExplore(id){
   // descending fill from zero. Filled bars sorted high-to-low in the accent colour are
   // the most fixed "more is better" idiom in the medium, and a line of grey disclaimer
   // text does not override one. Each row opens the player's profile.
+  const opened = ANSWER && ANSWER.opened;
+  const rows = opened ? [...d.rows, {...opened, render_state: opened.value_text === 'Withheld' ? 'insufficient_signal' : 'point_estimate', appended: true}] : d.rows;
   $('#explore-body').innerHTML = `<p class="lede">${esc(d.order_note)}</p>
     <p class="pctsub">${esc(d.listed_note)}</p>` +
-    `<div class="cards ex-list">` + d.rows.map(r => {
+    `<div class="cards ex-list">` + rows.map(r => {
     const withheld = r.render_state === 'insufficient_signal';
     const current = r.player_id === state.player ? ' aria-current="true"' : '';
-    return `<a class="card ex-row" data-player="${r.player_id}" href="?player=${r.player_id}"${current}>
+    return `${r.appended ? `<p class="ex-opened-note">${esc(opened.line)}</p>` : ''}<a class="card ex-row" data-player="${r.player_id}" href="?player=${r.player_id}"${current}>
       <div><span>${esc(r.name)}</span> <span class="pctsub">${esc(r.team)} · ${whole(r.minutes)}′</span></div>
       <div>${d.orderable_as_ranking
         ? `<div class="ex-bar"><i style="width:${top > 0 ? (r.value/top*100).toFixed(1) : 0}%"></i></div>`
         : d.reference === null ? '' : inStrip(geoBar(r.value, d.reference, current ? 'selected-mark' : 'plain-mark'))}</div>
-      <div class="ex-val${withheld ? ' muted' : ''}">${esc(valueText(r) || (withheld ? 'Withheld' : ''))}</div>
+      <div class="ex-val${withheld ? ' muted' : ''}">${esc(r.appended ? opened.value_text : valueText(r) || (withheld ? 'Withheld' : ''))}</div>
     </a>`; }).join('') + `</div>`;
+  body.removeAttribute('aria-busy');
+  const all = $('#explore-all');
+  all.hidden = !(ANSWER && ANSWER.show_all_label) || state.all;
+  if (ANSWER && ANSWER.show_all_label) all.textContent = ANSWER.show_all_label;
+  all.onclick = () => go({view: 'explore', measure: id, all: true});
   $('#explore-body').querySelectorAll('[data-player]').forEach(a => a.onclick = e => {
     e.preventDefault(); openPlayer(a.dataset.player);
   });
@@ -621,12 +716,37 @@ async function openCompare(){
   }
   await runCompare();
 }
+// A link with one unknown player keeps the other (PL-6): his name stays in its field and the
+// note under the heading names the side to pick again.
+async function badSide(mine){
+  const [left, right] = await Promise.all([cmpA, cmpB].map(id => api('/api/players/' + id).then(p => p, () => null)));
+  if (mine !== cmpVersion) return;
+  $('#qa').value = left ? left.name : ''; $('#qb').value = right ? right.name : '';
+  const note = $('#compare-note');
+  note.innerHTML = '<p>' + (!left && !right ? 'Neither player in this link is in the 2017/18 profiles. Pick two players.'
+    : !left ? 'The first player in this link is not in the 2017/18 profiles. Pick another one.'
+    : 'The second player in this link is not in the 2017/18 profiles. Pick another one.') + '</p>';
+  note.hidden = false;
+  $('#compare-title').textContent = 'Compare two players';
+  $('#compare-answer').textContent = '';
+  $('#cmp').innerHTML = '';
+}
 async function runCompare(){
   if (!cmpA || !cmpB) return;
   const mine = ++cmpVersion;
-  const [d, ANSWER] = await Promise.all([api(`/api/compare?a=${cmpA}&b=${cmpB}`),
-    api(`/api/answers/compare?a=${cmpA}&b=${cmpB}`).catch(() => null)]);
+  $('#compare-note').hidden = true;
+  $('#cmp').setAttribute('aria-busy', 'true');
+  let d, ANSWER;
+  try {
+    [d, ANSWER] = await Promise.all([api(`/api/compare?a=${cmpA}&b=${cmpB}`),
+      api(`/api/answers/compare?a=${cmpA}&b=${cmpB}`).catch(() => null)]);
+  } catch (failed) {
+    $('#cmp').removeAttribute('aria-busy');
+    if (failed === 404) return badSide(mine);
+    throw failed;
+  }
   if (mine !== cmpVersion) return;
+  $('#cmp').removeAttribute('aria-busy');
   $('#compare-title').textContent = (ANSWER && ANSWER.title) || `${d.left.name} v ${d.right.name}`;
   $('#compare-answer').textContent = (ANSWER && ANSWER.answer) || '';
   // The words under each row are the server's (/api/answers/compare rows): who is higher only
@@ -651,13 +771,13 @@ async function runCompare(){
       // The note above the pass-origin rows is the server's, true of the rows it sent:
       // marks for both players, or none and why. The note written here spoke of marks
       // above rows that drew none.
-      return section('What they produce') + q.map(row).join('') +
+      return section('What they produce', ANSWER && ANSWER.scale_note) + q.map(row).join('') +
         section('Where their passes start', d.observed_location_note) +
         st.map(row).join('');
     })();
 
   function row(x){
-      if (!x.interpretable) return `<div class="cmp"><div class="mid">${esc(label(x.construct_id))}</div><div class="lang">${lang(x)}</div></div>`;
+      if (!x.interpretable) return `<div class="cmp"><div class="mid">${esc((captions.get(x.construct_id) || {}).name || label(x.construct_id))}</div><div class="lang">${lang(x)}</div></div>`;
       // Style rows must not reuse the directional grammar. A full bar for the higher
       // value sat directly beneath captions reading "materially higher", so a
       // blind reader concluded one player edged the other on half-space.
@@ -665,68 +785,77 @@ async function runCompare(){
         const n = (CONSTRUCTS.channel_geometry||{})[x.construct_id];
         return `<div class="cmp cmp-style">
           <div>${inStrip(geoBar(x.left, n, 'plain-mark'))}</div>
-          <div class="mid">${esc(label(x.construct_id))}</div>
+          <div class="mid">${esc((captions.get(x.construct_id) || {}).name || label(x.construct_id))}</div>
           <div>${inStrip(geoBar(x.right, n, 'plain-mark'))}</div>
           <div class="lang">${lang(x)}</div></div>`;
       }
-      const m = Math.max(Math.abs(x.left), Math.abs(x.right)) || 1;
+      // PL-6: each bar is the player's percentile on the 0 to 100 scale the server names, his
+      // value and percentile are the server's words beside it, and the raw values and the
+      // interval of the difference sit under "How sure is this?" (D5).
+      const said = captions.get(x.construct_id) || {}, L = said.left || {}, R = said.right || {};
+      const width = v => Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+      const side = v => `<span class="cmp-value">${esc(v.text || '—')}</span>${v.place ? `<span class="cmp-place">${esc(v.place)}</span>` : ''}`;
       return `<div class="cmp">
-        <div class="bar-l"><i style="width:${Math.abs(x.left)/m*100}%"></i></div>
-        <div class="mid">${esc(label(x.construct_id))}</div>
-        <div class="bar-r"><i style="width:${Math.abs(x.right)/m*100}%"></i></div>
+        <div class="cmp-side"><div class="bar-l"><i style="width:${width(L.percentile)}%"></i></div><p class="cmp-says">${side(L)}</p></div>
+        <div class="mid">${esc(said.name || label(x.construct_id))}</div>
+        <div class="cmp-side cmp-side-r"><div class="bar-r"><i style="width:${width(R.percentile)}%"></i></div><p class="cmp-says">${side(R)}</p></div>
         <div class="lang ${x.directional_difference ? 'material':''}">${lang(x)}
-          <span class="audit"> · ${x.left.toFixed(4)} v ${x.right.toFixed(4)}${
-            x.difference_interval ? ` · difference 90% ${x.difference_interval[0].toFixed(4)} to ${x.difference_interval[1].toFixed(4)}` : ''}</span>
+          ${said.detail ? `<details class="ui-disclosure how-sure cmp-sure"><summary>How sure is this?</summary><div class="ui-disclosure-body"><p class="note">${esc(said.detail)}</p></div></details>` : ''}
         </div></div>`;
   }
 }
 
 /* ---------- why only five ---------- */
 /* Two things in this view are analysis formed from StatsBomb data: the external-replication
-   label of each shipped construct and the research-only conclusion. Each links to its
-   research note, and the credit under the cards names the source beside the provider's
-   logo. The words of a label, the name of a construct, the title of a note and the credit
-   are the server's: nothing here is built from a token. */
-const noteLink = (note, text, keep = '') =>
-  `<a href="${esc(note.url)}" title="${esc(note.title)}" target="_blank" rel="noopener"${keep}>${esc(text)}</a>`;
-const TOGETHER = ' style="white-space:nowrap"';  // a label's words stay on one line
-function renderWhy(){
-  const ship = CONSTRUCTS.shipped.map(c => `<div>
-    <div class="tag t-ship">Shipped</div><h3>${esc(c.label)}</h3>
-    <p>${esc(c.claim)}<br><span class="replication">external replication: ${
-      c.external_replication_note
-        ? noteLink(c.external_replication_note, c.external_replication_label, TOGETHER)
-        : esc(c.external_replication_label)}</span></p></div>`);
-  const rej = CONSTRUCTS.rejected.map(c => `<div>
-    <div class="tag t-rej">Rejected</div><h3>${esc(c.label)}</h3>
+   words of each shipped measure and the research-only conclusion. Each links to its research
+   note, and the credit under the cards names the source beside the provider's logo. Every
+   word here is the server's (/api/answers/why): the measures by their plain names, the
+   replication verdicts in words, the research-only measure by its research name, the
+   sentence from the registry's counts. A note's address is read from the reply's provenance
+   by its key and carries no title of its own. */
+const noteLink = (W, note) => note && W.provenance.note_urls && W.provenance.note_urls[note.key]
+  ? `<a href="${esc(W.provenance.note_urls[note.key])}" target="_blank" rel="noopener">${esc(note.text)}</a>` : '';
+function renderWhy(W){
+  if (!W) { $('#why-answer').textContent = ''; return; }
+  $('#why-answer').textContent = W.answer;
+  const k = W.counts;
+  $('#hero').innerHTML = `<span><b>${esc(k.proposed)}</b> proposed.</span>
+    <span><b>${esc(k.tested)}</b> tested.</span> <span><b>${esc(k.surviving)}</b> shown.</span>`;
+  const group = (title, tag, cls, cards) => cards.length ? `<section class="why-group" aria-labelledby="why-${cls}">
+    <h2 id="why-${cls}" class="why-heading">${esc(title)}</h2><div class="why">${cards.join('')}</div></section>` : '';
+  const ship = W.shipped.map(c => `<div>
+    <div class="tag t-ship">Shown</div><h3>${esc(c.name)}</h3>
+    <p>${esc(c.claim)}<br><span class="replication">Second data provider: ${esc(c.replication)}.${
+      c.note ? ' ' + noteLink(W, c.note) : ''}</span></p></div>`);
+  const rej = W.rejected.map(c => `<div>
+    <div class="tag t-rej">Rejected</div><h3>${esc(c.name)}</h3>
     <p><strong>${esc(c.headline)}.</strong> ${esc(c.detail)}</p></div>`);
-  const res = CONSTRUCTS.research_only.map(c => `<div>
-    <div class="tag t-res">Research only</div><h3>${esc(c.label)}</h3>
+  const res = W.research_only.map(c => `<div>
+    <div class="tag t-res">Research only</div><h3>${esc(c.name)}</h3>
     <p><strong>${esc(c.headline)}.</strong> ${esc(c.detail)}${
-      c.note ? `<br><span class="replication">research note: ${
-        noteLink(c.note, c.note.title)}</span>` : ''}</p></div>`);
-  $('#why').innerHTML = [...ship, ...rej, ...res].join('');
-  const credit = CONSTRUCTS.statsbomb_credit;
+      c.note ? `<br><span class="replication">${noteLink(W, c.note)}</span>` : ''}</p></div>`);
+  $('#why').innerHTML = group('Shown here', 'ship', 'shown', ship) + group('Rejected', 'rej', 'rejected', rej) +
+    group('Research only', 'res', 'research', res);
+  const credit = W.credit;
   $('#why-credit').innerHTML = `<div class="plate"><img src="${esc(credit.logo)}"
       alt="${esc(credit.source)}" width="170"></div>
     <div><p>${esc(credit.sentence)}</p>
-      <p class="notes">${credit.notes.map(n => noteLink(n, n.title)).join(' &nbsp;·&nbsp; ')}</p></div>`;
+      <p class="notes">${credit.notes.map(n => noteLink(W, n)).join(' &nbsp;·&nbsp; ')}</p></div>`;
 }
 
 /* ---------- boot ---------- */
 (async () => {
   META = await api('/api/meta');
   CONSTRUCTS = await api('/api/constructs');
-  renderWhy();
-  const k = CONSTRUCTS.counts;
-  $('#hero').innerHTML = `<span><b>${esc(k.proposed)}</b> proposed.</span>
-    <span><b>${esc(k.tested)}</b> tested.</span> <span><b>${esc(k.surviving)}</b> survive.</span>`;
+  const served = await api('/api/answers/measures').catch(() => null);
+  NAMES = (served && served.names) || {}; POSITIONS = (served && served.positions) || {};
+  renderWhy(await api('/api/answers/why').catch(() => null));
   $('#foot').innerHTML =
     `These measures come from Pappalardo/Wyscout event data for La Liga ${esc(META.season)}
      (CC BY 4.0). They describe that season, not the current one. ${esc(META.player_count)} players
      with ${esc(META.minutes_floor)}+ minutes · artifact <span class="id">${esc(META.version_key)}</span>
-     · generated ${esc(META.generated_at)}.`;
-  wireSearch($('#q'), $('#results'), id => openPlayer(id));
+     · built on ${esc(dateWords(META.generated_at))}.`;
+  wireSearch($('#q'), $('#results'), id => openPlayer(id), id => openPlayer(id));
   wireSearch($('#qa'), $('#ra'), id => go({view: 'compare', a: id, b: state.b}));
   wireSearch($('#qb'), $('#rb'), id => go({view: 'compare', a: state.a, b: id}));
   window.addEventListener?.('popstate', () => { readAddress(); show(); });

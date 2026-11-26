@@ -11,8 +11,15 @@
    at once (formation, shirt numbers, season), so a link is the lineup: "Copy link" copies it,
    and opening it restores it. "Save on this device" keeps one lineup in this browser.
 
+   A formation changed while the board is the proposal shows the server's proposal for that
+   formation; a lineup the reader edited moves to the new formation from the last formation he
+   edited it in, each player to a place of his own position where the shape has one, so the
+   result never depends on the shapes tried on the way.
+
    The activity map is an archive sample (2017/18), labelled by the server with its match,
-   competition and date; the drawn role area says it is drawn, not measured. */
+   competition and date, its counts in its words; the drawn role area says it is drawn, not
+   measured. The import of a reader's own file is an analyst's tool, served on a local install
+   only. */
 import { reshape, positions, groupNames } from './studio-formation.js';
 import { draw, readEvents } from './studio-map.js';
 
@@ -29,6 +36,7 @@ const state = {
   origin: 'proposed',
   mode: 'events',
   filter: 'All actions',
+  base: null,
 };
 const undoStack = [],
   archive = new Map(),
@@ -156,7 +164,7 @@ function refreshAnswer(now = false) {
   });
 }
 function snapshot() {
-  return { formation: state.formation, xi: [...state.xi], selected: state.selected, origin: state.origin };
+  return { formation: state.formation, xi: [...state.xi], selected: state.selected, origin: state.origin, base: state.base };
 }
 function beforeEdit() {
   undoStack.push(snapshot());
@@ -164,8 +172,10 @@ function beforeEdit() {
   state.swap = false;
   state.placing = null;
 }
-function afterEdit(message) {
+function afterEdit(message, shaped = false) {
   state.origin = isProposed() ? 'proposed' : 'edited';
+  // A change by hand is the lineup a later change of formation starts from.
+  if (!shaped) state.base = state.origin === 'proposed' ? null : { formation: state.formation, xi: [...state.xi] };
   if (message) live(message);
   render(true);
   syncUrl();
@@ -186,6 +196,8 @@ function sub(id, i) {
   state.xi[i] = id;
   state.selected = i;
   state.inspect = id;
+  // Interface feedback for a screen reader (the board's own change), not a sentence about
+  // football: the server's sentence for the lineup follows.
   afterEdit(players.get(id).short + ' replaces ' + (old?.short || 'nobody') + '.');
 }
 function pickSlot(i) {
@@ -212,6 +224,8 @@ function pickBench(id) {
   state.inspect = id;
   live('Now choose the position ' + players.get(id).short + ' takes.');
   render();
+  // Focus goes on to the board, where the next tap lands (H19).
+  $('slots').querySelector('[data-slot="' + state.selected + '"]')?.focus({ preventScroll: true });
   // On a phone the board is above the bench: bring it into view, targets and all.
   const board = $('field').closest('.ln-board').getBoundingClientRect();
   if (board.top < 0 || board.bottom > window.innerHeight) {
@@ -221,10 +235,12 @@ function pickBench(id) {
 }
 function cancel() {
   if (!state.placing && !state.swap) return;
+  const was = state.placing;
   state.placing = null;
   state.swap = false;
   state.inspect = state.xi[state.selected];
   render();
+  if (was) $('bench-list').querySelector('[data-id="' + CSS.escape(was) + '"]')?.focus({ preventScroll: true });
 }
 
 // ------------------------------------------------------------------ drawing
@@ -255,10 +271,12 @@ function renderBoard() {
   const nodes = shape.map((slot, i) => {
     const p = players.get(state.xi[i]);
     const b = button(null, () => pickSlot(i), 'ln-slot');
-    b.style.left = slot.x + '%';
+    // Within the pitch: a slot near a touchline stands as far in as its plate needs (H7).
+    b.style.left = 'clamp(var(--slot-half), ' + slot.x + '%, calc(100% - var(--slot-half)))';
     b.style.top = slot.y + '%';
     b.dataset.slot = String(i);
     b.setAttribute('aria-label', slot.role + ' · ' + p.name);
+    b.title = (slot.name || slot.role) + ' · ' + p.name;
     b.setAttribute('aria-pressed', String(i === state.selected && !state.placing));
     if (state.placing || (state.swap && i !== state.selected)) b.classList.add('is-target');
     const plate = el('span', null, 'ln-plate');
@@ -289,7 +307,7 @@ function renderBoard() {
     ? 'Choose the position ' + players.get(state.placing).short + ' takes.'
     : state.swap
       ? 'Choose the position ' + p.short + ' moves to.'
-      : p.name + ' · ' + shape[state.selected].role;
+      : p.name + ' · ' + (shape[state.selected].name || shape[state.selected].role);
   $('cancel').hidden = !state.placing && !state.swap;
   $('swap').hidden = Boolean(state.placing);
   $('swap').disabled = false;
@@ -327,6 +345,7 @@ function renderBench() {
       const row = el('div', null, 'ln-bench-row');
       for (const p of list) {
         const b = button(null, () => pickBench(p.id), 'ln-reserve');
+        b.dataset.id = p.id;
         b.setAttribute('aria-label', 'Substitute ' + p.name);
         b.setAttribute('aria-pressed', String(state.placing === p.id));
         b.append(
@@ -355,8 +374,11 @@ function renderProfile() {
   $('hero-number').textContent = p.number;
   $('apps').textContent = p.apps ?? '—';
   $('goals').textContent = p.goals ?? '—';
-  $('xi-role').textContent = index >= 0 ? slots()[index].role : 'Bench';
-  $('import-player').textContent = p.name;
+  const place = index >= 0 ? slots()[index] : null;
+  $('xi-role').textContent = place ? place.role : 'Bench';
+  // The position in words beside its short label (D9: "Left central midfield").
+  $('xi-role-name').textContent = place?.name || '';
+  if ($('import-player')) $('import-player').textContent = p.name;
 }
 
 // ------------------------------------------------------------------ the activity map
@@ -385,8 +407,9 @@ function paint() {
     $('sample-count').textContent = '';
   } else if (sample) {
     $('sample').textContent = sample.imported ? 'Imported from ' + sample.match : sample.label;
-    $('sample-count').textContent =
-      filtered.length + ' located action' + (filtered.length === 1 ? '' : 's');
+    $('sample-count').textContent = sample.imported
+      ? filtered.length + (filtered.length === 1 ? ' action' : ' actions') + ' in your file'
+      : (sample.filters || []).find((f) => f.type === state.filter)?.count || '';
     if (sample.imported) {
       $('map-detail').textContent = 'Coordinates from your file, kept in this tab.';
     } else {
@@ -402,17 +425,8 @@ function paint() {
     $('sample').textContent = 'Loading the archive sample…';
     $('sample-count').textContent = '';
   }
-  $('map').setAttribute(
-    'aria-label',
-    role
-      ? slot.zone
-      : (p?.name || 'Player') +
-          ', ' +
-          filtered.length +
-          ' located action' +
-          (filtered.length === 1 ? '' : 's'),
-  );
-  $('clear-import').hidden = !imported.has(p?.id);
+  $('map').setAttribute('aria-label', role ? slot.zone : (p?.name || 'Player') + ': ' + ($('sample-count').textContent || 'archive sample'));
+  if ($('clear-import')) $('clear-import').hidden = !imported.has(p?.id);
 }
 async function loadMap() {
   const version = ++mapVersion,
@@ -437,8 +451,11 @@ async function loadMap() {
       if (version !== mapVersion) return;
       sample = result;
     }
-    const choices = ['All actions', ...new Set((sample?.points ?? []).map((pt) => pt.type))];
-    $('action').replaceChildren(...choices.map((k) => new Option(k, k)));
+    // The filters and their names are the server's; a reader's own file keeps its own kinds.
+    const choices = sample?.filters
+      ? sample.filters.map((f) => [f.type, f.label])
+      : [['All actions', 'All actions'], ...[...new Set((sample?.points ?? []).map((pt) => pt.type))].map((k) => [k, k])];
+    $('action').replaceChildren(...choices.map(([k, label]) => new Option(label, k)));
     paint();
   } catch (err) {
     if (version !== mapVersion) return;
@@ -484,9 +501,12 @@ function renderNext(card) {
     link(card.credit.licence, card.credit.licence_url),
     ').',
   );
+  const time = window.Site?.kickoff ? Site.kickoff(game) : null;
+  const when = el('p', game.when + (time ? ' · ' + time.text : ''), 'ln-when');
+  if (time && !time.local) when.title = 'Local time, as the source publishes it';
   body.replaceChildren(
     opponent,
-    el('p', game.when, 'ln-when'),
+    when,
     el('p', game.competition, 'ln-competition'),
     links,
     credit,
@@ -530,6 +550,8 @@ function useLineup(formation, xi, origin, selected = null) {
   state.formation = formation;
   state.xi = [...xi];
   state.origin = origin;
+  // A lineup from a link or a save is the reader's: a change of formation starts from it.
+  state.base = origin === 'proposed' ? null : { formation, xi: [...xi] };
   // The centre-forward, or the first forward: someone to show in the profile from the start.
   const shape = data.formations[formation];
   const striker = shape.findIndex((s) => s.role === 'ST');
@@ -640,13 +662,23 @@ $('formation').onchange = () => {
   const to = $('formation').value,
     id = state.xi[state.selected];
   if (to === state.formation) return;
-  const before = slots();
+  const proposedNow = isProposed();
   beforeEdit();
-  state.xi = reshape(state.xi, before, data.formations[to]);
+  if (proposedNow || !state.base) {
+    // The proposal stays the proposal: the server's XI for the new formation (H6).
+    state.xi = [...data.proposals[to].xi];
+  } else {
+    // An edited lineup moves from the formation it was edited in, never from a shape tried on
+    // the way, each player to a place of his own position where the new shape has one.
+    const base = state.base;
+    state.xi = reshape(base.xi, data.formations[base.formation], data.formations[to], (pid) => players.get(pid)?.group);
+  }
   state.formation = to;
-  state.selected = Math.max(0, state.xi.indexOf(id));
+  const at = state.xi.indexOf(id);
+  const shape = data.formations[to];
+  state.selected = at >= 0 && shape[at].group !== 'GK' ? at : Math.max(0, shape.findIndex((s) => s.role === 'ST' || s.group === 'FW'));
   state.inspect = state.xi[state.selected];
-  afterEdit('Formation changed to ' + to + '.');
+  afterEdit('Formation changed to ' + to + '.', true);
 };
 $('swap').onclick = () => {
   state.swap = !state.swap;
@@ -666,6 +698,7 @@ $('undo').onclick = () => {
 };
 $('reset').onclick = () => {
   beforeEdit();
+  state.base = null;
   state.xi = [...proposal().xi];
   state.inspect = state.xi[state.selected];
   afterEdit('Back to the proposed XI.');
@@ -679,7 +712,7 @@ $('save').onclick = () => {
   }
 };
 $('copy').onclick = async () => {
-  const url = location.origin + location.pathname + '?' + query();
+  const url = location.origin + location.pathname + (isProposed() && state.formation === data.default ? '' : '?' + query());
   try {
     await navigator.clipboard.writeText(url);
     toast('Link copied. It opens this lineup.');
@@ -707,7 +740,7 @@ $('events').onclick = () => {
   state.mode = 'events';
   paint();
 };
-$('file').onchange = async (e) => {
+if ($('file')) $('file').onchange = async (e) => {
   const file = e.target.files[0],
     p = inspected();
   e.target.value = '';
@@ -723,7 +756,7 @@ $('file').onchange = async (e) => {
     live(err.message);
   }
 };
-$('clear-import').onclick = () => {
+if ($('clear-import')) $('clear-import').onclick = () => {
   const p = inspected();
   if (!p) return;
   imported.delete(p.id);
