@@ -45,9 +45,12 @@ from ..profiles.build import BUILD_RULES, UNTESTED, construct_version
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
 from . import about
 from .decision_lab import router as decision_router
+from .planning_answers import router as planning_answers_router
+from .player_answers import router as player_answers_router
 from .runtime import router as runtime_router
 from .squad_lab import router as squad_router
 from .transfer_lab import router as transfer_router
+from .xi_answers import router as xi_answers_router
 from .xi_extensions import router as xi_extensions_router
 
 BUNDLE = Path("data/public/profiles/Spain_2017-18.json")
@@ -63,6 +66,10 @@ app.include_router(runtime_router)
 app.include_router(squad_router)
 app.include_router(transfer_router)
 app.include_router(xi_extensions_router)
+# Each page's answer sentence and its hand-off to the next page, composed on the server (R10).
+app.include_router(player_answers_router)
+app.include_router(xi_answers_router)
+app.include_router(planning_answers_router)
 
 
 def _built_under_another_registry(data: dict[str, Any]) -> bool:
