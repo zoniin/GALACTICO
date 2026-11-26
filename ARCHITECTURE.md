@@ -19,9 +19,37 @@ validation/  pre-registered experiments and baselines
 api/         FastAPI over prepared state
 ```
 
+## Pages, shell and design system
+
+Two apps serve the pages: the full local app (`galactico.api.player_lab:app`) and the hosted
+one (`galactico.match_centre.public:app`, deployed on Vercel). Both serve every page through
+one shell (ADR-0033).
+
+| Module or file | Responsibility |
+|---|---|
+| `site_nav.py` | The shell: skip link, header (wordmark, navigation, season chip, theme switch), the phone tab bar and the footer ("About the numbers", the page's data credits). Fills the `<!--shell:head-->`, `<!--shell:header-->` and `<!--shell:footer-->` placeholders of every page file. The navigation is deployment-aware: it lists a destination only when the serving app answers its route. Standard library only, so the hosted function ships it (`vercel.json` `includeFiles`) |
+| `match_centre/routes.py` | The current-season pages and their APIs, included by both apps: `/` and `/match-centre` (Matches), `/match-centre/leagues` (Table), `/match-centre/scouting`, `/lineup`, `/about`; an old Player Lab link to `/` opens `/player` where the app serves it |
+| `api/about.py` | The archive's sections of "About the numbers", read from the registries where they are defined; the local app hands them to the shell |
+| `web/tokens.css`, `base.css`, `components.css` | The design system: every colour literal and its light and dark role (`tokens.css`); fonts, type scale, links and the focus ring (`base.css`); the shell and the `ui-*` components (`components.css`). Cascade order `tokens, base, legacy, components, page` |
+| `web/labs.css`, `labs-shared.css`, `planning.css`, `xi-extensions.css`, `match-centre.css`, `studio-shell.css`, `studio.css`, `goal-scout.css` | The sheets written before the system, in the `legacy` layer, reading its roles (`labs.css` re-points the labs' old names at them) |
+| `web/theme.js` | Applies a reader's stored theme choice before paint |
+
+| Page file | Route | Place in the navigation | Season |
+|---|---|---|---|
+| `match-centre.html` | `/`, `/match-centre` | Matches | 2026/27 |
+| `leagues.html` | `/match-centre/leagues` | Table | 2026/27 |
+| `scouting.html` | `/match-centre/scouting` | Players | 2026/27 |
+| `studio.html` | `/lineup` | Lineup | 2026/27 |
+| `index.html` | `/player` (local) | Players | 2017/18 archive |
+| `match.html` | `/match` (local) | Matches | 2017/18 archive |
+| `xi.html` | `/xi` (local) | Lineup | 2017/18 archive |
+| `squad.html` | `/squad` (local) | Squad & signings | 2017/18 archive |
+| `transfer.html` | `/transfer` (local) | Squad & signings | 2017/18 archive |
+| `about.html` | `/about` | the footer of every page | — |
+
 ## Implemented historical decision path
 
-`api/player_lab.py` serves Player Lab and registers `api/decision_lab.py`. Player
+`api/player_lab.py` serves Player Lab at `/player` and registers `api/decision_lab.py`. Player
 Lab is frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027
 (October 2026).
 This path renders three code-native pages under `web/` (the planning path below
@@ -76,7 +104,7 @@ changed: their bytes are hashed into published experiment results.
 | `domain/thesis.py` | Walks any payload for rating-like keys by exact key and, at the planning boundary, by key part |
 | `domain/labels.py` | The copy guard: words a served string may not contain outside a named denial. Run on the string values of every new 200 reply outside its provenance blocks |
 | `api/runtime.py` | How every new request runs: error mapping, budgets that start with the request, result cache with single-flight, sixteen requests past the cache lookup and two long computations at a time, the boundary check `finalize` (providers, keys, served words), NaN-free responses |
-| `api/shell.py` | What every new page shows: navigation, the not-measured list, evidence and verdict payloads |
+| `api/shell.py` | What every new lab page shows: the not-measured list, evidence and verdict payloads, the copy guard's scan of visible text. The navigation is `site_nav.py`'s |
 | `api/planning.py`, `squad_lab.py`, `transfer_lab.py` | The declared planning problem, the build gate (one build per key, the key holding the identity of the corpus files read; two at once; 429 after the wait), cache keys on the request as resolved, and the two lab routers |
 
 Every new 200 reply passes `runtime.finalize`, computed or read from the result

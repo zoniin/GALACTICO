@@ -309,25 +309,13 @@ def test_ledger_keeps_declared_apart_and_never_drops_a_missing_value(tmp_path: P
     assert got["empty"].count('class="unavailable"') == 2 and "<table" not in got["empty"]
 
 
-def test_nav_notes_and_absence_tokens_render_from_payloads(tmp_path: Path) -> None:
-    nav = [
-        {"dest": "player", "href": "/", "label": "Player", "sr_suffix": " Lab",
-         "group": "evidence"},
-        {"dest": "match", "href": "/match", "label": "Match", "sr_suffix": " Lab",
-         "group": "evidence"},
-        {"dest": "xi", "href": "/xi", "label": "XI", "sr_suffix": " Lab", "group": "matchday"},
-        {"dest": "squad", "href": "/squad", "label": "Squad", "sr_suffix": " Lab",
-         "group": "planning"},
-        {"dest": "transfer", "href": "/transfer", "label": "Transfer", "sr_suffix": " Lab",
-         "group": "planning"},
-    ]
+def test_notes_and_absence_tokens_render_from_payloads(tmp_path: Path) -> None:
     items = [{"item_id": "finishing", "term": "Finishing", "status": "UNMEASURED",
               "reason": "Goals against expectation are not estimated."},
              {"item_id": "price", "term": "Price", "status": "UNAVAILABLE", "reason": "None."},
              {"item_id": "odd", "term": "Odd", "status": "GOOD", "reason": "A stray status."}]
     out = run_js(tmp_path, """
       console.log(JSON.stringify({
-        nav: clean('nav', S.nav(NAV, 'squad')), header: clean('header', S.header(NAV)),
         say: clean('say', S.cannotSay(['First denial.', '', null, 'Second denial.'])),
         silent: [S.cannotSay([]), S.cannotSay(null)],
         nm: clean('nm', S.notMeasured(ITEMS)),
@@ -340,16 +328,8 @@ def test_nav_notes_and_absence_tokens_render_from_payloads(tmp_path: Path) -> No
                                                          {status: 503}))],
         infeasible: clean('inf', S.infeasible(['Two locks share a slot.'])),
         open: clean('nc', S.notCertified('UNKNOWN'))}));
-    """, NAV=nav, ITEMS=items)
+    """, ITEMS=items)
     got = json.loads(out)
-    assert re.findall(r'<a href="([^"]*)" data-dest="([^"]*)"', got["nav"]) == [
-        ("/", "player"), ("/match", "match"), ("/xi", "xi"), ("/squad", "squad"),
-        ("/transfer", "transfer")]
-    assert got["nav"].count('aria-current="page"') == 1
-    here = '<a href="/squad" data-dest="squad" aria-current="page">Squad<span class="sr-only"> Lab'
-    assert here in got["nav"]
-    assert got["nav"].count('class="nav-sep"') == 2
-    assert got["header"].count("<a ") == 6 and "aria-current" not in got["header"]
     assert got["say"] == ('<span class="label">This cannot say</span>'
                           "<p>First denial.</p><p>Second denial.</p>")
     assert got["silent"] == ["", ""]
@@ -363,7 +343,7 @@ def test_nav_notes_and_absence_tokens_render_from_payloads(tmp_path: Path) -> No
                              '<span class="badge">UNAVAILABLE</span>']
     assert got["loading"] == ["Solving…", "Solving…"]
     assert got["error"] == ["Squad audit unavailable: unknown scenario",
-                            "historical corpus unavailable Run the Pappalardo fetch and ingest."]
+                            "The 2017/18 archive isn&#39;t installed on this server."]
     assert got["infeasible"].endswith("Two locks share a slot. Nothing was relaxed.")
     assert got["open"] == '<span class="badge">UNKNOWN</span> Treat as incomplete.'
 
@@ -385,10 +365,6 @@ def test_hostile_server_strings_never_become_markup(tmp_path: Path) -> None:
         S.ledger([{key: h, label: h, value_text: h}],
                  [{row_id: h, quantity: h, value_text: h, sample: h, evidence: e, verdict: v,
                    solver: h}]),
-        S.nav([{dest: h, href: h, label: h, sr_prefix: h, sr_suffix: h, group: h},
-               {dest: 'x', href: 'javascript:alert(1)', label: 'x'},
-               {dest: 'y', href: '//evil.example/', label: 'y'}], h),
-        S.header([{dest: h, href: h, label: h}], h),
       ];
       parts.forEach((p, i) => clean('part ' + i, p));
       console.log(JSON.stringify({parts, gate: S.mayGate(v)}));
@@ -400,7 +376,7 @@ def test_hostile_server_strings_never_become_markup(tmp_path: Path) -> None:
         # Every tag left in the markup is one the kit wrote itself.
         tags = set(re.findall(r"<\s*/?\s*([A-Za-z0-9]+)", part))
         assert tags <= {"span", "svg", "rect", "div", "p", "strong", "section", "h2", "ul", "li",
-                        "table", "caption", "thead", "tbody", "tr", "th", "td", "nav", "a"}, tags
+                        "table", "caption", "thead", "tbody", "tr", "th", "td", "a"}, tags
         assert "onerror=alert(1)>" not in part
         # No hostile quote closes an attribute: every attribute value is quote-free.
         for value in re.findall(r'="([^"]*)"', part):
@@ -418,5 +394,7 @@ def test_the_sheet_uses_no_gold_and_no_merit_colour() -> None:
     assert set(re.findall(r"var\((--[a-z-]+)\)", sheet)) <= {
         "--line", "--muted", "--text", "--chalk", "--mono", "--serif"}
     for selector in (".verdict", ".badge.ev", ".cannot-say", ".not-measured-list",
-                     ".evidence-ledger", ".withheld", "nav[data-nav=v2]"):
+                     ".evidence-ledger", ".withheld"):
         assert selector in sheet
+    # The navigation is the site shell's (components.css); this sheet styles none.
+    assert "nav" not in re.sub(r"\.not-measured|\bnm-", "", sheet)

@@ -1,0 +1,408 @@
+/* Galáctico design tokens. The only sheet in which a colour literal may appear.
+
+   Two layers. Primitives (--c-*) are raw values with no meaning. Semantic roles are named by
+   the job they do (--text, --surface-1, --border-control, --selected), never by hue, and every
+   role has a light and a dark value. A page, a component or a script reads a role, never a
+   primitive, so a theme is one block here and nothing else.
+
+   Cascade order for every sheet of the site, declared first so that it holds whichever sheet a
+   page loads next. legacy is every sheet written before this system; it sits above base, so an
+   old page keeps its own look, and below components, so the shared shell is never restyled by
+   an old page's element rules. A page sheet of the new system goes in page.
+
+   The roles are declared on :root and again on [data-shell] (the header, footer and skip link
+   the server writes into every page). An old page redefines some of these names on :root for
+   its own dark palette; a declaration on the shell's own elements wins over that inheritance,
+   so the shell always reads the values written here.
+
+   Colour policy. Gold (--selected) marks the selected subject only, and on a light surface it
+   is a fill with a dark outline, never a bare line. Focus is a two-tone ring, dark inside and
+   light outside, distinct from selected and visible on every surface. Status and result colour
+   (live, win/draw/loss, error) always travels with text. No colour encodes a player's merit. */
+
+@layer tokens, base, legacy, components, page;
+
+@layer tokens {
+  :root {
+    /* Neutrals, navy-tinted, light to dark. */
+    --c-white: #ffffff;
+    --c-neutral-25: #fafaf7;
+    --c-neutral-50: #f5f5f0;
+    --c-neutral-100: #eef0ec;
+    --c-neutral-150: #e2e5df;
+    --c-neutral-200: #d9dcde;
+    --c-neutral-400: #7a8094;
+    --c-neutral-500: #5c6479;
+    --c-neutral-600: #4c536a;
+    --c-navy-900: #151937;
+    --c-night-0: #0e1020;
+    --c-night-1: #161a2e;
+    --c-night-2: #1d2238;
+    --c-night-3: #272d48;
+    --c-night-line: #2c3250;
+    --c-night-control: #737a9a;
+    --c-mist-100: #eef0f7;
+    --c-mist-300: #c3c6d8;
+    --c-mist-400: #b8bdcf;
+    --c-mist-500: #a0a6bb;
+    --c-header-line: #2a2f55;
+
+    /* Brand. */
+    --c-violet-700: #4430c8;
+    --c-violet-600: #4f37d9;
+    --c-violet-100: #ece9fc;
+    --c-violet-300: #a194f7;
+    --c-violet-200: #b3a9ff;
+    --c-violet-900: #2a2266;
+    --c-lime-300: #c4ff81;
+    --c-gold-500: #c9a227;
+
+    /* Status hues. */
+    --c-green-700: #0f6b4b;
+    --c-green-300: #5ccf9f;
+    --c-green-100: #e1f3ea;
+    --c-green-900: #123a2c;
+    --c-red-700: #b3261e;
+    --c-red-300: #ff8b7e;
+    --c-red-100: #fbe7e4;
+    --c-red-900: #44201f;
+    --c-amber-700: #8a4f00;
+    --c-amber-300: #f0b35a;
+    --c-amber-100: #fbefdc;
+    --c-amber-900: #3d2c12;
+
+    /* Pitch and chart surfaces: dark in both themes. */
+    --c-grass-700: #1e5a3c;
+    --c-grass-600: #22643f;
+    --c-grass-900: #13251b;
+    --c-chalk-100: #d6e6da;
+    --c-pine-800: #133d34;
+    --c-pine-850: #152e2b;
+    --c-pine-650: #24463c;
+    --c-pine-500: #809c95;
+    --c-pine-550: #205642;
+    --c-pine-450: #255f48;
+    --c-sage-200: #c4d2cb;
+    --c-kit-ink: #252746;
+
+    /* The player card of the lineup studio: one brand gradient, dark in both themes. */
+    --c-indigo-900: #24215e;
+    --c-indigo-700: #4436ae;
+    --c-indigo-500: #7463dc;
+
+    /* The studio's activity map (studio-map.js): its field, its stripe, its drawn role zone and
+       its heat ramp, cold to hot. */
+    --c-map-field: #193c40;
+    --c-map-stripe: #20464a;
+    --c-map-zone: #b6a4ff;
+    --c-map-zone-edge: #dbceff;
+    --c-heat-0: #205a7e;
+    --c-heat-1: #3086a6;
+    --c-heat-2: #45ccaf;
+    --c-heat-3: #b6e658;
+    --c-heat-4: #ffc349;
+    --c-heat-5: #ff6931;
+    --c-chart-0: #141833;
+    --c-chart-1: #1c2142;
+    --c-chart-grid: #2b3052;
+    --c-chart-axis: #6a7192;
+    --c-chart-ink: #e7e9f2;
+    --c-chart-ink-2: #aab0c6;
+
+    /* Categorical series, validated on the chart surface (worst adjacent CVD separation 10.1,
+       normal-vision 21.1, every slot at least 3:1). Assigned in this order, never cycled. */
+    --c-series-1: #338ced;
+    --c-series-2: #e76624;
+    --c-series-3: #00a888;
+    --c-series-4: #d28e05;
+    --c-series-5: #e24d8b;
+    --c-series-6: #0aac23;
+    --c-series-7: #9887ef;
+    --c-series-8: #eb6263;
+
+    /* One-hue sequential ramp, dark (near zero, recedes into the chart surface) to light. */
+    --c-blue-650: #0f4a96;
+    --c-blue-550: #1b64be;
+    --c-blue-450: #257de0;
+    --c-blue-400: #338ced;
+    --c-blue-300: #6aabf1;
+    --c-blue-200: #9dc8f7;
+    --c-blue-100: #cce3fd;
+    --c-orange-300: #f5a77d;
+    --c-orange-500: #e76624;
+    --c-orange-700: #b8481a;
+    --c-diverging-mid: #4a4f68;
+  }
+
+  /* Light, the default. */
+  :root,
+  [data-shell] {
+    color-scheme: light;
+    --bg: var(--c-neutral-50);
+    --surface-1: var(--c-white);
+    --surface-2: var(--c-neutral-100);
+    --surface-3: var(--c-neutral-150);
+    --text: var(--c-navy-900);
+    --text-muted: var(--c-neutral-600);
+    --text-subtle: var(--c-neutral-500);
+    --border: var(--c-neutral-200);
+    --border-control: var(--c-neutral-400);
+    --accent: var(--c-violet-600);
+    --accent-strong: var(--c-violet-700);
+    --accent-soft: var(--c-violet-100);
+    --on-accent: var(--c-white);
+    --link: var(--c-violet-700);
+    --focus-inner: var(--c-navy-900);
+    --focus-outer: var(--c-white);
+    --selected: var(--c-gold-500);
+    --selected-edge: var(--c-navy-900);
+    --on-selected: var(--c-navy-900);
+    --live: var(--c-green-700);
+    --live-soft: var(--c-green-100);
+    --danger: var(--c-red-700);
+    --danger-soft: var(--c-red-100);
+    --warning: var(--c-amber-700);
+    --warning-soft: var(--c-amber-100);
+    --info-soft: var(--c-violet-100);
+    --skeleton: var(--c-neutral-150);
+    --skeleton-shine: var(--c-neutral-25);
+    --header-bg: var(--c-navy-900);
+    --header-line: var(--c-header-line);
+    --header-text: var(--c-white);
+    --header-muted: var(--c-mist-300);
+    --brand-mark: var(--c-lime-300);
+    --shadow-1: 0 1px 2px rgb(21 25 55 / 0.06), 0 1px 1px rgb(21 25 55 / 0.04);
+    --shadow-2: 0 6px 20px rgb(21 25 55 / 0.12), 0 2px 6px rgb(21 25 55 / 0.08);
+  }
+
+  /* Dark, when the reader's system asks for it and they have not chosen light. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]),
+    :root:not([data-theme="light"]) [data-shell] {
+      color-scheme: dark;
+      --bg: var(--c-night-0);
+      --surface-1: var(--c-night-1);
+      --surface-2: var(--c-night-2);
+      --surface-3: var(--c-night-3);
+      --text: var(--c-mist-100);
+      --text-muted: var(--c-mist-400);
+      --text-subtle: var(--c-mist-500);
+      --border: var(--c-night-line);
+      --border-control: var(--c-night-control);
+      --accent: var(--c-violet-300);
+      --accent-strong: var(--c-violet-200);
+      --accent-soft: var(--c-violet-900);
+      --on-accent: var(--c-night-0);
+      --link: var(--c-violet-200);
+      --focus-inner: var(--c-white);
+      --focus-outer: var(--c-night-0);
+      --selected: var(--c-gold-500);
+      --selected-edge: var(--c-white);
+      --on-selected: var(--c-navy-900);
+      --live: var(--c-green-300);
+      --live-soft: var(--c-green-900);
+      --danger: var(--c-red-300);
+      --danger-soft: var(--c-red-900);
+      --warning: var(--c-amber-300);
+      --warning-soft: var(--c-amber-900);
+      --info-soft: var(--c-violet-900);
+      --skeleton: var(--c-night-2);
+      --skeleton-shine: var(--c-night-3);
+      --header-bg: var(--c-night-1);
+      --header-line: var(--c-night-control);
+      --header-text: var(--c-white);
+      --header-muted: var(--c-mist-300);
+      --brand-mark: var(--c-lime-300);
+      --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+      --shadow-2: 0 8px 24px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.4);
+    }
+  }
+
+  /* Dark, when the reader chose it. The same declarations as the block above. */
+  :root[data-theme="dark"],
+  :root[data-theme="dark"] [data-shell] {
+    color-scheme: dark;
+    --bg: var(--c-night-0);
+    --surface-1: var(--c-night-1);
+    --surface-2: var(--c-night-2);
+    --surface-3: var(--c-night-3);
+    --text: var(--c-mist-100);
+    --text-muted: var(--c-mist-400);
+    --text-subtle: var(--c-mist-500);
+    --border: var(--c-night-line);
+    --border-control: var(--c-night-control);
+    --accent: var(--c-violet-300);
+    --accent-strong: var(--c-violet-200);
+    --accent-soft: var(--c-violet-900);
+    --on-accent: var(--c-night-0);
+    --link: var(--c-violet-200);
+    --focus-inner: var(--c-white);
+    --focus-outer: var(--c-night-0);
+    --selected: var(--c-gold-500);
+    --selected-edge: var(--c-white);
+    --on-selected: var(--c-navy-900);
+    --live: var(--c-green-300);
+    --live-soft: var(--c-green-900);
+    --danger: var(--c-red-300);
+    --danger-soft: var(--c-red-900);
+    --warning: var(--c-amber-300);
+    --warning-soft: var(--c-amber-900);
+    --info-soft: var(--c-violet-900);
+    --skeleton: var(--c-night-2);
+    --skeleton-shine: var(--c-night-3);
+    --header-bg: var(--c-night-1);
+    --header-line: var(--c-night-control);
+    --header-text: var(--c-white);
+    --header-muted: var(--c-mist-300);
+    --brand-mark: var(--c-lime-300);
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-2: 0 8px 24px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.4);
+  }
+
+  /* Roles that do not change with the theme. */
+  :root,
+  [data-shell] {
+    /* Pitch: dark grass in both themes. Labels on it are --pitch-text; a selection mark is
+       --selected filled with --selected-edge; focus on it is the same two-tone ring. */
+    --pitch-grass: var(--c-grass-700);
+    --pitch-stripe: var(--c-grass-600);
+    --pitch-surround: var(--c-grass-900);
+    --pitch-line: var(--c-chalk-100);
+    --pitch-text: var(--c-white);
+
+    /* The lineup studio's board, a pitch inside a card: the card and its bar, a control on
+       it, secondary text on it, the striped field, and the lime mark of the slot being moved
+       (the brand's mark, not gold: gold is the selected subject of an analysis). */
+    --pitch-card: var(--c-pine-800);
+    --pitch-bar: var(--c-pine-850);
+    --pitch-control: var(--c-pine-650);
+    --pitch-control-border: var(--c-pine-500);
+    --pitch-text-muted: var(--c-sage-200);
+    --pitch-field-1: var(--c-pine-550);
+    --pitch-field-2: var(--c-pine-450);
+    --pitch-mark: var(--c-lime-300);
+    --on-pitch-mark: var(--c-grass-900);
+    --kit-ink: var(--c-kit-ink);
+
+    /* The player card's gradient and the text on it. */
+    --hero-from: var(--c-indigo-900);
+    --hero-mid: var(--c-indigo-700);
+    --hero-to: var(--c-indigo-500);
+    --on-hero: var(--c-white);
+    --on-hero-muted: var(--c-mist-100);
+
+    /* An activity map: its field and stripe, the drawn zone of a role (drawn, not measured),
+       and a heat ramp, cold to hot, with its legend. Density, never merit. The canvas reads
+       these when it draws, with its own opacity per step. */
+    --map-field: var(--c-map-field);
+    --map-stripe: var(--c-map-stripe);
+    --map-zone: var(--c-map-zone);
+    --map-zone-edge: var(--c-map-zone-edge);
+    --heat-0: var(--c-heat-0);
+    --heat-1: var(--c-heat-1);
+    --heat-2: var(--c-heat-2);
+    --heat-3: var(--c-heat-3);
+    --heat-4: var(--c-heat-4);
+    --heat-5: var(--c-heat-5);
+
+    /* A provider's own logo is drawn as it is, on a plain white plate, in both themes. */
+    --logo-plate: var(--c-white);
+
+    /* Charts: a dark plot in both themes, with recessive grid and axes. */
+    --chart-bg: var(--c-chart-0);
+    --chart-bg-2: var(--c-chart-1);
+    --chart-grid: var(--c-chart-grid);
+    --chart-axis: var(--c-chart-axis);
+    --chart-text: var(--c-chart-ink);
+    --chart-text-muted: var(--c-chart-ink-2);
+    --chart-1: var(--c-series-1);
+    --chart-2: var(--c-series-2);
+    --chart-3: var(--c-series-3);
+    --chart-4: var(--c-series-4);
+    --chart-5: var(--c-series-5);
+    --chart-6: var(--c-series-6);
+    --chart-7: var(--c-series-7);
+    --chart-8: var(--c-series-8);
+    /* Two teams in one drawing (Match Lab's flow, shot map and passing key): light tints that
+       stay at least 3:1 on the grass and on the chart surface, and neither is gold. */
+    --chart-team-1: var(--c-blue-200);
+    --chart-team-2: var(--c-orange-300);
+    --seq-1: var(--c-blue-650);
+    --seq-2: var(--c-blue-550);
+    --seq-3: var(--c-blue-450);
+    --seq-4: var(--c-blue-400);
+    --seq-5: var(--c-blue-300);
+    --seq-6: var(--c-blue-200);
+    --seq-7: var(--c-blue-100);
+    /* Two arms and a grey middle, for a signed difference from a declared reference. Never on
+       a scale of how good a player is. */
+    --diverging-neg-3: var(--c-blue-550);
+    --diverging-neg-2: var(--c-blue-400);
+    --diverging-neg-1: var(--c-blue-200);
+    --diverging-mid: var(--c-diverging-mid);
+    --diverging-pos-1: var(--c-orange-300);
+    --diverging-pos-2: var(--c-orange-500);
+    --diverging-pos-3: var(--c-orange-700);
+
+    /* Type. DM Sans for everything; Barlow Condensed for display only; monospace for ids. */
+    --font-sans: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-display: "Barlow Condensed", "DM Sans", system-ui, sans-serif;
+    --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+    /* Seven steps. Nothing is set smaller than --text-xs, 12 px. Each step is in rem, so it
+       follows a reader's larger default, with a floor in px, because an older page sets its
+       own root size (15 px) and a rem there is smaller. */
+    --text-xs: max(0.75rem, 12px);
+    --text-sm: max(0.875rem, 14px);
+    --text-md: max(1rem, 16px);
+    --text-lg: max(1.125rem, 18px);
+    --text-xl: max(1.5rem, 24px);
+    --text-2xl: max(2rem, 32px);
+    --text-3xl: clamp(36px, 1.6rem + 1.8vw, 52px);
+    --leading-tight: 1.05;
+    --leading-snug: 1.3;
+    --leading-normal: 1.5;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+    --tracking-eyebrow: 0.08em;
+
+    /* Space on a 4 px base. */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+
+    /* Radii: controls, chips and tiles, cards, pills. */
+    --radius-control: 4px;
+    --radius-chip: 8px;
+    --radius-card: 14px;
+    --radius-pill: 999px;
+
+    /* Motion: two durations, one curve. Reduced motion sets both to zero (base.css). */
+    --duration-fast: 120ms;
+    --duration-base: 220ms;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+
+    /* Stacking. */
+    --z-raised: 1;
+    --z-sticky: 10;
+    --z-header: 20;
+    --z-tabbar: 30;
+    --z-toast: 40;
+    --z-skip: 50;
+
+    /* Layout. One frame for header and content alike. */
+    --frame: 1280px;
+    --gutter: clamp(16px, 4vw, 40px);
+    --target: 24px;
+    --target-touch: 44px;
+    --header-height: 64px;
+    --tabbar-height: 64px;
+    --focus-width: 2px;
+  }
+}

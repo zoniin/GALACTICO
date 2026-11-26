@@ -3,15 +3,25 @@ const WIDTH = 660,
 const pad = 18,
   pitchW = WIDTH - 2 * pad,
   pitchH = HEIGHT - 2 * pad;
-const ramp = [
-  [0, 32, 90, 126, 0],
-  [0.08, 48, 134, 166, 85],
-  [0.28, 69, 204, 175, 180],
-  [0.52, 182, 230, 88, 224],
-  [0.75, 255, 195, 73, 244],
-  [1, 255, 105, 49, 255],
-];
-function paintDensity(ctx, points) {
+// The map's colours are tokens.css's roles, read when it draws (ADR-0033): a pitch, dark in
+// both themes, and the activity ramp of the legend beside it. Density, never merit.
+const STOPS = [0, 0.08, 0.28, 0.52, 0.75, 1];
+const OPACITY = [0, 85, 180, 224, 244, 255];
+const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+function roles(canvas) {
+  const style = getComputedStyle(canvas),
+    read = (name) => style.getPropertyValue(name).trim();
+  return {
+    field: read('--map-field'),
+    stripe: read('--map-stripe'),
+    line: read('--pitch-line'),
+    spot: read('--pitch-text'),
+    zone: read('--map-zone'),
+    zoneEdge: read('--map-zone-edge'),
+    ramp: STOPS.map((stop, i) => [stop, ...channels(read(`--heat-${i}`)), OPACITY[i]]),
+  };
+}
+function paintDensity(ctx, points, ramp) {
   if (!points.length) return;
   const w = 150,
     h = 79,
@@ -44,8 +54,10 @@ function paintDensity(ctx, points) {
   lc.putImageData(img, 0, 0);
   ctx.drawImage(layer, pad, pad, pitchW, pitchH);
 }
-function markings(ctx) {
-  ctx.strokeStyle = '#dcece79c';
+function markings(ctx, colour) {
+  ctx.save();
+  ctx.globalAlpha = 0.61;
+  ctx.strokeStyle = colour.line;
   ctx.lineWidth = 1.8;
   ctx.strokeRect(pad, pad, pitchW, pitchH);
   ctx.beginPath();
@@ -61,16 +73,20 @@ function markings(ctx) {
     ctx.strokeRect(x, HEIGHT * 0.38, sign * pitchW * 0.059, HEIGHT * 0.24);
     ctx.beginPath();
     ctx.arc(x + sign * pitchW * 0.11, HEIGHT / 2, 2.5, 0, 2 * Math.PI);
-    ctx.fillStyle = '#dcece7b0';
+    ctx.globalAlpha = 0.69;
+    ctx.fillStyle = colour.line;
     ctx.fill();
+    ctx.globalAlpha = 0.61;
   }
+  ctx.restore();
 }
 export function draw(canvas, points, slot, roleMode) {
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#193c40';
+  const ctx = canvas.getContext('2d'),
+    colour = roles(canvas);
+  ctx.fillStyle = colour.field;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
   for (let i = 0; i < 10; i += 2) {
-    ctx.fillStyle = '#20464a';
+    ctx.fillStyle = colour.stripe;
     ctx.fillRect(pad + (i * pitchW) / 10, pad, pitchW / 10, pitchH);
   }
   if (roleMode && slot) {
@@ -80,22 +96,24 @@ export function draw(canvas, points, slot, roleMode) {
     ctx.beginPath();
     ctx.rect(pad, pad, pitchW, pitchH);
     ctx.clip();
-    ctx.fillStyle = '#b6a4ff69';
-    ctx.strokeStyle = '#dbceff';
+    ctx.fillStyle = colour.zone;
+    ctx.strokeStyle = colour.zoneEdge;
     ctx.setLineDash([7, 5]);
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(x, y, 62, 44, 0, 0, 2 * Math.PI);
+    ctx.globalAlpha = 0.41;
     ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = colour.spot;
     ctx.beginPath();
     ctx.arc(x, y, 6, 0, 2 * Math.PI);
     ctx.fill();
     ctx.restore();
-  } else paintDensity(ctx, points);
-  markings(ctx);
+  } else paintDensity(ctx, points, colour.ramp);
+  markings(ctx, colour);
 }
 export function readEvents(text) {
   const lines = text

@@ -23,7 +23,7 @@ function watch(page) {
 }
 
 async function openPlayer(page, query) {
-  await page.goto(BASE, { waitUntil: 'networkidle' });
+  await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
   await page.fill('#q', query);
   await page.waitForSelector('#results button[data-id]', { timeout: 10000 });
   await page.click('#results button[data-id]');
@@ -48,7 +48,7 @@ function bars(page, scope) {
 async function openProfile(page, player) {
   await page.fill('#q', player.name);
   await page.click(`#results button[data-id="${player.player_id}"]`);
-  await expect(page.locator('#profile h1')).toHaveText(player.name);
+  await expect(page.locator('#profile .phead h2')).toHaveText(player.name);
 }
 
 test.describe('player profile', () => {
@@ -101,7 +101,7 @@ test.describe('player profile', () => {
 
 test.describe('semantic invariants', () => {
   test('gold is never the warning colour', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     const { gold, warn } = await page.evaluate(() => {
       const s = getComputedStyle(document.documentElement);
       return { gold: s.getPropertyValue('--gold').trim(),
@@ -113,7 +113,7 @@ test.describe('semantic invariants', () => {
   });
 
   test('hero counts come from the registry', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     const counts = await page.evaluate(() =>
       fetch('/api/constructs').then(r => r.json()).then(d => d.counts));
     const hero = await page.locator('#hero').innerText();
@@ -127,7 +127,7 @@ test.describe('semantic invariants', () => {
 test.describe('comparison', () => {
   test('swapping the order does not change the interpretation', async ({ page }) => {
     const read = async (a, b) => {
-      await page.goto(BASE, { waitUntil: 'networkidle' });
+      await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
       await page.click('button[data-view="compare"]');
       const response = page.waitForResponse(r => r.url().includes('/api/compare?') && r.ok());
       for (const [sel, box, name] of [['#qa', '#ra', a], ['#qb', '#rb', b]]) {
@@ -194,7 +194,7 @@ test.describe('comparison', () => {
 
 test.describe('comparison marks', () => {
   test('each mark of a comparison sits by the line it marks', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     await page.click('button[data-view="compare"]');
     const answered = page.waitForResponse(r => r.url().includes('/api/compare?') && r.ok());
     for (const [sel, box, name] of [['#qa', '#ra', 'modric'], ['#qb', '#rb', 'kroos']]) {
@@ -220,7 +220,7 @@ test.describe('comparison marks', () => {
 
 test.describe('gated values', () => {
   test('explore never publishes a value the profile withholds', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     const leaked = await page.evaluate(async () => {
       const d = await fetch('/api/explore/chance_creation').then(r => r.json());
       return d.rows.filter(r => r.render_state === 'insufficient_signal').length;
@@ -234,7 +234,7 @@ test.describe('gated values', () => {
   // goalkeeper only. Every goalkeeper carries all three, as withheld rows: what none of
   // them carries is a point estimate.
   test('no goalkeeper carries a quality point estimate', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     const { keepers, bad } = await page.evaluate(async () => {
       const d = await fetch('/api/players?position=GK&limit=400').then(r => r.json());
       const bad = [];
@@ -259,7 +259,7 @@ test.describe('gated values', () => {
       async ({ page }) => {
         const errors = watch(page);
         await page.setViewportSize({ width, height: 900 });
-        await page.goto(BASE, { waitUntil: 'networkidle' });
+        await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
         const { keepers, shipped } = await page.evaluate(async () => ({
           keepers: (await fetch('/api/players?position=GK&limit=400').then(r => r.json())).players,
           shipped: (await fetch('/api/constructs').then(r => r.json())).shipped,
@@ -294,7 +294,7 @@ test.describe('gated values', () => {
         await page.fill('#q', keeper.name);
         await page.click(`#results button[data-id="${keeper.player_id}"]`);
         const profile = page.locator('#profile');
-        await expect(profile.locator('h1')).toHaveText(keeper.name);
+        await expect(profile.locator('.phead h2')).toHaveText(keeper.name);
         await expect(profile.locator('.insufficient')).toHaveCount(shipped.length);
         for (const construct of shipped) {
           const row = profile.locator('.card, .style-row')
@@ -387,7 +387,7 @@ test.describe('gated values', () => {
         const twoKeepers = await (await compared).json();
         const each = [keeper, second].map(k =>
           `${k.name}: ${served.find(r => r.name === k.name).reason}`).join(' ');
-        await expect(page.locator('#cmp h1')).toContainText(second.name);
+        await expect(page.locator('#cmp .phead h2')).toContainText(second.name);
         await expect(page.locator('#cmp .cmp')).toHaveCount(shipped.length);
         for (const line of await page.locator('#cmp .cmp .lang').allInnerTexts()) {
           expect(line).toBe(
@@ -413,7 +413,7 @@ test.describe('explore', () => {
   test('a style listing is drawn in the order served, on both sides of the reference',
     async ({ page }) => {
       const errors = watch(page);
-      await page.goto(BASE, { waitUntil: 'networkidle' });
+      await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
       await page.click('button[data-view="explore"]');
       await expect(page.locator('#explore-body .card').first()).toBeVisible();
 
@@ -481,7 +481,7 @@ test.describe('explore', () => {
     });
 
   test('a quality listing stays in order of value', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     const answered = page.waitForResponse(r => r.url().includes('/api/explore/') && r.ok());
     await page.click('button[data-view="explore"]');
     const reply = await (await answered).json();
@@ -503,7 +503,7 @@ test.describe('what a profile prints', () => {
   // read "estimator signal: limited" over "r = 0.70", the threshold.
   test('the number beside a signal is on the side of the threshold the signal names',
     async ({ page }) => {
-      await page.goto(BASE, { waitUntil: 'networkidle' });
+      await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
       // The outfield player with the fewest minutes who is shown a chance-creation number.
       const subject = await page.evaluate(async () => {
         const floor = (await fetch('/api/constructs').then(r => r.json())).shipped
@@ -540,7 +540,7 @@ test.describe('what a profile prints', () => {
 
   // The page wrote the sentence and put "th" after every number: "31th percentile".
   test('a percentile is printed with an English ordinal', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     const ordinal = n => {
       const teens = n % 100 >= 10 && n % 100 <= 20;
       return n + (teens ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
@@ -574,7 +574,7 @@ test.describe('what a profile prints', () => {
   for (const width of [1400, 390]) {
     test(`the channel bar names its channels at ${width} px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(BASE, { waitUntil: 'networkidle' });
+      await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
       const kroos = await page.evaluate(() => fetch('/api/players?q=kroos&limit=1')
         .then(r => r.json()).then(d => d.players[0]));
       await openProfile(page, kroos);
@@ -613,7 +613,7 @@ test.describe('in a browser whose own number format is not English', () => {
   test.use({ locale: 'de-DE' });
 
   test('a count of minutes reads as it does everywhere else', async ({ page }) => {
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
     expect(await page.evaluate(() => (1800).toLocaleString())).toBe('1.800');
     // An outfield player below the floor of the chance-creation estimator.
     const { subject, floor } = await page.evaluate(async () => {
@@ -647,7 +647,7 @@ test.describe('analysis formed from StatsBomb data', () => {
       async ({ page }) => {
         const errors = watch(page);
         await page.setViewportSize({ width, height: 900 });
-        await page.goto(BASE, { waitUntil: 'networkidle' });
+        await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
         const constructs = await page.evaluate(() => fetch('/api/constructs').then(r => r.json()));
         const credit = constructs.statsbomb_credit;
         await page.click('button[data-view="why"]');

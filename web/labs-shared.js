@@ -25,6 +25,9 @@
   const UNKNOWN_CLASS = 'UNKNOWN CLASS';
   const NO_VERDICT = 'Exact computation · no empirical claim';
   const CORPUS_ABSENT = 'historical corpus unavailable';
+  // What a reader sees when the server has no archive: the site script's sentence (web/site.js),
+  // which links the setup steps on a reader's own install; this one where it is not loaded.
+  const ARCHIVE_MISSING = "The 2017/18 archive isn't installed on this server.";
   const DASH = '—';
 
   const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -53,31 +56,6 @@
   const titled = token => String(token).charAt(0) + String(token).slice(1).toLowerCase().replace(/_/g, ' ');
   // A token is printed into a class name or an attribute only when it is a plain word.
   const word = v => (typeof v === 'string' || typeof v === 'number') && /^[A-Za-z0-9_-]+$/.test(String(v)) ? String(v) : '';
-  // A destination is a path on this origin. Anything else is not followed.
-  const path = v => typeof v === 'string' && /^\/(?!\/)/.test(v) ? v : '#';
-
-  /* 1.1 Navigation, from the server's destination list.
-     items: [{dest, href, label, sr_prefix?, sr_suffix?, group?, current?}].
-     current: the dest of the page being shown (or an item's own current: true). */
-  function nav(items, current) {
-    let previous = null, out = '';
-    for (const item of list(items)) {
-      if (!item || typeof item !== 'object') continue;
-      const dest = word(item.dest ?? item.id ?? item.key);
-      const group = item.group ?? null;
-      if (out && group !== previous) out += '<span class="nav-sep" aria-hidden="true"></span>';
-      previous = group;
-      const here = item.current === true || (current != null && dest !== '' && dest === String(current));
-      const before = text(item.sr_prefix) ? `<span class="sr-only">${esc(item.sr_prefix)}</span>` : '';
-      const after = text(item.sr_suffix) ? `<span class="sr-only">${esc(item.sr_suffix)}</span>` : '';
-      out += `<a href="${esc(path(item.href ?? item.url))}" data-dest="${esc(dest)}"${here ? ' aria-current="page"' : ''}>${before}${esc(item.label ?? item.short ?? dest)}${after}</a>`;
-    }
-    return `<nav aria-label="Laboratories" data-nav="v2">${out}</nav>`;
-  }
-
-  function header(items, current) {
-    return `<a class="brand" href="/">GALÁCTICO</a><span class="lab-tag">Historical LAB</span>${nav(items, current)}`;
-  }
 
   /* 1.3 Evidence-class badge: a position on the seven-rung ladder. */
   function evidenceClassName(e) {
@@ -206,7 +184,8 @@
 
   function errorText(thing, error) {
     const detail = error instanceof Error ? error.message : String(error ?? '');
-    if (error?.status === 503 || detail === CORPUS_ABSENT) return `${esc(detail)} Run the Pappalardo fetch and ingest.`;
+    // Any 503 is the archive missing. The server's detail is written for whoever runs it.
+    if (error?.status === 503 || detail === CORPUS_ABSENT) return root.Site ? root.Site.archiveMissing() : esc(ARCHIVE_MISSING);
     return `${esc(thing)} unavailable: ${esc(detail)}`;
   }
 
@@ -219,7 +198,6 @@
 
   root.Shell = Object.freeze({
     esc, num, pct, api,
-    nav, header,
     evidenceBadge, evidenceInputs,
     verdictBadge, verdictLines, mayGate,
     cannotSay, notMeasured, ledger,

@@ -1,119 +1,17 @@
-@font-face {
-  font-family: DM Sans;
-  src: url('/static/assets/type/dm-sans.woff2') format('woff2');
-  font-weight: 100 900;
-  font-display: swap;
-}
-@font-face {
-  font-family: Barlow Condensed;
-  src: url('/static/assets/type/barlow.woff2') format('woff2');
-  font-weight: 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: Barlow Condensed;
-  src: url('/static/assets/type/barlow-italic.woff2') format('woff2');
-  font-weight: 800;
-  font-style: italic;
-  font-display: swap;
-}
-:root {
-  --navy: #151937;
-  --violet: #513ade;
-  --muted: #586178;
-  --rule: #dadde0;
-  --cream: #f6f6f1;
-  color-scheme: light;
-}
-* {
-  box-sizing: border-box;
-}
+/* The frame of the current-season pages (Matches, Table, the scouting page and the lineup
+   studio), written before the design system: in the legacy layer (tokens.css declares the
+   order). It holds no colour: the page, the text, links, focus and the read-only utilities are
+   base.css's, and the frame is the shell's own width, so the page lines up with the header. */
+@layer legacy{
 body {
-  margin: 0;
-  background: var(--cream);
-  color: var(--navy);
-  font:
-    15px/1.45 'DM Sans',
-    system-ui,
-    sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
 }
 .frame {
-  width: min(1320px, 100%);
-  padding: 0 clamp(16px, 4vw, 62px);
-  margin: auto;
-}
-.mast {
-  background: #171935;
-  color: #fff;
-  border: 0;
-}
-.mast-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 28px;
-  min-height: 62px;
-}
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: white;
-  text-decoration: none;
-  font:
-    italic 800 30px/1 'Barlow Condensed',
-    sans-serif;
-  letter-spacing: -0.025em;
-  text-transform: uppercase;
-}
-.brand-mark {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border: 2px solid #c4ff81;
-  transform: skew(-9deg);
-  border-radius: 7px 1px;
-  color: #c4ff81;
-  font:
-    italic 800 25px/1 'Barlow Condensed',
-    sans-serif;
-}
-.mast nav {
-  align-self: stretch;
-  display: flex;
-  gap: clamp(12px, 2.5vw, 32px);
-  align-items: stretch;
-  flex-wrap: nowrap;
-}
-.mast nav a {
-  position: relative;
-  align-content: center;
-  text-decoration: none;
-  color: #c3c5d6;
-  font:
-    600 0.92rem/1.1 'DM Sans',
-    sans-serif;
-  white-space: nowrap;
-  padding: 12px 0;
-}
-.mast nav a[aria-current],
-.mast nav a:hover {
-  color: white;
-}
-.mast nav a[aria-current]::after {
-  content: '';
-  height: 3px;
-  background: #c6ff7e;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-}
-button,
-input,
-select {
-  font: inherit;
+  width: 100%;
+  max-width: var(--frame);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
 }
 button,
 select {
@@ -123,47 +21,4 @@ button:disabled {
   opacity: 0.5;
   cursor: default;
 }
-a {
-  color: var(--violet);
-  text-underline-offset: 3px;
-}
-:focus-visible {
-  outline: 3px solid #8472ef;
-  outline-offset: 3px;
-}
-[hidden] {
-  display: none !important;
-}
-.sr {
-  position: absolute;
-  clip-path: inset(50%);
-  height: 1px;
-  width: 1px;
-  overflow: hidden;
-}
-@media (max-width: 670px) {
-  .mast-inner {
-    min-height: 0;
-    align-items: flex-start;
-    gap: 6px;
-    flex-direction: column;
-    padding-top: 12px;
-  }
-  .brand {
-    font-size: 24px;
-  }
-  .brand-mark {
-    width: 25px;
-    height: 25px;
-    font-size: 20px;
-  }
-  .mast nav {
-    gap: clamp(12px, 4vw, 24px);
-    min-height: 38px;
-    overflow: auto;
-  }
-  .mast nav a {
-    font-size: 0.8rem;
-    padding: 8px 0 11px;
-  }
 }

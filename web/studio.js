@@ -313,6 +313,8 @@ function paint() {
   $('role').setAttribute('aria-pressed', String(role));
   $('action-label').hidden = role || !pts.length;
   $('density-scale').hidden = role || !filtered.length;
+  // The page's chip says 2026/27; a sample drawn from the archive says its own season.
+  $('map-season').hidden = role || !sample || Boolean(sample.imported);
   $('map-detail').replaceChildren();
   if (role) {
     $('sample').textContent = slot.role + ' · Planned position';

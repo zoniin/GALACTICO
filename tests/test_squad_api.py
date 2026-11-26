@@ -171,9 +171,10 @@ def test_page_and_catalogue_read_no_data_and_pass_the_copy_guard(client, thesis_
     page = client.get("/squad")
     assert page.status_code == 200
     html = page.text
-    assert shell.nav_markup("squad") in html
-    assert "<title>Galáctico — Squad Lab</title>" in html
-    assert "<h1>Depth is a count.<br>Not a verdict.</h1>" in html
+    # The site shell: Squad & signings is the current destination, and its link is this page.
+    assert '<a href="/squad" data-nav="squad" aria-current="page">' in html
+    assert "<title>Squad depth · Squad &amp; signings · Galáctico</title>" in html
+    assert "<h1>Where is cover thin?</h1>" in html
     assert "<ol" not in html
     order = [html.index(name) for name in ("/static/labs.css", "/static/labs-shared.css",
              "/static/planning.css", "/static/labs-shared.js", "/static/planning.js")]

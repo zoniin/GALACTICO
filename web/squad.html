@@ -1,37 +1,39 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Galáctico — Squad Lab</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><!--shell:head-->
 <link rel="stylesheet" href="/static/labs.css"><link rel="stylesheet" href="/static/labs-shared.css"><link rel="stylesheet" href="/static/planning.css">
 <style>
 /* Squad Lab only. Tokens are labs.css's. Gold marks the selected player: his marks on the depth
-   pitch, his name in the depth list, the square of his row. One exception is not his: the
-   keyboard focus ring of labs.css (:focus-visible, a 2px gold outline) on whichever control
-   has the focus. A mark on the depth pitch draws its own focus in the text colour instead. */
+   pitch, his name in the depth list, the square of his row. The keyboard focus ring is no
+   exception any more: labs.css draws no :focus-visible of its own, so a focused control takes
+   base.css's two-tone ring, which is never gold. A mark on the depth pitch draws a focus ring of
+   its own, the same two tones around the mark (labs.css), never its chalk or its gold. */
+@layer legacy{
 .depth-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);gap:2.5rem}
 .depth .depth-mark{cursor:pointer}
-.depth .depth-mark circle{fill:var(--surface);stroke:#abb4ac;stroke-width:.5}
-.depth .depth-mark line{stroke:#abb4ac;stroke-width:.45}
-.depth .depth-mark.below-gate circle{fill:none;stroke:var(--chalk);stroke-width:.45;stroke-dasharray:.8 .7}
-.depth .depth-mark.excluded circle{fill:none;stroke:var(--chalk);stroke-width:.45}
-.depth .depth-mark.excluded line{stroke:var(--chalk)}
+.depth .depth-mark circle{fill:var(--surface);stroke:var(--chalk);stroke-width:.5}
+.depth .depth-mark line{stroke:var(--chalk);stroke-width:.45}
+.depth .depth-mark.below-gate circle{fill:none;stroke:var(--muted);stroke-width:.45;stroke-dasharray:.8 .7}
+.depth .depth-mark.excluded circle{fill:none;stroke:var(--muted);stroke-width:.45}
+.depth .depth-mark.excluded line{stroke:var(--muted)}
 .depth .depth-mark.selected circle{stroke:var(--gold)}
 .depth .depth-mark.available.selected circle{fill:var(--gold)}
-.depth .depth-mark:focus-visible{outline:none}
-.depth .depth-mark:focus-visible circle{stroke:var(--text);stroke-width:1}
+/* A phone: the slots are named in the list beside the pitch, not on it, where 12 px names would run into each other. */
+@media(max-width:640px){.depth .slot-label{display:none}}
 .depth text{fill:var(--muted);paint-order:stroke;stroke:var(--surface);stroke-width:.9px;stroke-linejoin:round}.depth .slot-label{fill:var(--text)}
 #depth-list{list-style:none;margin:0;padding:0}
 #depth-list>li{padding:.75rem 0;border-bottom:1px solid var(--line);min-width:0;overflow-wrap:anywhere}
-.slot-name{font:normal 1.05rem var(--serif);margin-right:.6rem}
-.slot-count{font:10px var(--mono);letter-spacing:.06em;color:var(--muted)}
+.slot-name{font-size:1.05rem;font-weight:600;margin-right:.6rem}
+.slot-count{font-size:12px;color:var(--muted)}
 .depth-names{display:flex;flex-wrap:wrap;gap:.1rem 1rem;margin:.3rem 0 .1rem}
 button.depth-name{background:none;border:0;padding:.3rem 0;font:inherit;text-align:left;max-width:100%;overflow-wrap:anywhere;text-decoration:underline dotted var(--chalk);text-underline-offset:4px}
-button.depth-name.selected{color:var(--gold)}
-.depth-line{font:11px/1.7 var(--mono);color:var(--muted)}
+button.depth-name.selected{background:var(--gold);color:var(--on-selected);box-shadow:0 0 0 1px var(--selected-edge);padding-inline:.3rem}
+.depth-line{font-size:13px;line-height:1.6;color:var(--muted)}
 .thin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 2rem;margin:.4rem 0 1rem}
 .thin{border-top:1px solid var(--chalk);padding:.8rem 0 0;min-width:0;overflow-wrap:anywhere}
-.thin-figure{font:normal 2.1rem/1.1 var(--serif);margin:.5rem 0 .2rem;font-variant-numeric:tabular-nums}
+.thin-figure{font:700 2.4rem/1.1 var(--font-display);margin:.5rem 0 .2rem;font-variant-numeric:tabular-nums}
 .thin-figure .arrow{color:var(--muted);font-size:1.3rem;padding:0 .35rem}
-.thin-caption{font:10px/1.6 var(--mono);letter-spacing:.05em;color:var(--muted);text-transform:uppercase}
-.thin p{font-size:12px;color:var(--muted);margin:.6rem 0 0}
+.thin-caption{font-size:12px;line-height:1.5;font-weight:600;color:var(--muted)}
+.thin p{font-size:13px;color:var(--muted);margin:.6rem 0 0}
 .thin .depth-line{margin-top:.5rem}
 .ref-strip{display:block;width:100%;max-width:640px;height:auto;margin:.6rem 0 .2rem}
 .ref-strip text{font-family:var(--mono);fill:var(--muted)}
@@ -41,28 +43,29 @@ button.depth-name.selected{color:var(--gold)}
 .ref-strip .club{fill:none;stroke:var(--muted);stroke-width:1}
 .ref-strip .minimum{stroke:var(--text);stroke-width:1.25}
 .ref-strip .minimum-label{fill:var(--text)}
-.ref-rows{list-style:none;margin:.3rem 0 .6rem;padding:0;font:11px/1.9 var(--mono);color:var(--muted)}
+.ref-rows{list-style:none;margin:.3rem 0 .6rem;padding:0;font-size:12px;line-height:1.8;font-variant-numeric:tabular-nums;color:var(--muted)}
 .ref-rows li{display:grid;grid-template-columns:2.6rem 5.2rem minmax(0,1fr);gap:.6rem;overflow-wrap:anywhere}
-.player-facts{font:11px/1.9 var(--mono);color:var(--muted);margin:0 0 .8rem;overflow-wrap:anywhere}
-.player-lines{list-style:none;margin:0 0 1rem;padding:0;font-size:12px}
+.player-facts{font-size:13px;line-height:1.7;color:var(--muted);margin:0 0 .8rem;overflow-wrap:anywhere}
+.player-lines{list-style:none;margin:0 0 1rem;padding:0;font-size:13px}
 .player-lines li{padding:.45rem 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .player-lines .label{display:block;margin-bottom:.15rem}
 .level{border-top:1px solid var(--chalk);margin-top:1.6rem;padding-top:1rem}
 .level h3{margin-bottom:.3rem}
-.level h4{font:11px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text);margin:1.4rem 0 .4rem}
-.level-note{font-size:12px;color:var(--muted);margin:.2rem 0;overflow-wrap:anywhere}
+.level h4{font-size:14px;font-weight:700;color:var(--text);margin:1.4rem 0 .4rem}
+.level-note{font-size:13px;color:var(--muted);margin:.2rem 0;overflow-wrap:anywhere}
 #brief-leagues{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:0 1.2rem;min-width:0}
 #brief-leagues legend{padding:0;margin-bottom:.4rem}
 #brief-leagues label{display:inline-flex;align-items:center;gap:.5rem;min-height:44px}
 #brief-leagues input,#stress-confirm input{width:auto}
-#stress-confirm{margin:.2rem 0 .6rem;font-size:12px}
+#stress-confirm{margin:.2rem 0 .6rem;font-size:13px}
 .statement{max-width:95ch;overflow-wrap:anywhere}
 .error.statement{margin:.6rem 0}
 @media(max-width:1100px){.depth-split{grid-template-columns:minmax(0,1fr);gap:1rem}}
 @media(max-width:850px){.thin-grid{grid-template-columns:minmax(0,1fr)}.ref-rows li{grid-template-columns:2.4rem 4.6rem minmax(0,1fr)}}
+}
 </style></head>
-<body><header><a class="brand" href="/">GALÁCTICO</a><span class="lab-tag">Historical LAB</span><nav aria-label="Laboratories" data-nav="v2"><a href="/" data-dest="player">Player<span class="sr-only"> Lab</span></a><a href="/match" data-dest="match">Match<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/xi" data-dest="xi">XI<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/squad" data-dest="squad" aria-current="page">Squad<span class="sr-only"> Lab</span></a><a href="/transfer" data-dest="transfer">Transfer<span class="sr-only"> Lab</span></a></nav></header>
-<main><div class="eyebrow" id="eyebrow">Planning snapshot · explicit requirement model</div><h1>Depth is a count.<br>Not a verdict.</h1>
+<body><!--shell:header-->
+<main id="main"><div class="eyebrow" id="eyebrow">Planning snapshot · explicit requirement model</div><h1>Where is cover thin?</h1>
 <p class="lede">Audit a squad at a planning date against minima you declare: who is eligible where, what made the cover thin, and what changes when players are absent. Every figure is conditional on the eligibility rules, the 900-minute evidence gate and the matches played before the cutoff.</p>
 <div id="scope-slot"></div>
 <div class="toolbar"><label class="control wide"><span class="label">Planning point</span><select id="scenario" aria-label="Planning point" disabled></select></label><label class="control"><span class="label">Role-slot template</span><select id="formation" aria-label="Role-slot template" disabled></select></label><button id="audit" disabled>Audit the squad</button></div>
@@ -135,9 +138,9 @@ button.depth-name.selected{color:var(--gold)}
 
 <section class="panel" aria-labelledby="ledger-title"><h2 id="ledger-title">Evidence ledger</h2><div id="ledger-slot"></div></section>
 </div>
-<div id="not-measured-slot"></div>
+<details class="ui-disclosure" id="not-measured-more"><summary>What this page does not measure, and why</summary><div id="not-measured-slot"></div></details>
 <footer class="provenance">Requirement sums are model inputs added under an unchanged-deployment assumption, not team output. Nothing on this page says which player to keep, sell or sign. Historical Pappalardo/Wyscout data, CC BY 4.0. <a href="https://doi.org/10.6084/m9.figshare.c.4415000">Dataset and attribution</a>.</footer>
-</main>
+</main><!--shell:footer-->
 <script src="/static/labs-shared.js"></script><script src="/static/planning.js"></script>
 <script>
 /* Squad Lab. The page holds state, attaches handlers and places what the server sent. Every
@@ -247,7 +250,7 @@ function depthPitch(reply, selected) {
       let extra = '';
       if (raises) extra = `<line x1="${(+cx - 1.1).toFixed(2)}" y1="${(+cy + 2.4).toFixed(2)}" x2="${(+cx + 1.1).toFixed(2)}" y2="${(+cy + 2.4).toFixed(2)}"/>`;
       if (kind === 'excluded') extra = `<line x1="${(+cx - 1.1).toFixed(2)}" y1="${(+cy + 1.1).toFixed(2)}" x2="${(+cx + 1.1).toFixed(2)}" y2="${(+cy - 1.1).toFixed(2)}"/>`;
-      marks += `<g class="depth-mark ${kind}${p.player_id === selected ? ' selected' : ''}" data-player="${p.player_id}" data-slot="${esc(slot.slot_id)}" data-pinned="${esc(status)}" tabindex="0" role="button" aria-label="${esc(label)}"><title>${esc(label)}</title><rect x="${(+cx - 1.9).toFixed(2)}" y="${(+cy - 1.9).toFixed(2)}" width="3.8" height="3.8" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="1.6"/>${extra}</g>`;
+      marks += `<g class="depth-mark ${kind}${p.player_id === selected ? ' selected' : ''}" data-player="${p.player_id}" data-slot="${esc(slot.slot_id)}" data-pinned="${esc(status)}" tabindex="0" role="button" aria-label="${esc(label)}"><title>${esc(label)}</title><rect x="${(+cx - 1.9).toFixed(2)}" y="${(+cy - 1.9).toFixed(2)}" width="3.8" height="3.8" fill="transparent"/><circle cx="${cx}" cy="${cy}" r="1.6"/>${extra}${Site.focusRing(cx, cy, 2.3)}</g>`;
     });
     const a = list(slot.available).length, b = list(slot.below_gate).length, e = list(slot.excluded).length;
     marks += `<text x="${ax}" y="${(ay + Math.max(rows, 1) * 3.8 + 2.2).toFixed(2)}" font-size="2.1" text-anchor="middle" data-slot-count="${esc(slot.slot_id)}">${a}${b ? ' +' + b : ''}${e ? ' −' + e : ''}</text>`;

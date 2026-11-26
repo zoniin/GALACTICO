@@ -128,11 +128,11 @@ reported to the root, never repaired here.
 
 ### 0.4 Owned by the root, changed only by request (section 11)
 
-`galactico/api/player_lab.py` (router registration), `galactico/api/shell.py` (two
-destinations), `web/labs-shared.js` (no change needed: `Shell.nav` already takes `sr_suffix` per
-item, labs-shared.js:62-76), `web/labs-shared.css` (only if the 320 px nav measurement needs it),
-the four pages that carry the nav (`web/match.html`, `web/xi.html`, `web/squad.html`,
-`web/transfer.html`) and `web/index.html`, the tests that pin the nav, `.github/workflows/ci.yml`,
+`galactico/api/player_lab.py` (router registration), `galactico/site_nav.py` (the two pages and
+their place in the site navigation; amended by ADR-0033, which replaced the lab nav of
+`galactico/api/shell.py`, the nav blocks of the four lab pages and Player Lab's own nav with the
+site shell), `web/components.css` (only if the 320 px tab bar measurement needs it), the tests that
+pin the nav, `.github/workflows/ci.yml`,
 `galactico/api/runtime.py` (one optional change: the source fingerprint), `galactico/api/planning.py`
 wording that the E-10 commits change (section 11), every top-level `*.md`, `ROOT-DECISIONS.md`,
 `docs/research/north-star/README.md`.
@@ -1379,14 +1379,15 @@ element touched, loadable by the node render harness without touching `document`
 `mount(root)`, the controller, which sends requests through `Shell.api` and discards a reply
 whose request version is not the latest.
 
-Nav (a root edit, section 11): `Destination("opponent", "/opponent", "Opponent", "matchday")`
-after XI, and `Destination("desk", "/desk", "Desk", "desk")` last, in a group of its own, so the
-separators read evidence | matchday | planning | desk. The screen-reader suffix " Lab" becomes a
-field of `Destination` (`sr_suffix`, default `" Lab"`; the desk's `" (Director’s desk)"`, written
-with U+2019 and no ASCII apostrophe, because `Shell.esc` writes `'` as `&#39;`, labs-shared.js:30,
-and the kit and the server must draw byte-identical navs, tests/test_shell_payloads.py:59-79), so
-the five shipped links keep their bytes and the desk does not read "Desk Lab". `Shell.nav` already
-takes `sr_suffix` per item.
+Nav (a root edit, section 11; amended by ADR-0033). The lab nav this paragraph first described
+(`shell.DESTINATIONS`, its separators and `Shell.nav`) no longer exists: every page is served
+inside the site shell (`galactico/site_nav.py`), whose navigation has five job-based destinations
+(Matches, Table, Players, Lineup, Squad & signings). Opponent Lab joins it as a sixth item or
+under Matches, and the desk under the destination ADR-0032 names; each page holds the shell's
+three placeholders instead of a `<header>` of its own, and its `<title>` reads "Opponent Lab ·
+Galáctico" or "Director’s desk · Galáctico". Where this section names `labs.css` or a `lab-tag`,
+the design system of ADR-0033 applies (`tokens.css`, `base.css`, `components.css`, with the
+labs' sheets in the `legacy` layer).
 
 ### 7.2 `/opponent`
 
@@ -1679,15 +1680,14 @@ The reviewer signs each line before the root registers the routers.
 | File | Change |
 |---|---|
 | `galactico/api/player_lab.py` | after `app.include_router(xi_extensions_router)` (player_lab.py:61): `from .opponent_lab import router as opponent_router` and `from .desk import router as desk_router` with the other imports, then `app.include_router(opponent_router)` and `app.include_router(desk_router)`. Both import nothing heavy at import (8.1) |
-| `galactico/api/shell.py` | `Destination` gains `sr_suffix: str = " Lab"`, and `nav_markup` writes `f'<span class="sr-only">{destination.sr_suffix}</span>'` only when it is non-empty (the five shipped links keep their bytes); `DESTINATIONS` gains `Destination("opponent", "/opponent", "Opponent", "matchday")` after XI and `Destination("desk", "/desk", "Desk", "desk", sr_suffix=" (Director’s desk)")` last, with U+2019 (7.1); the module docstring's "Five destinations ship" becomes seven. In the same commit as the two routers and ADR-0032 (N7), never before (a nav link to a missing page is a 404, shell.py:11-12) |
-| `web/match.html`, `web/xi.html`, `web/squad.html`, `web/transfer.html` | the nav block replaced by the new `nav_markup(dest)` bytes, nothing else (under N5's R13 override, R-4) |
-| `web/index.html` | two links in its own nav (index.html:189-199), `/opponent` and `/desk` (under N5's R13 override, R-4) |
-| `web/labs-shared.css` | only if the 320 px check of seven links and three separators overflows (labs-shared.css:8-11) |
-| tests that pin the nav | `tests/test_shell_payloads.py:30-42` (seven hrefs and dests, three separators, the visible text with "Opponent Lab" and "Desk (Director’s desk)", no `opponent`/`desk` exclusion), `:53-56` (parametrise with names that are still not destinations), `:59-79` (items carry `d.sr_suffix`); `tests/test_web_shell.py:19` (`PAGES` gains `opponent` and `desk`); `tests/test_xi_extensions_render.py:843-870` (`SHIPPED_XI_HTML` re-pinned after the nav edit: the five additive edits are unchanged); any e2e assertion that counts nav links. `tests/test_shell_render.py:312-369` builds its own five-item nav literal and is not edited |
+| `galactico/site_nav.py` (amended by ADR-0033, which replaced the lab nav of `galactico/api/shell.py` with the site shell) | `PAGES` gains `Page("opponent", "opponent.html", "/opponent", …, "archive", ("pappalardo",))` and `Page("desk", "desk.html", "/desk", …, "archive", ("pappalardo",))`. Opponent Lab joins the navigation as a sixth `NavItem` after Lineup or under Matches (its `nav` key `"matches"`), and the desk under the destination ADR-0032 names; ADR-0032 decides which, and the five shipped items keep their order and bytes. The nav lists a destination only when the app serves one of its routes, so the entries can land with the routers and never earlier (N7). In the same commit as the two routers and ADR-0032 |
+| `web/opponent.html`, `web/desk.html` | each holds `<!--shell:head-->`, `<!--shell:header-->` and `<!--shell:footer-->` and one `<main id="main">`, like every page of the site (7.1); no page carries a nav of its own, so `web/match.html`, `web/xi.html`, `web/squad.html`, `web/transfer.html` and `web/index.html` are not edited |
+| `web/components.css` | only if the 320 px check of the phone tab bar with a sixth item overflows |
+| tests that pin the nav | `tests/test_site_nav.py` (`test_five_destinations_in_one_order` and the nav order become six where Opponent Lab is an item; `test_a_destination_that_does_not_exist_has_no_nav_position` is parametrised with names that are still not destinations); `tests/test_web_shell.py` (every page file is a page of `site_nav.PAGES`); the shell test of `e2e/match-centre.spec.js` (the visible link texts and `SHELL_PAGES`). `SHIPPED_XI_HTML` is not re-pinned: `web/xi.html` carries no nav |
 | `.github/workflows/ci.yml:69` | add `e2e/opponent.spec.js e2e/desk.spec.js` to the playwright command (both branch on the registry state, 8.4) |
 | `galactico/api/runtime.py:331-342` and `tests/test_lab_runtime.py:399-408` (recommended) | `source_fingerprint` also hashes `models/opponent/*.py` and `features/team/*.py`, and the pinned set says so |
 | `galactico/api/planning.py` (E-10's registration commit, N6) | E-10's registration commit carries it: N6 rules (R-5) that PIPELINE 13's line for "the wording that names the registered protocols" covers it, and N2's edit names it in that line. The change: the `shots` item of `NOT_MEASURED_EXTRA` (planning.py:1439-1442), whose "No registered protocol tests one" is false once E-10 registers `conceded_shots_inside_box_share`, reworded, for example "No shot construct is shown on a planning page. E-11, registered and not run, compares only whether two providers agree on shot counts; E-10, registered, tests a team-level conceded shot share that no planning page shows." The desk serves `planning.not_measured()` and inherits the edit; its test compares with planning's list, not with the text |
-| `DECISIONS.md` | ADR-0032 "Opponent Lab and the Director's desk": Problem (ROOT 2.3's two surfaces unbuilt; KNOWN_LIMITATIONS "not implemented"), Decision (sections 1.7, 2.2, 3, 4.5, 6.3 and 6.4 of this file), the R13 override (ROOT 2.12 N5, ruling R-4: in the form of W8, overriding R13 for exactly the nav bytes of `web/index.html`, `match.html`, `xi.html`, `squad.html` and `transfer.html` and the pinned tests above; `d9bf28f`'s earlier nav edit for Squad and Transfer Lab recorded as the same kind of edit, made without naming R13), Evidence (the oracle, parity and loader tests, the measured times and memory of 8.5), Alternatives rejected (a record before E-10's run; a record in a window E-10 does not register; a second estimator; a proposal with default thresholds; comparing two parts of a record; an acceptance not bound to the proposal shown; client-side composition of the desk; the desk showing descriptors or forming proposals; carrying declarations across pages by URL), Relation to ADR-0018, ADR-0019, ADR-0024; and, at E-10's results commit, a note with the record and proposal routes' measured times |
+| `DECISIONS.md` | ADR-0032 "Opponent Lab and the Director's desk": Problem (ROOT 2.3's two surfaces unbuilt; KNOWN_LIMITATIONS "not implemented"), Decision (sections 1.7, 2.2, 3, 4.5, 6.3 and 6.4 of this file), the R13 override (ROOT 2.12 N5, ruling R-4: in the form of W8, overriding R13 for exactly the site navigation entries of `site_nav.py` and the pinned tests above, as amended by ADR-0033; `d9bf28f`'s earlier nav edit for Squad and Transfer Lab recorded as the same kind of edit, made without naming R13), Evidence (the oracle, parity and loader tests, the measured times and memory of 8.5), Alternatives rejected (a record before E-10's run; a record in a window E-10 does not register; a second estimator; a proposal with default thresholds; comparing two parts of a record; an acceptance not bound to the proposal shown; client-side composition of the desk; the desk showing descriptors or forming proposals; carrying declarations across pages by URL), Relation to ADR-0018, ADR-0019, ADR-0024; and, at E-10's results commit, a note with the record and proposal routes' measured times |
 | `KNOWN_LIMITATIONS.md` | "Product scope" (:418-422): Opponent Lab and the desk are implemented, with what they are; "The tag sidecar holds facts, and nothing has read it yet" (:271-283): Opponent Lab reads cards, own goals, goals and the sheet's dismissals, after `verify`, once E-10 has run; new entries: the record is withheld until E-10 has run (1.7); S3, S4 and S5 are withheld until E-09 is registered (N4); one window, E-10's; a record is not adjusted for opponents or strength and cannot tell funnelling from failing to close (H14); a proposal is a declared HEURISTIC policy; the per-match chain exists at two Madrid decision points only; the desk's per-match chain takes a decision point and a mode, and minima, locks, exclusions, proposals, the frontier and the risk modes are declared on Opponent Lab and XI Lab; the desk page offers presets, the opt-in, the formation, the slot, stress and leagues, and requirement declarations, exclusions, locks and filters are declared on Squad and Transfer Lab; the desk is sequential, can take its budget plus one build per part that starts cold, and holds two of the sixteen places; a league without a built sidecar has no record (CI builds Spain only) |
 | `README.md`, `ARCHITECTURE.md` | the three model modules, the two routers and the six web files in the module tables; the two labs in the product list |
 | `docs/research/north-star/README.md` | a row for this file: draft, revised after three reviews, its root questions ruled (ROOT 2.12), not audited, nothing built |
@@ -1803,7 +1803,9 @@ differ, 2.12 wins.
   ADR-0032 overrides R13 for exactly those nav bytes and the pinned tests section 11 names, in the
   form of W8 ("overriding R13 ... and that commit carries an ADR naming them"). `d9bf28f`'s
   earlier nav edit for Squad and Transfer Lab is recorded there as the same kind of edit, made
-  without naming R13 (5.8, section 11's ADR-0032 row).
+  without naming R13 (5.8, section 11's ADR-0032 row). *Amended by ADR-0033:* the pages no longer
+  carry nav bytes. The edit is now the two pages' entries in `site_nav.py` and the nav tests of
+  section 11, and `SHIPPED_XI_HTML` is not re-pinned for it.
 - **R-5. Planning's `shots` item** (section 11): whether PIPELINE 13's planning wording line
   covers the rewording at E-10's registration. **N6 RULED.** It does: E-10 PIPELINE 13's line for
   "the wording that names the registered protocols" covers rewording planning's `shots` item at

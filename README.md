@@ -2,6 +2,27 @@
 
 An open football decision laboratory.
 
+## One app, five places
+
+Every page is one site with one header, one navigation and one design system, light by
+default with a dark theme (ADR-0033). The navigation lists the same five places in the same
+order on every page, and on a phone it is a tab bar at the bottom of the screen:
+
+| Place | Current season (2026/27) | 2017/18 archive (local, with the corpus) |
+|---|---|---|
+| **Matches** | `/` and `/match-centre`: fixtures, results and match reports | `/match`: Match Lab |
+| **Table** | `/match-centre/leagues`: tables and club schedules | — |
+| **Players** | `/match-centre/scouting`: goals by opponent | `/player`: Player Lab |
+| **Lineup** | `/lineup`: the lineup studio | `/xi`: XI Lab |
+| **Squad & signings** | — | `/squad` and `/transfer`: Squad Lab and Transfer Lab |
+
+A chip in every page header says which season the page's numbers come from. The hosted site
+serves the current-season pages and lists only those; the local app serves both columns. The
+footer of every page links **About the numbers** (`/about`): the data sources and licences of
+the pages the app serves and, on the local app, why only five measures survive, the evidence
+classes, the verdict registry and what is not measured. Old links keep working: `/?player=`
+opens Player Lab at `/player`, and `/?day=` and `/?match=` open the match board.
+
 ## Lineup studio
 
 [Open the squad builder](https://galactico-sandy.vercel.app/lineup) to edit Madrid’s current XI.
@@ -50,8 +71,9 @@ required. Switch the source to **API-Football** for match clocks, events, lineup
 team and player totals. Today’s board and open report refresh every minute while visible.
 The private server binds to loopback. The regular lab server also serves the public
 scoreboard at `/match-centre`.
-The hosted home page opens the lineup studio. The public match centre remains at
-`/match-centre` and accepts existing fixture links. A local installation reads the subscription key for private match reports.
+The home page of every app is the match board (`/`, the same page as `/match-centre`), and it
+accepts existing fixture links. The lineup studio is at `/lineup`. A local installation reads
+the subscription key for private match reports; the source control appears only there.
 [API-Football documentation](https://www.api-football.com/documentation-v3)
 
 **Scouting** shows Madrid’s scoring and conceding rates against the rest of La Liga
@@ -63,8 +85,8 @@ opposition. Candidates are listed from the selected club’s actual player repor
 The screen shows observed minutes, missing coverage, the Madrid rate and each gap.
 It ranks players on one selected need and applies no assumed league-strength bonus.
 
-The **Scouting demo** in the navigation preserves the interactive Madrid midfield
-comparison and transfer shortlist. It uses explicitly invented figures.
+The former scouting demo, which printed invented figures beside real players' names, is
+removed (ADR-0033); its old address opens the match centre.
 
 ## Historical decision labs
 
@@ -215,7 +237,8 @@ uv run python scripts/prepare_planning.py
 uv run uvicorn galactico.api.player_lab:app --host 127.0.0.1 --port 8090
 ```
 
-Open `http://127.0.0.1:8090/`, `/match?id=2565907`, `/xi`, `/squad` or `/transfer`.
+Open `http://127.0.0.1:8090/player`, `/match?id=2565907`, `/xi`, `/squad` or `/transfer`
+(`/` is the current-season match board on this app too).
 Four labs run on Spain alone (`fetch_pappalardo.py --only Spain`, then
 `prepare_lab.py`). Transfer Lab needs all five leagues, because a candidate's club
 is the club of his latest appearance in any of them; without them it answers 503,

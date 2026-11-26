@@ -37,13 +37,13 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict
-from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, Response
 from pydantic import Field
 
+from .. import site_nav
 from ..domain.precision import format_plain
 from ..domain.provenance import EvidenceClass
 from . import planning, runtime, shell
@@ -73,8 +73,6 @@ __all__ = [
 ]
 
 router = APIRouter(route_class=DecisionRoute)
-
-PAGE = Path(__file__).resolve().parents[2] / "web" / "squad.html"
 
 LIST_CAP = 40
 """Most entries of one list of absence sets or placements that a response carries."""
@@ -562,9 +560,9 @@ def _baseline(status: str, objective: Sequence[float] | None) -> dict:
 # ------------------------------------------------------------------------------- pages
 
 
-@router.get("/squad", include_in_schema=False)
-def squad_page() -> FileResponse:
-    return FileResponse(PAGE)
+@router.get("/squad", include_in_schema=False, response_class=HTMLResponse)
+def squad_page(request: Request) -> str:
+    return site_nav.page(request, "squad")
 
 
 @router.get("/api/squad/scenarios")

@@ -27,9 +27,9 @@ test('Match Lab renders actual events, pitch maps and a vector without a rating'
   await expect(dismissed).toContainText('unavailable');
   await expect(dismissed).not.toContainText('98′');
   const keys = await page.locator('#timeline li').count();
-  await page.getByRole('button', { name: 'TACTICAL', exact: true }).click();
+  await page.getByRole('button', { name: 'Tactical', exact: true }).click();
   expect(await page.locator('#timeline li').count()).toBeGreaterThan(keys);
-  await page.getByRole('button', { name: 'xT VALUE', exact: true }).click();
+  await page.getByRole('button', { name: 'xT value', exact: true }).click();
   await expect(page.locator('#network-note')).toContainText('xT gain');
   const player = page.locator('#players button').last();
   const name = await player.textContent();

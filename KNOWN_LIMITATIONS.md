@@ -431,6 +431,39 @@ to the server's sentence in a comparison. For the
   goalkeeper's row can also be had by subtraction: in all 76 team rows the
   completed passes equal the sum of the player rows, and a team row is not gated.
 
+## Pages that moved or were removed (ADR-0033)
+
+- Player Lab moved from `/` to `/player`. On the local app an old link to `/` with `?player=`
+  or `?view=` answers 308 (permanent) to `/player` with the same query; a bare `/` now opens the match
+  board. Player Lab still keeps the chosen view and player out of the URL, so a link to
+  `/player` opens the default view.
+- The hosted site's `/` was the lineup studio; it is now the match board, as on the local app.
+  The studio is at `/lineup`. The hosted site serves no archive page, so an old link to `/`
+  with `?player=` opens the match board there rather than a 404.
+- The scouting demo (`/match-centre/demo`, `web/matchroom-demo.html`) is removed: it printed
+  invented figures beside real players' names. Its address answers 308 (permanent) to `/match-centre`, and
+  `/static/matchroom-demo.html` is a 404. Nothing replaces its transfer shortlist on the
+  current-season side.
+- The labs keep their layout under the new look: the sheets were re-pointed at the design
+  system, not rewritten, so their pages are not yet answer first, and the 12 px type made them
+  longer. Squad and Transfer close their "not measured" panel on arrival; the evidence ledger,
+  absence stress, the provenance record and XI Lab's extensions are still open, so Squad Lab at
+  390 px is about 22,000 px tall and XI Lab about 7,400. Collapsing them, and a size gate in the
+  e2e suite (it would fail today), are the page groups' work (ADR-0033). Player Lab's five
+  views each keep their own `h1` (one is shown at a time); their wording is the page group's.
+- A label drawn in an SVG is kept at 12 px on screen by `web/site.js`, which enlarges it in the
+  drawing's units. At 12 px some labels that sat apart at their old size touch on a phone: the
+  percentile labels of a reference strip when two percentiles are close. Three drawings leave a
+  label to the text beside them on a phone instead: XI Lab's pitch shows names only (slot and
+  frequency are in the list and the detail), the depth pitch leaves slot names to the depth
+  list, and Match Lab's threat flow labels every half hour.
+- The depth pitch's marks are smaller than 24 px on a phone (about 13 px apart) and have no
+  wider pointer area, which would cover the next mark. The depth list beside the pitch selects
+  the same players with full-size buttons.
+- The navigation lists a page only where the serving app answers its route. The hosted site
+  therefore shows no Squad & signings destination and links Players to the scouting page and
+  Lineup to the studio; the archive pages appear only on a local install with the corpus.
+
 ## Product scope
 
 No LLM invents a number or post-hoc tactical explanation. The frontend renders

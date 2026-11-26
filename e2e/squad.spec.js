@@ -49,7 +49,8 @@ const reply = (page, suffix) => page.waitForResponse(r => r.url().endsWith(suffi
 const overflows = page => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
 const shot = async (page, name) => { if (SHOTS) await page.screenshot({ path: path.join(SHOTS, name), fullPage: true }); };
 // Who is gold: the data-player of every element whose colour, fill, stroke, background or
-// border computes to the gold token. Focus is dropped first: the focus ring is gold by design.
+// border computes to the gold token. Focus is dropped first, so no focus ring is counted (the
+// ring is base.css's two-tone one, never gold).
 const goldOwners = page => page.evaluate(gold => {
   document.activeElement?.blur?.();
   const owners = [];
@@ -126,7 +127,7 @@ test('Squad Lab draws what the server returned, with the gate beside every count
   const { snapshot, depth, reference } = await open(page);
   const scenario = depth.scenario;
   await expect(page.locator('#eyebrow')).toHaveText(`${scenario.team_name} · ${scenario.season} · matches before ${scenario.cutoff}`);
-  await expect(page.locator('h1')).toHaveText('Depth is a count.Not a verdict.');
+  await expect(page.locator('h1')).toHaveText('Where is cover thin?');
   await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#gate-statement')).toHaveText(depth.gate_statement);
   await expect(page.locator('#shortfall-statement')).toHaveText(depth.baseline.statement);

@@ -1,10 +1,9 @@
 <!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Season scouting · Galáctico</title><link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css"><link rel="stylesheet" href="/static/centre-theme.css"><script src="/static/scouting.js" defer></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><!--shell:head--><link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css"><script src="/static/scouting.js" defer></script>
 <link rel="stylesheet" href="/static/goal-scout.css"><script type="module" src="/static/goal-scout.js"></script>
 </head><body>
-<header class="mast"><div class="frame mast-inner"><a class="brand" href="/lineup"><span class="brand-mark" aria-hidden="true">G</span>Galáctico</a><nav aria-label="Workspaces"><a href="/lineup">Lineup studio</a><a href="/match-centre">Match centre</a><a href="/match-centre/leagues">Leagues</a><a href="/match-centre/scouting" aria-current="page">Scouting</a></nav></div></header>
-<main class="frame scout"><div class="heading"><h1>Season scouting</h1></div>
+<!--shell:header-->
+<main id="main" class="frame scout"><div class="heading"><h1>Goals by opponent</h1></div>
 <article id="goals" aria-labelledby="goals-heading">
 <div class="goal-title"><div><p class="goal-kicker">Current season</p><h2 id="goals-heading">Goal explorer</h2></div><span id="goals-season"></span></div>
 <p>See who scored for a club and which opponents those goals came against.</p>
@@ -36,8 +35,7 @@
 <div id="baseline" aria-live="polite"></div>
 </article>
 <div id="connection" role="status">Checking the data connection…</div>
-<section id="setup" hidden><h2>Connect player data</h2><p>Get a key from <a href="https://dashboard.api-football.com/">API-Football</a>. Set <code>API_FOOTBALL_KEY</code> in a local <code>.env</code> file or your environment and run <code>python -m galactico.match_centre.local</code>. Open this page on localhost with a plan that covers your chosen season.</p>
-<a href="/match-centre/demo">Try the scouting demo with sample figures →</a></section>
+<section id="setup" class="ui-callout" data-tone="unavailable" aria-labelledby="setup-title" hidden><h2 id="setup-title" class="ui-callout-title">Player comparison</h2><p>Player comparison needs a licensed data key and runs only on a local install.</p></section>
 <form id="filters" hidden>
 <label>Season starting year<input name="season" type="number" min="2010" required></label>
 <label>League<select name="league"></select></label><label>Club<select name="club" required></select></label>
@@ -51,4 +49,4 @@
 <p>Each player’s rate uses reported events per 90 minutes with a known value. A recorded zero counts. Missing values and their minutes are excluded. Madrid’s reference pools players in the same provider position.</p>
 <p>The opponent table uses completed league matches before the fixture’s UTC date, ordered by points, goal difference and goals scored. The top-six split starts once every club has played five games. Ties across sixth place stay unclassified. All opponents includes those games.</p>
 <p>The table orders eligible players by the selected rate in their own league. It applies no league multiplier. Role, minutes, data coverage and transfer cost all matter when interpreting a gap.</p></details>
-</main></body></html>
+</main><!--shell:footer--></body></html>

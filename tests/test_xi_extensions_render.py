@@ -799,7 +799,7 @@ def selectors(sheet: str) -> list[str]:
     found = []
     while body.strip():
         body = body.strip()
-        if body.startswith("@media"):
+        if body.startswith(("@media", "@layer")):
             head, _, rest = body.partition("{")
             depth, i = 1, 0
             while depth:
@@ -848,8 +848,19 @@ def test_every_table_cell_carries_its_own_label(tmp_path, make_client):
 # --------------------------------------------------------------------- the page edits
 
 
-SHIPPED_XI_HTML = "656cf19a2d2bd924a2f80f5bf30a35044d284057516f3e20c559c65a70072492"
-"""LF-normalised sha256 of web/xi.html as shipped before the five additive edits."""
+SHIPPED_XI_HTML = "4d9cd94bc13a21142d36f0648f3e1f848a45e158e213961de6b2597b32a5bde6"
+"""LF-normalised sha256 of web/xi.html without the five additive edits.
+
+Re-pinned once, for the site shell (ADR-0033): the page's hand-written lab header became the
+``<!--shell:head-->``, ``<!--shell:header-->`` and ``<!--shell:footer-->`` placeholders the
+server fills, ``<main>`` gained ``id="main"`` for the skip link, and the ``<title>`` moved
+into the shell, which writes it. In the same change, three edits of the page's script: each
+player mark on the pitch draws a focus ring and a pointer area of its own (``Site.focusRing``,
+``Site.hitArea``), ``api()`` keeps the reply's HTTP status on the error it throws, and a
+missing archive (a 503 on load, or the corpus-absent detail on a solve) prints the
+archive-missing state (``Site.archiveMissing``) instead of the server's detail. Nothing else of
+the page changed. The previous pin was
+656cf19a2d2bd924a2f80f5bf30a35044d284057516f3e20c559c65a70072492."""
 INSERTIONS = (
     '<link rel="stylesheet" href="/static/xi-extensions.css">',
     '<div id="xi-extensions"></div>',

@@ -34,13 +34,13 @@ from __future__ import annotations
 import time
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .. import site_nav
 from ..domain.precision import format_plain
 from ..domain.provenance import EvidenceClass
 from . import planning, runtime, shell
@@ -68,7 +68,6 @@ __all__ = [
 ]
 
 router = APIRouter(route_class=DecisionRoute)
-STATIC = Path(__file__).resolve().parents[2] / "web"
 
 ROUTE_UNIVERSE = "transfer.universe"
 ROUTE_INJECTION = "transfer.injection"
@@ -833,9 +832,9 @@ def _serve(route: str, scenario: planning.PlanningScenario, request: BaseModel,
 # --------------------------------------------------------------------------- routes
 
 
-@router.get("/transfer", include_in_schema=False)
-def transfer_page() -> FileResponse:
-    return FileResponse(STATIC / "transfer.html")
+@router.get("/transfer", include_in_schema=False, response_class=HTMLResponse)
+def transfer_page(request: Request) -> str:
+    return site_nav.page(request, "transfer")
 
 
 @router.get("/api/transfer/scenarios")

@@ -13,17 +13,20 @@ async function get(url) {
   if (!r.ok) throw Error(typeof data.detail === 'string' ? data.detail : 'Season unavailable.');
   return data;
 }
-function table(headers, rows) {
+// kinds names a class per column: 'minor' for a column a phone leaves out, 'club' for the
+// column that stays in view while the rest scrolls (match-centre.css).
+function table(headers, rows, kinds = []) {
   const wrap = el('div'), grid = el('table'), head = grid.createTHead().insertRow();
   wrap.className = 'scroll';
-  for (const h of headers) head.append(el('th',h));
+  headers.forEach((h, i) => { const th = el('th',h); if (kinds[i]) th.className = kinds[i]; head.append(th); });
   const body = grid.createTBody();
   for (const values of rows) {
     const row = body.insertRow();
-    for (const value of values) {
+    values.forEach((value, i) => {
       const cell = row.insertCell();
+      if (kinds[i]) cell.className = kinds[i];
       if (value instanceof Node) cell.append(value); else cell.textContent = value;
-    }
+    });
   }
   wrap.append(grid); return wrap;
 }
@@ -60,7 +63,9 @@ async function load(selected = '') {
       link.href = location.pathname + '?' + new URLSearchParams({league:code,day,team:row.team});
       return [row.rank,link,row.played,row.wins,row.draws,row.losses,row.gf,row.ga,row.gf-row.ga,row.points];
     });
-    box.append(table(['Rank','Club','P','W','D','L','GF','GA','GD','Pts'],rows));
+    const league = table(['Pos','Club','P','W','D','L','GF','GA','GD','Pts'],rows,
+      ['minor','club','','','','','minor','minor','','']);
+    league.classList.add('league-table'); box.append(league);
   } catch (error) {
     if (version !== current) return;
     $('notice').textContent = error.message + ' ';

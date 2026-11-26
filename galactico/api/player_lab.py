@@ -28,10 +28,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from .. import site_nav
 from ..domain.constructs import CONSTRUCTS, ExternalVerdict
 from ..domain.precision import format_exact, format_measurement, format_plain, quantise
 from ..domain.provenance import DEFAULT_GATE
@@ -42,6 +43,7 @@ from ..match_centre.routes import make_router as match_centre_router
 from ..profiles import REJECTED, RESEARCH_ONLY, RenderState
 from ..profiles.build import BUILD_RULES, UNTESTED, construct_version
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
+from . import about
 from .decision_lab import router as decision_router
 from .runtime import router as runtime_router
 from .squad_lab import router as squad_router
@@ -608,9 +610,15 @@ def scatter(x: str = "progression_per_action", y: str = "progression",
     return {"x": x, "y": y, "count": len(points), "points": points}
 
 
-@app.get("/")
-def index() -> FileResponse:
-    return FileResponse(STATIC / "index.html")
+# ``/`` is the Matches page of the router above. Player Lab is here, and an old link to ``/``
+# with a player or a view in its query is sent here by that router.
+@app.get("/player", include_in_schema=False, response_class=HTMLResponse)
+def index(request: Request) -> str:
+    return site_nav.page(request, "player")
+
+
+# The archive's sections of "About the numbers", read from the registries where they are defined.
+app.state.about_sections = about.sections(constructs, note_base=RESEARCH_NOTE_BASE)
 
 
 if STATIC.exists():

@@ -49,9 +49,11 @@ def test_studio_routes_preserve_fixture_links_and_separate_missing_data(monkeypa
 
     monkeypatch.setattr(httpx.AsyncClient, "get", unavailable)
     with TestClient(create_centre("Test")) as client:
-        for url in ("/", "/lineup"):
-            assert "<title>Lineup studio" in client.get(url).text
-        assert "<title>Match centre" in client.get("/?day=2026-09-01").text
+        # "/" is Matches on every app; the studio is /lineup. Old fixture links on "/" still
+        # open the board.
+        assert "<title>Lineup · Galáctico</title>" in client.get("/lineup").text
+        for url in ("/", "/?day=2026-09-01"):
+            assert "<title>Matches · Galáctico</title>" in client.get(url).text
         assert client.get("/api/studio/squad").status_code == 503
         assert client.get("/api/studio/activity/Unknown").status_code == 404
         assert client.get("/api/studio/activity/Kylian_Mbappé").status_code == 503

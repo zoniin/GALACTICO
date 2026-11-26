@@ -1,3 +1,8 @@
+/* The goal explorer on the scouting page. Written before the design system: in the legacy layer
+   (tokens.css declares the order). Every colour is a role of tokens.css, so the explorer follows
+   both themes. A named scorer and a teammate's goals are told apart by weight and by the text
+   beside them, never by a colour alone. */
+@layer legacy{
 #goals {
   scroll-margin-top: 16px;
 }
@@ -13,19 +18,16 @@
   justify-content: space-between;
 }
 .goal-title h2 {
-  font:
-    italic 800 clamp(32px, 5vw, 48px) / 1 'Barlow Condensed',
-    sans-serif;
-  text-transform: uppercase;
+  font: var(--weight-bold) var(--text-2xl) / 1 var(--font-display);
 }
 .scout .goal-kicker,
 #goals-season {
   margin: 0 0 4px;
-  color: #5740a2;
-  font-weight: 700;
-  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: var(--tracking-eyebrow);
 }
 .goal-controls {
   display: grid;
@@ -33,8 +35,8 @@
   margin: 18px 0;
 }
 .goal-metrics {
-  background: #201d42;
-  color: white;
+  background: var(--accent-strong);
+  color: var(--on-accent);
   border-radius: 9px;
   margin: 16px 0 20px;
   gap: 0;
@@ -48,14 +50,14 @@
   display: block;
 }
 .goal-metrics strong {
-  font:
-    700 32px/1 'Barlow Condensed',
-    sans-serif;
-  color: #d2ff9b;
+  font: var(--weight-bold) 32px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  color: var(--on-accent);
 }
 .goal-metrics span {
-  font-size: 0.77rem;
+  font-size: var(--text-sm);
   margin-top: 4px;
+  color: var(--on-accent);
 }
 .scorer-picks {
   flex-wrap: wrap;
@@ -63,12 +65,12 @@
   margin: 8px 0 18px;
 }
 .scorer-picks button {
-  font-size: 0.85rem;
-  min-height: 33px;
-  border-radius: 20px;
+  font-size: var(--text-sm);
+  min-height: 36px;
+  border-radius: var(--radius-pill);
 }
 #goals-log details {
-  border-top: 1px solid var(--edge);
+  border-top: 1px solid var(--border);
   padding: 9px 0;
 }
 #goals-log summary {
@@ -79,14 +81,14 @@
 }
 #goals-log summary::before {
   content: '▸';
-  color: var(--violet);
+  color: var(--accent);
 }
 #goals-log details[open] summary::before {
   content: '▾';
 }
 #goals-log time {
-  color: var(--dim);
-  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
 }
 #goals-log summary b {
   margin-left: auto;
@@ -95,19 +97,19 @@
 }
 #goals-log ol {
   padding-left: 30px;
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
 }
 #goals-log li {
   padding: 3px 0;
 }
 #goals-log .picked-goal {
   font-weight: 700;
-  color: #44328c;
+  color: var(--accent-strong);
 }
 #goals-log .goal-coverage,
 .goal-method,
 #goals-status {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
 }
 #goals-status:empty {
   display: none;
@@ -121,7 +123,7 @@
     padding: 10px;
   }
   .goal-metrics span {
-    font-size: 0.7rem;
+    font-size: var(--text-xs);
   }
   #goals-log summary {
     gap: 6px;
@@ -133,10 +135,10 @@
 
 #goals-comparison {
   margin: 18px 0 22px;
-  border: 1px solid var(--edge);
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
   padding: 14px;
-  background: #fafaf7;
+  background: var(--surface-2);
 }
 .comparison-heading {
   display: flex;
@@ -154,7 +156,7 @@
 }
 #goals-matrix {
   width: 100%;
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 #goals-matrix th,
@@ -176,17 +178,17 @@
 }
 #goals-log .peer-goal {
   font-weight: 700;
-  color: #18664c;
+  color: var(--live);
 }
 .comparison-note {
-  font-size: 0.76rem;
+  font-size: var(--text-xs);
 }
 @media (max-width: 640px) {
   #goals-comparison {
     padding: 10px;
   }
   #goals-matrix {
-    font-size: 0.76rem;
+    font-size: var(--text-xs);
   }
   #goals-matrix th,
   #goals-matrix td {
@@ -201,8 +203,8 @@
 
 .sample-coverage {
   display: block;
-  font-size: 0.67rem;
-  color: var(--dim);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   font-weight: 500;
 }
 .comparison-share {
@@ -213,13 +215,14 @@
   margin-top: 8px;
 }
 #goals-copy {
-  font-size: 0.78rem;
-  min-height: 32px;
+  font-size: var(--text-sm);
+  min-height: 36px;
 }
 #goals-share-status {
-  font-size: 0.76rem;
-  color: var(--dim);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
 }
 #goals-share-url {
   flex-basis: 100%;
+}
 }

@@ -1,8 +1,9 @@
 """The shell's payloads are the domain's objects, and its scans mean whole words.
 
 Corpus-free. Each test targets one way a shared page element could drift from its
-single definition: a copied evidence table, a second composition rule, a nav link
-to a page that does not exist, a label scan that bans the product's own denials.
+single definition: a copied evidence table, a second composition rule, a second copy of
+the navigation, a label scan that bans the product's own denials. The navigation itself is
+tested in test_site_nav.py.
 """
 
 from __future__ import annotations
@@ -11,8 +12,6 @@ import ast
 import itertools
 import json
 import re
-import shutil
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -27,54 +26,13 @@ KIT = Path(__file__).resolve().parents[1] / "web" / "labs-shared.js"
 
 # ---------------------------------------------------------------- navigation
 
-def test_nav_lists_exactly_the_five_destinations_that_ship():
-    nav = shell.nav_markup()
-    assert re.findall(r'href="([^"]+)"', nav) == ["/", "/match", "/xi", "/squad", "/transfer"]
-    assert re.findall(r'data-dest="([^"]+)"', nav) == [
-        "player", "match", "xi", "squad", "transfer"]
-    assert "opponent" not in nav and "desk" not in nav
-    assert nav.startswith('<nav aria-label="Laboratories" data-nav="v2">')
-    assert nav.endswith("</nav>")
-    # Separators sit between the groups (evidence | matchday | planning), nowhere else.
-    assert nav.count('<span class="nav-sep" aria-hidden="true"></span>') == 2
-    assert shell.visible_text(nav) == (
-        "Laboratories Player Lab Match Lab XI Lab Squad Lab Transfer Lab")
-    assert "aria-current" not in nav
-
-
-@pytest.mark.parametrize("destination", [d.dest for d in shell.DESTINATIONS])
-def test_only_the_current_mark_moves(destination):
-    marked = shell.nav_markup(destination)
-    assert marked.count(' aria-current="page"') == 1
-    assert f'data-dest="{destination}" aria-current="page"' in marked
-    assert marked.replace(' aria-current="page"', "") == shell.nav_markup()
-
-
-@pytest.mark.parametrize("missing", ["opponent", "desk", "", "Player"])
-def test_a_page_that_does_not_exist_has_no_nav_position(missing):
-    with pytest.raises(ValueError, match="not a destination"):
-        shell.nav_markup(missing)
-
-
-@pytest.mark.skipif(shutil.which("node") is None or not KIT.exists(),
-                    reason="node or the shared browser kit is absent")
-def test_the_browser_kit_draws_the_nav_the_server_defines(tmp_path):
-    # Two things can draw the nav: this module and Shell.nav in the browser kit. Given the
-    # server's destinations they must write the same bytes, for every current page.
-    items = [{"dest": d.dest, "href": d.href, "label": d.visible, "sr_suffix": " Lab",
-              "group": d.group} for d in shell.DESTINATIONS]
-    program = tmp_path / "nav.mjs"
-    program.write_text(
-        "globalThis.window = {};\n" + KIT.read_text(encoding="utf-8")
-        + f"\nconst items = {json.dumps(items)};\n"
-        "console.log(JSON.stringify([window.Shell.nav(items), "
-        "...items.map(item => window.Shell.nav(items, item.dest))]));\n",
-        encoding="utf-8")
-    done = subprocess.run([shutil.which("node"), str(program)], capture_output=True, text=True,
-                          encoding="utf-8", timeout=60)
-    assert done.returncode == 0, done.stderr[-1000:]
-    assert json.loads(done.stdout) == [
-        shell.nav_markup(), *(shell.nav_markup(d.dest) for d in shell.DESTINATIONS)]
+def test_the_navigation_is_the_site_shells_and_the_lab_kit_draws_none():
+    # One source draws the navigation: galactico.site_nav. The lab shell and the browser kit
+    # each used to hold a copy ("Laboratories"), pinned to the other byte for byte.
+    assert not hasattr(shell, "nav_markup") and not hasattr(shell, "DESTINATIONS")
+    kit = KIT.read_text(encoding="utf-8")
+    assert "Laboratories" not in kit and "function nav(" not in kit
+    assert "function header(" not in kit
 
 
 # ---------------------------------------------------------------- not measured
@@ -291,7 +249,14 @@ def test_the_licence_tier_key_is_exempt_only_inside_a_verdict_payload():
 
 
 def test_shell_copy_passes_its_own_scan():
-    assert shell.scan_labels(shell.visible_text(shell.nav_markup("squad"))) == []
+    from galactico import site_nav
+
+    every = {href for item in site_nav.NAV for href in item.hrefs} | {
+        spec.path for spec in site_nav.PAGES.values()}
+    for spec in site_nav.PAGES.values():
+        chrome = (site_nav.header_markup(spec, every) + site_nav.footer_markup(spec, every)
+                  + site_nav.sources_section(every).body)
+        assert shell.scan_labels(shell.visible_text(chrome)) == [], spec.key
     assert shell.scan_labels(shell.COMPOSITION_RULE) == []
     assert shell.scan_labels(verdicts.NOT_REGISTERED_STATEMENT) == []
 

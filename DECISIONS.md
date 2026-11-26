@@ -1422,3 +1422,211 @@ repaired by editing a registered file.
 
 **Reversal.** None for the files. A protocol found unsound before its run is superseded by a
 new experiment id, and this one is recorded as not run.
+
+---
+
+## ADR-0033 — One app: unified shell, navigation and design system
+
+**Problem.** The product was two products that did not know about each other. The labs
+(Player, Match, XI, Squad and Transfer Lab, 2017/18) carried a dark monospace look, a
+"Laboratories" nav of five links written by `galactico/api/shell.py` and copied by hand into
+four pages, and a fourth nav of Player Lab's own. The current-season pages (Lineup studio, Match
+centre, Leagues, Scouting) carried a light look, a "Workspaces" nav of four links, and a demo
+page (`/match-centre/demo`) that printed invented key-pass and interception counts beside the
+names of real players, linked from three footers. `/` was Player Lab on the local app and the
+Lineup studio on the hosted one. Nothing linked the two halves except one line of Player Lab's
+copy; five wordmarks, four header designs, 150 colours and labels of 8 to 11 px made every page
+harder to read than it had to be (the UX audit of 26 November 2026). R13 pins the shipped
+pages' bytes, and ADR-0011 freezes Player Lab; both had to give way for exactly the edits below.
+
+**Decision.** One shell, one navigation and one design system for every page of both apps.
+
+- *Design system.* `web/tokens.css` is the only sheet with colour literals: primitives
+  (`--c-*`) and roles named by job (`--bg`, `--surface-1/2/3`, `--text`, `--text-muted`,
+  `--border`, `--border-control`, `--accent`, `--selected`, `--live`, `--danger`, `--warning`,
+  the pitch, chart, studio and heat roles), each role with a light and a dark value. Light is
+  the default; dark follows `prefers-color-scheme` and a reader's choice (`[data-theme]`,
+  `web/theme.js`). Pitch and chart surfaces are dark in both themes. `web/base.css` (fonts,
+  reset, type scale, links, a two-tone focus ring that is never gold) and `web/components.css`
+  (the shell and `ui-*` components) follow. `tokens.css`, `base.css` and `components.css`
+  declare the order `@layer tokens, base, legacy, components, page;`; every older sheet and
+  every page's own `<style>` is wrapped in `@layer legacy`, and `about.html`'s in `@layer page`.
+  Gold (`#c9a227`, `--selected`) marks the selected subject and nothing else; on a light
+  surface it is a fill with its dark edge (`--selected-edge`), never a bare line, and focus is
+  no longer gold. No sheet or page style sets text under 12 px or a colour literal. Two kinds
+  of drawing are held to the same rule another way: a label an SVG draws in its viewBox's units
+  is kept at 12 px on screen by `web/site.js` (it raises the label's size in drawing units to
+  12 px over the drawing's scale, on load, on a redraw and on a change of width), and a canvas
+  reads its colours and its 12 px type from the tokens when it draws (Player Lab's scatter,
+  the studio's activity map). Labels are sentence case, and one eyebrow style is the only
+  uppercase text. Monospace is for ids and raw records only. Type is DM Sans, with Barlow
+  Condensed for display.
+- *The labs, restyled with no change of markup.* `web/labs.css` re-points the names the lab
+  sheets read (`--line`, `--chalk`, `--muted`, `--surface`, `--ink`, `--gold`, `--serif`,
+  `--mono`, `--ui`) at the roles; `labs-shared.css`, `planning.css` and `xi-extensions.css`
+  keep their pinned variable sets and selectors and lose only their 9 to 11 px monospace
+  uppercase labels. A pitch and a chart re-point the same names for what they hold. Player
+  Lab's inline palette (`--ink-*`, `--bone-*`) and the inline styles of Squad and Transfer Lab
+  are re-pointed the same way. Match Lab draws its two teams in `--chart-team-1/2` and its
+  tabs read "Key", "Tactical", "All", "Volume" and "xT value".
+- *The current-season pages, on the same tokens.* `web/match-centre.css` is the one sheet of
+  Matches, Table and Scouting; `web/centre-theme.css`, which repainted a dark theme no page
+  showed, is deleted with it. `web/studio-shell.css` keeps the frame only (its private
+  `--navy`, `--violet`, `--muted`, `--rule` and `--cream` are gone), and `web/studio.css` and
+  `web/goal-scout.css` read roles (`--card`, `--line`, `--faint` and `--mint` are gone). The
+  Match centre's "Data source" select is shown only where a second source exists.
+- *Shell.* `galactico/site_nav.py` (standard library only, shipped to Vercel through
+  `vercel.json` `includeFiles`) writes the skip link, the header (the lime G wordmark, the
+  navigation, the season chip "2026/27" or "2017/18 archive · La Liga", the theme switch), the
+  phone tab bar (44 px targets, 12 px labels), the sub-navigation (below) and the footer
+  ("About the numbers", the page's data credits, the type credit). It writes each page's
+  `<title>`, preloads the three type files above the fold (DM Sans, upright Barlow Condensed for
+  the headings, the italic of the wordmark), gives `<main id="main">` `tabindex="-1"` so the skip
+  link moves focus, labels the theme switch with a tooltip, and loads `web/site.js`, the one
+  script every page shares (the SVG label floor, the archive-missing state, the focus ring and
+  pointer area of a mark on a pitch). Every page file holds `<!--shell:head-->`,
+  `<!--shell:header-->` and `<!--shell:footer-->`, one `<main id="main">` and no `<title>`;
+  both apps serve every page through `site_nav.page()`. `/about` ("About the numbers") is on
+  both apps; its opening sentence and its list of contents are built from the sections the
+  app serves (the hosted page, with one section, has no list).
+- *Sub-navigation.* A destination with two or more pages the app serves gets a second row under
+  the header, `<nav class="site-subnav" aria-label="… pages">`: each page by name with its
+  season, the page shown marked `aria-current="page"`. Matches: "Matches 2026/27" and "Match
+  reports 2017/18 archive" (`/match-centre`, `/match`); Players: "Goals by opponent 2026/27" and
+  "Player profiles 2017/18 archive"; Lineup: "Lineup 2026/27" and "Check against targets
+  2017/18 archive" (`/lineup`, `/xi`); Squad & signings: "Squad depth" and "Signings" (`/squad`,
+  `/transfer`). Without it Match Lab and XI Lab linked only each other on the local app. The
+  hosted app serves one page per destination and shows no second row.
+- *Navigation.* Five destinations in one order everywhere, `<nav class="site-nav"
+  aria-label="Main">`: Matches (`/match-centre`, else `/`), Table (`/match-centre/leagues`),
+  Players (`/player`, else `/match-centre/scouting`), Lineup (`/lineup`, else `/xi`), Squad &
+  signings (`/squad`, else `/transfer`). Each link is `<a href="…" data-nav="key">` with an icon
+  and a label. A destination is listed only when the serving app answers a GET for one of its
+  routes, and links to the first it answers. Exactly one link carries `aria-current`: `"page"`
+  when it opens the page shown, `"true"` when the page shown is another page of that
+  destination. `shell.nav_markup`, `shell.DESTINATIONS`, the two `nav-sep` separators, the
+  "Laboratories" and "Workspaces" navs, the `.brand` and `lab-tag` mastheads and the kit's
+  `Shell.nav` and `Shell.header` are removed.
+- *Routes.* `/` is Matches on both apps (`make_router`'s route). Player Lab moves to `/player`;
+  on the local app `/?player=` and `/?view=` answer 308 (permanent) to `/player?…`, and on the hosted app
+  the same link opens Matches. Old `/?day=`, `/?match=` and `/?source=` links still open the
+  board. `/match-centre/demo` answers 308 (permanent) to `/match-centre`; `web/matchroom-demo.html` and its
+  three footer links are deleted (R8: no evidence class describes an invented number). Every
+  other existing URL still answers 200: `/match-centre`, `/match-centre/leagues`,
+  `/match-centre/scouting`, `/lineup`, `/match`, `/xi`, `/squad`, `/transfer`.
+- *Titles and headings.* The shell writes every title in one pattern, "<page> · <destination>
+  · Galáctico", or "<destination> · Galáctico" where the page bears its destination's name:
+  "Matches", "Table", "Goals by opponent · Players", "Player profiles · Players", "Match
+  reports · Matches", "Lineup", "Check against targets · Lineup", "Squad depth · Squad &
+  signings", "Signings · Squad & signings", "About the numbers". The H1 of a page names its
+  object or its question: "Matches", "League tables", "Goals by opponent", "Lineup.", "Where is
+  cover thin?" (Squad) and "Who could fill this position?" (Transfer), the audit's glossary.
+  One h1 per view: Match Lab's two team names are h2 of its scoreboard, and Player Lab's
+  player and comparison names are h2 (each of its five views keeps one h1). The league table's
+  "Rank" column is "Pos". The H1s of Player Lab's views and XI Lab are the page groups' to
+  rewrite, answer first.
+- *States a reader can act on.* A missing archive reads "The 2017/18 archive isn't installed
+  on this server." on every archive page, with the setup steps linked only on a loopback
+  address: any 503 in the kit's `errorText` (Squad, Transfer, XI's panels) and on a page's first
+  request (Match, XI and Player Lab, whose boot no longer fails silently), and the server's
+  corpus-absent detail on a later one. The server's own detail ("run the Pappalardo
+  fetch/ingest") is not shown; a later failure of one match or one solve still prints the
+  server's words.
+  The scouting page says "Player comparison needs a licensed data key and runs only on a local
+  install." where it told visitors to set `API_FOOTBALL_KEY`; the key's setup is in the README
+  only.
+
+**The R13 and ADR-0011 override (in the form of W8).** This change overrides R13, and ADR-0011
+for `web/index.html`, for exactly these edits, and for nothing else of the pages' behaviour:
+
+- the nav bytes of `web/index.html`, `match.html`, `xi.html`, `squad.html` and `transfer.html`
+  (the hand-written header replaced by the three placeholders), of `studio.html`,
+  `match-centre.html`, `leagues.html` and `scouting.html` (the "Workspaces" nav), and Player
+  Lab's view switch, which moved from its header into a bar inside `<main>`, without the
+  one-way "→ Match centre" line;
+- the `<title>` of every page, `<main id="main">`, and the head placeholder before every sheet;
+- the routes above, and the demo's removal;
+- the page chrome and the look: every sheet listed above, the inline `<style>` of
+  `index.html`, `squad.html` and `transfer.html` (re-pointed tokens, 12 px sentence-case labels;
+  Squad Lab's style comment now says the focus ring is not gold), Player Lab's bootstrap-dots
+  box, the colours Match Lab's script draws its teams and passing edges in, its five tab labels,
+  the key swatches of Transfer Lab's carry legend, and the Match centre's source select;
+- the files and handlers the shell needed: `galactico/api/player_lab.py` (root-owned: its `/`
+  route removed, `/player` added, `app.state.about_sections`), the page handlers of
+  `galactico/api/decision_lab.py`, `squad_lab.py` and `transfer_lab.py` (each `FileResponse`
+  replaced by `site_nav.page`; `/match` and `/xi` stay in the OpenAPI schema, now with a
+  `text/html` response type), and the new `galactico/api/about.py`, `web/about.html`,
+  `web/assets/favicon.svg` and `web/site.js`;
+- the review round's page edits: Player Lab's selected-player marks (the percentile tick and
+  the channel-share dot in an overlay, gold with its edge; the bootstrap dots round, edged and at
+  full strength), its scatter (token colours, 12 px DM Sans), its "external replication" line
+  (12 px, not monospace), its removed in-page tier chip and its boot's error state; Match Lab's
+  `api()` (it keeps the HTTP status), its flow chart's axis labels (every half hour on a phone)
+  and the focus ring and pointer area of its shot and passing-network marks; XI Lab's `api()`,
+  its 503 state, and its pitch marks' focus ring and pointer area; the depth pitch's focus ring
+  (Squad), its slot labels left to the list on a phone, and the "not measured" panel of Squad
+  and Transfer behind a disclosure closed on arrival; Transfer's row-fill status, which now
+  prints the kit's markup; the edge on Transfer's selected carry notch; the studio's activity
+  map, which reads its colours from the tokens and carries its own "2017/18 archive" chip; the
+  league table's columns on a phone; and the scouting page's setup note;
+- the pinned tests, re-pinned in the same change: `tests/test_web_shell.py` (rewritten: every
+  page is a page of the shell, every old sheet sits in `legacy`, every inline style in a
+  layer), `tests/test_shell_payloads.py` (the navigation is the site shell's; the kit draws
+  none), `tests/test_shell_render.py` (no `nav` in the kit's markup or sheet;
+  `nav[data-nav=v2]` no longer required), `tests/test_squad_api.py` and
+  `tests/test_transfer_api.py` (the new nav link and titles), `tests/test_lineup_studio.py` and
+  `tests/test_match_centre.py` (`/` is Matches; the demo redirects, 308, and its file is a 404),
+  `tests/test_xi_extensions_render.py` (`SHIPPED_XI_HTML` re-pinned once, for the shell and the
+  three script edits above; the five additive edits are unchanged; the old pin is in its
+  docstring; its `selectors()` helper now steps into `@layer` blocks),
+  `tests/test_planning_render.py` and `tests/test_shell_render.py` (the kit's archive-missing
+  sentence), `tests/test_web_render.py` (the bootstrap dots); the e2e specs `e2e/smoke.spec.js`
+  (Player Lab at `/player`; its player and comparison names are h2), `e2e/labs.spec.js` (the
+  sentence-case tab names), `e2e/transfer.spec.js` (the current mark is `data-nav="squad"`,
+  `aria-current="true"`), `e2e/squad.spec.js` (a comment, and the H1),
+  `e2e/match-centre.spec.js` (the demo is gone; the shell on every page at 1440, 390 and 320 px;
+  the scouting page's unavailable state; and four new gates: every served page reached from `/`
+  by the pages' own links, the sub-navigation, no visible text under 12 px at 390 and 1440 px
+  measured on screen, SVG labels included, and keyboard focus never under the phone tab bar),
+  and `e2e/screenshots.spec.js` (Player Lab at `/player`); and the new tests
+  `tests/test_site_nav.py` and `tests/test_design_tokens.py`.
+
+No API reply changes: the `/api/*` routes, the frozen files and the planning and XI payloads
+return the same bytes, and no server sentence is written in the browser.
+
+**Evidence.** The UX audit of 26 November 2026 (the six jobs, the twelve problems, the
+constraint map) and the redesign brief. `tests/test_site_nav.py`: the module imports nothing
+from `galactico` and ships with the hosted function; each app's nav links only routes it
+serves; exactly one `aria-current`; the season chip, the studio's archive chip included; one
+title pattern; the sub-navigation; a crawl from `/` over the served pages' links reaches every
+page on both apps; the credits equal the provider registry's; `/` and every old link on both
+apps. `tests/test_design_tokens.py`: no colour literal in any sheet, page style or script but
+`tokens.css`; every role has both themes; text 4.5:1 and control borders (the studio board's
+included), the focus ring, the pitch lines, chart marks and both team colours 3:1 on every
+surface they appear on; gold is `--selected` only, never focus, and wherever a page or a script
+paints it on a light surface it has its edge; no sheet, page style, inline style or canvas sets
+text under 12 px; one archive-missing sentence and no command in any page. The e2e suite on the
+local corpus, with the gold, ordering and 390 and 320 px overflow checks unchanged, and the four
+new gates above.
+
+**Alternatives rejected.** Two navs, one per season (the audit's first problem). A nav listing
+every route on every app (a link to a page the app does not serve is a 404, `shell.py`'s old
+rule). Keeping `/` per deployment. Keeping the demo with a louder disclaimer (R8). Rewriting
+the lab markup now (the page groups that follow own their pages; this change keeps markup).
+Re-styling the labs by editing every rule of every sheet (the pinned variable sets of
+`labs-shared.css` and `planning.css` exist so that one sheet can re-point them). Gold for focus
+(two meanings for one colour).
+
+**Opponent Lab and the desk (ADR-0032, reserved).** `OPPONENT-DESK-SPEC.md` section 11 asked
+for two more links in the old lab nav. That request is amended in this change: Opponent Lab,
+when built, joins the site navigation (`site_nav.NAV` and `site_nav.PAGES`) as a sixth item or
+under Matches, decided in ADR-0032, and its page carries the three placeholders like every
+other.
+
+**Confidence.** High that every page is served inside the shell, that each app links only what
+it serves, and that the colour, size and contrast rules hold for every sheet (the tests above).
+Medium on the look itself: the labs keep their old layout, which the page groups that follow
+replace one page at a time, answer first.
+
+**Reversal.** A reader study showing that the job-based nav hides a lab people looked for; a
+host that serves pages without the shell (the placeholders would then need a static fill).

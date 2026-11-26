@@ -3,33 +3,21 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#f6f6f1" />
-    <title>Lineup studio · Galáctico</title>
+    <!--shell:head-->
     <link rel="stylesheet" href="/static/studio-shell.css" />
     <link rel="stylesheet" href="/static/studio.css" />
     <script src="/static/studio.js" type="module"></script>
   </head>
   <body class="studio">
-    <header class="mast">
-      <div class="frame mast-inner">
-        <a class="brand" href="/lineup"
-          ><span class="brand-mark" aria-hidden="true">G</span>Galáctico</a
-        >
-        <nav aria-label="Workspaces">
-          <a href="/lineup" aria-current="page">Lineup studio</a
-          ><a href="/match-centre">Match centre</a><a href="/match-centre/leagues">Leagues</a
-          ><a href="/match-centre/scouting">Scouting</a>
-        </nav>
-      </div>
-    </header>
-    <main class="frame">
+    <!--shell:header-->
+    <main id="main" class="frame">
       <div class="studio-head">
         <div>
           <p class="kicker">Real Madrid <span>/</span> <span id="season">First team</span></p>
-          <h1>Lineup studio<span>.</span></h1>
+          <h1>Lineup<span>.</span></h1>
         </div>
         <div class="tools">
-          <a href="/match-centre/scouting#goals" class="scout-link">Goal explorer ↗</a>
+          <a href="/match-centre/scouting#goals" class="scout-link">Goals by opponent ↗</a>
           <button id="undo" disabled><span aria-hidden="true">↶</span> Undo</button
           ><button id="save" class="primary" disabled>Save lineup</button>
         </div>
@@ -141,6 +129,9 @@
           <section class="analysis" aria-labelledby="map-title">
             <div class="section-row">
               <h2 id="map-title">Activity map</h2>
+              <span class="season-chip" data-season="archive" id="map-season" hidden
+                ><span class="sr-only">Season </span>2017/18 archive</span
+              >
               <span class="analysis-icon" aria-hidden="true">⌖</span>
             </div>
             <div class="map-tabs" aria-label="Map view">
@@ -195,5 +186,6 @@
         under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
       </footer>
     </main>
+    <!--shell:footer-->
   </body>
 </html>

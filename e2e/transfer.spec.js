@@ -97,7 +97,9 @@ test('the default problem has no shortfall: the page says so and leads to a decl
   await expect(page.locator('#slot')).toHaveValue('');
   await expect(page.locator('#slot option[value="gk"]')).toHaveAttribute('disabled', '');
   await expect(page.locator('#slot option[value="gk"]')).toContainText('not measured here');
-  await expect(page.locator('header nav a[aria-current="page"]')).toHaveAttribute('data-dest', 'transfer');
+  // The site shell: Squad & signings is the current destination; its link opens /squad.
+  await expect(page.locator('header nav a[aria-current]')).toHaveAttribute('data-nav', 'squad');
+  await expect(page.locator('header nav a[aria-current]')).toHaveAttribute('aria-current', 'true');
 
   const response = await setSlot(page);
   const pool = await response.json();

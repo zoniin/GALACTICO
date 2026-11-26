@@ -6,12 +6,13 @@ from dataclasses import asdict, replace
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
 
+from .. import site_nav
 from ..domain.constructs import CONSTRUCTS
 from ..optimization.historical import PUBLIC, ROOT, SEED, load_snapshot
 
@@ -77,14 +78,14 @@ def match_artifact(match_id):
         raise HTTPException(404, "match not in the historical corpus") from exc
 
 
-@router.get("/match")
-def match_page():
-    return FileResponse(ROOT / "web/match.html")
+@router.get("/match", response_class=HTMLResponse)
+def match_page(request: Request) -> str:
+    return site_nav.page(request, "match")
 
 
-@router.get("/xi")
-def xi_page():
-    return FileResponse(ROOT / "web/xi.html")
+@router.get("/xi", response_class=HTMLResponse)
+def xi_page(request: Request) -> str:
+    return site_nav.page(request, "xi")
 
 
 @router.get("/api/matches")

@@ -250,6 +250,8 @@ async function init() {
   state.today = sources.today;
   if (sources.private_feed) {
     $('source').add(new Option('API-Football · live', 'api_football'));
+    // A choice of one is no choice: the source control shows only where a second source exists.
+    $('source').closest('label').hidden = false;
     state.source = params.get('source') === 'openfootball' ? 'openfootball' : 'api_football';
   }
   $('source').value = state.source; sourceInfo();

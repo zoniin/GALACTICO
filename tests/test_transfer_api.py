@@ -137,9 +137,11 @@ def test_page_and_catalogue_are_corpus_free_and_pass_the_copy_guard(client, thes
     page = client.get("/transfer")
     assert page.status_code == 200
     html = page.text
-    assert shell.nav_markup("transfer") in html
-    assert "<title>Galáctico — Transfer Lab</title>" in html
-    assert "<h1>One slot, declared.<br>Every candidate re-solved.</h1>" in html
+    # The site shell: Squad & signings is the current destination. Served alone, the router's
+    # app has no /squad, so the destination links this page.
+    assert '<a href="/transfer" data-nav="squad" aria-current="page">' in html
+    assert "<title>Signings · Squad &amp; signings · Galáctico</title>" in html
+    assert "<h1>Who could fill this position?</h1>" in html
     assets = ["/static/labs.css", "/static/labs-shared.css", "/static/planning.css",
               "/static/labs-shared.js", "/static/planning.js"]
     assert sorted(assets, key=html.index) == assets

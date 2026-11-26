@@ -5,7 +5,7 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": "{galactico/match_centre/**,galactico/providers/**,galactico/__init__.py,web/**}",
+        "includeFiles": "{galactico/match_centre/**,galactico/providers/**,galactico/__init__.py,galactico/site_nav.py,web/**}",
         "excludeFiles": "{data/**,docs/**,experiments/**,tests/**,e2e/**,node_modules/**,.venv/**}"
       }
     }

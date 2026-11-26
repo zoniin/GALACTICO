@@ -1,7 +1,10 @@
-"""Public server for the current match centre. It only serves public data."""
+"""Public server for the current match centre. It only serves public data.
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+``/`` is the Matches page (the router's). Old shared fixture links (``/?day=``, ``/?match=``,
+``/?source=``) keep opening the match board, which reads its query itself.
+"""
+
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .api_football import ApiFootball
@@ -10,12 +13,6 @@ from .routes import WEB, make_router
 
 def create_centre(title: str, private: ApiFootball | None = None) -> FastAPI:
     server = FastAPI(title=title)
-
-    @server.get("/", include_in_schema=False)
-    def home(request: Request):
-        board = any(key in request.query_params for key in ("day", "match", "source"))
-        return FileResponse(WEB / ("match-centre.html" if board else "studio.html"))
-
     server.include_router(make_router(private))
     server.mount("/static", StaticFiles(directory=WEB), name="static")
     return server

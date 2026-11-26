@@ -415,7 +415,8 @@ def test_each_state_renders_and_an_unknown_status_is_never_certified(tmp_path: P
     assert ">TIME_LIMIT<" in states["deadline"] and ">NOT SENT<" in states["missing"]
     assert states["loading"].endswith("…")
     assert states["error"] == "Squad audit unavailable: unknown planning scenario"
-    assert states["no_corpus"].endswith("Run the Pappalardo fetch and ingest.")
+    # A missing archive is said in words a reader can act on, not the server's detail.
+    assert states["no_corpus"] == "The 2017/18 archive isn&#39;t installed on this server."
     # An empty list says what is absent; an unsent one is not called empty.
     assert "No squad player is outside the evidence set." in empties["omitted"]
     assert "No list of omitted players was sent." in empties["omitted_unsent"]
@@ -1233,7 +1234,7 @@ def test_a_superseded_reply_is_never_applied_and_dirty_inputs_block_dependants(
     # Only the live reply was applied, only the live failure reported, and each settled once.
     assert got["log"] == [
         "d:apply:new", "d:settle",
-        "e:fail:historical corpus unavailable Run the Pappalardo fetch and ingest.", "e:settle",
+        "e:fail:The 2017/18 archive isn&#39;t installed on this server.", "e:settle",
         "g:fail:render broke"]
     assert got["panel"] == [True, 1, "Apply the edited minima and re-audit before asking this.", []]
     # Non-vacuity: one state is free to ask, and each single cause blocks on its own.

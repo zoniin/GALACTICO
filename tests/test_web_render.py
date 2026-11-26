@@ -76,9 +76,12 @@ def test_geometric_bar_executes_and_marks_the_neutral() -> None:
 
 
 def test_quantile_dots_execute() -> None:
+    # One dot per quantile, each the selected player's gold with its dark edge (the class's
+    # rule), at full strength: a dot under 3:1 on a light page is not drawn.
     out = run_js("""
       const svg = quantileDots([0.30,0.32,0.34,0.36,0.38,0.40], 0.30, 0.40);
-      if (!svg.includes('circle')) throw new Error('no dots');
+      if ((svg.match(/class="selected-mark"/g) || []).length !== 6) throw new Error('no dots');
+      if (svg.includes('opacity') || svg.includes('undefined')) throw new Error('faded dots');
       console.log('ok');
     """)
     assert out == "ok"

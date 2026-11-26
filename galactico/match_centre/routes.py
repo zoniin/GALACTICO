@@ -1,14 +1,22 @@
-"""The public centre is constructed without a licensed data adapter."""
+"""The public centre is constructed without a licensed data adapter.
+
+Every page is served through the site shell (``galactico.site_nav``), which fills in the header,
+the navigation and the footer for the app that serves it. ``/`` is the Matches page on every app
+that includes this router; an old Player Lab link to ``/`` with a player or a view in its query
+is sent to ``/player`` where the app serves it.
+"""
 
 from __future__ import annotations
 
 import re
 from datetime import UTC, date, datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Query, Response
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 
+from .. import site_nav
 from .api_football import ApiFootball
 from .feed import FeedError
 from .goal_scout import LEAGUES as GOAL_LEAGUES
@@ -20,15 +28,32 @@ from .studio import Studio
 
 WEB = Path(__file__).resolve().parents[2] / "web"
 
+PLAYER_LAB_QUERY = ("player", "view")
+"""Query keys of an old Player Lab link to ``/``. Such a link opens ``/player``."""
+
 
 def make_router(private: ApiFootball | None = None) -> APIRouter:
     router, public = APIRouter(), OpenFootball()
 
     studio = Studio()
 
-    @router.get("/lineup", include_in_schema=False)
-    def lineup():
-        return FileResponse(WEB / "studio.html")
+    @router.get("/", include_in_schema=False, response_class=HTMLResponse)
+    def home(request: Request):
+        player_lab = site_nav.PAGES["player"].path
+        if (any(key in request.query_params for key in PLAYER_LAB_QUERY)
+                and player_lab in site_nav.served_paths(request.app)):
+            query = urlencode(list(request.query_params.multi_items()))
+            # Player Lab moved for good: a permanent redirect that keeps the method (308).
+            return RedirectResponse(player_lab + (f"?{query}" if query else ""), 308)
+        return site_nav.page(request, "matches")
+
+    @router.get("/about", include_in_schema=False, response_class=HTMLResponse)
+    def about(request: Request):
+        return site_nav.about(request)
+
+    @router.get("/lineup", include_in_schema=False, response_class=HTMLResponse)
+    def lineup(request: Request):
+        return site_nav.page(request, "lineup")
 
     @router.get("/api/studio/squad")
     async def studio_squad():
@@ -47,13 +72,13 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
             raise HTTPException(404, "No archived spatial sample for this player.")
         return sample
 
-    @router.get("/match-centre", include_in_schema=False)
-    def centre():
-        return FileResponse(WEB / "match-centre.html")
+    @router.get("/match-centre", include_in_schema=False, response_class=HTMLResponse)
+    def centre(request: Request):
+        return site_nav.page(request, "matches")
 
-    @router.get("/match-centre/leagues", include_in_schema=False)
-    def leagues_page():
-        return FileResponse(WEB / "leagues.html")
+    @router.get("/match-centre/leagues", include_in_schema=False, response_class=HTMLResponse)
+    def leagues_page(request: Request):
+        return site_nav.page(request, "table")
 
     @router.get("/api/match-centre/leagues/{code}")
     async def competition(code: str, day: date, team: str | None = None):
@@ -64,13 +89,15 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
         except FeedError as exc:
             raise HTTPException(503, str(exc)) from exc
 
+    # The demo printed invented figures beside real players' names (R8) and is gone. An old
+    # link to it opens the Matches page, permanently (308).
     @router.get("/match-centre/demo", include_in_schema=False)
     def demo():
-        return FileResponse(WEB / "matchroom-demo.html")
+        return RedirectResponse("/match-centre", 308)
 
-    @router.get("/match-centre/scouting", include_in_schema=False)
-    def scouting_page():
-        return FileResponse(WEB / "scouting.html")
+    @router.get("/match-centre/scouting", include_in_schema=False, response_class=HTMLResponse)
+    def scouting_page(request: Request):
+        return site_nav.page(request, "scouting")
 
     goals = GoalScout(public)
 

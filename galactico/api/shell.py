@@ -1,15 +1,15 @@
 """What every new page shows, defined once on the server.
 
-Claim: the navigation, the nine things this corpus does not measure, the words a
-label may not use, and the shapes of an evidence badge, a verdict badge and a
-ledger row each have one definition, here. A page and a router read them; neither
-writes a second copy. The evidence mapping and the composition are the objects of
-``galactico.domain.evidence`` (``LEGACY_XI_EVIDENCE is evidence.XI_LEGACY``), and
-a verdict payload is ``verdicts.as_payload(verdicts.verdict_for(...))``. This
-module computes no class and no badge text.
+Claim: the nine things this corpus does not measure, the words a label may not use,
+and the shapes of an evidence badge, a verdict badge and a ledger row each have one
+definition, here. A page and a router read them; neither writes a second copy. The
+evidence mapping and the composition are the objects of ``galactico.domain.evidence``
+(``LEGACY_XI_EVIDENCE is evidence.XI_LEGACY``), and a verdict payload is
+``verdicts.as_payload(verdicts.verdict_for(...))``. This module computes no class and no
+badge text.
 
-Five destinations ship: Player, Match, XI, Squad, Transfer. The nav lists those
-five and nothing else, because a link to a page that does not exist is a 404.
+The navigation, the header and the footer of every page are the site shell's
+(``galactico.site_nav``), which lists only the pages the serving app registers.
 
 What the label scan is: a whole-word scan of the text a person reads, after the
 exact denials the product is required to print ("not a ranking") are removed. It
@@ -36,8 +36,6 @@ from ..domain.provenance import EvidenceClass
 
 __all__ = [
     "SHELL_VERSION",
-    "Destination",
-    "DESTINATIONS",
     "NotMeasured",
     "NOT_MEASURED",
     "NOT_MEASURED_STATUSES",
@@ -46,7 +44,6 @@ __all__ = [
     "LEGACY_XI_EVIDENCE",
     "COMPOSITION_RULE",
     "DECLARED",
-    "nav_markup",
     "legacy_xi_evidence",
     "evidence_payload",
     "verdict_payload",
@@ -58,54 +55,6 @@ __all__ = [
 ]
 
 SHELL_VERSION = "labs-shell-v1"
-
-
-@dataclass(frozen=True)
-class Destination:
-    """One page of the release. ``group`` only places the separators."""
-
-    dest: str
-    href: str
-    visible: str
-    group: str
-
-
-DESTINATIONS: tuple[Destination, ...] = (
-    Destination("player", "/", "Player", "evidence"),
-    Destination("match", "/match", "Match", "evidence"),
-    Destination("xi", "/xi", "XI", "matchday"),
-    Destination("squad", "/squad", "Squad", "planning"),
-    Destination("transfer", "/transfer", "Transfer", "planning"),
-)
-"""The five pages that exist, in the order of the chain: evidence, matchday, planning."""
-
-_NAV_SEPARATOR = '<span class="nav-sep" aria-hidden="true"></span>'
-_CURRENT = ' aria-current="page"'
-
-
-def nav_markup(current: str | None = None) -> str:
-    """The ``<nav>`` block every lab page carries, byte-equal except for the current mark.
-
-    ``current`` is a ``dest`` of ``DESTINATIONS`` or ``None``. Removing the one
-    `` aria-current="page"`` from ``nav_markup(dest)`` gives ``nav_markup()``.
-    An unknown ``current`` raises: a page that is not a destination has no nav
-    position to claim.
-    """
-    known = [destination.dest for destination in DESTINATIONS]
-    if current is not None and current not in known:
-        raise ValueError(f"{current!r} is not a destination; destinations are {known}")
-    parts: list[str] = []
-    group: str | None = None
-    for destination in DESTINATIONS:
-        if group is not None and destination.group != group:
-            parts.append(_NAV_SEPARATOR)
-        group = destination.group
-        mark = _CURRENT if destination.dest == current else ""
-        parts.append(
-            f'<a href="{destination.href}" data-dest="{destination.dest}"{mark}>'
-            f'{destination.visible}<span class="sr-only"> Lab</span></a>'
-        )
-    return f'<nav aria-label="Laboratories" data-nav="v2">{"".join(parts)}</nav>'
 
 
 NOT_MEASURED_STATUSES: tuple[str, ...] = ("UNMEASURED", "UNAVAILABLE")

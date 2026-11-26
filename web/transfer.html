@@ -1,23 +1,24 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Galáctico — Transfer Lab</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><!--shell:head-->
 <link rel="stylesheet" href="/static/labs.css"><link rel="stylesheet" href="/static/labs-shared.css"><link rel="stylesheet" href="/static/planning.css">
 <style>
 /* Transfer Lab only. Tokens are labs.css's. Gold: the selected candidate's notch (and the kit's row square). */
+@layer legacy{
 .tl-note{max-width:95ch}
-.tl-pool-count{font:normal clamp(2.2rem,5vw,3.6rem)/1 var(--serif);margin:.2rem 0 .6rem}
-.tl-pool-count small{font:11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-left:.6rem}
-.tl-facts{font:11px var(--mono);color:var(--muted);margin:.25rem 0;overflow-wrap:anywhere}
+.tl-pool-count{font:700 clamp(2.2rem,5vw,3.4rem)/1 var(--font-display);font-variant-numeric:tabular-nums;margin:.2rem 0 .6rem}
+.tl-pool-count small{font:600 13px/1.4 var(--font-sans);color:var(--muted);margin-left:.6rem}
+.tl-facts{font-size:13px;color:var(--muted);margin:.25rem 0;overflow-wrap:anywhere}
 .tl-leads{border-left:2px solid var(--text);padding:.2rem 0 .2rem 1.1rem;margin:1.2rem 0}
 .tl-leads h3{margin-bottom:.9rem}
 .tl-lead{display:grid;grid-template-columns:1.6rem minmax(0,1fr);gap:.2rem .6rem;padding:.8rem 0;border-top:1px solid var(--line)}
-.tl-lead .tl-step{font:normal 1.3rem var(--serif);color:var(--muted)}
+.tl-lead .tl-step{font:700 1.4rem var(--font-display);color:var(--muted)}
 .tl-lead p{margin:0 0 .5rem}.tl-lead .actions{margin:.3rem 0 0;align-items:end}
 .tl-lead .control{min-width:9rem;max-width:16rem}
 .tl-checks{display:flex;flex-wrap:wrap;gap:.2rem 1.4rem;border:0;margin:.6rem 0;padding:0;min-width:0}
 .tl-checks legend{padding:0;margin-bottom:.3rem}
 .tl-checks label{display:inline-flex;align-items:center;gap:.5rem;min-height:44px}.tl-checks input{width:auto}
-.tl-xi{list-style:none;margin:.6rem 0 0;padding:0;columns:2;column-gap:1.6rem;font-size:12px}
-.tl-xi li{padding:.2rem 0;break-inside:avoid;overflow-wrap:anywhere}.tl-xi .slot{font:10px var(--mono);color:var(--muted);margin-right:.5rem}
+.tl-xi{list-style:none;margin:.6rem 0 0;padding:0;columns:2;column-gap:1.6rem;font-size:13px}
+.tl-xi li{padding:.2rem 0;break-inside:avoid;overflow-wrap:anywhere}.tl-xi .slot{font-size:12px;font-weight:600;color:var(--muted);margin-right:.5rem}
 .tl-xi li.added{color:var(--text);border-left:2px solid var(--text);padding-left:.5rem}
 .carry,.worlds,.lanes{display:block;width:100%;height:auto}
 .carry.small{max-width:300px}.carry.large{max-width:760px}.lanes{max-width:420px}.lanes.small{max-width:240px}
@@ -27,25 +28,26 @@
 .carry .fails.inferred{stroke:var(--line)}
 .carry .unknown,.worlds .aside{fill:var(--chalk)}
 .carry .tick{stroke:var(--text);stroke-width:.7}.carry.large .tick{stroke-width:1}
-.carry .notch{fill:var(--text)}.carry.selected .notch{fill:var(--gold)}
+.carry .notch{fill:var(--text)}.carry.selected .notch{fill:var(--gold);stroke:var(--selected-edge);stroke-width:1px;vector-effect:non-scaling-stroke}
 .carry text{font-family:var(--mono);fill:var(--muted)}
 .worlds .every{fill:var(--muted);stroke:var(--muted);stroke-width:.6}
 .worlds .none,.worlds .some{fill:none;stroke:var(--chalk);stroke-width:.8}.worlds .some-half{fill:var(--muted)}
 .worlds .no-xi{fill:none;stroke:var(--chalk);stroke-width:.8;stroke-dasharray:1.2 1}
-.lanes .wide{fill:#3a463f}.lanes .central{fill:#6f8471}
-.tl-key{display:flex;flex-wrap:wrap;gap:.3rem 1.3rem;font:10px var(--mono);color:var(--muted);margin:.5rem 0}
+.lanes .wide{fill:var(--line)}.lanes .central{fill:var(--chalk)}
+.tl-key{display:flex;flex-wrap:wrap;gap:.3rem 1.3rem;font-size:12px;color:var(--muted);margin:.5rem 0}
 .tl-key svg{width:14px;height:12px;vertical-align:-2px;margin-right:.35rem}
-.tl-short{font:12px var(--mono);margin-top:.3rem;overflow-wrap:anywhere}
+.tl-short{font-size:13px;margin-top:.3rem;overflow-wrap:anywhere}
 .tl-head{display:flex;flex-wrap:wrap;gap:1rem;align-items:end;margin:1rem 0}
 .tl-head .control{flex:1 1 15rem;min-width:0;max-width:34rem}
 #candidate-detail section{padding:1.1rem 0;border-top:1px solid var(--line);min-width:0;overflow-wrap:anywhere}
-#candidate-detail h4{font:10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 .7rem}
+#candidate-detail h4{font-size:14px;font-weight:700;color:var(--text);margin:0 0 .7rem}
 #candidates .gp-row,#reference-rows .gp-row{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1.15fr);grid-auto-flow:row}
 @media(max-width:850px){#candidates .gp-row,#reference-rows .gp-row{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:650px){.toolbar .control,.toolbar button{flex:1 1 100%}.tl-xi{columns:1}#carry-solves,#candidate-change{display:block}#carry-solves tbody,#candidate-change tbody{display:block}#carry-solves thead,#candidate-change thead{position:absolute;left:-9999px}#carry-solves tr,#candidate-change tr{display:block;padding:.5rem 0;border-bottom:1px solid var(--line)}#carry-solves td,#candidate-change td{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.6rem;border:0;padding:.2rem 0;text-align:left!important}#carry-solves td:before,#candidate-change td:before{content:attr(data-label);font:10px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}}
+@media(max-width:650px){.toolbar .control,.toolbar button{flex:1 1 100%}.tl-xi{columns:1}#carry-solves,#candidate-change{display:block}#carry-solves tbody,#candidate-change tbody{display:block}#carry-solves thead,#candidate-change thead{position:absolute;left:-9999px}#carry-solves tr,#candidate-change tr{display:block;padding:.5rem 0;border-bottom:1px solid var(--line)}#carry-solves td,#candidate-change td{display:grid;grid-template-columns:8rem minmax(0,1fr);gap:.6rem;border:0;padding:.2rem 0;text-align:left!important}#carry-solves td:before,#candidate-change td:before{content:attr(data-label);font-size:12px;font-weight:600;color:var(--muted)}}
+}
 </style></head>
-<body><header><a class="brand" href="/">GALÁCTICO</a><span class="lab-tag">Historical LAB</span><nav aria-label="Laboratories" data-nav="v2"><a href="/" data-dest="player">Player<span class="sr-only"> Lab</span></a><a href="/match" data-dest="match">Match<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/xi" data-dest="xi">XI<span class="sr-only"> Lab</span></a><span class="nav-sep" aria-hidden="true"></span><a href="/squad" data-dest="squad">Squad<span class="sr-only"> Lab</span></a><a href="/transfer" data-dest="transfer" aria-current="page">Transfer<span class="sr-only"> Lab</span></a></nav></header>
-<main><div class="eyebrow" id="eyebrow">Declared slot · declared shortfall · exact re-solve</div><h1>One slot, declared.<br>Every candidate re-solved.</h1>
+<body><!--shell:header-->
+<main id="main"><div class="eyebrow" id="eyebrow">Declared slot · declared shortfall · exact re-solve</div><h1>Who could fill this position?</h1>
 <p class="lede">You name the slot being recruited. The lab lists the gated players whose provider position is admitted there, places each one in the squad at that slot and re-solves exactly. The rates are the ones he recorded at his own club. No role is inferred and no future rate is claimed. The list is grouped first by the outcome of the re-solve, in a fixed sequence; inside a group it is in the order of a key you choose.</p>
 <div id="scope-slot"></div>
 <div class="toolbar"><label class="control wide"><span class="label">Planning point</span><select id="scenario" aria-label="Planning point"></select></label><label class="control"><span class="label">Role-slot template</span><select id="formation" aria-label="Role-slot template"></select></label><label class="control"><span class="label">Slot being recruited</span><select id="slot" aria-label="Slot being recruited"></select></label><button type="button" id="apply" disabled>Set the problem</button></div>
@@ -65,13 +67,13 @@
 <div id="search-body" class="hidden"><p id="model-statement" class="small"></p><p id="screened" class="notice small"></p><p id="carried-value" class="small"></p><p id="facts-evidence" class="small subtle"></p>
 <div class="tl-head"><label class="control"><span class="label">List inside each group by</span><select id="order" aria-label="Order key"></select></label><label class="control"><span class="label">Conclusion the break-even tests</span><select id="conclusion" aria-label="Conclusion the break-even tests"></select></label><span><span id="fill-status" class="small mono subtle"></span> <button type="button" id="fill-stop" class="hidden">Stop filling</button></span></div>
 <p id="ordered-by" class="figure-note"></p><div id="single-requirement-slot"></div><p id="forced-definition" class="figure-note"></p>
-<div class="tl-key" id="carry-key" aria-hidden="true"><span><svg viewBox="0 0 14 12"><rect class="k-holds" x="1" y="2" width="9" height="9" fill="#a2a397" stroke="#a2a397"/></svg>holds, solved</span><span><svg viewBox="0 0 14 12"><rect x="1" y="2" width="9" height="9" fill="#a2a397" fill-opacity=".4"/></svg>holds, by the theorem</span><span><svg viewBox="0 0 14 12"><rect x="1" y="2" width="9" height="9" fill="none" stroke="#59655d"/></svg>fails</span><span><svg viewBox="0 0 14 12"><line x1="5.5" x2="5.5" y1="0" y2="5" stroke="#eeeae0"/></svg>an exact solve was run</span><span><svg viewBox="0 0 14 12"><path d="M1 11L10 11L5.5 4Z" fill="#eeeae0"/></svg>break-even · 0.00 → 1.00 of his recorded rates</span></div>
+<div class="tl-key" id="carry-key" aria-hidden="true"><span><svg viewBox="0 0 14 12"><rect class="k-holds" x="1" y="2" width="9" height="9" fill="var(--muted)" stroke="var(--muted)"/></svg>holds, solved</span><span><svg viewBox="0 0 14 12"><rect x="1" y="2" width="9" height="9" fill="var(--muted)" fill-opacity=".4"/></svg>holds, by the theorem</span><span><svg viewBox="0 0 14 12"><rect x="1" y="2" width="9" height="9" fill="none" stroke="var(--chalk)"/></svg>fails</span><span><svg viewBox="0 0 14 12"><line x1="5.5" x2="5.5" y1="0" y2="5" stroke="var(--text)"/></svg>an exact solve was run</span><span><svg viewBox="0 0 14 12"><path d="M1 11L10 11L5.5 4Z" fill="var(--text)"/></svg>break-even · 0.00 → 1.00 of his recorded rates</span></div>
 <div id="reference-slot"></div><div id="candidates-slot"></div>
 <p class="figure-note">Each cell is a fraction of the rates he recorded at his own club. Filled: the conclusion still holds there. Ticked: an exact solve was run. The notch is the smallest fraction at which it holds.</p><aside class="cannot-say" id="list-cannot-say"></aside></div></section>
 <section class="panel" id="candidate-panel"><div class="panel-head"><h2>Selected candidate · the exact re-solve</h2><label class="small">Resampled worlds <select id="worlds" aria-label="Resampled worlds"></select></label></div><p id="candidate-status" class="small subtle" role="status">Select a candidate to open his re-solve.</p><div id="candidate-detail" class="hidden"></div></section>
 <section class="panel"><div class="panel-head"><h2>Evidence ledger</h2></div><div id="ledger-slot"></div></section></div>
-<div id="not-measured-slot"></div>
-<footer class="provenance">Requirement sums are model inputs added under an unchanged-deployment assumption, not team output. Nothing on this page says which player to keep, sell or sign. Historical Pappalardo/Wyscout data, CC BY 4.0. <a href="https://doi.org/10.6084/m9.figshare.c.4415000">Dataset and attribution</a>.</footer></main>
+<details class="ui-disclosure" id="not-measured-more"><summary>What this page does not measure, and why</summary><div id="not-measured-slot"></div></details>
+<footer class="provenance">Requirement sums are model inputs added under an unchanged-deployment assumption, not team output. Nothing on this page says which player to keep, sell or sign. Historical Pappalardo/Wyscout data, CC BY 4.0. <a href="https://doi.org/10.6084/m9.figshare.c.4415000">Dataset and attribution</a>.</footer></main><!--shell:footer-->
 <script src="/static/labs-shared.js"></script><script src="/static/planning.js"></script>
 <script>
 /* Transfer Lab. The page holds state and attaches handlers. Every number, name, order, statement, warning
@@ -448,7 +450,7 @@ async function startFill() {
     if (fills.has(id)) continue;
     let reply;
     try { reply = await api('/api/transfer/retention', candidateBody(id, {conclusion})); }
-    catch (error) { if (t.live()) { $('fill-status').textContent = S.errorText('Row fill', error).replace(/&#39;/g, "'"); $('fill-stop').classList.add('hidden'); } return; }
+    catch (error) { if (t.live()) { $('fill-status').innerHTML = S.errorText('Row fill', error); $('fill-stop').classList.add('hidden'); } return; }
     if (!t.live()) return;
     fills.set(id, reply.carry_over); fillProgress();
     const row = search.rows.find(p => p.player_id === id), el = document.querySelector(`#candidates li[data-player="${id}"]`);

@@ -156,9 +156,13 @@ def test_hosted_entrypoint_serves_current_app_without_private_data(monkeypatch):
     monkeypatch.setenv("API_FOOTBALL_KEY", "example")
     with TestClient(hosted) as client:
         for path in ("/", "/match-centre", "/match-centre/leagues", "/match-centre/scouting",
-                     "/match-centre/demo", "/static/match-centre.js"):
+                     "/lineup", "/about", "/static/match-centre.js"):
             assert client.get(path).status_code == 200
-        assert "Match centre" in client.get("/").text
+        assert "<title>Matches · Galáctico</title>" in client.get("/").text
+        # The demo printed invented figures for real players (R8). Its old link opens Matches.
+        demo = client.get("/match-centre/demo", follow_redirects=False)
+        assert (demo.status_code, demo.headers["location"]) == (308, "/match-centre")
+        assert client.get("/static/matchroom-demo.html").status_code == 404
         assert client.get("/api/match-centre").json()["private_feed"] is False
         assert client.get("/api/match-centre/fixtures/42").status_code == 403
 

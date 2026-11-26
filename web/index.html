@@ -3,103 +3,100 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Galáctico — Player Lab</title>
+<!--shell:head-->
 <style>
+/* Player Lab only, written before the design system: in the legacy layer (tokens.css declares
+   the order). Its old names are re-pointed at the design system's roles, so the page follows the
+   light and the dark theme: --ink-* are the page, card and rules, --bone-* the text, --gold the
+   selected player (his mark on a strip and his own estimate's dots, and nothing else). The
+   scatter is a chart, dark in both themes. Labels are sentence case and 12 px and up. */
+@layer legacy {
 :root{
-  --ink-900:#0c0f0e; --ink-850:#121614; --ink-800:#181d1b; --ink-700:#232a27;
-  --ink-600:#333d38;
-  --bone-100:#eeeae0; --bone-300:#b8b2a4; --bone-500:#7d786d;
-  --gold:#c9a227; --gold-dim:#8a7220;
-  --pos:#5fbf95; --neg:#d4735f;
+  --ink-900:var(--bg); --ink-850:var(--chart-bg); --ink-800:var(--surface-1);
+  --ink-700:var(--border); --ink-600:var(--border-control);
+  --bone-100:var(--text); --bone-300:var(--text-muted); --bone-500:var(--text-subtle);
+  --gold:var(--selected); --gold-dim:var(--border-control);
+  --pos:var(--live); --neg:var(--danger);
   /* Not in the gold family and not in the red family: a withheld
      measurement is neither the selected player nor a bad player. */
-  --warn:#8f9a95;
-  --chalk:rgba(220,225,220,.10);
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
-  --ui:"Segoe UI",system-ui,-apple-system,sans-serif;
-  --mono:ui-monospace,"Cascadia Mono","SF Mono",Menlo,Consolas,monospace;
+  --warn:var(--text-muted);
+  --chalk:var(--border);
+  --serif:var(--font-sans);
+  --ui:var(--font-sans);
+  --mono:var(--font-sans);
 }
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  background:var(--ink-900); color:var(--bone-100);
-  font-family:var(--ui); font-size:15px; line-height:1.55;
-  -webkit-font-smoothing:antialiased;
-}
-a{color:var(--gold);text-underline-offset:.2em}
+body{font-size:15px;line-height:1.55}
 .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
 
-/* chrome */
-header.bar{
-  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.4rem;
-  padding:.7rem 1.4rem;background:var(--ink-850);
+/* The views of this page. The site header is the shell's. */
+.bar{
+  position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:1rem 1.4rem;
+  margin:0 0 2rem;padding:.5rem 0;background:var(--ink-900);
   border-bottom:1px solid var(--ink-700);
 }
-.brand{font-family:var(--serif);font-size:1.15rem;letter-spacing:.02em}
-.brand em{font-style:normal;color:var(--gold)}
-.tier{
-  font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
-  border:1px solid var(--gold-dim);color:var(--gold);padding:.2em .5em;
-}
-.bar .spacer{flex:1}
-.bar nav{display:flex;gap:1.1rem;font-family:var(--mono);font-size:.7rem;
-  letter-spacing:.1em;text-transform:uppercase;color:var(--bone-500)}
+.bar nav{display:flex;flex-wrap:wrap;gap:.2rem;font-size:14px;font-weight:600;color:var(--bone-300)}
 .bar nav button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;
-  padding:.2em 0;border-bottom:1px solid transparent}
-.bar nav button:hover,.bar nav button[aria-current="true"]{color:var(--bone-100);border-bottom-color:var(--gold)}
-.bar nav button:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
-@media(max-width:800px){header.bar{flex-wrap:wrap;gap:.6rem}.bar nav{flex:1 0 100%;gap:1rem;flex-wrap:wrap}}
+  min-height:40px;padding:.2em .7em;border-radius:var(--radius-control);border-bottom:2px solid transparent}
+.bar nav button:hover{color:var(--bone-100);background:var(--surface-2)}
+.bar nav button[aria-current="true"]{color:var(--bone-100);border-bottom-color:var(--accent)}
+@media(max-width:800px){.bar{flex-wrap:wrap;gap:.4rem}.bar nav{flex:1 0 100%}}
 
-main{max-width:1180px;margin:0 auto;padding:2.2rem 1.4rem 5rem}
+main{max-width:var(--frame);margin:0 auto;padding:var(--space-5) var(--gutter) var(--space-7)}
 section{margin-bottom:3.4rem}
-h1{font-family:var(--serif);font-weight:400;font-size:clamp(1.9rem,1.1rem+2.6vw,3rem);
-  line-height:1.06;margin:0 0 .5rem;letter-spacing:-.015em;text-wrap:balance}
-h2{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--bone-500);font-weight:600;margin:0 0 1rem;
+h1{font:700 clamp(2.1rem,1.5rem + 2vw,3.25rem)/1.05 var(--font-display);
+  margin:0 0 .6rem;letter-spacing:-.01em;text-wrap:balance}
+h2{font:700 var(--text-xl)/1.15 var(--font-display);color:var(--bone-100);margin:0 0 1rem;
   padding-bottom:.5rem;border-bottom:1px solid var(--ink-700)}
-p.lede{color:var(--bone-300);max-width:62ch;margin:0 0 1.6rem;font-size:1.02rem}
+p.lede{color:var(--bone-300);max-width:64ch;margin:0 0 1.6rem;font-size:var(--text-lg);line-height:1.45}
 
 /* search */
 .search{position:relative;max-width:34rem}
 input[type=search]{
   width:100%;background:var(--ink-800);border:1px solid var(--ink-600);color:var(--bone-100);
-  font:inherit;padding:.7rem .9rem;border-radius:2px}
-input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
+  font:inherit;padding:.7rem .9rem;border-radius:var(--radius-control)}
 .results{position:absolute;z-index:20;left:0;right:0;background:var(--ink-800);
-  border:1px solid var(--ink-600);border-top:0;max-height:20rem;overflow:auto}
+  border:1px solid var(--ink-600);border-top:0;max-height:20rem;overflow:auto;box-shadow:var(--shadow-2)}
 .results button{display:flex;width:100%;gap:.8rem;align-items:baseline;background:none;
-  border:0;color:inherit;font:inherit;text-align:left;padding:.5rem .9rem;cursor:pointer}
-.results button:hover{background:var(--ink-700)}
-.results .t{color:var(--bone-500);font-size:.8rem}
-.results .m{margin-left:auto;font-family:var(--mono);font-size:.72rem;color:var(--bone-500)}
+  border:0;color:inherit;font:inherit;text-align:left;padding:.6rem .9rem;cursor:pointer}
+.results button:hover{background:var(--surface-2)}
+.results .t{color:var(--bone-300);font-size:14px}
+.results .m{margin-left:auto;font-size:13px;color:var(--bone-300);font-variant-numeric:tabular-nums}
 
 /* player head */
 .phead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1.4rem;
   border-bottom:1px solid var(--ink-700);padding-bottom:1.1rem;margin-bottom:1.8rem}
-.phead h1{margin:0}
-.phead .sub{font-family:var(--mono);font-size:.76rem;color:var(--bone-500);letter-spacing:.06em}
+.phead h2{margin:0;padding:0;border:0;font:700 clamp(2.1rem,1.5rem + 2vw,3.25rem)/1.05 var(--font-display);
+  letter-spacing:-.01em;color:var(--bone-100)}
+.phead .sub{font-size:14px;color:var(--bone-300)}
 .phead .facts{margin-left:auto;display:flex;gap:1.8rem;text-align:right}
-.fact .k{font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--bone-500)}
-.fact .v{font-family:var(--mono);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.fact .k{font-size:12px;font-weight:600;color:var(--bone-300)}
+.fact .v{font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
 
 /* construct cards */
 .cards{display:grid;gap:0;border-top:1px solid var(--ink-700)}
 .card{padding:1.15rem 0;border-bottom:1px solid var(--ink-700);
-  display:grid;grid-template-columns:15rem 1fr 8rem;gap:1.6rem;align-items:center}
+  display:grid;grid-template-columns:15rem minmax(0,1fr) 10.5rem;gap:1.6rem;align-items:center}
 @media(max-width:800px){.card{grid-template-columns:1fr;gap:.6rem}}
-.card .name{font-family:var(--serif);font-size:1.12rem}
-.card .claim{color:var(--bone-500);font-size:.82rem;max-width:26ch;margin-top:.15rem}
-.card .val{font-family:var(--mono);font-size:1.5rem;font-variant-numeric:tabular-nums;text-align:right}
-.card .unit{font-family:var(--mono);font-size:.66rem;color:var(--bone-500);text-align:right;
-  letter-spacing:.08em;text-transform:uppercase}
+.card .name{font-size:1.1rem;font-weight:600}
+.card .claim{color:var(--bone-300);font-size:14px;max-width:28ch;margin-top:.15rem}
+.card .val{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.card .unit{font-size:12px;color:var(--bone-300);text-align:right}
 
 /* percentile strip — quality only */
 .strip{position:relative;height:34px}
 .strip svg{display:block;width:100%;height:34px;overflow:visible}
-.strip .axis{font-family:var(--mono);font-size:9px;fill:var(--bone-500)}
-.pct{font-family:var(--mono);font-size:.92rem;color:var(--bone-100)}
-.pctsub{font-family:var(--mono);font-size:.64rem;color:var(--bone-500)}
+.strip .axis{font-size:12px;fill:var(--bone-500)}
+.pct{font-size:15px;font-weight:600;color:var(--bone-100)}
+.pctsub{font-size:13px;color:var(--bone-300)}
+/* His marks: gold, always with a dark edge (gold alone is under 3:1 on a light page), set in
+   an overlay above the stretched drawing, so a bar stays a bar and a dot stays round. */
+.mark-frame{position:relative;display:block}
+.mark-frame .selected-mark{position:absolute;z-index:2;top:50%;box-sizing:border-box;
+  background:var(--gold);border:1px solid var(--selected-edge)}
+.dots{position:relative;display:block;height:12px}
+.dots .selected-mark{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;
+  box-sizing:border-box;border-radius:50%;background:var(--gold);border:1px solid var(--selected-edge)}
+.replication{font-size:var(--text-xs);color:var(--bone-300)}
 
 /* style panel — deliberately NOT a percentile */
 .style-row{display:grid;grid-template-columns:15rem 1fr;gap:1.6rem;align-items:center;
@@ -110,39 +107,41 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
    to hold its name shows none, rather than one that runs into its neighbour's. */
 .zones{display:flex;height:30px;border:1px solid var(--ink-600)}
 .zones div{position:relative;container-type:inline-size}
-.zones div span{position:absolute;inset:auto 0 -1.35rem 0;text-align:center;white-space:nowrap;
-  font-family:var(--mono);font-size:.58rem;color:var(--bone-500);letter-spacing:.08em}
-@container (max-width:1.2rem){.zones div span{visibility:hidden}}
-.spectrum{margin-top:1.6rem;font-family:var(--mono);font-size:.68rem;color:var(--bone-500)}
+.zones div span{position:absolute;inset:auto 0 -1.45rem 0;text-align:center;white-space:nowrap;
+  font-size:12px;font-weight:600;color:var(--bone-300)}
+@container (max-width:1.6rem){.zones div span{visibility:hidden}}
+.spectrum{margin-top:1.8rem;font-size:13px;color:var(--bone-300)}
 
 /* badges */
 /* Grade is encoded by FORM, never colour. Red-amber-green would make
    "we do not know" read as "this player is bad" — the merit reading the
    measurement work spent months removing. */
-.badge{font-family:var(--mono);font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;
-  padding:.18em .5em;border:1px solid var(--ink-600);color:var(--bone-500);white-space:nowrap}
-.g-strong{border-style:solid;color:var(--bone-300)}
+.badge{display:inline-block;font-size:12px;font-weight:600;line-height:1.5;
+  padding:.1em .6em;border:1px solid var(--ink-600);border-radius:var(--radius-control);
+  color:var(--bone-300);white-space:nowrap}
+.badge::first-letter{text-transform:uppercase}
+.g-strong{border-style:solid;color:var(--bone-100)}
 .g-limited{border-style:dashed}
 .g-insufficient{border-style:dotted}
-.b-none{color:var(--bone-500)}
+.b-none{color:var(--bone-300)}
 
-.insufficient{font-family:var(--mono);font-size:.78rem;color:var(--warn);
-  border-left:2px solid var(--warn);padding-left:.8rem}
-.insufficient small{display:block;color:var(--bone-500);font-size:.7rem;margin-top:.2rem}
+.insufficient{font-size:14px;color:var(--warn);
+  border-left:3px solid var(--ink-600);padding-left:.8rem}
+.insufficient small{display:block;color:var(--bone-300);font-size:13px;margin-top:.2rem}
 
-/* scatter */
+/* scatter: a chart, dark in both themes */
 #scatter{width:100%;height:460px;display:block;background:var(--ink-850);
-  border:1px solid var(--ink-700)}
-.quad{font-family:var(--mono);font-size:.64rem;color:var(--bone-500);
+  border:1px solid var(--ink-700);border-radius:var(--radius-chip)}
+.quad{font-size:13px;color:var(--bone-300);
   display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1.4rem;margin-top:.8rem}
 
 /* why-five */
 .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0;
   border-top:1px solid var(--ink-700)}
 .why > div{padding:1.1rem 1.4rem 1.1rem 0;border-bottom:1px solid var(--ink-700)}
-.why h3{font-family:var(--serif);font-weight:400;font-size:1.02rem;margin:.3rem 0 .35rem}
-.why p{color:var(--bone-500);font-size:.85rem;margin:0}
-.tag{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase}
+.why h3{font-size:1.05rem;font-weight:600;margin:.3rem 0 .35rem}
+.why p{color:var(--bone-300);font-size:14px;margin:0}
+.tag{font-size:12px;font-weight:700}
 .t-ship{color:var(--pos)} .t-rej{color:var(--neg)} .t-res{color:var(--warn)}
 
 /* The credit for analysis formed from StatsBomb data. The logo is the provider's own
@@ -150,60 +149,51 @@ input[type=search]:focus{outline:none;border-color:var(--gold-dim)}
 .credit{display:grid;grid-template-columns:auto 1fr;gap:1rem 1.6rem;align-items:start;
   margin-top:1.8rem}
 @media(max-width:800px){.credit{grid-template-columns:1fr}}
-.credit .plate{background:#fff;padding:.6rem .8rem;line-height:0;justify-self:start}
+.credit .plate{background:var(--logo-plate);padding:.6rem .8rem;line-height:0;justify-self:start;
+  border:1px solid var(--ink-700)}
 .credit img{display:block;width:170px;max-width:100%;height:auto}
-.credit p{margin:0 0 .5rem;color:var(--bone-300);font-size:.85rem;max-width:62ch}
-.credit p.notes{font-family:var(--mono);font-size:.72rem;color:var(--bone-500);margin:0}
+.credit p{margin:0 0 .5rem;color:var(--bone-300);font-size:14px;max-width:64ch}
+.credit p.notes{font-size:13px;color:var(--bone-300);margin:0}
 
 /* compare */
 .cmp{display:grid;grid-template-columns:1fr 9rem 1fr;gap:.8rem;align-items:center;
   padding:.85rem 0;border-bottom:1px solid var(--ink-700)}
-.cmp .bar-l,.cmp .bar-r{height:8px;background:var(--ink-700)}
+.cmp .bar-l,.cmp .bar-r{height:8px;background:var(--surface-2)}
 /* Both sides neutral. Gold on one bar asserted a winner by which search
    box you typed into, and reversed itself if you swapped the order. */
 .cmp .bar-l i,.cmp .bar-r i{display:block;height:100%;background:var(--ink-600)}
 .cmp .bar-l{direction:rtl}
-.cmp .mid{text-align:center;font-family:var(--mono);font-size:.72rem}
-.cmp .lang{grid-column:1/-1;font-size:.76rem;color:var(--bone-500);margin-top:.3rem}
-.cmp .lang.material{color:var(--bone-300)}
+.cmp .mid{text-align:center;font-size:13px;font-weight:600}
+.cmp .lang{grid-column:1/-1;font-size:13px;color:var(--bone-300);margin-top:.3rem}
+.cmp .lang.material{color:var(--bone-100)}
 
 details{border-top:1px solid var(--ink-700);padding:.7rem 0}
-summary{cursor:pointer;font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--bone-500)}
-summary:hover{color:var(--bone-100)}
-details .body{padding:.8rem 0 .2rem;font-size:.84rem;color:var(--bone-300)}
-details dl{display:grid;grid-template-columns:12rem 1fr;gap:.3rem 1rem;margin:0;
-  font-family:var(--mono);font-size:.74rem}
-details dt{color:var(--bone-500)}
+summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--bone-100)}
+summary:hover{color:var(--link)}
+details .body{padding:.8rem 0 .2rem;font-size:14px;color:var(--bone-300)}
+details dl{display:grid;grid-template-columns:12rem 1fr;gap:.3rem 1rem;margin:0;font-size:13px}
+details dt{color:var(--bone-300)}
 .hidden{display:none}
-.foot{font-family:var(--mono);font-size:.66rem;color:var(--bone-500);line-height:1.8;
+.foot{font-size:13px;color:var(--bone-300);line-height:1.7;
   border-top:1px solid var(--ink-700);padding-top:1.2rem}
+}
 </style>
 </head>
 <body>
-
-<header class="bar">
-  <span class="brand">GAL<em>Á</em>CTICO</span>
-  <span class="tier" id="tier">LAB · —</span>
-  <span class="spacer"></span>
-  <nav>
-    <a href="/match" style="color:inherit;text-decoration:none">Match Lab</a>
-    <a href="/xi" style="color:inherit;text-decoration:none">XI Lab</a>
-    <a href="/squad" style="color:inherit;text-decoration:none">Squad Lab</a>
-    <a href="/transfer" style="color:inherit;text-decoration:none">Transfer Lab</a>
+<!--shell:header-->
+<main id="main">
+<div class="bar">
+  <nav aria-label="Player Lab views">
     <button data-view="player" aria-current="true">Player</button>
     <button data-view="map">Map</button>
     <button data-view="explore">Explore</button>
     <button data-view="compare">Compare</button>
     <button data-view="why">Why only five?</button>
   </nav>
-</header>
-
-<main>
+</div>
   <!-- PLAYER ------------------------------------------------------------ -->
   <div id="view-player">
     <section id="intro">
-      <p><a href="/match-centre">Current fixtures &amp; results → Match centre</a></p>
       <h1 id="hero">Five constructs survived.</h1>
       <p class="lede">Galáctico does not manufacture ratings. Eight candidate measures went
         through reliability, confound and incremental-information testing across five leagues
@@ -276,6 +266,7 @@ details dt{color:var(--bone-500)}
 
   <div class="foot" id="foot"></div>
 </main>
+<!--shell:footer-->
 
 <script>
 const $ = s => document.querySelector(s);
@@ -338,21 +329,24 @@ function strip(pct, population){
   // redrawn: a value-space distribution belongs on a value axis, and this
   // strip is a position axis.
   const rug = '';
-  return `<svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img">
+  // His mark is a gold bar with a dark edge in an overlay, like geoBar's, so the stretched
+  // drawing cannot widen it, and it stays visible on a light page.
+  return `<span class="mark-frame"><span class="selected-mark"
+      style="left:${x}%;width:6px;height:20px;margin:-10px 0 0 -3px"></span>
+    <svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img">
     <line x1="0" y1="17" x2="100" y2="17" stroke="var(--ink-600)" stroke-width="1"
       vector-effect="non-scaling-stroke"/>
     ${[25,50,75].map(t=>`<line x1="${t}" y1="12" x2="${t}" y2="22" stroke="var(--ink-600)"
       stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
     ${rug}
-    <line x1="${x}" y1="7" x2="${x}" y2="27" stroke="var(--gold)" stroke-width="2"
-      vector-effect="non-scaling-stroke"/>
-  </svg>`;
+  </svg></span>`;
 }
 
 /* ---------- style zones (NOT a percentile) ---------- */
 function zoneBar(z){
   const seg = [["left_wide","LW"],["left_half","LH"],["centre","C"],["right_half","RH"],["right_wide","RW"]];
-  const tone = ["#3a463f","#4d5f52","#6f8471","#4d5f52","#3a463f"];
+  // Shaded by distance from the centre on a chart surface, dark in both themes.
+  const tone = ["var(--chart-bg-2)","var(--chart-grid)","var(--chart-axis)","var(--chart-grid)","var(--chart-bg-2)"];
   return `<div class="zones" role="img" aria-label="Share of completed passes by pitch channel">` +
     seg.map(([k,l],i)=>{
       const v = (z[k]||0);
@@ -435,7 +429,7 @@ async function showPlayer(id){
 
   el.innerHTML = `
     <div class="phead">
-      <div><h1>${p.name}</h1>
+      <div><h2>${p.name}</h2>
         <div class="sub">${p.team} · ${p.position} · ${p.competition} ${p.season}</div></div>
       <div class="facts">
         <div class="fact"><div class="k">Minutes</div><div class="v">${whole(p.minutes)}</div></div>
@@ -475,9 +469,10 @@ function geoBar(v, neutral){
   const x = Math.max(0, Math.min(100, v*100)), n = neutral*100;
   // The marker sits in an absolutely-positioned overlay rather than inside the
   // stretched SVG, so it stays a point instead of becoming a lozenge.
-  return '<span style="position:relative;display:block">' +
-    '<span style="position:absolute;left:' + x + '%;top:5px;width:7px;height:7px;' +
-    'margin-left:-3.5px;border-radius:50%;background:var(--gold);z-index:2"></span>' +
+  // The mark is centred on the drawing's line, whatever height the drawing is given.
+  return '<span class="mark-frame">' +
+    '<span class="selected-mark" style="left:' + x + '%;width:10px;height:10px;' +
+    'margin:-5px 0 0 -5px;border-radius:50%"></span>' +
     '<svg viewBox="0 0 100 18" preserveAspectRatio="none" role="img"' +
     ' aria-label="Channel share against the pitch own geometry">' +
     '<line x1="0" y1="9" x2="100" y2="9" stroke="var(--ink-600)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
@@ -501,10 +496,10 @@ let POPULATION = {};
 function quantileDots(quantiles, lo, hi){
   if (!quantiles || hi <= lo) return '';
   const x = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
-  return '<svg viewBox="0 0 100 12" preserveAspectRatio="none" role="img"' +
+  return '<span class="dots" role="img"' +
     ' aria-label="Bootstrap distribution of this player\'s own estimate">' +
-    quantiles.map(q => '<circle cx="' + x(q) + '" cy="6" r="2.2" fill="var(--gold)" opacity=".75"/>').join('') +
-    '</svg>';
+    quantiles.map(q => '<span class="selected-mark" style="left:' + x(q) + '%"></span>').join('') +
+    '</span>';
 }
 
 // Display names come from the registry, so a narrowed claim cannot leave the
@@ -526,20 +521,25 @@ async function drawScatter(){
   const Y = v => h - pad - (v - yr[0]) / (yr[1]-yr[0]) * (h - pad*1.6);
   const mx = xs.reduce((a,b)=>a+b,0)/xs.length, my = ys.reduce((a,b)=>a+b,0)/ys.length;
 
-  g.strokeStyle = 'rgba(220,225,220,.10)'; g.lineWidth = 1;
+  // The chart's roles, read where tokens.css defines them: the plot is dark in both themes.
+  const role = name => getComputedStyle(cv).getPropertyValue(name).trim();
+  g.strokeStyle = role('--chart-grid'); g.lineWidth = 1;
   g.beginPath(); g.moveTo(X(mx), pad*0.5); g.lineTo(X(mx), h-pad); g.stroke();
   g.beginPath(); g.moveTo(pad, Y(my)); g.lineTo(w-pad*0.5, Y(my)); g.stroke();
 
+  // Real Madrid's players solid, everyone else open: the same colour, told apart by shape.
   pts.forEach(p => {
     g.beginPath(); g.arc(X(p.x), Y(p.y), 2.6, 0, 7);
-    g.fillStyle = p.team === 'Real Madrid' ? '#b8b2a4' : 'rgba(184,178,164,.42)';
-    g.fill();
+    if (p.team === 'Real Madrid') { g.fillStyle = role('--chart-text'); g.fill(); }
+    else { g.strokeStyle = role('--chart-text-muted'); g.lineWidth = 1; g.stroke(); }
   });
-  g.fillStyle = '#7d786d'; g.font = '10px ui-monospace,monospace';
+  g.fillStyle = role('--chart-text-muted');
+  g.font = `600 12px ${role('--font-sans')}`;
   g.fillText('progression per completed pass →', pad, h - 18);
-  g.save(); g.translate(16, h-pad); g.rotate(-Math.PI/2);
+  g.save(); g.translate(18, h-pad); g.rotate(-Math.PI/2);
   g.fillText('progression per 90 →', 0, 0); g.restore();
-  g.fillStyle = '#b8b2a4'; g.fillText('solid = Real Madrid', w - 150, 22);
+  g.fillStyle = role('--chart-text'); g.textAlign = 'right';
+  g.fillText('solid = Real Madrid', w - 14, 22); g.textAlign = 'left';
 
   cv.onmousemove = e => {
     const r = cv.getBoundingClientRect(), mxp = e.clientX-r.left, myp = e.clientY-r.top;
@@ -594,7 +594,7 @@ async function runCompare(){
   if (!cmpA || !cmpB) return;
   const d = await api(`/api/compare?a=${cmpA}&b=${cmpB}`);
   $('#cmp').innerHTML = `<div class="phead" style="border:0;padding:0;margin-bottom:1rem">
-      <div><h1 style="font-size:1.5rem">${d.left.name} <span style="color:var(--bone-500)">vs</span> ${d.right.name}</h1></div></div>` +
+      <div><h2 style="font-size:1.5rem">${d.left.name} <span style="color:var(--bone-500)">vs</span> ${d.right.name}</h2></div></div>` +
     (() => {
       const q = d.deltas.filter(x => x.family !== 'style');
       const st = d.deltas.filter(x => x.family === 'style');
@@ -651,7 +651,7 @@ const TOGETHER = ' style="white-space:nowrap"';  // a label's words stay on one 
 function renderWhy(){
   const ship = CONSTRUCTS.shipped.map(c => `<div>
     <div class="tag t-ship">Shipped</div><h3>${esc(c.label)}</h3>
-    <p>${esc(c.claim)}<br><span class="mono" style="font-size:.72rem">external replication: ${
+    <p>${esc(c.claim)}<br><span class="replication">external replication: ${
       c.external_replication_note
         ? noteLink(c.external_replication_note, c.external_replication_label, TOGETHER)
         : esc(c.external_replication_label)}</span></p></div>`);
@@ -661,7 +661,7 @@ function renderWhy(){
   const res = CONSTRUCTS.research_only.map(c => `<div>
     <div class="tag t-res">Research only</div><h3>${esc(c.label)}</h3>
     <p><strong style="color:var(--bone-300)">${esc(c.headline)}.</strong> ${esc(c.detail)}${
-      c.note ? `<br><span class="mono" style="font-size:.72rem">research note: ${
+      c.note ? `<br><span class="replication">research note: ${
         noteLink(c.note, c.note.title)}</span>` : ''}</p></div>`);
   $('#why').innerHTML = [...ship, ...rej, ...res].join('');
   const credit = CONSTRUCTS.statsbomb_credit;
@@ -678,7 +678,6 @@ function renderWhy(){
   const k = CONSTRUCTS.counts;
   $('#hero').textContent =
     `${k.proposed} proposed. ${k.tested} tested. ${k.surviving} survive.`;
-  $('#tier').textContent = `${META.tier} · ${META.competition==='Spain'?'La Liga':META.competition} ${META.season}`;
   $('#foot').innerHTML =
     `Historical laboratory. These estimators run on Pappalardo/Wyscout ${META.season} event data
      (CC BY 4.0) — they are <strong>not</strong> the current season, and a LIVE regime would use a
@@ -691,7 +690,18 @@ function renderWhy(){
   wireSearch($('#qb'), $('#rb'), id => { cmpB = id; runCompare(); });
   const first = await api('/api/players?q=modric&limit=1');
   if (first.players.length) showPlayer(first.players[0].player_id);
-})();
+})().catch(failed => {
+  // Nothing loaded: say so in place of the views, never fail silently. A 503 is the archive
+  // missing; the server's own detail is written for whoever runs it.
+  const state = document.createElement('div');
+  state.className = 'ui-callout';
+  state.setAttribute('role', 'status');
+  state.dataset.tone = failed === 503 ? 'unavailable' : 'error';
+  state.innerHTML = '<p>' + (failed === 503 ? Site.archiveMissing()
+    : 'Player profiles could not load. Reload the page to try again.') + '</p>';
+  $('.bar').after(state);
+  document.querySelectorAll('[id^="view-"]').forEach(view => view.classList.add('hidden'));
+});
 </script>
 </body>
 </html>
