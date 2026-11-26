@@ -435,8 +435,7 @@ to the server's sentence in a comparison. For the
 
 - Player Lab moved from `/` to `/player`. On the local app an old link to `/` with `?player=`
   or `?view=` answers 308 (permanent) to `/player` with the same query; a bare `/` now opens the match
-  board. Player Lab still keeps the chosen view and player out of the URL, so a link to
-  `/player` opens the default view.
+  board. Since ADR-0034 the page keeps the view and the player in its URL.
 - The hosted site's `/` was the lineup studio; it is now the match board, as on the local app.
   The studio is at `/lineup`. The hosted site serves no archive page, so an old link to `/`
   with `?player=` opens the match board there rather than a 404.
@@ -444,25 +443,64 @@ to the server's sentence in a comparison. For the
   invented figures beside real players' names. Its address answers 308 (permanent) to `/match-centre`, and
   `/static/matchroom-demo.html` is a 404. Nothing replaces its transfer shortlist on the
   current-season side.
-- The labs keep their layout under the new look: the sheets were re-pointed at the design
-  system, not rewritten, so their pages are not yet answer first, and the 12 px type made them
-  longer. Squad and Transfer close their "not measured" panel on arrival; the evidence ledger,
-  absence stress, the provenance record and XI Lab's extensions are still open, so Squad Lab at
-  390 px is about 22,000 px tall and XI Lab about 7,400. Collapsing them, and a size gate in the
-  e2e suite (it would fail today), are the page groups' work (ADR-0033). Player Lab's five
-  views each keep their own `h1` (one is shown at a time); their wording is the page group's.
+- The labs kept their layout under ADR-0033's look; ADR-0034 replaced it, answer first, with
+  the research tools, the evidence ledger, absence stress and the provenance record closed on
+  arrival. The e2e suite checks that the answer comes before the primary visual and above the
+  fold; it has no gate on a page's total height.
 - A label drawn in an SVG is kept at 12 px on screen by `web/site.js`, which enlarges it in the
   drawing's units. At 12 px some labels that sat apart at their old size touch on a phone: the
-  percentile labels of a reference strip when two percentiles are close. Three drawings leave a
-  label to the text beside them on a phone instead: XI Lab's pitch shows names only (slot and
-  frequency are in the list and the detail), the depth pitch leaves slot names to the depth
-  list, and Match Lab's threat flow labels every half hour.
+  percentile labels of a reference strip when two percentiles are close. Two drawings leave a
+  label to the text beside them on a phone instead: the depth pitch leaves slot names to the
+  depth list, and Match Lab's threat flow labels every half hour. The XI page's pitch labels its
+  places in HTML since ADR-0034.
 - The depth pitch's marks are smaller than 24 px on a phone (about 13 px apart) and have no
   wider pointer area, which would cover the next mark. The depth list beside the pitch selects
   the same players with full-size buttons.
 - The navigation lists a page only where the serving app answers its route. The hosted site
   therefore shows no Squad & signings destination and links Players to the scouting page and
   Lineup to the studio; the archive pages appear only on a local install with the corpus.
+
+## This season's pages, answer first (ADR-0034)
+
+- La Liga has no free fill. OpenFootball's La Liga file lags behind play and OpenLigaDB has no
+  current La Liga season, so the La Liga table says where its results stop ("Table after
+  matchday N of M", with the count of later fixtures without a result), its match reports name
+  no scorers, and goals by opponent does not offer La Liga. Nothing missing is estimated.
+- A fixture without a result may not have been played: a postponement looks the same in the
+  free files, so the pages say "without a result", never "not yet played".
+- The Champions League comes from OpenLigaDB alone. Its table is the league phase, ordered by
+  points, goal difference and goals scored, as the other tables are; the competition's own
+  tie-breakers are not applied. The knockout rounds are mapped from OpenLigaDB's stage names and
+  have not been checked against real knockout data, which the feed has not published yet.
+- A Bundesliga or Premier League result filled from OpenLigaDB depends on the club matching of
+  the goal explorer (`goal_scout.verify_fixtures`); a fixture whose clubs or matchday do not
+  match keeps no result.
+- A scorer listed under two names is joined only by the declared rule (`merge_scorers`: the same
+  name, or the same surname with a matching first name, initial or a nickname from a short map);
+  different initials are never joined, and a short form that could be two players stays apart
+  with a note.
+- Lineup places a player within his position by the first position in his Wikipedia infobox
+  (side, and attacking or defensive for a midfielder). Where the batched MediaWiki request is
+  refused (it answered 429 from the build environment), each article's source is read, a few at
+  a time; a player whose article does not load stands by shirt number, and the key line says so.
+- The proposed XI's key (most 2026/27 appearances in each position) counts appearances in every
+  competition as Wikipedia lists them; it says nothing of form or fitness.
+- The Lineup's next-match card links to the opponent's goals only where the free goal feed
+  covers the competition, so a La Liga fixture has no such link.
+- Goals by opponent no longer offers the teammate side-by-side comparison or the "Opponent
+  strength" control (cut with La Liga in ADR-0034).
+- Match reports link to Check against targets only for the matches an XI scenario is prepared
+  for (two of the season's Madrid matches); the others have no link rather than a link to
+  another match's scenario.
+- Signings no longer carries the full targets editor. Targets arrive by the menu, the link from
+  Squad depth, the "Compare them against a gap" leads, or Squad depth's editor (its link carries
+  them over); the two wide-channel experimental targets reach Signings only through a link with
+  `optin=1`. On a wide screen its candidate panel scrolls inside itself.
+- On the local app the Players destination opens Player profiles (`/player`) before goals by
+  opponent, as the redesign brief lists them; the review's request to open the current season
+  first is a root decision and is unchanged.
+- The archive pages are still served only on a local install with the corpus; the hosted site
+  says so on their addresses.
 
 ## Product scope
 

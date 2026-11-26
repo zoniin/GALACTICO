@@ -18,9 +18,19 @@ test('Match Lab renders actual events, pitch maps and a vector without a rating'
   await expect(page.locator('#flow svg')).toBeVisible();
   await expect(page.locator('#shots svg')).toBeVisible();
   await expect(page.locator('#network svg')).toBeVisible();
-  await expect(page.locator('#player-detail')).toContainText('Completed passes');
+  // ADR-0034 (G4-1): the counts a reader sees first are the server's plain words.
+  await expect(page.locator('#player-detail')).toContainText('Passes completed');
   await expect(page.locator('#shots-note')).toContainText('xG is unavailable');
-  await expect(page.locator('#score-note')).toContainText('NOT_IDENTIFIED');
+  // ADR-0034: the server's status token is printed in words, inside "About these numbers".
+  await expect(page.locator('#score-note')).toContainText('One-number match summary: not identified.');
+  // Answer first: the H1 names the match and the sentence under it is the server's.
+  const said = await page.evaluate(() => fetch('/api/answers/match/2565907').then(r => r.json()));
+  await expect(page.locator('h1')).toHaveText('Barcelona v Real Madrid');
+  await expect(page.locator('#answer')).toHaveText(said.answer);
+  expect(said.answer).toContain('2–2');
+  for (const scorer of [...said.home.scorers, ...said.away.scorers]) {
+    await expect(page.locator('#match-header')).toContainText(scorer.line);
+  }
   await page.getByRole('button', { name: 'Sergi Roberto', exact: true }).click();
   await expect(page.locator('#player-detail')).toContainText('minutes unavailable');
   const dismissed = page.locator('#lineups tr').filter({ hasText: 'Sergi Roberto' });
@@ -29,8 +39,8 @@ test('Match Lab renders actual events, pitch maps and a vector without a rating'
   const keys = await page.locator('#timeline li').count();
   await page.getByRole('button', { name: 'Tactical', exact: true }).click();
   expect(await page.locator('#timeline li').count()).toBeGreaterThan(keys);
-  await page.getByRole('button', { name: 'xT value', exact: true }).click();
-  await expect(page.locator('#network-note')).toContainText('xT gain');
+  await page.getByRole('button', { name: 'Ball progression', exact: true }).click();
+  await expect(page.locator('#network-note')).toContainText('ball progression');
   const player = page.locator('#players button').last();
   const name = await player.textContent();
   await player.click();
@@ -53,6 +63,11 @@ test('Match Lab prints the reason and no number where a registry construct is ou
   await page.goto(BASE + '/match?id=2565907');
   const match = await (await detail).json();
   await expect(page.locator('#match-body')).toBeVisible({ timeout: 150000 });
+  // ADR-0034 (G4-1): each row is named and its status worded by the server's answer
+  // (/api/answers/match), and the measures past the plain counts sit under a closed
+  // "More measures"; the pins below read those words, and open it before looking.
+  const said = await page.evaluate(() => fetch('/api/answers/match/2565907').then(r => r.json()));
+  const words = Object.fromEntries(said.metrics.map(w => [w.id, w]));
 
   // What the server sent for the goalkeeper: the five registry constructs, each with no
   // value, the status Match Lab gives a number it does not publish, and the reason.
@@ -72,7 +87,9 @@ test('Match Lab prints the reason and no number where a registry construct is ou
   const card = page.locator('#player-detail');
   await expect(card.locator('h3')).toHaveText('K. Navas');
   // A row is found by the label it starts with; the labels are the server's.
-  const row = metric => card.locator('tbody tr').filter({ hasText: new RegExp('^\\s*' + escaped(metric.label)) });
+  const row = metric => card.locator(`tbody tr[data-metric="${metric.id}"]`).filter({ hasText: new RegExp('^\\s*' + escaped(words[metric.id].label)) });
+  const more = card.locator('details.mr-more');
+  if (!(await more.getAttribute('open') !== null)) await more.locator('> summary').click();
   for (const width of [1400, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(card.locator('tbody tr')).toHaveCount(keeper.metrics.length);
@@ -80,7 +97,7 @@ test('Match Lab prints the reason and no number where a registry construct is ou
     await expect(card.locator('td.mono')).toHaveCount(counted.length);
     for (const metric of withheld) {
       await expect(row(metric), metric.id).toHaveCount(1);
-      await expect(row(metric), metric.id).toContainText(metric.status);
+      await expect(row(metric), metric.id).toContainText(said.status_words[metric.status]);
       await expect(row(metric), metric.id).toContainText(REASON);
       await expect(row(metric).getByText(REASON), metric.id + ' at ' + width + ' px').toBeVisible();
       // No value, no zero, and no dash standing where a value would.
@@ -88,7 +105,7 @@ test('Match Lab prints the reason and no number where a registry construct is ou
     }
     // What was recorded for him is still printed as a number.
     for (const metric of counted) {
-      await expect(row(metric).locator('td.mono'), metric.id).toHaveText(new RegExp('^' + metric.value + '\\s*' + escaped(metric.unit) + '$'));
+      await expect(row(metric).locator('td.mono'), metric.id).toHaveText(new RegExp('^' + metric.value + '$'));
       await expect(row(metric), metric.id).not.toContainText(REASON);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), 'horizontal overflow at ' + width + ' px').toBe(false);
@@ -100,11 +117,66 @@ test('Match Lab prints the reason and no number where a registry construct is ou
   await page.locator('#players button[data-player="' + outfield.player_id + '"]').click();
   await expect(card.locator('h3')).toHaveText(outfield.name);
   await expect(card).not.toContainText(REASON);
-  await expect(card).not.toContainText('UNAVAILABLE');
+  await expect(card).not.toContainText(said.status_words.UNAVAILABLE);
   for (const metric of outfield.metrics.filter(m => constructs.includes(m.id))) {
     expect(metric.status).toBe('DERIVABLE');
     await expect(row(metric).locator('td.mono'), metric.id).toHaveText(/^-?[0-9]/);
   }
+  expect(errors).toEqual([]);
+});
+
+// F18: Match reports linked every match to Check against targets, which opened another
+// match's scenario without a word for 36 of the 38. The link is now served for a match with a
+// prepared scenario and is absent otherwise; the season strip and Previous / Next move between
+// matches in date order, and Back returns to the match before.
+test('Match reports link to Check against targets only where a scenario exists', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watch(page);
+  await page.goto(BASE + '/match?id=2565907');
+  await expect(page.locator('#match-body')).toBeVisible({ timeout: 150000 });
+  const { matches } = await page.evaluate(() => fetch('/api/answers/matches').then(r => r.json()));
+  const { scenarios } = await page.evaluate(() => fetch('/api/xi/scenarios').then(r => r.json()));
+  const prepared = new Set(scenarios.map(s => s.match_id));
+  expect(matches.filter(m => m.has_xi_check).map(m => m.match_id).sort())
+    .toEqual([...prepared].sort());
+  const link = page.locator('#rebuild');
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('href', '/xi?scenario=madrid-2018-05-06');
+  // The next match in date order has no scenario: no link at all.
+  const at = matches.findIndex(m => m.match_id === 2565907);
+  const next = matches[at + 1];
+  expect(prepared.has(next.match_id)).toBe(false);
+  await page.locator('#next-match').click();
+  await expect(page.locator('#match-select')).toHaveValue(String(next.match_id));
+  await expect(page.locator('#match-body')).toBeVisible({ timeout: 120000 });
+  await expect(page.locator('#answer')).toBeVisible();
+  await expect(link).toBeHidden();
+  expect(new URL(page.url()).search).toBe('?id=' + next.match_id);
+  // The season strip: one square per match, by date, the one on screen marked.
+  await expect(page.locator('#season button')).toHaveCount(matches.length);
+  await expect(page.locator('#season button[aria-current="true"]')).toHaveAttribute('data-match', String(next.match_id));
+  await page.goBack();
+  await expect(page.locator('#match-select')).toHaveValue('2565907');
+  await expect(link).toBeVisible({ timeout: 120000 });
+  expect(errors).toEqual([]);
+});
+
+// ADR-0034 (G4-5): a link to a match the archive does not hold opens the season's last
+// match and says so under the H1; choosing a match clears the notice.
+test('Match reports say so when a linked match is not in the archive', async ({ page }) => {
+  test.setTimeout(180000);
+  const errors = watch(page);
+  const listed = page.waitForResponse(r => r.url().endsWith('/api/answers/matches'), { timeout: 150000 });
+  await page.goto(BASE + '/match?id=1');
+  const matches = (await (await listed).json()).matches;
+  await expect(page.locator('#match-body')).toBeVisible({ timeout: 150000 });
+  await expect(page.locator('#match-select')).toHaveValue(String(matches[matches.length - 1].match_id));
+  const notice = page.locator('#notice');
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveText('That match isn’t in the archive; this is the last match of the season.');
+  expect((await page.locator('h1').boundingBox()).y).toBeLessThan((await notice.boundingBox()).y);
+  await page.locator('#prev-match').click();
+  await expect(notice).toBeHidden();
   expect(errors).toEqual([]);
 });
 
@@ -117,15 +189,24 @@ test('XI Lab renders eleven unique players and lock/reoptimize preserves the ins
   const ids = await page.locator('#xi-pitch [data-player]').evaluateAll(nodes => nodes.map(n => n.dataset.player));
   expect(ids).toHaveLength(11);
   expect(new Set(ids).size).toBe(11);
-  await expect(page.locator('#requirements')).toContainText('UNMEASURED');
+  // ADR-0034, answer first: the H1 is the question and the sentence under it is the server's,
+  // about this XI; the targets are listed in plain words and what is not measured is one line.
+  const said = await page.evaluate(() => fetch('/api/answers/xi', { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(r => r.json()));
+  await expect(page.locator('h1')).toHaveText('Can an XI meet your targets?');
+  await expect(page.locator('#answer')).toHaveText(said.answer, { timeout: 60000 });
+  expect(said.answer).toContain('Before the match against Barcelona on Sun 6 May 2018');
+  expect(said.xi.map(String)).toEqual(ids);
+  await expect(page.locator('#requirements [data-target]')).toHaveCount(3);
+  await expect(page.locator('#not-measured')).toContainText('Not measured here: chance creation, rest defence and goalkeeping.');
   await expect(page.locator('#frequencies')).toContainText('Necessary');
-  await expect(page.locator('#certificate')).toContainText('no aggregate team rating');
+  await expect(page.locator('#certificate')).toContainText('No overall rating is used.');
   const isco = await page.locator('#candidate option').evaluateAll(options => options.find(o => /isco/i.test(o.textContent))?.value);
   expect(isco).toBeTruthy();
   await page.locator('#candidate').selectOption(isco);
   await page.locator('#lock-player').click();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
-  await expect(page.locator('#constraints')).toContainText('LOCK');
+  await expect(page.locator('#constraints')).toContainText('Locked in');
   await expect(page.locator('#xi-pitch [data-player="' + isco + '"]')).toHaveCount(1);
   await expect(page.locator('#selected-detail')).toContainText('Unlock');
   await expect(page.locator('#xi-pitch .player.selected')).toHaveCount(1);
@@ -133,14 +214,15 @@ test('XI Lab renders eleven unique players and lock/reoptimize preserves the ins
   expect(gold).toBe('rgb(201, 162, 39)');
   const neutral = await page.locator('#xi-pitch .player:not(.selected) circle').evaluateAll(nodes => nodes.every(n => getComputedStyle(n).fill !== 'rgb(201, 162, 39)'));
   expect(neutral).toBe(true);
-  // Presets are explicit server-provided constraints, not narrative recommendations.
-  await page.getByRole('button', { name: 'BBC constraint', exact: true }).click();
+  // Presets are explicit server-provided constraints, not narrative recommendations. ADR-0034:
+  // each is named in plain words (/api/answers/xi/scenarios); its locks are the lab's.
+  await page.getByRole('button', { name: 'Ronaldo, Benzema and Bale together', exact: true }).click();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
   for (const id of [3322, 3321, 8278]) {
     await expect(page.locator('#xi-pitch [data-player="' + id + '"]')).toHaveCount(1);
   }
   await expect(page.locator('#formation')).toHaveValue('4-3-3');
-  await page.getByRole('button', { name: 'Diamond + Isco included', exact: true }).click();
+  await page.getByRole('button', { name: 'Isco at the tip of a diamond', exact: true }).click();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
   await expect(page.locator('#formation')).toHaveValue('4-3-1-2');
   await expect(page.locator('#xi-pitch [data-player="' + isco + '"]')).toHaveCount(1);
@@ -176,7 +258,7 @@ test('infeasible hard minima remain visible and editable without silent relaxati
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
   await page.locator('#mode').selectOption('SATISFY');
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   const progression = page.locator('input[data-requirement="progression"]');
   const initial = await progression.inputValue();
   await progression.fill('1000');
@@ -184,7 +266,9 @@ test('infeasible hard minima remain visible and editable without silent relaxati
   await expect(page.locator('#solver-status')).toHaveText('INFEASIBLE', { timeout: 120000 });
   await expect(progression).toHaveValue('1000');
   await expect(page.locator('#minimum-inputs input')).toHaveCount(3);
-  await expect(page.locator('#requirements')).toContainText('NOT_EVALUATED');
+  // ADR-0034: the lab's NOT_EVALUATED, in a reader's words; the sentence says no XI meets them.
+  await expect(page.locator('#requirements')).toContainText('Not checked');
+  await expect(page.locator('#answer')).toContainText('no XI from the 16 players in the pool meets every target', { timeout: 60000 });
   await progression.fill(initial);
   await page.locator('#apply-minima').click();
   await expect(page.locator('#solver-status')).toHaveText('OPTIMAL', { timeout: 120000 });

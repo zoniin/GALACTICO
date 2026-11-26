@@ -283,6 +283,8 @@
     --pitch-mark: var(--c-lime-300);
     --on-pitch-mark: var(--c-grass-900);
     --kit-ink: var(--c-kit-ink);
+    /* The goalkeeper's shirt: its own colour, never the lime of the player looked at. */
+    --kit-keeper: var(--c-amber-300);
 
     /* The player card's gradient and the text on it. */
     --hero-from: var(--c-indigo-900);

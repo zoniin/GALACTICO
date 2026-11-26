@@ -358,18 +358,26 @@ def test_the_frame_has_four_panels_in_their_order_with_every_button_disabled(tmp
     assert '<input type="checkbox" id="xi-experimental-opt-in" autocomplete="off" disabled>' \
         in markup
     assert 'id="conflict-panel" class="panel xi-panel hidden"' in markup
-    assert visible(markup).count("Re-solve the main XI first.") == 4
-    # The lead claims only what holds in every state: without the opt-in the ceilings and risk
-    # panels answer on a model that is not the main solve's, and their replies say so.
+    # ADR-0034: the ranges, the frontier and the risk rule are closed disclosures under the
+    # page's "Advanced", each naming its question and saying in one line what it does; the
+    # conflict panel stays an open section, shown only when the solve above is infeasible.
+    for panel in ("ceilings-panel", "frontier-panel", "risk-panel"):
+        assert re.search(rf'<details id="{panel}" class="xi-panel xi-tool"><summary><span '
+                         r'class="xi-tool-title" id="xi-\w+-title">[^<]+</span><span '
+                         r'class="xi-tool-line">[^<]+</span></summary>', markup), panel
+    assert "<details open" not in markup and " open>" not in markup
+    assert visible(markup).count("Waiting for the XI above.") == 4
+    # The lead claims only what holds in every state: without the opt-in the ranges and the
+    # risk rule answer on a model that is not the main solve's, and their replies say so.
     lead = re.search(r'<p class="small subtle xi-lead">([^<]+)</p>', markup).group(1)
     assert "model solved above" not in lead and "of the XI model" not in lead
-    assert "Where an answer holds other requirements in force than the solve above, it says " \
-        "so." in lead
-    assert "Explain, including the two EXPERIMENTAL requirements the solve above used" in markup
+    assert "Where an answer holds other targets than the XI above, it says so." in lead
+    assert "Explain the clash, with the two experimental channel targets the XI above used" \
+        in markup
     assert scan_labels(visible(markup)) == [] and not re.search(r"\d", visible(markup))
     # Names the shipped specs select without a scope are never used here.
     for name in ("data-requirement", "data-floor", "data-alternative", "alternative-xi",
-                 "Adjust requirement minima", "lock/exclusion"):
+                 "Adjust requirement minima", "Set targets", "lock/exclusion"):
         assert name not in markup and name not in KIT.read_text(encoding="utf-8")
 
 
@@ -848,19 +856,43 @@ def test_every_table_cell_carries_its_own_label(tmp_path, make_client):
 # --------------------------------------------------------------------- the page edits
 
 
-SHIPPED_XI_HTML = "4d9cd94bc13a21142d36f0648f3e1f848a45e158e213961de6b2597b32a5bde6"
+SHIPPED_XI_HTML = "9200a696c1ea572f5035e7ae803a4efc472eb087136467c9e8ae274f6a7906e6"
 """LF-normalised sha256 of web/xi.html without the five additive edits.
 
-Re-pinned once, for the site shell (ADR-0033): the page's hand-written lab header became the
-``<!--shell:head-->``, ``<!--shell:header-->`` and ``<!--shell:footer-->`` placeholders the
-server fills, ``<main>`` gained ``id="main"`` for the skip link, and the ``<title>`` moved
-into the shell, which writes it. In the same change, three edits of the page's script: each
-player mark on the pitch draws a focus ring and a pointer area of its own (``Site.focusRing``,
-``Site.hitArea``), ``api()`` keeps the reply's HTTP status on the error it throws, and a
-missing archive (a 503 on load, or the corpus-absent detail on a solve) prints the
-archive-missing state (``Site.archiveMissing``) instead of the server's detail. Nothing else of
-the page changed. The previous pin was
-656cf19a2d2bd924a2f80f5bf30a35044d284057516f3e20c559c65a70072492."""
+Re-pinned again under ADR-0034 (the review fixes), from
+18f108a2639ea42b5517183b719eae61b739283b8cb649a934a4927c3aaa2920: the XI is drawn as on Lineup,
+on a portrait pitch (a shirt per place with its code, the name on a plate, each place one button
+of 44 px or more, the places of one line on one band so no line's plates reach the next), the
+page opens on the first outfield player instead of the goalkeeper, a target's field shows three
+significant figures and sends the exact target unless the reader edits it (data-exact), the aim
+is two radios with the full words on a narrow phone (kept in step with the select), and the full
+record sits under "Technical record (JSON)". Every id, event, request body and the gold rule of
+the page are kept.
+
+Re-pinned for answer-first pages (ADR-0034), from
+4d9cd94bc13a21142d36f0648f3e1f848a45e158e213961de6b2597b32a5bde6. The page became "Check against
+targets": an H1 that asks the question ("Can an XI meet your targets?"), the server's answer
+sentence under it (``galactico.api.xi_answers``, asked beside the solve and printed as text),
+the three choices in the glossary's words ("Before the match", "Formation", "Aim": "Get as close
+as possible to every target" or "Meet every target"), then the XI on a dark board beside "Your
+targets" (each target's name, status word, total and target, with "Set targets" closed under
+it) and the player picked. The research tools (other XIs, the hard-limit question, how often each
+player is picked, and this kit's panels) are closed under "Advanced", each with one line saying
+what it does; the solver's record, the caveats and the provenance moved into "About these
+numbers", closed. The page reads its menu from /api/answers/xi/scenarios (the lab's own, with
+words beside it), keeps the declarations in its URL, and its quick picks, buttons and states are
+named in plain words. Every id, event, request body, ordering rule and the gold rule of the page
+are kept; nothing a reply carries is computed or sorted in the page.
+
+Re-pinned before, for the site shell (ADR-0033), from
+656cf19a2d2bd924a2f80f5bf30a35044d284057516f3e20c559c65a70072492: the page's hand-written lab
+header became the ``<!--shell:head-->``, ``<!--shell:header-->`` and ``<!--shell:footer-->``
+placeholders the server fills, ``<main>`` gained ``id="main"`` for the skip link, and the
+``<title>`` moved into the shell, which writes it. In the same change, three edits of the page's
+script: each player mark on the pitch draws a focus ring and a pointer area of its own
+(``Site.focusRing``, ``Site.hitArea``), ``api()`` keeps the reply's HTTP status on the error it
+throws, and a missing archive (a 503 on load, or the corpus-absent detail on a solve) prints the
+archive-missing state (``Site.archiveMissing``) instead of the server's detail."""
 INSERTIONS = (
     '<link rel="stylesheet" href="/static/xi-extensions.css">',
     '<div id="xi-extensions"></div>',
@@ -891,3 +923,17 @@ def test_xi_html_holds_the_five_additive_edits_and_nothing_else():
     assert "busy=true;" + INSERTIONS[4] in page
     assert "addEventListener('input',()=>{" + INSERTIONS[4] in page
     assert "render();" + INSERTIONS[5] in page
+
+
+def test_the_conflict_line_claims_only_what_the_method_makes():
+    """ADR-0034 (G5-1 of the code review): the clash panel's one line said "The smallest set
+    of your choices that cannot all hold together". galactico/optimization/xi/conflict.py
+    finds a minimal set (each member needed), not the smallest by count, and a filter test
+    that does not settle may leave it not minimal (xi_extensions.py). The line now says that."""
+    kit = KIT.read_text(encoding="utf-8")
+    assert ("line: 'A set of your choices that cannot all hold together; drop any one and the "
+            "rest can, where the check settles.'") in kit
+    assert "smallest" not in kit.lower()
+    # The opt-in reads in the glossary's words, never the capitals of a research token.
+    assert "Also check the two wide-channel targets (experimental)" in kit
+    assert "EXPERIMENTAL" not in kit.split("const COPY")[1].split("const PANELS")[0]

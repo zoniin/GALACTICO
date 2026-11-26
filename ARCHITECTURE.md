@@ -28,33 +28,48 @@ one shell (ADR-0033).
 | Module or file | Responsibility |
 |---|---|
 | `site_nav.py` | The shell: skip link, header (wordmark, navigation, season chip, theme switch), the phone tab bar and the footer ("About the numbers", the page's data credits). Fills the `<!--shell:head-->`, `<!--shell:header-->` and `<!--shell:footer-->` placeholders of every page file. The navigation is deployment-aware: it lists a destination only when the serving app answers its route. Standard library only, so the hosted function ships it (`vercel.json` `includeFiles`) |
-| `match_centre/routes.py` | The current-season pages and their APIs, included by both apps: `/` and `/match-centre` (Matches), `/match-centre/leagues` (Table), `/match-centre/scouting`, `/lineup`, `/about`; an old Player Lab link to `/` opens `/player` where the app serves it |
-| `api/about.py` | The archive's sections of "About the numbers", read from the registries where they are defined; the local app hands them to the shell |
-| `web/tokens.css`, `base.css`, `components.css` | The design system: every colour literal and its light and dark role (`tokens.css`); fonts, type scale, links and the focus ring (`base.css`); the shell and the `ui-*` components (`components.css`). Cascade order `tokens, base, legacy, components, page` |
-| `web/labs.css`, `labs-shared.css`, `planning.css`, `xi-extensions.css`, `match-centre.css`, `studio-shell.css`, `studio.css`, `goal-scout.css` | The sheets written before the system, in the `legacy` layer, reading its roles (`labs.css` re-points the labs' old names at them) |
+| `match_centre/routes.py` | The current-season pages and their APIs, included by both apps: `/` and `/match-centre` (Matches), `/match-centre/leagues` (Table), `/match-centre/scouting`, `/lineup`, `/about`; an old Player Lab link to `/` opens `/player` where the app serves it. Public replies carry `Vercel-CDN-Cache-Control` (stale-while-revalidate), never with a warning or the private feed |
+| `match_centre/openfootball.py`, `openligadb.py`, `freshness.py` | This season's fixtures and results: OpenFootball's files, a Bundesliga and Premier League result they lack filled from OpenLigaDB once both clubs and the matchday match (never replacing a reported one), the Champions League from OpenLigaDB alone in the same row shape, and how current each competition is, said from its own rows ("Results through …", "Table after matchday N of M") |
+| `match_centre/answers.py`, `goal_scout.py`, `scouting.py`, `studio.py` | The answer sentences of Matches, Table, Players and Lineup, composed on the server (R10). The hosted function cannot import `galactico.domain`, so their tests run every sentence shape through `scan_labels` |
+| `match_centre/errors.py`, `methods.py` | The designed page for an address the app does not serve (installed on both apps; API paths, static files and non-HTML clients keep the JSON 404), and the "This season's results, tables and goals" section of "About the numbers" |
+| `api/about.py` | The archive's sections of "About the numbers", read from the registries where they are defined; the local app hands them to the shell, after them the season section |
+| `api/player_answers.py`, `xi_answers.py`, `planning_answers.py` | The archive pages' answer sentences and hand-offs (ADR-0034), beside the frozen lab APIs: each asks the lab route itself, so a sentence is about the reply the page holds, and passes `runtime.finalize` |
+| `web/tokens.css`, `base.css`, `components.css` | The design system: every colour literal and its light and dark role (`tokens.css`); fonts, type scale, links and the focus ring (`base.css`); the shell, the page-header slot order and the `ui-*` components (`components.css`). Cascade order `tokens, base, legacy, components, page` |
+| `web/matches.css`, `goals.css`, `lineup.css`, `player-lab.css`, `match-lab.css`, `xi.css`, `planning-pages.css` | Each page's own sheet, in the `page` layer, on the system's roles |
+| `web/labs.css`, `labs-shared.css`, `planning.css`, `xi-extensions.css` | The sheets written before the system, in the `legacy` layer, reading its roles (`labs.css` re-points the labs' old names at them) |
 | `web/theme.js` | Applies a reader's stored theme choice before paint |
 
-| Page file | Route | Place in the navigation | Season |
-|---|---|---|---|
-| `match-centre.html` | `/`, `/match-centre` | Matches | 2026/27 |
-| `leagues.html` | `/match-centre/leagues` | Table | 2026/27 |
-| `scouting.html` | `/match-centre/scouting` | Players | 2026/27 |
-| `studio.html` | `/lineup` | Lineup | 2026/27 |
-| `index.html` | `/player` (local) | Players | 2017/18 archive |
-| `match.html` | `/match` (local) | Matches | 2017/18 archive |
-| `xi.html` | `/xi` (local) | Lineup | 2017/18 archive |
-| `squad.html` | `/squad` (local) | Squad & signings | 2017/18 archive |
-| `transfer.html` | `/transfer` (local) | Squad & signings | 2017/18 archive |
-| `about.html` | `/about` | the footer of every page | — |
+| Page file | Route | Page | Place in the navigation | Season | Answer sentence from |
+|---|---|---|---|---|---|
+| `match-centre.html` | `/`, `/match-centre` | Matches | Matches | 2026/27 | `GET /api/match-centre/summary` |
+| `leagues.html` | `/match-centre/leagues` | League tables | Table | 2026/27 | `GET /api/match-centre/leagues/{code}` (`answer`, `club_answer`) |
+| `scouting.html` | `/match-centre/scouting` | Goals by opponent | Players | 2026/27 | `GET /api/match-centre/goal-scout[/{league}]`, `/api/studio/scorers` |
+| `studio.html` | `/lineup` | Lineup | Lineup | 2026/27 | `GET /api/studio/squad`, `/api/studio/lineup` |
+| `index.html` | `/player` (local) | Player profiles | Players | 2017/18 archive | `GET /api/answers/player/{id}`, `/compare`, `/explore/{construct}` |
+| `match.html` | `/match` (local) | Match reports | Matches | 2017/18 archive | `GET /api/answers/matches`, `/api/answers/match/{id}` |
+| `xi.html` | `/xi` (local) | Check against targets | Lineup | 2017/18 archive | `GET /api/answers/xi/scenarios`, `POST /api/answers/xi` |
+| `squad.html` | `/squad` (local) | Squad depth | Squad & signings | 2017/18 archive | `POST /api/squad/answer` |
+| `transfer.html` | `/transfer` (local) | Signings | Squad & signings | 2017/18 archive | `POST /api/transfer/answer` |
+| `about.html` | `/about` | About the numbers | the footer of every page | — | the shell |
+| `missing.html` | any address the app does not serve | That page isn't here | — | — | `site_nav.not_found` |
+
+Every page follows one template (ADR-0034): the season chip, an H1 naming the object or the
+question, one answer sentence from the server, the primary visual, detail in closed tabs or
+disclosures, and "About these numbers", closed. Squad depth hands a position to Signings in the
+URL (`planning_answers.handoff_query`: scenario, formation, departures, targets, opt-in, slot),
+and Signings solves it on arrival. `scripts/upstream_smoke.py` probes the live current-season
+sources once a day (`.github/workflows/upstream-smoke.yml`), since every test stubs them.
 
 ## Implemented historical decision path
 
 `api/player_lab.py` serves Player Lab at `/player` and registers `api/decision_lab.py`. Player
 Lab is frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027
-(October 2026).
+(October 2026) and the answer-first page of ADR-0034 (its markup and copy; its API is
+unchanged).
 This path renders three code-native pages under `web/` (the planning path below
 adds two); JavaScript presents server decisions and never computes eligibility,
-coverage or an objective.
+coverage or an objective, and writes no football sentence: each page's answer is
+`api/player_answers.py`'s or `api/xi_answers.py`'s.
 
 | Module | Responsibility |
 |---|---|
@@ -121,7 +136,8 @@ imports nothing from `galactico.validation` or `experiments`;
 `GET /api/evidence/verdicts` returns the registry. `/squad` and `/transfer` and
 their endpoints are listed in the routers. The two planning pages compute nothing
 about football; `web/labs-shared.js` and `web/planning.js` are render functions
-over server payloads.
+over server payloads. Their sentences, the declared order of the candidates (minutes, age
+or name, never a modelled change) and the hand-off link are `api/planning_answers.py`'s.
 
 ## Research pipelines
 

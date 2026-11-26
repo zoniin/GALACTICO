@@ -451,6 +451,13 @@
       clip-path: inset(50%);
       white-space: nowrap;
     }
+
+    /* The glyph alone is the home control on a phone: its hit area is a full touch target. */
+    .wordmark {
+      justify-content: center;
+      min-width: var(--target-touch);
+      min-height: var(--target-touch);
+    }
   }
 
   @media (forced-colors: active) {
@@ -473,8 +480,15 @@
     padding: var(--space-6) var(--gutter) var(--space-7);
   }
 
-  /* Answer first: the season, an H1 that names the object or the question, one sentence the
-     server wrote, then actions. */
+  /* Answer first. A page header holds, in this order and no other:
+       1. .page-scope (optional): one plain line of scope, never a second season chip (the
+          shell's chip says the season);
+       2. the H1, naming the object or the question;
+       3. .page-answer: the one sentence the server wrote;
+       4. .page-actions: at most one .ui-btn-primary; every other action a .ui-btn, never a
+          bare link;
+       5. .page-controls (optional): the page's own tabs, search or picker.
+     The primary visual follows the header. */
   .page-header {
     display: grid;
     gap: var(--space-3);
@@ -501,10 +515,28 @@
     line-height: var(--leading-snug);
   }
 
+  .page-scope {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
   .page-actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
+  }
+
+  .page-actions:empty {
+    display: none;
+  }
+
+  .page-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--space-3);
+    margin-top: var(--space-2);
   }
 
   .page-section {
@@ -535,6 +567,13 @@
     cursor: pointer;
     transition: background-color var(--duration-fast) var(--ease),
       border-color var(--duration-fast) var(--ease);
+  }
+
+  /* A phone's touch target: every button at least 44 px tall. */
+  @media (max-width: 640px) {
+    .ui-btn {
+      min-height: var(--target-touch);
+    }
   }
 
   .ui-btn:hover {
@@ -702,6 +741,41 @@
     overflow-x: auto;
     border-bottom: 1px solid var(--border);
     scrollbar-width: thin;
+    scroll-snap-type: x proximity;
+  }
+
+  .ui-tablist > *,
+  .ui-strip > * {
+    scroll-snap-align: start;
+  }
+
+  /* A row that scrolls sideways shows that it does: its edge fades where more items sit
+     beyond it. site.js sets data-more ("start", "end" or both) from the row's scroll, and
+     brings the selected item into view. A mask hides nothing a reader can't scroll to. */
+  .ui-strip {
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+  }
+
+  .ui-tablist[data-more="end"],
+  .ui-strip[data-more="end"] {
+    -webkit-mask-image: linear-gradient(to right, currentColor calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, currentColor calc(100% - 2.5rem), transparent);
+  }
+
+  .ui-tablist[data-more="start"],
+  .ui-strip[data-more="start"] {
+    -webkit-mask-image: linear-gradient(to left, currentColor calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to left, currentColor calc(100% - 2.5rem), transparent);
+  }
+
+  .ui-tablist[data-more="start end"],
+  .ui-strip[data-more="start end"] {
+    -webkit-mask-image: linear-gradient(to right, transparent, currentColor 2.5rem,
+      currentColor calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, transparent, currentColor 2.5rem,
+      currentColor calc(100% - 2.5rem), transparent);
   }
 
   .ui-tab {

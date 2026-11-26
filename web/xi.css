@@ -1,0 +1,1075 @@
+/* Check against targets (xi.html): the page parts the components and labs.css do not draw. In
+   the page layer, above both; every value is a role of tokens.css.
+
+   Answer first: the question, the server's sentence, then the question's three choices and the
+   board (the XI on the pitch) beside the targets and the player picked. What the reader's
+   locks changed follows, then the research tools, each closed under "Advanced" with one line
+   saying what it does, then "About these numbers", closed.
+
+   Gold is the selected subject only: the player picked on the pitch, with its edge. A target's
+   status colour always sits beside its word ("Met", "Short"); no player is coloured by merit.
+   The board is dark in both themes, like the lineup studio's. */
+@layer page {
+  .xi-page details {
+    border-top: 0;
+    padding: 0;
+  }
+
+  .xi-line {
+    display: block;
+    height: 1.1em;
+    margin: 0.3em 0;
+    max-width: 60ch;
+  }
+
+  .xi-line-short {
+    max-width: 34ch;
+  }
+
+  /* ------------------------------------------------------------ the question */
+
+  .xi-head {
+    margin-bottom: var(--space-5);
+  }
+
+  .xi-head h1 {
+    max-width: none;
+  }
+
+  .xi-head .page-answer {
+    min-height: 2.6em;
+  }
+
+  .xi-question {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-5);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .xi-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.6fr) minmax(0, 1.4fr) auto;
+    gap: var(--space-3) var(--space-4);
+    align-items: end;
+  }
+
+  .xi-fields .ui-select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: var(--target-touch);
+  }
+
+  .xi-solve {
+    min-height: var(--target-touch);
+  }
+
+  .xi-quick {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .xi-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
+  .xi-chips .ui-chip {
+    max-width: 100%;
+    min-height: 36px;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .xi-choices:empty {
+    display: none;
+  }
+
+  .xi-choice {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .xi-availability {
+    margin: 0;
+  }
+
+  /* ------------------------------------------------------------ states */
+
+  .xi-status {
+    display: grid;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-6);
+  }
+
+  .xi-status-board {
+    height: clamp(280px, 42vw, 560px);
+    border-radius: var(--radius-card);
+  }
+
+  .xi-status-text {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-status.error .xi-status-board {
+    display: none;
+  }
+
+  .xi-status.error {
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--danger);
+    border-radius: var(--radius-control);
+    background: var(--danger-soft);
+  }
+
+  .xi-status.error .xi-status-text {
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  /* ------------------------------------------------------------ the board and the side */
+
+  .xi-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+    margin: 0 0 var(--space-6);
+  }
+
+  .xi-board {
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    background: var(--pitch-card);
+    color: var(--pitch-text);
+    box-shadow: var(--shadow-1);
+  }
+
+  .xi-board-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    background: var(--pitch-bar);
+  }
+
+  .xi-board-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .xi-board-title h2 {
+    margin: 0;
+    color: var(--pitch-text);
+    font-size: var(--text-xl);
+  }
+
+  .xi-board-formation {
+    color: var(--pitch-text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* The verdict of the check, told by its words and a shape, never by a merit colour. */
+  .xi-verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 12px;
+    border: 1px solid var(--pitch-control-border);
+    border-radius: var(--radius-pill);
+    color: var(--pitch-text);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-verdict::before {
+    content: "";
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border: 1.5px solid var(--pitch-text);
+    border-radius: 50%;
+  }
+
+  .xi-verdict[data-verdict="met"]::before {
+    background: var(--pitch-text);
+  }
+
+  .xi-verdict[data-verdict="short"]::before {
+    background: linear-gradient(90deg, var(--pitch-text) 50%, transparent 50%);
+  }
+
+  .xi-verdict[data-verdict="stopped"]::before {
+    border-style: dotted;
+  }
+
+  .xi-board-field {
+    position: relative;
+    padding: var(--space-7) var(--space-4) var(--space-4);
+    background: repeating-linear-gradient(0deg, var(--pitch-field-1) 0 10%, var(--pitch-field-2) 10% 20%);
+  }
+
+  .xi-attack {
+    position: absolute;
+    top: var(--space-4);
+    left: calc(var(--space-4) + 10px);
+    margin: 0;
+    color: var(--pitch-text);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--tracking-eyebrow);
+    text-transform: uppercase;
+  }
+
+  .xi-board .pitch {
+    max-height: none;
+    border: 0;
+    background: none;
+  }
+
+  .xi-board .pitch .mark {
+    stroke: var(--pitch-line);
+    stroke-width: 0.35;
+    opacity: 0.55;
+  }
+
+  .xi-board .pitch .player circle {
+    fill: var(--pitch-text);
+    stroke: var(--pitch-bar);
+    stroke-width: 0.5;
+  }
+
+  .xi-board .pitch .player.selected circle {
+    fill: var(--selected);
+    stroke: var(--selected-edge);
+    stroke-width: 0.7;
+  }
+
+  .xi-board .pitch .player path {
+    stroke: var(--pitch-bar);
+  }
+
+  .xi-board .pitch .player text {
+    fill: var(--pitch-text);
+    stroke: var(--pitch-bar);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    font-family: var(--font-sans);
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-board .pitch .player .xi-slot {
+    fill: var(--pitch-text-muted);
+    font-weight: var(--weight-medium);
+  }
+
+  /* The full name and its place on a wide pitch; the surname alone on a phone's. */
+  .xi-board .pitch .xi-name-short {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    .xi-board .pitch .xi-name-short {
+      display: inline;
+    }
+
+    .xi-board .pitch .xi-name,
+    .xi-board .pitch .xi-slot {
+      display: none;
+    }
+  }
+
+  .xi-board-callout {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-3) var(--space-4) 0;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--pitch-control-border);
+    border-left-width: 4px;
+    border-radius: var(--radius-control);
+    color: var(--pitch-text);
+    font-size: var(--text-sm);
+  }
+
+  .xi-board-callout p {
+    margin: 0;
+  }
+
+  .xi-board-callout-title {
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-board-foot {
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    color: var(--pitch-text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .xi-side {
+    display: grid;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .xi-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-3);
+    margin: 0 0 var(--space-3);
+  }
+
+  .xi-card-head h2 {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .xi-card-note {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* ------------------------------------------------------------ the targets */
+
+  .xi-target-list {
+    display: grid;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .xi-target {
+    display: grid;
+    gap: 2px;
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .xi-target:first-child {
+    padding-top: 0;
+  }
+
+  .xi-target-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .xi-target-name {
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-target-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 2px 8px;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-target[data-status="COVERED"] .xi-target-status {
+    border-color: var(--live);
+    background: var(--live-soft);
+    color: var(--live);
+  }
+
+  .xi-target[data-status="DEFICIT"] .xi-target-status {
+    border-color: var(--warning);
+    background: var(--warning-soft);
+    color: var(--warning);
+  }
+
+  .xi-target[data-status="NOT_EVALUATED"] .xi-target-status {
+    border-style: dotted;
+    color: var(--text-muted);
+  }
+
+  .xi-target-figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-3);
+    margin: 0;
+  }
+
+  .xi-target-value {
+    font: var(--weight-bold) var(--text-2xl) / 1.05 var(--font-display);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .xi-target-of {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-target-gap {
+    color: var(--warning);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-target-unit {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .xi-not-measured {
+    margin: var(--space-3) 0 0;
+  }
+
+  .xi-not-measured-line {
+    margin: 0;
+    padding-left: var(--space-3);
+    border-left: 3px dotted var(--border-control);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-more > summary,
+  .xi-editor > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--target);
+    color: var(--link);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    list-style: none;
+  }
+
+  .xi-more > summary::-webkit-details-marker,
+  .xi-editor > summary::-webkit-details-marker,
+  .xi-tool > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .xi-more > summary::before,
+  .xi-editor > summary::before,
+  .xi-tool > summary::before {
+    content: "";
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform var(--duration-fast) var(--ease);
+  }
+
+  .xi-more[open] > summary::before,
+  .xi-editor[open] > summary::before,
+  .xi-tool[open] > summary::before {
+    transform: rotate(45deg);
+  }
+
+  .xi-more ul {
+    display: grid;
+    gap: var(--space-2);
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-more strong {
+    color: var(--text);
+  }
+
+  .xi-editor {
+    margin: var(--space-3) 0 0;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+
+  .xi-editor > summary {
+    min-height: var(--target-touch);
+    padding: 0 var(--space-4);
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    color: var(--text);
+  }
+
+  .xi-editor > summary:hover {
+    background: var(--surface-2);
+  }
+
+  .xi-editor-body {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+  }
+
+  .xi-inputs {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .xi-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* ------------------------------------------------------------ the player */
+
+  .xi-inspect .ui-select {
+    min-width: 0;
+    max-width: 14rem;
+  }
+
+  .xi-player .eyebrow {
+    margin: 0;
+  }
+
+  .xi-player-name {
+    margin: 2px 0 var(--space-1);
+    font: var(--weight-bold) var(--text-2xl) / 1.1 var(--font-display);
+  }
+
+  .xi-player-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-player-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-3) 0;
+  }
+
+  .xi-player-actions .ui-btn {
+    max-width: 100%;
+    min-height: var(--target-touch);
+    white-space: normal;
+    text-align: left;
+  }
+
+  .xi-contributions {
+    margin: var(--space-2) 0;
+  }
+
+  .xi-contributions caption {
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-contributions th[scope="row"] {
+    font-weight: var(--weight-regular);
+  }
+
+  /* ------------------------------------------------------------ what changed */
+
+  .xi-changes {
+    margin: 0 0 var(--space-6);
+  }
+
+  .xi-changes h2 {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-xl);
+  }
+
+  .xi-changes-line {
+    max-width: 78ch;
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-changes-line:empty {
+    display: none;
+  }
+
+  .xi-change-table {
+    max-width: 44rem;
+  }
+
+  @media (max-width: 640px) {
+    .xi-change-table th,
+    .xi-change-table td {
+      padding: 8px 6px;
+    }
+  }
+
+  .xi-swap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: var(--space-2) var(--space-5);
+    margin: var(--space-3) 0;
+  }
+
+  .xi-swap dt {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .xi-swap dd {
+    margin: 0;
+    font-weight: var(--weight-semibold);
+  }
+
+  /* ------------------------------------------------------------ advanced */
+
+  .xi-advanced {
+    margin: 0 0 var(--space-6);
+  }
+
+  .xi-advanced > h2 {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-xl);
+  }
+
+  .xi-advanced-lede {
+    margin: 0 0 var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* Each research tool: closed, its name and one line saying what it does. The panels of
+     web/xi-extensions.js wear the same class. */
+  .xi-tool {
+    margin: 0 0 var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-chip);
+    background: var(--surface-1);
+    min-width: 0;
+  }
+
+  .xi-tool > summary {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-items: center;
+    min-height: var(--target-touch);
+    padding: var(--space-3) var(--space-4);
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .xi-tool > summary::before {
+    grid-row: span 2;
+  }
+
+  .xi-tool-title {
+    color: var(--text);
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    overflow-wrap: anywhere;
+  }
+
+  .xi-tool-line {
+    grid-column: 2;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-regular);
+    overflow-wrap: anywhere;
+  }
+
+  .xi-tool-body {
+    min-width: 0;
+    padding: 0 var(--space-4) var(--space-4);
+    overflow-wrap: anywhere;
+  }
+
+  .xi-tool-body > :first-child {
+    margin-top: 0;
+  }
+
+  .xi-page .xi-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: end;
+    margin: var(--space-2) 0 var(--space-3);
+  }
+
+  .xi-page .xi-controls button,
+  .xi-page #solve-tradeoff,
+  .xi-page #explore-alternatives {
+    max-width: 100%;
+    min-height: var(--target-touch);
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-control);
+    background: var(--accent);
+    color: var(--on-accent);
+    font: var(--weight-semibold) var(--text-sm) / 1.2 var(--font-sans);
+    white-space: normal;
+    text-align: left;
+  }
+
+  .xi-page .xi-controls button:hover:not(:disabled) {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+  }
+
+  .xi-page .xi-controls button:disabled {
+    border-color: var(--border);
+    background: var(--surface-2);
+    color: var(--text-subtle);
+    opacity: 1;
+    cursor: not-allowed;
+  }
+
+  .xi-page .xi-ext {
+    margin: var(--space-5) 0 var(--space-3);
+  }
+
+  .xi-page .xi-ext-title {
+    margin: 0 0 var(--space-1);
+    font: var(--weight-bold) var(--text-lg) / 1.2 var(--font-display);
+  }
+
+  .xi-page .xi-lead {
+    max-width: 78ch;
+    margin: 0 0 var(--space-2);
+  }
+
+  .xi-page .xi-panel.panel {
+    margin: 0 0 var(--space-3);
+  }
+
+  .xi-page .xi-panel h3 {
+    margin: 0;
+    font: var(--weight-bold) var(--text-lg) / 1.2 var(--font-display);
+  }
+
+  .xi-link {
+    min-height: var(--target);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--link);
+    font: inherit;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    cursor: pointer;
+  }
+
+  .xi-link:hover {
+    background: none;
+    text-decoration-thickness: 2px;
+  }
+
+  .xi-frequency-table {
+    max-width: 34rem;
+  }
+
+  .xi-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+  }
+
+  .xi-facts dd {
+    margin: var(--space-1) 0 0;
+  }
+
+  /* ------------------------------------------------------------ about these numbers */
+
+  .xi-page .xi-about {
+    margin: 0 0 var(--space-4);
+  }
+
+  .xi-about-line {
+    max-width: 78ch;
+    margin: 0 0 var(--space-2);
+    color: var(--text);
+    font-size: var(--text-sm);
+  }
+
+  .xi-caveats {
+    display: grid;
+    gap: var(--space-1);
+    margin: var(--space-2) 0 var(--space-3);
+    padding-left: var(--space-5);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .xi-about .ui-disclosure-body > details > summary {
+    min-height: var(--target);
+  }
+
+  .xi-page .provenance {
+    margin-top: var(--space-4);
+  }
+
+  /* ------------------------------------------------------------ narrower screens */
+
+  @media (max-width: 1100px) {
+    .xi-fields {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .xi-field-match,
+    .xi-field-aim {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 960px) {
+    .xi-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .xi-question {
+      padding: var(--space-3);
+    }
+
+    .xi-fields .ui-select {
+      padding-right: 28px;
+      padding-left: 10px;
+    }
+
+    .xi-fields {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .xi-solve {
+      width: 100%;
+    }
+
+    .xi-board-field {
+      padding: var(--space-6) var(--space-2) var(--space-2);
+    }
+
+    .xi-attack {
+      top: var(--space-2);
+      left: var(--space-3);
+    }
+
+    .xi-tool > summary {
+      padding: var(--space-3);
+    }
+
+    .xi-tool-body {
+      padding: 0 var(--space-3) var(--space-3);
+    }
+
+    .xi-inspect .ui-select {
+      max-width: 100%;
+    }
+  }
+
+  /* The aim on a narrow phone: the select gives way to two radios whose words wrap. */
+  .xi-aim-radios {
+    display: none;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .xi-aim-radios .ui-check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--target-touch);
+  }
+
+  @media (max-width: 420px) {
+    .xi-field-aim {
+      display: none;
+    }
+
+    .xi-aim-radios {
+      display: grid;
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ------------------------------------------------------------ the XI board
+     A portrait pitch, as on Lineup: a shirt per place with its code, the name on a plate under
+     it. Each place is a button of 44 px or more; gold marks the selected player only (his disc
+     and his plate, each with its dark edge). */
+  .xi-field-pitch {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    aspect-ratio: 68 / 92;
+    border-radius: var(--radius-chip);
+  }
+
+  .xi-lines {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: var(--pitch-line);
+    stroke-width: 0.35;
+    opacity: 0.5;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .xi-lines * {
+    vector-effect: non-scaling-stroke;
+    stroke-width: 1.5px;
+  }
+
+  .xi-spot {
+    position: absolute;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-width: var(--target-touch);
+    min-height: var(--target-touch);
+    max-width: 24%;
+    margin: 0;
+    padding: 2px;
+    border: 0;
+    border-radius: var(--radius-chip);
+    background: none;
+    color: var(--pitch-text);
+    font: inherit;
+    line-height: 1.15;
+    cursor: pointer;
+    transform: translate(-50%, -34%);
+    touch-action: manipulation;
+  }
+
+  .xi-spot:hover {
+    background: none;
+  }
+
+  .xi-kit {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: clamp(40px, 4.2vw, 56px);
+    height: clamp(40px, 4.2vw, 56px);
+  }
+
+  .xi-kit img {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--pitch-surround) 60%, transparent));
+  }
+
+  .xi-kit.is-keeper img {
+    filter: sepia(1) saturate(2.8) hue-rotate(24deg);
+  }
+
+  .xi-kit b {
+    position: absolute;
+    top: 33%;
+    color: var(--kit-ink);
+    font: var(--weight-bold) 12px / 1 var(--font-display);
+    letter-spacing: 0.02em;
+  }
+
+  /* The disc under the shirt: neutral, gold for the selected player. */
+  .xi-disc {
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    width: 120%;
+    height: auto;
+    transform: translateX(-50%);
+  }
+
+  .xi-disc circle {
+    fill: var(--pitch-bar);
+    opacity: 0.55;
+    transform: scaleX(2.4);
+    transform-origin: 50% 50%;
+  }
+
+  .xi-spot.selected .xi-disc circle {
+    fill: var(--selected);
+    stroke: var(--selected-edge);
+    stroke-width: 0.6;
+    opacity: 1;
+  }
+
+  .xi-plate {
+    display: grid;
+    justify-items: center;
+    max-width: 100%;
+    padding: 2px 6px;
+    border-radius: var(--radius-control);
+    background: var(--pitch-bar);
+    color: var(--pitch-text);
+    font-size: 13px;
+    font-weight: var(--weight-semibold);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .xi-spot.selected .xi-plate {
+    background: var(--selected);
+    color: var(--on-selected);
+    box-shadow: 0 0 0 1px var(--selected-edge);
+  }
+
+  .xi-locked {
+    font-size: 12px;
+    font-weight: var(--weight-medium);
+  }
+
+  .xi-spot .xi-name-short {
+    display: none;
+  }
+
+  .xi-spot:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--focus-inner), 0 0 0 5px var(--focus-outer);
+  }
+
+  @media (max-width: 640px) {
+    .xi-spot .xi-name {
+      display: none;
+    }
+
+    .xi-spot .xi-name-short {
+      display: inline;
+    }
+
+    .xi-plate {
+      font-size: 12px;
+      padding: 1px 4px;
+    }
+
+    /* Phone targets: the copy-link button, the quick picks. */
+    .xi-head .ui-btn,
+    .xi-chips .ui-chip {
+      min-height: var(--target-touch);
+    }
+  }
+}

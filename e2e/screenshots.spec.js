@@ -45,65 +45,40 @@ test('capture', async ({ page }) => {
   await page.screenshot({ path: `${OUT}/09-mobile.png`, fullPage: true });
 });
 
-// The planning labs, each in a declared state: Cristiano Ronaldo excluded and a progression
-// minimum entered above what the squad attains. The pages are several screens long, so each
-// capture is one viewport from the top of the panel that carries the page's own figure.
-// Transfer Lab needs all five leagues (scripts/prepare_planning.py).
+// The planning pages, each in a declared state: Cristiano Ronaldo left out and a progression
+// target entered above what the squad attains, carried in the address as Squad depth hands a
+// problem to Signings (F13). ADR-0034: each page answers on arrival, so each capture is the
+// first screen at 1440 px: the season chip, the question, the server's answer and the picture.
+// Signings needs all five leagues (scripts/prepare_planning.py).
 test('capture planning labs', async ({ page }) => {
   test.setTimeout(480000);
   await page.setViewportSize({ width: 1440, height: 1100 });
   const posted = suffix => page.waitForResponse(
     r => r.url().endsWith(suffix) && r.request().method() === 'POST', { timeout: 150000 });
-  const scrollTo = selector => page.locator(selector).first().evaluate(
-    el => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 24));
 
-  let answered = posted('/api/squad/depth');
-  await page.goto(BASE + '/squad');
-  await answered;
+  let answered = posted('/api/squad/answer');
+  await page.goto(BASE + '/squad?exclude=3322&target=progression:EXPLICIT:4');
+  let said = await (await answered).json();
   await expect(page.locator('#squad-body')).toBeVisible({ timeout: 150000 });
-  answered = posted('/api/squad/depth');
-  await page.locator('#presets button[data-preset="exclude-3322"]').click();
-  await answered;
-  await page.getByText('Declare the minima', { exact: true }).click();
-  const block = page.locator('#declaration-inputs [data-requirement="progression"]');
-  await block.locator('select[data-source]').selectOption('EXPLICIT');
-  await block.locator('input[data-value-input]').fill('4');
-  answered = posted('/api/squad/depth');
-  await page.locator('#apply-declarations').click();
-  await answered;
-  await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#answer')).toHaveText(said.answer, { timeout: 150000 });
   await page.locator('#depth-list li[data-slot="lb"] button[data-player="3304"]').click();
-  await scrollTo('section[aria-labelledby="depth-title"]');
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/17-squad-lab.png` });
 
-  await page.goto(BASE + '/transfer');
-  await expect(page.locator('#status')).toHaveText('Declare the slot being recruited.', { timeout: 150000 });
-  answered = posted('/api/transfer/universe');
-  await page.locator('#slot').selectOption('st');
-  await page.locator('#apply').click();
-  await answered;
-  await expect(page.locator('#transfer-body')).toBeVisible({ timeout: 150000 });
-  answered = posted('/api/transfer/universe');
-  await page.locator('#leads [data-preset="exclude-3322"]').click();
-  await answered;
-  await expect(page.locator('#transfer-body')).toBeVisible({ timeout: 150000 });
-  answered = posted('/api/transfer/universe');
-  await page.locator('#leads [data-lead-minimum]').fill('4.2');
-  await page.locator('#leads [data-lead-apply]').click();
-  await answered;
-  await expect(page.locator('#deficiency')).toHaveAttribute('data-deficiency', 'SHORTFALL', { timeout: 150000 });
-  answered = posted('/api/transfer/injection');
-  await page.locator('#search').click();
-  const search = await (await answered).json();
-  const solved = search.rows.filter(r => r.injection.resolution === 'SOLVED').length;
-  await expect(page.locator('#fill-status')).toHaveText(`Rows filled: ${solved} of ${solved}`, { timeout: 150000 });
-  const subject = search.rows.find(r => r.outcome !== 'UNCHANGED') ?? search.rows[0];
-  answered = posted('/api/transfer/injection/detail');
+  answered = posted('/api/transfer/answer');
+  const searched = posted('/api/transfer/injection');
+  await page.goto(BASE + '/transfer?slot=st&exclude=3322&target=progression:EXPLICIT:4.2');
+  said = await (await answered).json();
+  await searched;
+  await expect(page.locator('#answer')).toHaveText(said.answer, { timeout: 150000 });
+  await expect(page.locator('#ledger-slot #ledger')).toHaveCount(1, { timeout: 150000 });
+  const subject = said.rows.find(r => r.outcome !== 'UNCHANGED') ?? said.rows[0];
+  const detailed = posted('/api/transfer/injection/detail');
   await page.locator(`#candidates button.gp-name[data-player="${subject.player_id}"]`).click();
-  await answered;
+  await detailed;
   await expect(page.locator('#candidate-detail')).toBeVisible({ timeout: 150000 });
-  await scrollTo('#candidates-panel');
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/18-transfer-lab.png` });
 });

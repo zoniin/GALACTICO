@@ -1,37 +1,19 @@
-import { scorer, scoutLink } from './goal-links.js';
+// Goals by opponent (scouting.html): the explorer. Every number and every sentence on it is the
+// server's (galactico/match_centre/goal_scout.py, R10): the answer, the line that says which
+// club the page opened on, each group's counts, each scorer's goals, the order of the lists and
+// the notes. This script places them, filters the match list by the group or the scorer a reader
+// picks, and keeps the view in the address so it can be shared.
+import { scoutLink } from './goal-links.js';
 
-const byId = (id) => document.getElementById('goals-' + id);
-const league = byId('league'),
-  club = byId('club'),
-  split = byId('split'),
-  opponent = byId('opponent'),
-  peer = byId('peer');
-const bands = new Map([
-  ['all', 'All matches'],
-  ['top', 'Top six'],
-  ['other', 'Outside top six'],
-  ['unclassified', 'Unclassified'],
-]);
+const $ = (id) => document.getElementById('goals-' + id);
+const league = $('league'),
+  club = $('club'),
+  opponent = $('opponent');
+const SPLITS = ['all', 'places_1_6', 'other', 'unclassified'];
+const OLD_SPLITS = { top: 'places_1_6' }; // an old link's group key
+const SHOWN = 8;
 const query = new URLSearchParams(location.search);
-let report,
-  selected = '',
-  teammate = '',
-  seasonTotals,
-  version = 0;
-function shareView() {
-  const url = scoutLink(
-    league.value,
-    club.value,
-    {
-      goalsSplit: split.value,
-      goalsPlayer: selected,
-      goalsPeer: teammate,
-      goalsOpponent: opponent.value,
-    },
-    location.href,
-  );
-  history.replaceState(null, '', url);
-}
+const state = { report: null, split: 'all', player: '', playerName: '', every: false, version: 0 };
 
 function node(tag, text, cls) {
   const el = document.createElement(tag);
@@ -40,308 +22,416 @@ function node(tag, text, cls) {
   return el;
 }
 
-function picks(players, filtered) {
-  const options = [
-    ['', 'All scorers'],
-    ...players.map((p) => [p.id, p.name + ' · ' + (filtered.players.get(p.id)?.count ?? 0)]),
-  ];
-  byId('scorers').replaceChildren(
-    ...options.map(([id, name]) => {
-      const b = node('button', name);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', String(selected === id));
-      b.onclick = () => {
-        if (id && id === teammate) teammate = selected;
-        selected = id;
+function button(text, cls, onclick) {
+  const b = node('button', text, cls);
+  b.type = 'button';
+  b.onclick = onclick;
+  return b;
+}
+
+async function get(url) {
+  let response;
+  try {
+    response = await fetch(url);
+  } catch {
+    throw Object.assign(new Error('Check your connection and try again.'), { status: 0 });
+  }
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+  if (!response.ok) {
+    const detail = typeof data?.detail === 'string' ? data.detail : 'The goal report could not be loaded.';
+    throw Object.assign(new Error(detail), { status: response.status });
+  }
+  return data;
+}
+
+// ------------------------------------------------------------------ the address
+
+function viewLink() {
+  const report = state.report;
+  return scoutLink(
+    report.code,
+    report.club,
+    {
+      goalsSplit: state.split === 'all' ? '' : state.split,
+      goalsPlayer: state.player,
+      goalsOpponent: report.opponent || '',
+    },
+    location.href,
+  );
+}
+
+function remember() {
+  if (state.report) history.replaceState(null, '', viewLink());
+}
+
+// ------------------------------------------------------------------ the parts
+
+function band(key) {
+  return state.report.bands.find((b) => b.key === key);
+}
+
+// The groups the page offers: every group once the server has classified a match by the
+// opponent's place; until then only "All", and the server's line says why.
+function bands() {
+  return state.report.classified ? state.report.bands : state.report.bands.filter((b) => b.key === 'all');
+}
+
+function stats() {
+  const chosen = band(state.split);
+  $('games').textContent = chosen.matches;
+  $('total').textContent = chosen.goals;
+  $('named').textContent = chosen.named;
+}
+
+function pick(id, name) {
+  if (state.player === id || !id) {
+    state.player = '';
+    state.playerName = '';
+  } else {
+    state.player = id;
+    state.playerName = name;
+  }
+  render();
+  remember();
+}
+
+function matrix() {
+  const { scorers } = state.report;
+  const shownBands = bands();
+  document.getElementById('scorers-title').textContent = state.report.classified
+    ? 'Scorers, by the opponent’s place before kick-off'
+    : 'Scorers';
+  const table = $('matrix');
+  table.replaceChildren();
+  $('scorers').hidden = !scorers.length;
+  if (!scorers.length) return;
+  const head = table.createTHead().insertRow();
+  const corner = node('th', 'Scorer');
+  corner.scope = 'col';
+  head.append(corner);
+  for (const b of shownBands) {
+    const th = node('th', b.short);
+    th.scope = 'col';
+    th.dataset.band = b.key;
+    if (b.key === state.split && state.report.classified) th.className = 'is-band';
+    head.append(th);
+  }
+  const cells = (row, values) => {
+    shownBands.forEach((b, i) => {
+      const td = row.insertCell();
+      td.dataset.label = b.short;
+      td.dataset.band = b.key;
+      if (b.key === state.split && state.report.classified) td.className = 'is-band';
+      td.textContent = b.matches ? values[i] : '—';
+    });
+  };
+  const body = table.createTBody();
+  const shown = state.every ? scorers : scorers.slice(0, SHOWN);
+  if (state.player && !shown.some((s) => s.id === state.player)) {
+    const chosen = scorers.find((s) => s.id === state.player);
+    if (chosen) shown.push(chosen);
+  }
+  for (const scorer of shown) {
+    const row = body.insertRow();
+    const picked = scorer.id === state.player;
+    if (picked) row.setAttribute('aria-selected', 'true');
+    const th = node('th');
+    th.scope = 'row';
+    const name = button('', 'gs-name', () => {
+      pick(scorer.id, scorer.name);
+      table.querySelector('[data-id="' + CSS.escape(scorer.id) + '"]')?.focus();
+    });
+    name.dataset.id = scorer.id;
+    name.setAttribute('aria-pressed', String(picked));
+    if (picked) {
+      const mark = node('span', null, 'ui-selected-mark');
+      mark.setAttribute('aria-hidden', 'true');
+      name.append(mark);
+    }
+    name.append(node('span', scorer.name));
+    th.append(name);
+    row.append(th);
+    cells(
+      row,
+      shownBands.map((b) => scorer.goals[b.key]),
+    );
+  }
+  const foot = table.createTFoot();
+  for (const [title, field] of [
+    ['Club goals', 'goals'],
+    ['Matches', 'matches'],
+  ]) {
+    const row = foot.insertRow();
+    const th = node('th', title);
+    th.scope = 'row';
+    row.append(th);
+    shownBands.forEach((b) => {
+      const td = row.insertCell();
+      td.dataset.label = b.short;
+      td.dataset.band = b.key;
+      if (b.key === state.split && state.report.classified) td.className = 'is-band';
+      td.textContent = field === 'goals' && !b.matches ? '—' : b[field];
+    });
+  }
+  const more = $('more');
+  more.hidden = scorers.length <= SHOWN;
+  more.textContent = state.every ? 'Show fewer scorers' : 'Show all ' + scorers.length + ' scorers';
+  more.setAttribute('aria-expanded', String(state.every));
+}
+
+function chips() {
+  // A group with no match is not offered (unless a link chose it); none is offered before
+  // any match is classified.
+  const offered = state.report.classified
+    ? state.report.bands.filter((b) => b.matches || b.key === state.split || b.key === 'all')
+    : [];
+  $('split').hidden = !offered.length;
+  $('split').replaceChildren(
+    ...offered.map((b) => {
+      const chip = button('', 'ui-chip gs-chip', () => {
+        state.split = b.key;
         render();
-        shareView();
-        byId('scorers').querySelector('[aria-pressed=true]').focus();
-      };
-      return b;
+        remember();
+        $('split').querySelector('[aria-pressed=true]')?.focus();
+      });
+      chip.setAttribute('aria-pressed', String(state.split === b.key));
+      chip.append(node('span', b.key === 'all' ? b.label : b.short), node('span', String(b.matches), 'gs-chip-count'));
+      chip.setAttribute('aria-label', (b.key === 'all' ? b.label : b.short) + ', ' + b.matches + (b.matches === 1 ? ' match' : ' matches'));
+      return chip;
     }),
   );
 }
 
-function isNamed(event) {
-  return event.for_club && event.name && !event.own;
+function goal(event, game) {
+  const item = node('li', null, 'gs-goal');
+  const minute = node('span', event.minute == null ? '–' : event.minute + '′', 'gs-minute');
+  if (event.minute == null) minute.title = 'Minute not given';
+  item.append(minute);
+  const who = node('span', event.name || 'Scorer not named', 'gs-scorer');
+  if (event.scorer && event.scorer === state.player) {
+    item.classList.add('is-picked');
+    const mark = node('span', null, 'ui-selected-mark');
+    mark.setAttribute('aria-hidden', 'true');
+    who.prepend(mark);
+  }
+  item.append(who);
+  if (event.penalty) item.append(node('span', 'Penalty', 'gs-tag'));
+  if (event.own) item.append(node('span', 'Own goal', 'gs-tag'));
+  if (!event.for_club) {
+    item.classList.add('is-against');
+    item.append(node('span', 'for ' + game.opponent, 'gs-side'));
+  }
+  return item;
 }
-function gameRow(game, name) {
+
+function match(game) {
+  const item = node('li', null, 'gs-match');
   const details = node('details');
   const summary = node('summary');
-  const time = node(
-    'time',
-    new Intl.DateTimeFormat('en-GB', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
-      new Date(game.day + 'T12:00:00Z'),
-    ),
-  );
-  time.dateTime = game.day;
-  summary.append(
-    time,
+  const day = node('time', game.day_label, 'gs-date');
+  day.dateTime = game.day;
+  const who = node('span', null, 'gs-opp');
+  who.append(
     node('strong', game.opponent),
-    node('small', game.venue),
-    node('b', game.for + ' – ' + game.against),
+    node('span', (game.venue === 'H' ? 'Home' : 'Away') + (state.report.classified ? ' · ' + game.split_label : ''), 'gs-sub'),
   );
+  const result = node('span', null, 'gs-result');
+  const badge = node('span', null, 'ui-badge');
+  badge.dataset.result = game.result;
+  badge.append(node('span', game.result), node('span', { W: ' win', D: ' draw', L: ' defeat' }[game.result], 'sr-only'));
+  badge.firstChild.setAttribute('aria-hidden', 'true');
+  result.append(badge, node('b', game.for + '–' + game.against));
+  summary.append(day, who, result);
   details.append(summary);
-  const line = node('ol');
-  for (const event of game.events) {
-    const side = event.for_club ? name : game.opponent;
-    const when = event.minute == null ? 'Minute unknown' : event.minute + '′';
-    const tags = [event.own ? 'own goal' : '', event.penalty ? 'penalty' : ''].filter(Boolean);
-    const item = node(
-      'li',
-      when +
-        ' · ' +
-        (event.name || 'Scorer unreported') +
-        (tags.length ? ' (' + tags.join(', ') + ')' : '') +
-        ' · Goal for ' +
-        side,
-    );
-    if (isNamed(event)) {
-      const { id } = scorer(event, report.league);
-      if (selected === id) item.className = 'picked-goal';
-      else if (teammate === id) item.className = 'peer-goal';
-    }
-    line.append(item);
+  if (game.events.length) {
+    const list = node('ol', null, 'gs-goals');
+    list.append(...game.events.map((e) => goal(e, game)));
+    details.append(list);
+  } else if (!game.for && !game.against) {
+    details.append(node('p', 'No goals.', 'gs-note'));
   }
-  details.open = Boolean(selected);
-  if (line.childElementCount) details.append(line);
-  const total = game.for + game.against;
-  if (!total || game.events.length < total) {
-    details.append(
-      node(
-        'p',
-        total ? game.events.length + ' of ' + total + ' goal events reported.' : 'Goalless draw.',
-        'goal-coverage',
-      ),
-    );
-  }
-  return details;
+  if (game.note) details.append(node('p', game.note, 'gs-note'));
+  details.open = Boolean(state.player);
+  item.append(details);
+  return item;
 }
 
-function summarize(games) {
-  const players = new Map();
-  let named = 0,
-    goals = 0;
-  for (const game of games) {
-    goals += game.for;
-    for (const event of game.events.filter(isNamed)) {
-      const player = scorer(event, report.league);
-      const entry = players.get(player.id) ?? { ...player, count: 0 };
-      entry.count++;
-      players.set(player.id, entry);
-      named++;
-    }
-  }
-  return { games: games.length, goals, named, players };
+function log() {
+  const games = state.report.matches
+    .filter((g) => state.split === 'all' || g.split === state.split)
+    .filter((g) => !state.player || g.events.some((e) => e.scorer === state.player));
+  $('filtered').hidden = !state.player;
+  $('filtered-name').textContent = state.player ? 'Matches with a goal by ' + state.playerName : '';
+  let empty = 'No matches in this group.';
+  if (!state.report.matches.length) empty = 'No completed matches yet.';
+  else if (state.player) empty = 'No goals by ' + state.playerName + ' in these matches.';
+  $('log').replaceChildren(...(games.length ? games.map(match) : [node('li', empty, 'ui-empty')]));
 }
 
-function comparison(games, players) {
-  byId('comparison').hidden = !selected;
-  if (!selected) return;
-  const others = players.filter((p) => p.id !== selected);
-  peer.replaceChildren(
-    new Option('Just this player', ''),
-    ...others.map((p) => new Option(p.name, p.id)),
-  );
-  peer.value = teammate;
-  peer.disabled = !others.length;
-  const table = byId('matrix');
-  table.replaceChildren();
-  const heads = ['Opponent group', 'Club matches', seasonTotals.players.get(selected).name];
-  if (teammate) heads.push(seasonTotals.players.get(teammate).name);
-  const header = table.createTHead().insertRow();
-  for (const title of heads) {
-    const th = node('th', title);
-    th.scope = 'col';
-    header.append(th);
-  }
-  const body = table.createTBody();
-  for (const [band, title] of bands) {
-    const totals = summarize(band === 'all' ? games : games.filter((g) => g.split === band));
-    const row = body.insertRow();
-    const th = node('th');
-    th.scope = 'row';
-    const button = node('button', title);
-    button.type = 'button';
-    button.setAttribute('aria-pressed', String(band === split.value));
-    button.onclick = () => {
-      split.value = band;
-      render();
-      shareView();
-      table.querySelector('[aria-pressed=true]').focus();
-    };
-    th.append(button);
-    row.append(th);
-    const sample = row.insertCell();
-    sample.textContent = totals.games;
-    if (totals.games) {
-      const coverage = totals.goals
-        ? totals.named + '/' + totals.goals + ' named'
-        : 'No team goals';
-      sample.append(node('small', coverage, 'sample-coverage'));
-    }
-    for (const id of [selected, teammate].filter(Boolean)) {
-      row.insertCell().textContent = totals.games ? (totals.players.get(id)?.count ?? 0) : '—';
-    }
-  }
+function credit(report) {
+  const source = node('a', 'OpenLigaDB');
+  source.href = report.source;
+  const licence = node('a', 'ODbL 1.0');
+  licence.href = report.licence;
+  const parts = ['Goals adapted from ', source, ' (', licence, ')'];
+  if (report.credit.includes('OpenFootball')) parts.push(', clubs checked against OpenFootball');
+  parts.push('.');
+  $('credit').replaceChildren(...parts);
 }
 
 function render() {
+  const report = state.report;
   if (!report) return;
-  byId('share-status').textContent = '';
-  byId('share-url').hidden = true;
-  const versus = report.matches.filter((g) => !opponent.value || g.opponent === opponent.value);
-  const games = versus.filter((g) => split.value === 'all' || split.value === g.split);
-  const totals = summarize(games);
-  const players = [...seasonTotals.players.values()].sort(
-    (a, b) => b.count - a.count || a.name.localeCompare(b.name),
-  );
-  if (!seasonTotals.players.has(selected)) selected = '';
-  if (!selected || selected === teammate || !seasonTotals.players.has(teammate)) teammate = '';
-  picks(players, totals);
-  comparison(versus, players);
-  byId('games').textContent = totals.games;
-  byId('total').textContent = totals.goals;
-  byId('named').textContent = totals.named;
-  const unclassified = versus.filter((g) => g.split === 'unclassified').length;
-  const clubName = report.clubs[report.club];
-  const notes = [
-    report.unverified_league_matches
-      ? report.unverified_league_matches +
-        ' league reports could not be verified against the schedule.'
-      : '',
-    report.warning ? 'Showing a cached report.' : '',
-    ['top', 'other'].includes(split.value) && unclassified
-      ? unclassified + ' matches had no reliable pre-match group.'
-      : '',
-    'Named totals exclude own goals and unnamed scorers.',
-  ];
-  byId('status').textContent = notes.filter(Boolean).join(' ');
-  const visible = selected
-    ? games.filter((g) =>
-        g.events.some(
-          (e) => isNamed(e) && [selected, teammate].includes(scorer(e, report.league).id),
-        ),
-      )
-    : games;
-  byId('log').replaceChildren(
-    ...(visible.length
-      ? visible.map((g) => gameRow(g, clubName))
-      : [
-          node(
-            'p',
-            games.length
-              ? 'No goals are credited to the selected players in these matches.'
-              : 'No completed matches for this opponent selection.',
-          ),
-        ]),
-  );
+  $('share-status').textContent = '';
+  $('share-url').hidden = true;
+  stats();
+  matrix();
+  chips();
+  log();
 }
 
-async function load(clubId = '', saved = {}, share = false) {
-  const request = ++version;
-  report = undefined;
-  selected = '';
-  club.disabled = true;
-  opponent.disabled = true;
-  byId('data').hidden = true;
-  byId('credit').replaceChildren();
-  byId('season').textContent = '';
-  byId('status').textContent = 'Loading reported goals…';
+function show(report) {
+  state.report = report;
+  if (!report.classified || !report.bands.some((b) => b.key === state.split)) state.split = 'all';
+  const known = report.scorers.find((s) => s.id === state.player);
+  if (known) state.playerName = known.name;
+  else if (state.player && !state.playerName) state.player = '';
+  $('answer').textContent = report.answer;
+  $('opening').textContent = report.opening || '';
+  $('opening').hidden = !report.opening;
+  $('title').textContent = report.club_name;
+  $('meta').textContent = report.league + (report.opponent ? ' · against ' + report.opponent : '');
+  league.value = report.code;
+  club.replaceChildren(...report.club_list.map((c) => new Option(c.name, c.id)));
+  club.value = String(report.club);
+  opponent.replaceChildren(new Option('All opponents', ''), ...report.opponents.map((name) => new Option(name, name)));
+  opponent.value = report.opponent || '';
+  $('order').textContent = report.order;
+  $('band-note').textContent = report.classified ? report.band_note : report.split_note || '';
+  $('through').textContent = report.through;
+  $('notes').replaceChildren(...report.notes.map((n) => node('li', n)));
+  $('notes').hidden = !report.notes.length;
+  credit(report);
+  $('state').replaceChildren();
+  $('skeleton').hidden = true;
+  $('data').hidden = false;
+  render();
+}
+
+function busy(on) {
+  const card = document.getElementById('goals');
+  card.setAttribute('aria-busy', String(on));
+  card.classList.toggle('is-busy', on && Boolean(state.report));
+  for (const control of [league, club, opponent]) control.disabled = on;
+  if (!on && !state.report) club.disabled = true;
+}
+
+function fail(error, asked) {
+  const missing = error.status === 404;
+  const title = missing
+    ? 'Nothing to show for that link.'
+    : error.status === 0
+      ? 'The page couldn’t reach the server.'
+      : 'Goals can’t be loaded right now.';
+  state.report = null;
+  if (asked.league) league.value = asked.league;
+  $('answer').textContent = title;
+  $('opening').hidden = true;
+  $('skeleton').hidden = true;
+  $('data').hidden = true;
+  $('title').textContent = 'Goals';
+  $('meta').textContent = '';
+  const box = node('div', null, 'ui-callout');
+  box.dataset.tone = missing ? 'info' : 'unavailable';
+  box.setAttribute('role', 'status');
+  // The page's answer already says what failed; the box gives the server's words and a way on.
+  box.append(node('p', error.message));
+  const actions = node('p', null, 'gs-actions');
+  if (!missing) actions.append(button('Try again', 'ui-btn', () => load(asked)));
+  if (asked.league) actions.append(button('Open the default view', 'ui-btn', () => load({})));
+  box.append(actions);
+  $('state').replaceChildren(box);
+  // No report, no club list: the select holds a dash, never a stale league's clubs or a hint.
+  club.replaceChildren(new Option('—', ''));
+}
+
+async function load(asked = {}) {
+  const request = ++state.version;
+  busy(true);
+  let url = '/api/match-centre/goal-scout';
+  if (asked.league) {
+    const params = new URLSearchParams();
+    if (asked.club) params.set('club', asked.club);
+    if (asked.opponent) params.set('opponent', asked.opponent);
+    const search = String(params);
+    url += '/' + encodeURIComponent(asked.league) + (search ? '?' + search : '');
+  } else if (asked.gone) {
+    url += '?' + new URLSearchParams({ asked: asked.gone });
+  }
   try {
-    const url =
-      '/api/match-centre/goal-scout/' +
-      league.value +
-      (clubId ? '?club=' + encodeURIComponent(clubId) : '');
-    const response = await fetch(url);
-    if (!response.ok) throw new Error();
-    const data = await response.json();
-    if (request !== version) return;
-    report = data;
-    selected = saved.player || '';
-    teammate = saved.peer || '';
-    seasonTotals = summarize(report.matches);
-    const opponents = [...new Set(report.matches.map((game) => game.opponent))].sort((a, b) =>
-      a.localeCompare(b),
-    );
-    opponent.replaceChildren(
-      new Option('All clubs', ''),
-      ...opponents.map((name) => new Option(name, name)),
-    );
-    if (opponents.includes(saved.opponent)) opponent.value = saved.opponent;
-    opponent.disabled = !opponents.length;
-    const clubs = Object.entries(data.clubs).sort((a, b) => a[1].localeCompare(b[1]));
-    club.replaceChildren(...clubs.map(([id, name]) => new Option(name, id)));
-    club.value = data.club;
-    club.disabled = false;
-    byId('season').textContent = data.season + '–' + String(data.season + 1).slice(-2);
-    const source = node('a', 'OpenLigaDB'),
-      licence = node('a', 'ODbL 1.0');
-    source.href = data.source;
-    licence.href = data.licence;
-    byId('credit').replaceChildren(
-      'Adapted from ',
-      source,
-      ' · ',
-      licence,
-      ' · Checked ' +
-        new Date(data.checked).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }),
-    );
-    byId('data').hidden = false;
-    render();
-    if (share) shareView();
-  } catch {
-    if (request !== version) return;
-    // The league control remains available if a shared club left the league.
-    club.replaceChildren(new Option('Choose the league default', ''));
-    club.disabled = false;
-    const retry = node('button', 'Retry goals');
-    retry.onclick = () => load(clubId, saved, share);
-    const reset = node('button', 'Show league default');
-    reset.onclick = () => load('', {}, true);
-    byId('status').replaceChildren(
-      'The club goal reports could not load. ',
-      retry,
-      ...(clubId ? [reset] : []),
-    );
+    const report = await get(url);
+    if (request !== state.version) return;
+    show(report);
+  } catch (error) {
+    if (request !== state.version) return;
+    fail(error, asked);
+  } finally {
+    if (request === state.version) busy(false);
   }
 }
 
-byId('copy').onclick = async () => {
-  shareView();
+// ------------------------------------------------------------------ the controls
+
+league.onchange = () => {
+  state.player = '';
+  state.split = 'all';
+  load({ league: league.value }).then(remember);
+};
+club.onchange = () => {
+  state.player = '';
+  state.split = 'all';
+  load({ league: league.value, club: club.value }).then(remember);
+};
+opponent.onchange = () => {
+  load({ league: state.report.code, club: state.report.club, opponent: opponent.value }).then(remember);
+};
+$('more').onclick = () => {
+  state.every = !state.every;
+  matrix();
+};
+$('unpick').onclick = () => pick('', '');
+$('copy').onclick = async () => {
+  if (!state.report) return;
+  remember();
   const url = location.href;
   try {
     await navigator.clipboard.writeText(url);
-    if (location.href === url) byId('share-status').textContent = 'Link copied.';
+    $('share-status').textContent = 'Link copied.';
   } catch {
-    if (location.href !== url) return;
-    const input = byId('share-url');
+    const input = $('share-url');
     input.hidden = false;
     input.value = url;
     input.focus();
     input.select();
-    byId('share-status').textContent = 'Select and copy this link.';
+    $('share-status').textContent = 'Select and copy this link.';
   }
 };
-league.onchange = () => {
-  club.replaceChildren();
-  load('', {}, true);
-};
-club.onchange = () => load(club.value, {}, true);
-peer.onchange = () => {
-  teammate = peer.value;
-  render();
-  shareView();
-};
-opponent.onchange = split.onchange = () => {
-  render();
-  if (report) shareView();
-};
-if ([...league.options].some((o) => o.value === query.get('goalsLeague')))
-  league.value = query.get('goalsLeague');
-if (bands.has(query.get('goalsSplit'))) split.value = query.get('goalsSplit');
-load(/^\d+$/.test(query.get('goalsClub')) ? query.get('goalsClub') : '', {
-  player: query.get('goalsPlayer'),
-  peer: query.get('goalsPeer'),
-  opponent: query.get('goalsOpponent'),
-});
+
+// ------------------------------------------------------------------ the first view
+
+const leagues = [...league.options].map((o) => o.value);
+const askedLeague = query.get('goalsLeague');
+const askedSplit = OLD_SPLITS[query.get('goalsSplit')] || query.get('goalsSplit');
+if (SPLITS.includes(askedSplit)) state.split = askedSplit;
+state.player = query.get('goalsPlayer') || '';
+if (askedLeague && leagues.includes(askedLeague)) {
+  const askedClub = /^\d+$/.test(query.get('goalsClub') || '') ? query.get('goalsClub') : '';
+  load({ league: askedLeague, club: askedClub, opponent: query.get('goalsOpponent') || '' });
+} else {
+  load(askedLeague ? { gone: askedLeague } : {});
+}

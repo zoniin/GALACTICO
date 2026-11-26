@@ -1,74 +1,236 @@
-import { scorer, scoutLink } from './goal-links.js';
-import { shapes, positions, initialXI, reshape, shortName } from './studio-formation.js';
+/* Lineup: the XI the server proposes, a board to change it, and a link that carries it.
+
+   Answer first. The server picks the proposed XI by one declared key (most appearances this
+   season in each position) and writes every sentence about a lineup, the page's answer
+   included (R10): this script shows what /api/studio/squad and /api/studio/lineup return and
+   never sorts or judges a player. The squad comes in the server's declared order (by position,
+   then shirt number) and the bench keeps it.
+
+   The board. Tap a substitute, then the position he takes; or tap a starter to see him, and
+   "Swap position" to move him. A pointer can drag as well. Every change is in the address bar
+   at once (formation, shirt numbers, season), so a link is the lineup: "Copy link" copies it,
+   and opening it restores it. "Save on this device" keeps one lineup in this browser.
+
+   The activity map is an archive sample (2017/18), labelled by the server with its match,
+   competition and date; the drawn role area says it is drawn, not measured. */
+import { reshape, positions, groupNames } from './studio-formation.js';
 import { draw, readEvents } from './studio-map.js';
 
 const $ = (id) => document.getElementById(id);
-const storageKey = 'galactico.studio.xi.v1',
-  rosterKey = 'galactico.studio.roster.v1';
+const STORE = 'galactico.studio.xi.v1',
+  OFFLINE = 'galactico.studio.lineup.v2';
 const state = {
-  shape: '4-3-3',
-  xi: Array(11).fill(null),
-  selected: 1,
+  formation: '4-3-3',
+  xi: [],
+  selected: 0,
+  inspect: null,
   swap: false,
-  season: '',
+  placing: null,
+  origin: 'proposed',
   mode: 'events',
   filter: 'All actions',
 };
-const history = [],
+const undoStack = [],
   archive = new Map(),
   imported = new Map();
-let squad = [],
+let data = null,
   players = new Map(),
   drag = null,
   mapVersion = 0,
+  answerVersion = 0,
+  answerTimer = 0,
   sample = null;
+
 function el(tag, value, cls) {
   const n = document.createElement(tag);
   if (value != null) n.textContent = value;
   if (cls) n.className = cls;
   return n;
 }
-function action(text, fn, cls) {
+function button(text, fn, cls) {
   const b = el('button', text, cls);
   b.type = 'button';
   b.addEventListener('click', fn);
   return b;
 }
-function link(text, url) {
-  const a = el('a', text);
+function link(text, url, cls) {
+  const a = el('a', text, cls);
   a.href = url;
   return a;
-}
-function say(message) {
-  $('notice').replaceChildren();
-  if (message) $('notice').append(document.createTextNode(message));
-}
-function selected() {
-  return players.get(state.xi[state.selected]);
-}
-function snapshot() {
-  return { shape: state.shape, xi: [...state.xi], selected: state.selected };
-}
-function beforeEdit() {
-  history.push(snapshot());
-  if (history.length > 20) history.shift();
-  state.swap = false;
-}
-function restore(s) {
-  state.shape = s.shape;
-  state.xi = [...s.xi];
-  state.selected = s.selected;
 }
 async function get(url) {
   const r = await fetch(url);
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
-    throw Error(typeof err.detail === 'string' ? err.detail : 'The source is unavailable.');
+    const e = Error(typeof err.detail === 'string' ? err.detail : 'The source is unavailable.');
+    e.status = r.status;
+    throw e;
   }
   return r.json();
 }
+function niceDate(iso) {
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(iso));
+}
+function live(message) {
+  $('live').textContent = message;
+}
+function notice(message) {
+  $('notice').hidden = !message;
+  $('notice').replaceChildren(message || '');
+}
+function toast(message) {
+  document.querySelector('.ui-toast')?.remove();
+  const t = el('div', message, 'ui-toast');
+  t.setAttribute('role', 'status');
+  document.body.append(t);
+  setTimeout(() => t.remove(), 2600);
+}
+
+// ------------------------------------------------------------------ the lineup
+
+const slots = () => data.formations[state.formation];
+const proposal = () => data.proposals[state.formation];
+const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+const isProposed = () => same(state.xi, proposal().xi);
+const inspected = () => players.get(state.inspect);
+
+function query() {
+  return new URLSearchParams({
+    formation: state.formation,
+    xi: state.xi.map((id) => players.get(id).number).join('-'),
+    season: data.season_label.replace('/', '-'),
+  }).toString();
+}
+function syncUrl() {
+  const clean = isProposed() && state.formation === data.default;
+  history.replaceState(null, '', location.pathname + (clean ? '' : '?' + query()) + location.hash);
+}
+function setAnswer(text) {
+  $('answer').removeAttribute('aria-busy');
+  $('answer').replaceChildren(text);
+  $('answer-names').textContent = '';
+}
+// The proposal's sentence says how the XI was picked; the pitch shows the eleven, and a screen
+// reader hears them, in the server's words, after the sentence.
+function setProposalAnswer() {
+  setAnswer(proposal().answer);
+  $('answer-names').textContent = proposal().names || '';
+}
+// The page's sentence describes the board: the proposed XI's, or the server's sentence for the
+// lineup shown, asked for once the reader pauses. Until it comes the old sentence is gone (it
+// would describe another lineup); if it can't come, the page says so and offers to try again.
+function refreshAnswer(now = false) {
+  const version = ++answerVersion;
+  clearTimeout(answerTimer);
+  if (isProposed()) {
+    setProposalAnswer();
+    return Promise.resolve();
+  }
+  $('answer').setAttribute('aria-busy', 'true');
+  $('answer-names').textContent = '';
+  $('answer').replaceChildren(
+    el('span', null, 'ui-skeleton ln-line'),
+    el('span', 'Updating the summary of this lineup…', 'sr-only'),
+  );
+  return new Promise((done) => {
+    answerTimer = setTimeout(
+      async () => {
+        try {
+          const result = await get('/api/studio/lineup?' + query());
+          if (version === answerVersion) setAnswer(result.answer);
+        } catch {
+          if (version === answerVersion) {
+            setAnswer(el('span', 'This lineup’s summary couldn’t load. ', 'ln-answer-failed'));
+            $('answer').append(button('Retry', () => refreshAnswer(true), 'ui-btn ui-btn-ghost ln-answer-retry'));
+          }
+        }
+        done();
+      },
+      now ? 0 : 250,
+    );
+  });
+}
+function snapshot() {
+  return { formation: state.formation, xi: [...state.xi], selected: state.selected, origin: state.origin };
+}
+function beforeEdit() {
+  undoStack.push(snapshot());
+  if (undoStack.length > 30) undoStack.shift();
+  state.swap = false;
+  state.placing = null;
+}
+function afterEdit(message) {
+  state.origin = isProposed() ? 'proposed' : 'edited';
+  if (message) live(message);
+  render(true);
+  syncUrl();
+  refreshAnswer();
+}
+function doSwap(i, j) {
+  if (i === j) return;
+  beforeEdit();
+  [state.xi[i], state.xi[j]] = [state.xi[j], state.xi[i]];
+  state.selected = j;
+  state.inspect = state.xi[j];
+  afterEdit('Positions swapped.');
+}
+function sub(id, i) {
+  if (!players.has(id) || state.xi.includes(id)) return;
+  beforeEdit();
+  const old = players.get(state.xi[i]);
+  state.xi[i] = id;
+  state.selected = i;
+  state.inspect = id;
+  afterEdit(players.get(id).short + ' replaces ' + (old?.short || 'nobody') + '.');
+}
+function pickSlot(i) {
+  if (state.placing) {
+    sub(state.placing, i);
+    return;
+  }
+  if (state.swap && i !== state.selected) {
+    doSwap(state.selected, i);
+    return;
+  }
+  state.selected = i;
+  state.inspect = state.xi[i];
+  state.swap = false;
+  render(true);
+}
+function pickBench(id) {
+  if (state.placing === id) {
+    cancel();
+    return;
+  }
+  state.placing = id;
+  state.swap = false;
+  state.inspect = id;
+  live('Now choose the position ' + players.get(id).short + ' takes.');
+  render();
+  // On a phone the board is above the bench: bring it into view, targets and all.
+  const board = $('field').closest('.ln-board').getBoundingClientRect();
+  if (board.top < 0 || board.bottom > window.innerHeight) {
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    $('field').closest('.ln-board').scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' });
+  }
+}
+function cancel() {
+  if (!state.placing && !state.swap) return;
+  state.placing = null;
+  state.swap = false;
+  state.inspect = state.xi[state.selected];
+  render();
+}
+
+// ------------------------------------------------------------------ drawing
+
 function shirt(p) {
-  const wrap = el('span', null, 'shirt' + (p?.group === 'GK' ? ' keeper' : ''));
+  const wrap = el('span', null, 'ln-shirt' + (p?.group === 'GK' ? ' is-keeper' : ''));
   const img = el('img');
   img.src = '/static/assets/studio-kit.webp';
   img.alt = '';
@@ -76,299 +238,193 @@ function shirt(p) {
   wrap.append(img, el('b', p?.number ?? '–'));
   return wrap;
 }
-function doSwap(i, j) {
-  if (i === j) return;
-  beforeEdit();
-  [state.xi[i], state.xi[j]] = [state.xi[j], state.xi[i]];
-  state.selected = j;
-  say('Positions swapped.');
-  render(true);
-}
-function sub(id, i = state.selected) {
-  if (!players.has(id) || state.xi.includes(id)) return;
-  beforeEdit();
-  const old = players.get(state.xi[i]);
-  state.xi[i] = id;
-  state.selected = i;
-  say(players.get(id).name + ' replaces ' + (old?.name || 'the empty slot') + '.');
-  render(true);
-}
-function pick(i) {
-  if (state.swap && i !== state.selected) {
-    doSwap(state.selected, i);
-    return;
-  }
-  state.selected = i;
-  state.swap = false;
-  say('');
-  render(true);
-}
-function draggable(button, data) {
-  button.draggable = true;
-  button.addEventListener('dragstart', (e) => {
-    drag = data;
+function draggable(node, payload) {
+  node.draggable = true;
+  node.addEventListener('dragstart', (e) => {
+    drag = payload;
     e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(data.id));
+    e.dataTransfer.setData('text/plain', String(payload.id));
   });
-  button.addEventListener('dragend', () => {
+  node.addEventListener('dragend', () => {
     drag = null;
-    document.querySelectorAll('.drag-target').forEach((n) => n.classList.remove('drag-target'));
+    document.querySelectorAll('.is-drop').forEach((n) => n.classList.remove('is-drop'));
   });
 }
-function renderPitch() {
-  const slots = shapes[state.shape],
-    container = $('slots');
-  const nodes = slots.map((slot, i) => {
+function renderBoard() {
+  const shape = slots();
+  const nodes = shape.map((slot, i) => {
     const p = players.get(state.xi[i]);
-    const btn = action(null, () => pick(i), 'slot');
-    btn.disabled = !p;
-    btn.style.left = slot.x + '%';
-    btn.style.top = slot.y + '%';
-    btn.dataset.slot = String(i);
-    btn.setAttribute('aria-label', p ? slot.role + ' · ' + p.name : 'Empty ' + slot.role);
-    btn.setAttribute('aria-pressed', String(i === state.selected));
-    const plate = el('span', null, 'nameplate');
-    plate.append(el('small', slot.role), el('span', p ? shortName(p) : '—'));
-    btn.append(shirt(p), plate);
-    if (p) draggable(btn, { id: p.id, index: i });
-    btn.ondragover = (e) => {
-      if (drag) {
-        e.preventDefault();
-        btn.classList.add('drag-target');
-      }
+    const b = button(null, () => pickSlot(i), 'ln-slot');
+    b.style.left = slot.x + '%';
+    b.style.top = slot.y + '%';
+    b.dataset.slot = String(i);
+    b.setAttribute('aria-label', slot.role + ' · ' + p.name);
+    b.setAttribute('aria-pressed', String(i === state.selected && !state.placing));
+    if (state.placing || (state.swap && i !== state.selected)) b.classList.add('is-target');
+    const plate = el('span', null, 'ln-plate');
+    plate.append(el('small', slot.role), el('span', p.short));
+    b.append(shirt(p), plate);
+    draggable(b, { id: p.id, index: i });
+    b.ondragover = (e) => {
+      if (!drag) return;
+      e.preventDefault();
+      b.classList.add('is-drop');
     };
-    btn.ondragleave = () => btn.classList.remove('drag-target');
-    btn.ondrop = (e) => {
+    b.ondragleave = () => b.classList.remove('is-drop');
+    b.ondrop = (e) => {
       e.preventDefault();
       if (!drag) return;
-      const src = drag;
+      const from = drag;
       drag = null;
-      btn.classList.remove('drag-target');
-      if (src.index != null) doSwap(src.index, i);
-      else sub(src.id, i);
+      b.classList.remove('is-drop');
+      if (from.index != null) doSwap(from.index, i);
+      else sub(from.id, i);
     };
-    return btn;
+    return b;
   });
-  container.replaceChildren(...nodes);
-  $('field').classList.toggle('swapping', state.swap);
-  const p = selected();
-  $('picked').textContent = state.swap
-    ? 'Choose the other position'
-    : p
-      ? p.name + ' · ' + slots[state.selected].role
-      : 'Loading starting XI';
+  $('slots').replaceChildren(...nodes);
+  $('field').classList.toggle('is-placing', Boolean(state.placing || state.swap));
+  const p = players.get(state.xi[state.selected]);
+  $('picked').textContent = state.placing
+    ? 'Choose the position ' + players.get(state.placing).short + ' takes.'
+    : state.swap
+      ? 'Choose the position ' + p.short + ' moves to.'
+      : p.name + ' · ' + shape[state.selected].role;
+  $('cancel').hidden = !state.placing && !state.swap;
+  $('swap').hidden = Boolean(state.placing);
+  $('swap').disabled = false;
   $('swap').setAttribute('aria-pressed', String(state.swap));
   $('swap').textContent = state.swap ? 'Cancel swap' : 'Swap position';
-  $('swap').disabled = !p;
-  $('undo').disabled = !history.length;
-  $('save').disabled = !p;
-  $('formation').disabled = !p;
-  $('formation').value = state.shape;
+  $('formation').value = state.formation;
+  const proposed = isProposed();
+  $('key').hidden = !proposed;
+  $('ties').hidden = !proposed || !proposal().ties;
+  $('ties').textContent = proposal().ties || '';
+  $('xi-status').hidden = false;
+  $('xi-status').dataset.state = proposed ? 'proposed' : state.origin;
+  $('xi-status').textContent = proposed
+    ? 'Proposed'
+    : { link: 'From a link', saved: 'Saved on this device' }[state.origin] || 'Your changes';
+  $('reset').hidden = proposed;
+  $('undo').disabled = !undoStack.length;
 }
 function renderBench() {
-  const bench = squad.filter((p) => !state.xi.includes(p.id)).sort((a, b) => a.number - b.number);
-  $('bench-count').textContent = squad.length ? bench.length + ' available' : '';
-  const p = selected();
-  $('bench-hint').textContent = p
-    ? 'Choose a replacement for ' + p.name + '.'
-    : 'Choose a substitute for the selected position.';
+  const bench = data.players.filter((p) => !state.xi.includes(p.id));
+  $('bench-count').textContent = bench.length + ' available';
+  $('bench-hint').textContent = state.placing
+    ? 'Now tap the position ' + players.get(state.placing).short + ' takes, or tap him again to cancel.'
+    : 'Tap a substitute, then the position he takes.';
+  const groups = [];
+  for (const p of bench) {
+    if (!groups.length || groups.at(-1).group !== p.group) groups.push({ group: p.group, list: [] });
+    groups.at(-1).list.push(p);
+  }
+  $('bench-list').removeAttribute('aria-busy');
   $('bench-list').replaceChildren(
-    ...bench.map((p) => {
-      const b = action(null, () => sub(p.id), 'reserve');
-      b.append(el('small', '#' + p.number + '  /  ' + p.group), el('strong', shortName(p)));
-      b.setAttribute('aria-label', 'Substitute ' + p.name);
-      draggable(b, { id: p.id });
-      return b;
-    }),
-  );
-}
-let leagueReport;
-function normalizedName(name) {
-  return name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replaceAll('.', '').trim();
-}
-function renderGoals(player) {
-  if (!leagueReport || !player) return;
-  const output = $('profile-goal-results');
-  const names = new Map();
-  for (const member of squad) {
-    const full = normalizedName(member.name),
-      parts = full.split(/\s+/);
-    const aliases = new Set([full]);
-    if (parts.length > 1) aliases.add(parts[0][0] + ' ' + parts.slice(1).join(' '));
-    for (const alias of aliases) names.set(alias, names.has(alias) ? null : member.id);
-  }
-  const identities = new Set();
-  const matches = leagueReport.matches;
-  const hits = matches
-    .map((game) => ({
-      game,
-      count: game.events.filter((e) => {
-        if (!e.for_club || e.own || !e.name || names.get(normalizedName(e.name)) !== player.id)
-          return false;
-        identities.add(scorer(e, leagueReport.league).id);
-        return true;
-      }).length,
-    }))
-    .filter((row) => row.count);
-  const total = hits.reduce((sum, row) => sum + row.count, 0);
-  output.textContent = total
-    ? total +
-      ' named league goal' +
-      (total === 1 ? '' : 's') +
-      ' · Latest against ' +
-      hits[0].game.opponent +
-      ' (' +
-      hits[0].game.day +
-      ').'
-    : 'No named goals matched in ' + matches.length + ' reported Madrid matches.';
-  const matchup = $('profile-scout');
-  matchup.hidden = identities.size !== 1;
-  if (!matchup.hidden) {
-    matchup.textContent = 'Compare ' + shortName(player) + ' with a teammate →';
-    matchup.href = scoutLink('es', 1133, { goalsPlayer: [...identities][0] });
-  }
-}
-
-function renderMatchPrep(report) {
-  const game = report.next_match;
-  const panel = $('match-prep');
-  panel.hidden = !game;
-  if (!game) return;
-  $('prep-opponent').textContent = game.opponent.name;
-  const formatDay = (value) =>
-    new Intl.DateTimeFormat('en-GB', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      timeZone: 'UTC',
-    }).format(new Date(value + 'T12:00:00Z'));
-  const datesDiffer = game.schedule_day && game.schedule_day !== game.day;
-  $('prep-date').textContent =
-    (game.venue === 'H' ? 'Home' : 'Away') +
-    ' · ' +
-    (datesDiffer ? 'Date to confirm' : formatDay(game.day));
-  $('prep-schedule').hidden = !datesDiffer;
-  if (datesDiffer) {
-    $('prep-schedule').textContent =
-      'OpenLigaDB lists ' +
-      formatDay(game.day) +
-      '. OpenFootball lists ' +
-      formatDay(game.schedule_day) +
-      '.';
-  }
-  const rows = [
-    [report.club, report.clubs[report.club], game.club_form],
-    [game.opponent.id, game.opponent.name, game.opponent_form],
-  ];
-  $('prep-form').replaceChildren(
-    ...rows.map(([id, team, form]) => {
-      const row = el('div', null, 'prep-form-row');
-      row.append(el('strong', team));
-      if (!form.length) row.append(el('small', 'No earlier reports'));
-      for (const match of form) {
-        const a = link(match.result, scoutLink('es', id, { goalsOpponent: match.opponent }));
-        a.className = 'form-result form-' + match.result;
-        a.title = [match.day, team, match.score, match.opponent, match.venue].join(' · ');
-        a.setAttribute('aria-label', a.title);
-        row.append(a);
+    ...groups.map(({ group, list }) => {
+      const block = el('div', null, 'ln-bench-group');
+      const title = el('h3', groupNames[group], 'ln-bench-title');
+      const row = el('div', null, 'ln-bench-row');
+      for (const p of list) {
+        const b = button(null, () => pickBench(p.id), 'ln-reserve');
+        b.setAttribute('aria-label', 'Substitute ' + p.name);
+        b.setAttribute('aria-pressed', String(state.placing === p.id));
+        b.append(
+          el('span', p.number, 'ln-reserve-number'),
+          el('span', p.short, 'ln-reserve-name'),
+          el('span', p.apps == null ? '— apps' : p.apps + (p.apps === 1 ? ' app' : ' apps'), 'ln-reserve-apps'),
+        );
+        draggable(b, { id: p.id });
+        row.append(b);
       }
-      return row;
+      block.append(title, row);
+      return block;
     }),
   );
-  $('prep-scout').href = scoutLink('es', game.opponent.id);
-  $('prep-scout').textContent = 'Scout ' + game.opponent.name + ' →';
-}
-async function loadLeagueGoals() {
-  const output = $('profile-goal-results');
-  try {
-    leagueReport = await get('/api/match-centre/goal-scout/es?club=1133');
-    renderMatchPrep(leagueReport);
-    renderGoals(selected());
-  } catch {
-    output.replaceChildren('League reports unavailable. ', action('Retry', loadLeagueGoals));
-  }
+  $('bench-order').textContent = data.order;
 }
 function renderProfile() {
-  const p = selected();
+  const p = inspected();
+  $('profile').hidden = !p;
   if (!p) return;
-  const parts = p.name.split(' '),
-    stem = shortName(p);
-  $('given-name').textContent = p.name.endsWith(stem) ? p.name.slice(0, -stem.length).trim() : '';
-  $('player-name').textContent = stem || parts.at(-1);
-  $('player-meta').textContent = positions[p.group] + '  /  ' + p.nation;
+  const index = state.xi.indexOf(p.id);
+  $('hero-label').textContent = index >= 0 ? 'In the XI' : 'Substitute';
+  $('given-name').textContent = p.name.endsWith(p.short) && p.name !== p.short ? p.name.slice(0, -p.short.length).trim() : '';
+  $('player-name').textContent = p.short;
+  $('player-meta').textContent = (p.position || positions[p.group]) + ' · ' + p.nation;
+  $('hero-number').textContent = p.number;
   $('apps').textContent = p.apps ?? '—';
   $('goals').textContent = p.goals ?? '—';
-  $('xi-role').textContent = shapes[state.shape][state.selected].role;
-  $('hero-number').textContent = p.number;
-  $('season-note').textContent = state.season + ' · All competitions';
-  renderGoals(p);
+  $('xi-role').textContent = index >= 0 ? slots()[index].role : 'Bench';
+  $('import-player').textContent = p.name;
 }
+
+// ------------------------------------------------------------------ the activity map
+
 function paint() {
-  const role = state.mode === 'role',
-    slot = shapes[state.shape][state.selected];
+  const p = inspected(),
+    index = state.xi.indexOf(p?.id),
+    slot = index >= 0 ? slots()[index] : null;
+  if (!slot && state.mode === 'role') state.mode = 'events';
+  const role = state.mode === 'role';
   const pts = sample?.points ?? [],
     filtered = state.filter === 'All actions' ? pts : pts.filter((pt) => pt.type === state.filter);
+  $('map-panel').hidden = !p || (!p.archive && !imported.has(p.id));
   draw($('map'), filtered, slot, role);
   $('events').setAttribute('aria-pressed', String(!role));
   $('role').setAttribute('aria-pressed', String(role));
+  $('role').disabled = !slot;
+  $('events').textContent = imported.has(p?.id) ? 'Your file' : 'Archive sample';
   $('action-label').hidden = role || !pts.length;
   $('density-scale').hidden = role || !filtered.length;
   // The page's chip says 2026/27; a sample drawn from the archive says its own season.
   $('map-season').hidden = role || !sample || Boolean(sample.imported);
   $('map-detail').replaceChildren();
   if (role) {
-    $('sample').textContent = slot.role + ' · Planned position';
-    $('sample-count').textContent = 'Tactical role zone';
-    $('map-detail').textContent = 'The shaded area follows this position in your formation.';
+    $('sample').textContent = slot.zone;
+    $('sample-count').textContent = '';
   } else if (sample) {
-    $('sample').textContent = sample.imported
-      ? 'Imported · ' + sample.match
-      : sample.match + ' · ' + sample.date;
+    $('sample').textContent = sample.imported ? 'Imported from ' + sample.match : sample.label;
     $('sample-count').textContent =
       filtered.length + ' located action' + (filtered.length === 1 ? '' : 's');
     if (sample.imported) {
-      $('map-detail').textContent = 'Coordinates from your file. Stored in this tab.';
+      $('map-detail').textContent = 'Coordinates from your file, kept in this tab.';
     } else {
       $('map-detail').append(
-        'Archive · Pappalardo et al. / Wyscout. Event starts, attacking left to right. ',
-        link('Events', 'https://doi.org/10.6084/m9.figshare.7770599.v1'),
-        ' · ',
-        link('Players', 'https://doi.org/10.6084/m9.figshare.7765196.v3'),
-        ' · ',
+        'Where each action started, attacking left to right. ',
+        link('Pappalardo et al. / Wyscout', 'https://doi.org/10.6084/m9.figshare.7770599.v1'),
+        ' (',
         link('CC BY 4.0', 'https://creativecommons.org/licenses/by/4.0/'),
+        ').',
       );
     }
   } else {
-    $('sample').textContent = 'Player events';
-    $('sample-count').textContent = selected()?.archive
-      ? 'Loading event sample…'
-      : 'No coordinates available';
-    $('map-detail').textContent =
-      'Import this player’s match coordinates to see an observed heatmap.';
+    $('sample').textContent = 'Loading the archive sample…';
+    $('sample-count').textContent = '';
   }
   $('map').setAttribute(
     'aria-label',
     role
-      ? slot.role + ' tactical role zone'
-      : (selected()?.name || 'Player') +
-          ' heatmap, ' +
+      ? slot.zone
+      : (p?.name || 'Player') +
+          ', ' +
           filtered.length +
           ' located action' +
           (filtered.length === 1 ? '' : 's'),
   );
-  $('clear-import').hidden = !imported.has(selected()?.id);
+  $('clear-import').hidden = !imported.has(p?.id);
 }
-async function loadMap(reset = true) {
+async function loadMap() {
   const version = ++mapVersion,
-    p = selected();
+    p = inspected();
   sample = null;
   state.filter = 'All actions';
-  if (reset) state.mode = p && (p.archive || imported.has(p.id)) ? 'events' : 'role';
+  state.mode = 'events';
   paint();
-  if (!p) return;
+  if (!p || (!p.archive && !imported.has(p.id))) return;
   try {
     if (imported.has(p.id)) sample = imported.get(p.id);
-    else if (p.archive) {
+    else {
       if (!archive.has(p.id))
         archive.set(
           p.id,
@@ -381,129 +437,263 @@ async function loadMap(reset = true) {
       if (version !== mapVersion) return;
       sample = result;
     }
-    if (version !== mapVersion) return;
-    const choices = ['All actions', ...new Set((sample?.points ?? []).map((p) => p.type))];
+    const choices = ['All actions', ...new Set((sample?.points ?? []).map((pt) => pt.type))];
     $('action').replaceChildren(...choices.map((k) => new Option(k, k)));
     paint();
-  } catch {
+  } catch (err) {
     if (version !== mapVersion) return;
-    if (state.mode === 'events') {
-      $('sample-count').textContent = 'Sample unavailable.';
-      $('map-detail').replaceChildren(action('Retry event map', () => loadMap(false)));
-    }
+    $('sample').textContent = err.message;
+    $('map-detail').replaceChildren(button('Retry', () => loadMap(), 'ui-btn'));
   }
 }
+
+let shownInspect = null;
 function render(focus = false) {
-  renderPitch();
+  renderBoard();
   renderBench();
   renderProfile();
-  loadMap();
+  if (state.inspect !== shownInspect) {
+    shownInspect = state.inspect;
+    loadMap();
+  } else paint();
   if (focus) $('slots').querySelector('[aria-pressed=true]')?.focus({ preventScroll: true });
 }
-function activate(data) {
-  const fresh = data.players.filter(
-    (p) => typeof p.id === 'string' && typeof p.name === 'string' && positions[p.group],
+
+// ------------------------------------------------------------------ the next match
+
+function renderNext(card) {
+  const body = $('next-body');
+  body.removeAttribute('aria-busy');
+  const game = card.fixture;
+  $('next-venue').hidden = !game;
+  if (!game) {
+    body.replaceChildren(el('p', card.empty, 'ln-empty'));
+    return;
+  }
+  $('next-venue').textContent = game.venue;
+  const opponent = el('p', null, 'ln-opponent');
+  opponent.append(el('span', 'v', 'ln-vs'), ' ' + game.opponent);
+  const links = el('div', null, 'ln-next-links');
+  links.append(link('Recent form', game.links.form, 'ui-btn'), link('Table', game.links.table, 'ui-btn'));
+  if (game.links.goals) links.append(link('Goals by opponent', game.links.goals, 'ui-btn'));
+  const credit = el('p', null, 'ln-credit');
+  credit.append(
+    'Fixture: ',
+    link(card.credit.name, card.credit.url),
+    ' (',
+    link(card.credit.licence, card.credit.licence_url),
+    ').',
   );
-  if (fresh.length < 11 || new Set(fresh.map((p) => p.id)).size !== fresh.length)
-    throw Error('The squad list is incomplete.');
-  squad = fresh;
-  players = new Map(fresh.map((p) => [p.id, p]));
-  state.season = data.season;
-  state.shape = '4-3-3';
-  state.xi = initialXI(squad);
-  state.selected = 1;
+  body.replaceChildren(
+    opponent,
+    el('p', game.when, 'ln-when'),
+    el('p', game.competition, 'ln-competition'),
+    links,
+    credit,
+  );
+}
+async function loadNext() {
+  const body = $('next-body');
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey));
+    renderNext(await get('/api/studio/next'));
+  } catch (err) {
+    body.removeAttribute('aria-busy');
+    const box = el('div', null, 'ln-unavailable');
+    box.append(el('p', err.message), button('Retry', loadNext, 'ui-btn'));
+    body.replaceChildren(box);
+  }
+}
+
+// ------------------------------------------------------------------ start
+
+function savedLineup() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE));
+    const formation = saved?.formation ?? saved?.shape;
     if (
       saved?.season === data.season &&
-      Object.hasOwn(shapes, saved.shape) &&
+      Object.hasOwn(data.formations, formation) &&
       Array.isArray(saved.xi) &&
-      saved.xi.length === 11 &&
-      new Set(saved.xi).size === 11 &&
+      saved.xi.length === data.formations[formation].length &&
+      new Set(saved.xi).size === saved.xi.length &&
       saved.xi.every((id) => players.has(id))
     ) {
-      restore({
-        ...saved,
-        selected:
-          Number.isInteger(saved.selected) && saved.selected >= 0 && saved.selected < 11
-            ? saved.selected
-            : 1,
-      });
+      const selected = Number.isInteger(saved.selected) && saved.selected >= 0 && saved.selected < saved.xi.length ? saved.selected : 0;
+      return { formation, xi: saved.xi, selected };
     }
   } catch {
     /* Storage is optional. */
   }
-  $('season').textContent = data.season + ' squad';
-  $('roster-credit').replaceChildren(
-    'Squad and season totals adapted from ',
+  return null;
+}
+function useLineup(formation, xi, origin, selected = null) {
+  state.formation = formation;
+  state.xi = [...xi];
+  state.origin = origin;
+  // The centre-forward, or the first forward: someone to show in the profile from the start.
+  const shape = data.formations[formation];
+  const striker = shape.findIndex((s) => s.role === 'ST');
+  state.selected = selected ?? Math.max(0, striker >= 0 ? striker : shape.findIndex((s) => s.group === 'FW'));
+  state.inspect = state.xi[state.selected];
+}
+async function activate(payload, { offline = false } = {}) {
+  data = payload;
+  players = new Map(data.players.map((p) => [p.id, p]));
+  const select = $('formation');
+  select.replaceChildren(...Object.keys(data.formations).map((f) => new Option(f, f)));
+  select.disabled = false;
+  $('key').textContent = data.key + '.';
+  $('rule').textContent = data.rule;
+  $('season-note').replaceChildren(
+    data.season_label + ', all competitions' + (data.revised_label ? ', as of ' + data.revised_label : '') + '. ',
     link('Wikipedia contributors', data.source),
-    '. Checked ' + new Date(data.checked).toLocaleDateString('en-GB') + '.',
+    ' (',
+    link('CC BY-SA 4.0', data.licence),
+    ').',
   );
-  if (data.warning) say('Showing the last available roster.');
+  $('roster-credit').replaceChildren(
+    (data.revised_label ? 'As edited on ' + data.revised_label : 'Checked ' + niceDate(data.checked)) + '. Adapted from ',
+    link('Wikipedia contributors', data.source),
+    ' under ',
+    link('CC BY-SA 4.0', data.licence),
+    '.',
+  );
+  for (const id of ['copy', 'save']) $(id).disabled = false;
+  useLineup(data.default, data.proposals[data.default].xi, 'proposed');
+  const params = new URLSearchParams(location.search);
+  let message = offline ? 'Showing the squad last checked ' + niceDate(data.checked) + '.' : '';
+  if (data.warning && !offline) message = 'Showing the last squad list the source gave.';
+  if (params.has('formation') || params.has('xi')) {
+    try {
+      const shared = await get('/api/studio/lineup?' + new URLSearchParams({
+        formation: params.get('formation') || '',
+        xi: params.get('xi') || '',
+        ...(params.get('season') ? { season: params.get('season') } : {}),
+      }));
+      useLineup(shared.formation, shared.xi, shared.proposed ? 'proposed' : 'link');
+      if (shared.proposed) setProposalAnswer();
+      else setAnswer(shared.answer);
+    } catch (err) {
+      message = err.message + ' The proposed XI is shown instead.';
+      setProposalAnswer();
+    }
+  } else {
+    const saved = savedLineup();
+    if (saved) useLineup(saved.formation, saved.xi, 'saved', saved.selected);
+    if (isProposed()) state.origin = 'proposed';
+    await refreshAnswer(true);
+  }
+  notice(message);
   render();
+  syncUrl();
+}
+function loading() {
+  const answer = $('answer');
+  answer.replaceChildren(
+    el('span', null, 'ui-skeleton ln-line'),
+    el('span', null, 'ui-skeleton ln-line ln-line-short'),
+    el('span', 'Loading the proposed XI…', 'sr-only'),
+  );
+  $('key').hidden = false;
+  $('key').replaceChildren(el('span', null, 'ui-skeleton ln-key-line'));
+  $('slots').replaceChildren();
+  $('picked').textContent = 'Loading the squad…';
 }
 async function start() {
-  say('Loading the first team…');
+  notice('');
+  if (!data) loading();
   try {
-    const data = await get('/api/studio/squad');
-    say('');
-    activate(data);
+    const payload = await get('/api/studio/squad');
     try {
-      localStorage.setItem(rosterKey, JSON.stringify(data));
+      localStorage.setItem(OFFLINE, JSON.stringify(payload));
     } catch {
-      /* Optional cache. */
+      /* Optional copy for a visit without the source. */
     }
-  } catch {
+    await activate(payload);
+  } catch (err) {
+    let saved = null;
     try {
-      const saved = JSON.parse(localStorage.getItem(rosterKey));
-      if (saved?.players) {
-        activate(saved);
-        say(
-          'Showing the roster last checked ' +
-            new Date(saved.checked).toLocaleDateString('en-GB') +
-            '.',
-        );
-        return;
-      }
+      saved = JSON.parse(localStorage.getItem(OFFLINE));
     } catch {
-      /* Try again below. */
+      /* Nothing kept. */
     }
-    say('The squad source is unavailable. ');
-    $('notice').append(action('Retry squad', start));
-    $('picked').textContent = 'Squad unavailable';
+    if (saved?.players && saved?.proposals) {
+      await activate(saved, { offline: true });
+      return;
+    }
+    const box = el('span');
+    box.append(
+      (err.status === 503 ? err.message : 'The squad list can’t be loaded right now.') + ' ',
+    );
+    $('answer').replaceChildren(box, button('Retry', start, 'ui-btn'));
+    $('key').hidden = true;
+    $('slots').replaceChildren(el('p', 'No squad to place yet.', 'ln-pitch-empty'));
+    $('picked').textContent = 'The squad list is unavailable.';
+    $('bench-list').removeAttribute('aria-busy');
+    $('bench-list').replaceChildren(el('p', 'No squad to show yet.', 'ln-empty'));
   }
 }
+
+// ------------------------------------------------------------------ controls
+
 $('formation').onchange = () => {
-  const previous = state.shape,
-    to = $('formation').value,
-    id = selected()?.id;
+  const to = $('formation').value,
+    id = state.xi[state.selected];
+  if (to === state.formation) return;
+  const before = slots();
   beforeEdit();
-  state.xi = reshape(state.xi, previous, to);
-  state.shape = to;
+  state.xi = reshape(state.xi, before, data.formations[to]);
+  state.formation = to;
   state.selected = Math.max(0, state.xi.indexOf(id));
-  say('Formation changed to ' + to + '.');
-  render();
+  state.inspect = state.xi[state.selected];
+  afterEdit('Formation changed to ' + to + '.');
 };
 $('swap').onclick = () => {
   state.swap = !state.swap;
-  say('');
-  renderPitch();
+  state.placing = null;
+  render();
+};
+$('cancel').onclick = cancel;
+$('undo').onclick = () => {
+  const last = undoStack.pop();
+  if (!last) return;
+  Object.assign(state, { ...last, xi: [...last.xi], swap: false, placing: null });
+  state.inspect = state.xi[state.selected];
+  live('Last change undone.');
+  render();
+  syncUrl();
+  refreshAnswer();
+};
+$('reset').onclick = () => {
+  beforeEdit();
+  state.xi = [...proposal().xi];
+  state.inspect = state.xi[state.selected];
+  afterEdit('Back to the proposed XI.');
 };
 $('save').onclick = () => {
   try {
-    localStorage.setItem(storageKey, JSON.stringify({ ...snapshot(), season: state.season }));
-    say('Lineup saved on this device.');
+    localStorage.setItem(STORE, JSON.stringify({ ...snapshot(), season: data.season }));
+    toast('Lineup saved on this device.');
   } catch {
-    say('This browser could not save the lineup.');
+    toast('This browser couldn’t save the lineup.');
   }
 };
-$('undo').onclick = () => {
-  const last = history.pop();
-  if (!last) return;
-  restore(last);
-  state.swap = false;
-  say('Last change undone.');
-  render();
+$('copy').onclick = async () => {
+  const url = location.origin + location.pathname + '?' + query();
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Link copied. It opens this lineup.');
+  } catch {
+    const field = el('textarea');
+    field.value = url;
+    field.setAttribute('readonly', '');
+    field.className = 'sr-only';
+    document.body.append(field);
+    field.select();
+    const copied = document.execCommand?.('copy');
+    field.remove();
+    toast(copied ? 'Link copied. It opens this lineup.' : 'Copy the link from the address bar.');
+  }
 };
 $('action').onchange = () => {
   state.filter = $('action').value;
@@ -515,33 +705,34 @@ $('role').onclick = () => {
 };
 $('events').onclick = () => {
   state.mode = 'events';
-  if (!sample && selected()?.archive) loadMap(false);
-  else paint();
+  paint();
 };
 $('file').onchange = async (e) => {
   const file = e.target.files[0],
-    p = selected();
+    p = inspected();
   e.target.value = '';
   if (!file || !p) return;
   try {
     if (file.size > 1024 * 1024) throw Error('Use a CSV smaller than 1 MB.');
     const points = readEvents(await file.text());
     imported.set(p.id, { points, match: file.name, imported: true });
-    if (selected()?.id === p.id) loadMap();
-    say('Imported ' + points.length + ' actions for ' + p.name + '.');
+    if (inspected()?.id === p.id) loadMap();
+    toast('Imported ' + points.length + ' actions for ' + p.name + '.');
   } catch (err) {
-    say(err.message);
+    toast(err.message);
+    live(err.message);
   }
 };
 $('clear-import').onclick = () => {
-  const p = selected();
-  if (p) {
-    imported.delete(p.id);
-    say('Imported events removed.');
-    loadMap();
-  }
+  const p = inspected();
+  if (!p) return;
+  imported.delete(p.id);
+  toast('Imported events removed.');
+  loadMap();
 };
-renderPitch();
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && (state.placing || state.swap)) cancel();
+});
 draw($('map'), [], null, false);
 start();
-loadLeagueGoals();
+loadNext();

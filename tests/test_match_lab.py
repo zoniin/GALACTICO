@@ -6,6 +6,7 @@ the status Match Lab uses for a number it does not publish, and the reason.
 """
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -519,3 +520,106 @@ def test_the_page_still_prints_the_number_for_a_metric_sent_without_a_reason():
       console.log('ok');
     """)
     assert out == "ok"
+
+
+# --- the page, answer first (ADR-0034) ------------------------------------------------
+
+HEAD = """
+await new Promise(resolve => setTimeout(resolve, 0));  // the page's own boot ends first
+match = {match_id: 1, date: '2018-05-06 18:45:00',
+  teams: [{team_id: 10, name: 'Home', side: 'home', score: 2},
+          {team_id: 20, name: 'Away', side: 'away', score: 1}]};
+const answered = xi => ({title: 'Home v Away', answer: 'The sentence the server wrote.',
+  date_label: 'Sun 6 May 2018', competition: 'La Liga',
+  home: {scorers: [{line: 'First 10′, 52′'}]}, away: {scorers: [{line: 'Second 15′'}]},
+  xi_link: xi ? {href: '/xi?scenario=s', label: 'The link the server named.'} : null});
+const text = id => (elements[id].innerHTML || elements[id].textContent)
+  .replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();
+"""
+
+
+@needs_node
+def test_the_page_prints_the_servers_sentence_scoreboard_and_xi_link_and_writes_none():
+    """The H1, the answer sentence, the scorers and the link to Check against targets are the
+    server's (galactico/api/player_answers.py). The link is shown only where the server sends
+    one (F18): there is no fallback to another scenario."""
+    out = run_card(HEAD + """
+      ANSWER = answered(true); renderHead(); renderBoard();
+      if (elements['#match-title'].textContent !== 'Home v Away') throw new Error('title');
+      if (elements['#answer'].textContent !== 'The sentence the server wrote.')
+        throw new Error('answer');
+      if (elements['#answer'].hidden) throw new Error('answer hidden');
+      const link = elements['#rebuild'];
+      if (link.hidden || link.href !== '/xi?scenario=s'
+          || link.textContent !== 'The link the server named.')
+        throw new Error('xi link: ' + link.hidden + ' ' + link.href);
+      const board = text('#match-header');
+      for (const piece of ['Sun 6 May 2018 · La Liga', 'Home', 'Away', 'First 10′, 52′',
+                           'Second 15′'])
+        if (!board.includes(piece)) throw new Error('board lacks ' + piece + ': ' + board);
+      if (!/2\\s*–\\s*1/.test(board)) throw new Error('score: ' + board);
+      // No scenario for this match: no link at all.
+      ANSWER = answered(false); renderHead();
+      if (!link.hidden) throw new Error('a link without a scenario');
+      // Without the server's answer: the recorded result, no sentence, no scorer, no link.
+      ANSWER = null; renderHead(); renderBoard();
+      if (!elements['#answer'].hidden || elements['#answer'].textContent)
+        throw new Error('a sentence of its own');
+      if (!link.hidden) throw new Error('a link of its own');
+      if (text('#match-header').includes('′')) throw new Error('scorers of its own');
+      if (elements['#match-title'].textContent !== 'Home v Away') throw new Error('fallback title');
+      console.log('ok');
+    """)
+    assert out == "ok"
+
+
+def test_the_page_reads_in_match_order_and_composes_no_football_sentence():
+    """Lineups and key moments first, then shots, passing, the threat flow, player by player
+    and both teams side by side; "About these numbers" closed, last. The script writes no
+    result word: the sentence is the server's (R10)."""
+    html = PAGE.read_text(encoding="utf-8")
+    order = ['id="match-header"', 'id="lineups"', 'id="timeline"', 'id="shots"', 'id="network"',
+             'id="flow"', 'id="players"', 'id="team-profiles"', "About these numbers"]
+    positions = [html.index(marker) for marker in order]
+    assert positions == sorted(positions)
+    assert html.count("<h1") == 1
+    script = html.split("<script>")[1].split("</script>")[0]
+    for composed in ("drew", " won ", "lost", "scored for", "with goals from"):
+        assert composed not in script, composed
+    # The old silent fallback to "the prepared XI scenarios" is gone.
+    assert "Explore the prepared XI scenarios" not in html and "/xi?match_id=" not in html
+    # Every visible string of the page's markup passes the copy guard.
+    visible = " ".join(re.sub(r"<[^>]+>", " ", html.split("<script>")[0]).split())
+    assert scan_labels([visible], keys=False) == []
+
+
+@needs_node
+def test_the_counts_a_reader_sees_first_are_the_servers_plain_words():
+    """G4-1 and G4-3 (ADR-0034): with the server's words, the table a reader sees first holds
+    the plain counts it marks as shown, under its names; the lab's labels and definitions
+    ("not a count of expected assists", "no inference about defending quality") and the
+    status tokens are not in it. The rest sits in a closed "More measures"."""
+    from galactico.api import player_answers
+
+    words = json.dumps({"metrics": [
+        {"id": key, "label": label, "format": form, "shown": shown, "note": note}
+        for key, label, form, shown, note in player_answers.METRIC_WORDS],
+        "status_words": dict(player_answers.STATUS_WORDS)})
+    out = run_card("ANSWER = " + words + ";" + """
+      const frozen = id => ({id, label: 'Lab label ' + id, value: 3, unit: 'events',
+        definition: id === 'key_passes' ? 'Provider key-pass tags; not a count of expected assists.'
+          : 'Recorded interceptions; no inference about defending quality.',
+        family: 'observation', status: 'DIRECT'});
+      const html = metricRows([frozen('key_passes'), frozen('interceptions'),
+                               frozen('recorded_actions')]);
+      const first = html.split('<details')[0].replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ');
+      for (const good of ['Key passes', 'Interceptions'])
+        if (!first.includes(good)) throw new Error('missing ' + good + ': ' + first);
+      for (const bad of ['Lab label', 'expected', 'quality', 'DIRECT', 'Actions recorded'])
+        if (first.includes(bad)) throw new Error('first table prints ' + bad + ': ' + first);
+      const more = html.split('<details')[1] || '';
+      if (!more.includes('Actions recorded') || !more.includes('Recorded'))
+        throw new Error('the rest is not under More measures');
+      console.log(JSON.stringify(first));
+    """)
+    assert scan_labels([json.loads(out)], keys=False) == []

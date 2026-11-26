@@ -1015,11 +1015,15 @@ def test_the_pages_say_what_the_browser_assembles_and_map_no_token_to_words() ->
     # The worlds proved to have no XI are drawn and counted as their own kind.
     for field in ("wc.no_xi", "data-world", "no XI without him, or none with him"):
         assert field in transfer, field
-    # The lede says both levels of the order: the outcome groups first, then the chosen key.
-    lede = re.search(r'<p class="lede">(.*?)</p>', transfer, flags=re.S).group(1)
-    assert ("The list is grouped first by the outcome of the re-solve, in a fixed sequence; "
-            "inside a group it is in the order of a key you choose.") in lede
-    assert "the list is in the order of a key you choose" not in lede
+    # ADR-0034 (answer-first pages) re-pins what was the lede's sentence about the order: the
+    # list of candidates is one server reply in the order of one declared factual key, and the
+    # sentence that says which key is in force is the server's (order.statement). The page
+    # sorts nothing and places no row by its outcome: an outcome is a sentence in the row,
+    # never a place in the list (ADR-0023), so no outcome band and no listing is drawn.
+    script = transfer.split("<script>")[-1]
+    assert "order.statement" in script and "outcome_sentence" in script
+    assert ".sort(" not in script and "GP.ordered(" not in script
+    assert "grouped first by the outcome" not in transfer
 
 
 def test_the_catalogue_the_server_serves_renders_through_the_kit(tmp_path: Path) -> None:

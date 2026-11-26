@@ -69,8 +69,10 @@ THEMES = {"light": {**LIGHT, **FIXED}, "dark": {**DARK, **FIXED}}
 
 
 def test_every_colour_literal_is_in_tokens_and_every_role_has_both_themes():
-    assert {"labs.css", "match-centre.css", "studio.css", "index.html", "squad.html"} <= set(
-        EVERY_SHEET)
+    # Re-pinned under ADR-0034: the current-season pages' sheets are matches.css, goals.css
+    # and lineup.css (the old match-centre.css and studio.css are deleted).
+    assert {"labs.css", "matches.css", "goals.css", "lineup.css", "index.html",
+            "squad.html"} <= set(EVERY_SHEET)
     for name, sheet in EVERY_SHEET.items():
         assert not re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|oklch\(", sheet), name
         words = set(re.findall(r":\s*([a-z]+)\b", sheet))
@@ -244,8 +246,9 @@ def test_svg_text_in_a_drawing_is_kept_at_12px_on_screen_by_the_site_script():
     assert "var MIN = 12;" in site and "querySelectorAll('svg text')" in site
     assert "MutationObserver" in site and "'resize'" in site
     drawn = [name for name, script in SCRIPTS.items() if re.search(r"<text\b", script)]
-    assert {"planning.js", "match.html <script>", "squad.html <script>", "xi.html <script>"} \
-        <= set(drawn)
+    # Re-pinned under ADR-0034: the XI page labels its pitch in HTML now (sheet-sized, 12 px
+    # floor), so its script draws no SVG text.
+    assert {"planning.js", "match.html <script>", "squad.html <script>"} <= set(drawn)
 
 
 def test_gold_in_a_page_or_a_script_is_a_fill_with_its_edge_or_sits_on_a_dark_drawing():

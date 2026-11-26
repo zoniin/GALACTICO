@@ -1,0 +1,1024 @@
+/* Matches (match-centre.html) and Table (leagues.html): the page parts the components do not
+   draw. In the page layer, above the components; every value a role of tokens.css.
+
+   Colour carries no merit. A won side is set in a heavier weight beside its number; the result
+   badges pair the letter with its tint; a competition whose free feed stops early has the warning
+   tint with a mark and a line of text that says so. Gold is the selected subject only: the match
+   whose report is open, the club row a reader asked to see. */
+@layer page {
+  /* ------------------------------------------------------------ the page header */
+
+  .matches .page-header,
+  .tables .page-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .mc-line {
+    display: block;
+    height: 1.1em;
+    margin: 0.3em 0;
+    max-width: 58ch;
+  }
+
+  .mc-line-short {
+    max-width: 30ch;
+  }
+
+  .page-answer .ui-callout {
+    margin: 0;
+    font-size: var(--text-md);
+  }
+
+  .page-actions:empty {
+    display: none;
+  }
+
+  .mc-arrow {
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+
+  /* Results through: one chip per competition, the date it reaches. */
+  .mc-fresh {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .mc-fresh-list {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mc-fresh-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--surface-1);
+    font-size: var(--text-xs);
+    line-height: 1.2;
+  }
+
+  .mc-fresh-name {
+    color: var(--text-muted);
+  }
+
+  .mc-fresh-date {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-fresh-item[data-stale] {
+    border-color: var(--warning);
+    background: var(--warning-soft);
+  }
+
+  .mc-fresh-item[data-stale]::before {
+    content: "!";
+    display: inline-grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--warning);
+    color: var(--warning-soft);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    line-height: 1;
+  }
+
+  .mc-fresh-more {
+    font-size: var(--text-sm);
+  }
+
+  .mc-fresh-more > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    color: var(--link);
+    font-weight: var(--weight-semibold);
+    cursor: pointer;
+  }
+
+  .mc-fresh-more[open] {
+    flex-basis: 100%;
+  }
+
+  .mc-fresh-more[open] > .mc-fresh-list {
+    margin-top: var(--space-2);
+  }
+
+  .mc-lag {
+    flex-basis: 100%;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* ------------------------------------------------------------ Matches: the board */
+
+  .mc-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: start;
+    gap: var(--space-5);
+  }
+
+  .mc-board {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .mc-daybar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mc-day {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1) var(--space-2);
+    min-width: 0;
+    text-align: center;
+  }
+
+  .mc-day h2 {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .mc-day-tag {
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--accent-soft);
+    color: var(--text);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-step {
+    flex: none;
+    min-width: var(--target-touch);
+    gap: 6px;
+  }
+
+  .mc-step > span[aria-hidden] {
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+
+  .mc-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+
+  .mc-league {
+    flex: 0 1 13rem;
+  }
+
+  /* The date is written one way on the page; the browser's date field opens from a button
+     and stays out of sight (it writes dates its own way). Without a picker to open, the
+     button shows the field instead. */
+  .mc-date {
+    position: relative;
+    display: flex;
+    flex: none;
+    margin-left: auto;
+  }
+
+  .mc-date .ui-btn {
+    gap: var(--space-2);
+  }
+
+  .mc-cal {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+  }
+
+  .mc-date > input[type="date"] {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .mc-date[data-open] > input[type="date"] {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-control);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .mc-source {
+    flex: 1 1 100%;
+  }
+
+  .mc-meta {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .mc-board > .mc-meta {
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mc-board > .mc-meta:empty {
+    display: none;
+  }
+
+  .mc-fixtures > .ui-callout,
+  .mc-fixtures > .ui-empty {
+    margin: var(--space-4);
+  }
+
+  .mc-fixtures > .mc-meta {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .mc-group + .mc-group {
+    border-top: 1px solid var(--border);
+  }
+
+  .mc-group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+  }
+
+  .mc-group-title {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-group-extra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .mc-group-note {
+    color: var(--text-muted);
+  }
+
+  .mc-group-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-fixture {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 48px;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mc-group .mc-fixture:last-child {
+    border-bottom: 0;
+  }
+
+  .mc-pick {
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 64px;
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text);
+    font: inherit;
+    font-size: var(--text-md);
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .mc-pick:hover {
+    background: var(--surface-2);
+  }
+
+  .mc-pick:focus-visible {
+    outline-offset: -4px;
+  }
+
+  /* A Madrid fixture carries the brand's edge; the one whose report is open, the gold one. */
+  .mc-fixture[data-madrid] .mc-pick {
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .mc-fixture .mc-pick[aria-current="true"] {
+    background: var(--surface-2);
+    box-shadow: inset 4px 0 0 var(--selected), inset 6px 0 0 var(--selected-edge);
+  }
+
+  .mc-phase {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .mc-phase[data-live] {
+    color: var(--live);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-teams {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .mc-teamline {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .mc-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mc-goals {
+    flex: none;
+    min-width: 1.5ch;
+    font-weight: var(--weight-bold);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .mc-teamline[data-won] .mc-name {
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-star {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    min-height: var(--target-touch);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .mc-star:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .mc-star:focus-visible {
+    outline-offset: -4px;
+  }
+
+  .mc-star svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linejoin: round;
+  }
+
+  .mc-star[aria-pressed="true"] {
+    color: var(--accent);
+  }
+
+  .mc-star[aria-pressed="true"] svg {
+    fill: currentColor;
+  }
+
+  .mc-skeleton {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+
+  .mc-skeleton .ui-skeleton {
+    height: 48px;
+  }
+
+  .mc-empty p {
+    margin: 0;
+  }
+
+  .mc-empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+  }
+
+  .mc-problem .ui-btn {
+    justify-self: start;
+    margin-top: var(--space-2);
+  }
+
+  /* ------------------------------------------------------------ Matches: the report */
+
+  .mc-side {
+    position: sticky;
+    top: var(--space-4);
+    min-width: 0;
+  }
+
+  .mc-gone {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-3);
+  }
+
+  .mc-gone p {
+    margin: 0;
+  }
+
+  .mc-report {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .mc-report:focus-visible {
+    outline-offset: 2px;
+  }
+
+  .mc-report-title {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .mc-report-eyebrow {
+    margin: 0;
+    text-align: center;
+  }
+
+  .mc-scoreboard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-3);
+    text-align: center;
+  }
+
+  .mc-club {
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .mc-club-name {
+    color: var(--text);
+    font: var(--weight-bold) var(--text-xl) / 1.1 var(--font-display);
+    overflow-wrap: anywhere;
+    text-decoration: none;
+  }
+
+  a.mc-club-name:hover {
+    text-decoration: underline;
+  }
+
+  .mc-result {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-1);
+  }
+
+  .mc-result b {
+    color: var(--text);
+    font: var(--weight-bold) 48px / 1 var(--font-display);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .mc-result b.mc-versus {
+    color: var(--text-muted);
+    font-size: var(--text-2xl);
+  }
+
+  .mc-when {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    text-align: center;
+  }
+
+  .mc-block {
+    display: grid;
+    gap: var(--space-2);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--border);
+  }
+
+  .mc-block h3 {
+    margin: 0;
+    font-size: var(--text-md);
+  }
+
+  .mc-goals-list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .mc-goal {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 3rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+  }
+
+  .mc-goal[data-side="home"] .mc-goal-name {
+    text-align: right;
+  }
+
+  .mc-goal-minute {
+    color: var(--text-muted);
+    font-weight: var(--weight-semibold);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .mc-goal-tag {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .mc-form {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .mc-form h4 {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-sm);
+  }
+
+  .mc-form-table th,
+  .mc-form-table td {
+    padding: 6px 8px;
+    vertical-align: middle;
+  }
+
+  .mc-form-table th:first-child,
+  .mc-form-table td:first-child {
+    padding-left: 0;
+    white-space: nowrap;
+  }
+
+  .mc-form-table td:last-child {
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .mc-form-score {
+    margin-left: 6px;
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-venue {
+    display: inline-block;
+    width: 1.6em;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mc-archive {
+    margin: 0;
+  }
+
+  .mc-credits {
+    margin: 0;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .mc-events {
+    margin: 0;
+    padding-left: 1.2em;
+  }
+
+  .mc-events li {
+    padding: 6px 0;
+  }
+
+  .mc-events small {
+    display: block;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .mc-panel {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .mc-panel h4 {
+    margin: var(--space-2) 0 0;
+  }
+
+  /* ------------------------------------------------------------ About these numbers */
+
+  .mc-about {
+    margin-top: var(--space-6);
+  }
+
+  .mc-about-list {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 80ch;
+    margin: 0 0 var(--space-3);
+    padding-left: 1.2em;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .mc-about .mc-credits {
+    border: 0;
+    padding: 0;
+  }
+
+  /* ------------------------------------------------------------ Table */
+
+  .lt-tabs {
+    margin: 0 0 var(--space-4);
+  }
+
+  .lt-banner {
+    margin: 0 0 var(--space-4);
+  }
+
+  .lt-banner .ui-callout-title + p {
+    margin: 0;
+  }
+
+  .lt-card {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .lt-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lt-head h2 {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .lt-head .mc-meta {
+    margin-top: 2px;
+  }
+
+  .lt-day {
+    flex: none;
+  }
+
+  .lt-body > .ui-callout,
+  .lt-body > .ui-empty {
+    margin: var(--space-4) var(--space-5);
+  }
+
+  .lt-table th,
+  .lt-table td {
+    padding: 10px 8px;
+    vertical-align: middle;
+  }
+
+  .lt-table th:first-child,
+  .lt-table td:first-child {
+    padding-left: var(--space-5);
+  }
+
+  .lt-table th:last-child,
+  .lt-table td:last-child {
+    padding-right: var(--space-5);
+  }
+
+  .lt-table .num {
+    text-align: right;
+  }
+
+  .lt-table .club {
+    width: 40%;
+  }
+
+  .lt-table .pts {
+    font-weight: var(--weight-bold);
+  }
+
+  .lt-table th[aria-sort] {
+    color: var(--text);
+  }
+
+  .lt-table th[aria-sort]::after {
+    content: " ↓";
+  }
+
+  .lt-table .club a {
+    color: var(--text);
+    font-weight: var(--weight-medium);
+    text-decoration: none;
+  }
+
+  .lt-table .club a:hover {
+    color: var(--link);
+    text-decoration: underline;
+  }
+
+  .lt-table tr[data-madrid] td {
+    background: var(--accent-soft);
+  }
+
+  .lt-table tr[data-madrid] .club a {
+    font-weight: var(--weight-bold);
+  }
+
+  /* The club a reader came to see: gold, with its dark edge, never gold alone. */
+  .lt-table tr[aria-selected="true"] td.club {
+    box-shadow: inset 4px 0 0 var(--selected), inset 6px 0 0 var(--selected-edge);
+  }
+
+  .lt-table tr[aria-selected="true"] td.club {
+    padding-left: 14px;
+  }
+
+  .lt-order {
+    margin: 0;
+    padding: var(--space-3) var(--space-5);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .lt-schedule-head {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .lt-back {
+    justify-self: start;
+    margin-left: calc(var(--space-4) * -1);
+  }
+
+  .lt-fixture a {
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .lt-fixture a:hover {
+    color: var(--link);
+    text-decoration: underline;
+  }
+
+  .lt-result {
+    white-space: nowrap;
+  }
+
+  .lt-result .ui-badge {
+    margin-right: 6px;
+  }
+
+  .lt-credit {
+    margin: 0;
+    padding: var(--space-3) var(--space-5);
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .lt-skeleton {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .lt-skeleton .ui-skeleton {
+    height: 36px;
+  }
+
+  /* ------------------------------------------------------------ smaller screens */
+
+  @media (max-width: 960px) {
+    .mc-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mc-side {
+      position: static;
+    }
+
+    /* Touch: every control a finger meets is 44 px tall. */
+    .matches .ui-btn,
+    .matches .ui-select,
+    .matches .ui-input,
+    .matches .ui-segmented > button,
+    .tables .ui-btn,
+    .tables .ui-select,
+    .tables .ui-input,
+    .mc-group-link,
+    .mc-club-name,
+    .lt-table .club a,
+    .lt-fixture a {
+      min-height: var(--target-touch);
+    }
+
+    .mc-club-name,
+    .lt-table .club a,
+    .lt-fixture a {
+      display: inline-flex;
+      align-items: center;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .mc-toolbar {
+      padding: var(--space-3);
+    }
+
+    .mc-filters {
+      flex: 1 1 100%;
+    }
+
+    .mc-filters > button {
+      flex: 1 1 0;
+    }
+
+    .mc-league {
+      flex: 1 1 100%;
+    }
+
+    .mc-date {
+      flex: 1 1 100%;
+      margin-left: 0;
+    }
+
+    .mc-date .ui-btn {
+      flex: 1 1 auto;
+    }
+
+    /* The few competitions the page shows now wrap; the rest wait behind "More". The table's
+       competition tabs scroll sideways, their edge fading (components.css). */
+    .mc-fresh-list {
+      flex: 1 1 100%;
+    }
+
+    .mc-daybar {
+      padding: var(--space-2) var(--space-3);
+    }
+
+    .mc-day h2 {
+      font-size: var(--text-lg);
+    }
+
+    .mc-step-text {
+      display: none;
+    }
+
+    .mc-pick {
+      grid-template-columns: 52px minmax(0, 1fr);
+      gap: var(--space-2);
+      padding: var(--space-3);
+    }
+
+    .mc-group-head {
+      padding-inline: var(--space-3);
+    }
+
+    .mc-club-name {
+      font-size: var(--text-lg);
+    }
+
+    .mc-result b {
+      font-size: 40px;
+    }
+
+    .lt-head {
+      padding: var(--space-4);
+    }
+
+    .lt-day {
+      flex: 1 1 100%;
+    }
+
+    .lt-day .ui-btn {
+      flex: 1 1 auto;
+    }
+
+    .lt-order,
+    .lt-credit {
+      padding-inline: var(--space-4);
+    }
+
+    /* The table keeps Pos, P, W, D, L, GD and Pts beside the club, the club column in view,
+       and leaves GF and GA to a wider screen: GD carries them, and the answer's place can be
+       read off the table. */
+    .lt-table .minor {
+      display: none;
+    }
+
+    .lt-table .pos {
+      width: 28px;
+      padding-left: var(--space-3);
+      color: var(--text-muted);
+    }
+
+    .lt-table th,
+    .lt-table td {
+      padding-inline: 4px;
+    }
+
+    .lt-table th:last-child,
+    .lt-table td:last-child {
+      padding-right: var(--space-4);
+    }
+
+    .lt-table .club {
+      position: sticky;
+      left: 0;
+      z-index: var(--z-raised);
+      min-width: 7.5rem;
+      padding-left: var(--space-4);
+      background: var(--surface-1);
+    }
+
+    .lt-table th.club {
+      background: var(--surface-2);
+    }
+
+    .lt-table tr[data-madrid] td.club {
+      background: var(--accent-soft);
+    }
+
+    .lt-table .lt-date {
+      white-space: normal;
+    }
+  }
+}

@@ -1,7 +1,9 @@
-// Squad Lab in a real browser, against the real flagship scenario.
-// What pytest cannot see: that the page draws what the server returned and nothing else,
-// that gold marks the selected player only, that a late reply changes nothing, and that
-// nothing overflows at 390 px. Run alone: GALACTICO_E2E_PORT=8152 npx playwright test e2e/squad.spec.js
+// Squad depth in a real browser, against the real flagship scenario.
+// What pytest cannot see: that the page answers first (the server's sentence, then the depth
+// pitch, then detail in disclosures that start closed, ADR-0034), that it draws what the server
+// returned and nothing else, that gold marks the selected player only, that a late reply changes
+// nothing, that a thin slot hands its problem to Signings (F13), and that nothing overflows at
+// 390 px. Run alone: GALACTICO_E2E_PORT=8152 npx playwright test e2e/squad.spec.js
 // Set GALACTICO_SQUAD_SHOTS to a directory to write the four screenshots; unset, none is written.
 const { test, expect } = require('@playwright/test');
 const path = require('path');
@@ -15,6 +17,7 @@ const ZERO_DRAWN = /^0\s*of/; // a count that was never taken must not be printe
 // The page's own line under the stress control. It says what the tool's claim says: a set is
 // solved to proof or inherits its answer, never that every set is solved again.
 const STRESS_IDLE = 'Run after an audit. Every absence set is solved to proof or inherits its answer from one that was.';
+const DIRTY = 'Apply the edited targets before asking this.';
 const NOBODY_EXCLUDED = /with nobody excluded/i;
 
 // Page errors, console errors, failed requests and error statuses all fail a test.
@@ -99,21 +102,28 @@ async function unfieldableLists(el, level) {
   else await expect(statement).toHaveCount(0);
 }
 
-async function open(page, query = '') {
-  const snapshot = reply(page, '/api/squad/snapshot'), depth = reply(page, '/api/squad/depth'), reference = reply(page, '/api/squad/reference');
+async function open(page, query = '', { closed = false } = {}) {
+  const snapshot = reply(page, '/api/squad/snapshot'), depth = reply(page, '/api/squad/depth'), reference = reply(page, '/api/squad/reference'), answer = reply(page, '/api/squad/answer');
   await page.goto(BASE + '/squad' + query);
-  const replies = { snapshot: await (await snapshot).json(), depth: await (await depth).json(), reference: await (await reference).json() };
+  const replies = { snapshot: await (await snapshot).json(), depth: await (await depth).json(), reference: await (await reference).json(), answer: await (await answer).json() };
   await expect(page.locator('#squad-body')).toBeVisible({ timeout: 150000 });
+  await expect(page.locator('#answer')).toHaveText(replies.answer.answer);
   await expect(page.locator('.ref-strip')).toHaveCount(replies.reference.distributions.length);
+  if (!closed) await reveal(page);
   return replies;
+}
+// The detail sections start closed; a test of what they hold opens each, as a reader does.
+async function reveal(page) {
+  const closed = page.locator('.pl-more > details:not([open]) > summary');
+  while (await closed.count()) await closed.first().click();
 }
 // The declared state of the screenshots: a departure, an entered minimum, pairs of absences, a brief.
 async function declare(page) {
   let depth = reply(page, '/api/squad/depth');
-  await page.locator('#presets button[data-preset="exclude-3322"]').click();
+  await page.locator('#departures button[data-preset="exclude-3322"]').click();
   await (await depth).json();
   await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
-  await page.getByText('Declare the minima', { exact: true }).click();
+  await reveal(page);
   const block = page.locator('#declaration-inputs [data-requirement="progression"]');
   await block.locator('select[data-source]').selectOption('EXPLICIT');
   await block.locator('input[data-value-input]').fill('4');
@@ -124,10 +134,27 @@ test('Squad Lab draws what the server returned, with the gate beside every count
   test.setTimeout(240000);
   const errors = watch(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
-  const { snapshot, depth, reference } = await open(page);
+  const { snapshot, depth, reference, answer } = await open(page);
   const scenario = depth.scenario;
-  await expect(page.locator('#eyebrow')).toHaveText(`${scenario.team_name} · ${scenario.season} · matches before ${scenario.cutoff}`);
+  await expect(page.locator('#eyebrow')).toHaveText(answer.scope_line);
+  // ADR-0034 (G6-5): the shell's season chip is the page's only one; the page's own copy of it
+  // is gone, and the scope line beside the H1 is the server's.
+  await expect(page.locator('#season')).toHaveCount(0);
+  await expect(page.locator('.season-chip').first()).toContainText(`${scenario.season} archive · ${scenario.competition_label}`);
   await expect(page.locator('h1')).toHaveText('Where is cover thin?');
+  // The thinnest positions are the server's: a dashed box on the pitch, a tag and a link in the list.
+  await expect(page.locator('#depth-pitch .thin-zone.is-thin')).toHaveCount(answer.thin_slot_ids.length);
+  expect(await page.locator('#depth-pitch .thin-zone.is-thin').evaluateAll(zones => zones.map(z => z.dataset.zone))).toEqual(answer.thin_slot_ids);
+  expect(await page.locator('#depth-list > li.is-thin').evaluateAll(items => items.map(i => i.dataset.slot))).toEqual(answer.thin_slot_ids);
+  await expect(page.locator('#handoff a')).toHaveText(answer.thin.filter(t => t.href).map(t => t.link_label));
+  // ADR-0034 (G6-2): every position the server sends a hand-off for carries "Find cover", each
+  // to its own link; "Thinnest" only where the server named it.
+  const covered = answer.cover.filter(c => c.href);
+  expect(await page.locator('#depth-list .sq-find').evaluateAll(links => links.map(a => a.getAttribute('href')))).toEqual(covered.map(c => c.href));
+  await expect(page.locator('#depth-list .pl-tag')).toHaveCount(answer.thin_slot_ids.length);
+  await expect(page.locator('#depth-list li[data-slot="lcm"] .slot-name')).toHaveText('Left central midfield');
+  expect(await page.locator('#handoff a').evaluateAll(links => links.map(a => a.getAttribute('href')))).toEqual(answer.thin.filter(t => t.href).map(t => t.href));
+  for (const [id, key] of [['#why-summary', 'why'], ['#targets-summary', 'targets'], ['#about-summary', 'about']]) await expect(page.locator(id)).toHaveText(answer.summaries[key]);
   await expect(page.locator('#eligibility-banner')).toHaveAttribute('data-review', 'DECLARED_BY_HAND');
   await expect(page.locator('#gate-statement')).toHaveText(depth.gate_statement);
   await expect(page.locator('#shortfall-statement')).toHaveText(depth.baseline.statement);
@@ -256,7 +283,7 @@ test('gold marks only the selected player, at every slot he is eligible for', as
   expect(new Set(owners)).toEqual(new Set([String(NACHO)]));
   // His line from the stress run is labelled by where it came from; the server's label says the rest once.
   const removal = page.locator('#player-detail li[data-removal]');
-  await expect(removal.locator('.label')).toHaveText('Absence stress');
+  await expect(removal.locator('.label')).toHaveText('When he is missing');
   expect((await removal.innerText()).toLowerCase().split('without him').length - 1).toBe(1);
   await page.locator('#player').selectOption('');
   expect(await goldOwners(page)).toEqual([]);
@@ -272,7 +299,7 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
 
   // An edited minimum is not the audit on screen: no child question may be asked of it.
   await expect(page.locator('#run-stress')).toBeDisabled();
-  await expect(page.locator('#stress-status')).toHaveText('Apply the edited minima and re-audit before asking this.');
+  await expect(page.locator('#stress-status')).toHaveText(DIRTY);
   await block.locator('input[data-value-input]').fill('');
   let posts = 0;
   const counter = r => { if (r.method() === 'POST') posts += 1; };
@@ -296,8 +323,9 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
   expect(depth.baseline.kind).toBe('SHORTFALL');
   await expect(page.locator('#shortfall-statement')).toHaveText(depth.baseline.statement);
-  await expect(page.locator('#constraints button')).toHaveText(['EXCLUDE Cristiano Ronaldo ×']);
-  await expect(page.locator('#presets button[data-preset="exclude-3322"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#departures button')).toHaveText(['Without Cristiano Ronaldo']);
+  await expect(page.locator('#departures button[data-preset="exclude-3322"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#targets')).toHaveValue(''); // the reader's own target: no menu option is in force
   const raising = depth.slots.flatMap(s => s.pinned.filter(p => p.status === 'RAISES_SHORTFALL').map(p => p.player_id + '@' + s.slot_id));
   expect(raising.length).toBeGreaterThan(0);
   expect(await page.locator('#depth-pitch g.depth-mark[data-pinned="RAISES_SHORTFALL"]').evaluateAll(ms => ms.map(m => m.dataset.player + '@' + m.dataset.slot))).toEqual(raising);
@@ -413,7 +441,10 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   // The claim and what it does not claim are each printed once, though the claim quotes the other.
   await expect(page.locator('#brief #claim')).toHaveText(brief.claim);
   expect((await page.locator('#brief').innerText()).split(brief.non_claim).length - 1).toBe(1);
-  await expect(page.locator('#open-transfer')).toHaveAttribute('href', brief.transfer_url);
+  // The link to Signings carries this problem: the server's hand-off when its answer named the
+  // slot as thinnest, the brief's own link when it did not.
+  const handoff = (await page.evaluate(() => state.answer.thin)).find(t => t.slot_id === 'st' && t.href);
+  await expect(page.locator('#open-transfer')).toHaveAttribute('href', handoff ? handoff.href : brief.transfer_url);
   // One ledger for every reply on screen, each row once.
   const ledgerIds = await page.locator('#evidence-ledger tr[data-ledger]').evaluateAll(trs => trs.map(t => t.dataset.ledger));
   expect(new Set(ledgerIds).size).toBe(ledgerIds.length);
@@ -448,9 +479,10 @@ test('a late reply changes nothing: a superseded audit and an invalidated stress
   await page.locator('#formation').selectOption('4-3-1-2');
   await held;
   await expect(page.locator('#formation')).toBeDisabled(); // every control that starts an audit waits
-  await expect(page.locator('#audit')).toBeDisabled();
+  await expect(page.locator('#targets')).toBeDisabled();
   await page.evaluate(() => { state.formation = '4-3-3'; document.querySelector('#formation').value = '4-3-3'; audit(); });
   await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
+  await reveal(page);
   await expect(page.locator('#formation-label')).toHaveText('4-3-3');
   release();
   await consumed(page, '/api/squad/depth', 3);
@@ -541,9 +573,11 @@ test('another club is audited under provider positions, and the page says they a
   await expect(banner).toHaveClass(/notice/);
   await expect(banner).toContainText(depth.eligibility.banner);
   await expect(page.locator('#warnings li').first()).toHaveText(depth.warnings[0]);
-  await expect(page.locator('#presets button[data-preset="exclude-3322"]')).toHaveCount(0); // a Madrid declaration
+  await expect(page.locator('#departures button[data-preset="exclude-3322"]')).toHaveCount(0); // a Madrid declaration
   await expect(page.locator('#depth-pitch g.depth-mark')).toHaveCount(depth.slots.reduce((n, s) => n + s.available.length + s.below_gate.length, 0));
-  expect(new URL(page.url()).search).toBe('?scenario=spain-676-planning-2018-05-21');
+  // The address is the server's link to this problem, so it can be shared.
+  expect(new URL(page.url()).searchParams.get('scenario')).toBe('spain-676-planning-2018-05-21');
+  expect(new URL(page.url()).searchParams.get('formation')).toBe('4-3-3');
   // No role is declared for this club: the page says so and prints no role.
   const squad = await page.evaluate(() => state.audit.snapshot.squad.map(p => [p.player_id, p.role_labels.length]));
   expect(squad.length).toBeGreaterThan(0);
@@ -575,7 +609,8 @@ test('a set left short by your own exclusion is listed apart, and every attribut
     const answered = reply(page, '/api/squad/depth');
     await page.locator('#exclude-player').click();
     await answered;
-    await expect(page.locator(`#constraints button[data-player="${id}"]`)).toBeVisible({ timeout: 60000 });
+    await expect(page.locator(`#departures button[data-player="${id}"]`)).toBeVisible({ timeout: 60000 });
+    await reveal(page);
   };
 
   // Nobody is excluded: the server sends no sentence about exclusions, and the page prints none.
@@ -603,9 +638,10 @@ test('a set left short by your own exclusion is listed apart, and every attribut
   // A forward excluded instead: one pair of the two who remain leaves no XI, nobody below the
   // gate would cover it, and he would. That set is the exclusion's, in a list of its own.
   const restored = reply(page, '/api/squad/depth');
-  await page.locator(`#constraints button[data-player="${CARVAJAL}"]`).click();
+  await page.locator(`#departures button[data-player="${CARVAJAL}"]`).click();
   await restored;
-  await expect(page.locator(`#constraints button[data-player="${CARVAJAL}"]`)).toHaveCount(0, { timeout: 60000 });
+  await expect(page.locator(`#departures button[data-player="${CARVAJAL}"]`)).toHaveCount(0, { timeout: 60000 });
+  await reveal(page);
   await exclude(BALE);
   await page.locator('#stress-k button[data-k="2"]').click();
   const stress = await run();
@@ -639,7 +675,7 @@ test('a 429 is printed in the server\'s words, leaves no stale panel, and the ne
   await page.route('**/api/squad/stress', busy);
   await page.locator('#run-stress').click();
   const status = page.locator('#stress-status');
-  await expect(status).toHaveText('Absence stress unavailable: ' + BUSY);
+  await expect(status).toHaveText('Absences unavailable: ' + BUSY);
   await expect(status).toHaveClass(/error/);
   await expect(page.locator('#stress-body')).toBeHidden();
   await expect(page.locator('#removals')).toBeEmpty();
@@ -660,19 +696,22 @@ test('a 429 is printed in the server\'s words, leaves no stale panel, and the ne
   expect(await page.locator('#removals-ledger > li.gp-row').evaluateAll(els => els.map(e => Number(e.dataset.player)))).toEqual(listed(stress.listings, 'name'));
   await expect(page.locator('#evidence-ledger tr[data-ledger^="stress-"]')).toHaveCount(1);
 
-  // The audit itself refused: the page says so in the same words and shows no audit.
+  // The audit itself refused: the page says so in the same words, where the answer would be,
+  // and shows no audit.
   await page.route('**/api/squad/depth', busy);
-  await page.locator('#audit').click();
-  await expect(page.locator('#status')).toHaveText('Squad audit unavailable: ' + BUSY);
-  await expect(page.locator('#status')).toHaveClass(/error/);
+  await page.locator('#formation').selectOption('4-3-1-2');
+  await expect(page.locator('#status')).toHaveText('Squad depth unavailable: ' + BUSY);
+  await expect(page.locator('#status .ui-callout')).toHaveAttribute('data-tone', 'error');
+  await expect(page.locator('#answer')).toHaveText('Squad depth unavailable: ' + BUSY);
   await expect(page.locator('#squad-body')).toBeHidden();
-  await expect(page.locator('#audit')).toBeEnabled();
+  await expect(page.locator('#formation')).toBeEnabled();
   await page.unroute('**/api/squad/depth', busy);
   const audited = reply(page, '/api/squad/depth');
-  await page.locator('#audit').click();
+  await page.locator('#formation').selectOption('4-3-3');
   const depth = await (await audited).json();
   await expect(page.locator('#squad-body')).toBeVisible({ timeout: 60000 });
   await expect(page.locator('#status')).toBeHidden();
+  await expect(page.locator('#answer')).not.toContainText(BUSY, { timeout: 60000 });
   await expect(page.locator('#shortfall-statement')).toHaveText(depth.baseline.statement);
   await expect(page.locator('#stress-body')).toBeHidden(); // a new audit starts with no stress reply
   // Two refusals were sent on purpose, and nothing else went wrong.
@@ -692,8 +731,9 @@ test('no fieldable XI: nothing unevaluated is drawn as a count, and the page say
     const answered = reply(page, '/api/squad/depth');
     await page.locator('#exclude-player').click();
     depth = await (await answered).json();
-    await expect(page.locator(`#constraints button[data-player="${id}"]`)).toBeVisible({ timeout: 60000 });
+    await expect(page.locator(`#departures button[data-player="${id}"]`)).toBeVisible({ timeout: 60000 });
   }
+  await reveal(page);
   expect(depth.inputs.excludes).toEqual([NACHO, CARVAJAL].sort((a, b) => a - b));
   expect(depth.baseline.kind).toBe('NO_FIELDABLE_XI');
   await expect(page.locator('#audit-status [data-status="UNFIELDABLE"]')).toHaveCount(1);
@@ -731,10 +771,14 @@ test('no fieldable XI: nothing unevaluated is drawn as a count, and the page say
   await shot(page, 'squad-unfieldable-1440.png');
 
   // Restoring one of them gives a fieldable XI again, and the stress line goes back to its own sentence.
+  // The answer says why in the server's words, and hands right back to Signings.
+  await expect(page.locator('#answer')).toHaveText(/no XI can be fielded from this squad: nobody is available at right back\.$/, { timeout: 60000 });
+  await expect(page.locator('#handoff a')).toHaveText(['Find cover for right back']);
   const restored = reply(page, '/api/squad/depth');
-  await page.locator(`#constraints button[data-player="${NACHO}"]`).click();
+  await page.locator(`#departures button[data-player="${NACHO}"]`).click();
   const again = await (await restored).json();
-  await expect(page.locator(`#constraints button[data-player="${NACHO}"]`)).toHaveCount(0, { timeout: 60000 });
+  await expect(page.locator(`#departures button[data-player="${NACHO}"]`)).toHaveCount(0, { timeout: 60000 });
+  await reveal(page);
   expect(again.baseline.kind).not.toBe('NO_FIELDABLE_XI');
   await expect(page.locator('#stress-status')).toHaveText(STRESS_IDLE);
   await expect(page.locator('#run-stress')).toBeEnabled();
@@ -748,8 +792,10 @@ test('a minimum at a league percentile is labelled once, and a cross-league pool
   await page.setViewportSize({ width: 1440, height: 1000 });
   await open(page);
   const reference = reply(page, '/api/squad/reference');
-  await page.locator('#presets button[data-preset="progression-league-p75"]').click();
+  await page.locator('#targets').selectOption('progression-league-p75');
   const distribution = (await (await reference).json()).distributions[0];
+  await expect(page.locator('#targets')).toHaveValue('progression-league-p75');
+  await reveal(page);
   expect(distribution.declared.percentile).toBe(75);
   const strip = page.locator('.ref-strip[data-requirement="progression"]');
   await expect(strip.locator('.minimum-label')).toHaveText('min · p75', { timeout: 60000 });
@@ -801,7 +847,8 @@ test('a count taken before your exclusions says so, with Cristiano Ronaldo and t
 
   // Cristiano Ronaldo excluded. Two forwards are left for the centre-forward slot, and the
   // warning that appears with the exclusion counts three: it says whose count that is.
-  const one = await audited(() => page.locator('#presets button[data-preset="exclude-3322"]').click());
+  const one = await audited(() => page.locator('#departures button[data-preset="exclude-3322"]').click());
+  await reveal(page);
   expect(one.inputs.excludes).toEqual([RONALDO]);
   const forward = one.tight_groups.find(g => g.slot_ids.join('-') === 'st');
   expect([forward.spare_by_stage.available, forward.spare_by_stage.gated, forward.spare_by_stage.rule_eligible]).toEqual([1, 2, 3]);
@@ -840,6 +887,7 @@ test('a count taken before your exclusions says so, with Cristiano Ronaldo and t
   // figure stays at two, and its sentence and its caption say it is the count with nobody excluded.
   await page.locator('#player').selectOption(String(BALE));
   const two = await audited(() => page.locator('#exclude-player').click());
+  await reveal(page);
   expect(two.inputs.excludes).toEqual([RONALDO, BALE]);
   const gate = two.thinness[0];
   expect([two.kappa_by_stage.available, gate.kappa_before, gate.kappa_after]).toEqual([1, 3, 2]);
@@ -872,16 +920,105 @@ test.describe('in a browser set to a comma-decimal locale', () => {
     // Nominal minutes above a thousand: "2,250", never "2.250".
     const member = snapshot.squad.find(p => p.minutes >= 1000);
     await page.locator('#player').selectOption(String(member.player_id));
-    await expect(page.locator('#player-detail .player-facts')).toContainText(`${english(member.minutes, 0)} nominal minutes`);
+    await expect(page.locator('#player-detail .player-facts')).toContainText(`${english(member.minutes, 0)} minutes`);
     expect(english(member.minutes, 0)).toContain(',');
     // A rounded figure with decimals: "≈ 3.006", never "≈ 3,006".
     const requirement = depth.inputs.requirements.find(r => r.declared);
     const caption = page.locator('#requirements [data-requirement="progression"] .gp-caption').first();
-    await expect(caption).toHaveText(`minimum ${requirement.minimum} · shortfalls in units of ≈ ${english(requirement.normalizer, 3)}`);
+    await expect(caption).toHaveText(`minimum ${requirement.minimum} · gaps in units of ≈ ${english(requirement.normalizer, 3)}`);
     expect(await page.locator('.ref-rows li > span:nth-child(2)').allTextContents())
       .toEqual(reference.distributions[0].percentiles.map(p => `≈ ${english(p.value, 3)}`));
     // The gate line prints minutes below a thousand, and the same sentence as in any locale.
     await expect(page.locator('#depth-statement')).toHaveText(depth.depth_statement);
     expect(errors).toEqual([]);
   });
+});
+
+test('the page answers first: the sentence and the pitch above the fold, the detail closed with its line showing', async ({ page }) => {
+  test.setTimeout(240000);
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const { answer } = await open(page, '', { closed: true });
+  const top = async sel => (await page.locator(sel).boundingBox()).y;
+  // Season, question, answer, then the primary visual; detail below it. ADR-0034 (G6-5): the
+  // season is the shell's chip, the scope line the server's.
+  expect(await top('.season-chip')).toBeLessThan(await top('h1'));
+  expect(await top('#eyebrow')).toBeLessThan(await top('h1'));
+  expect(await top('h1')).toBeLessThan(await top('#answer'));
+  expect(await top('#answer')).toBeLessThan(await top('#depth-pitch'));
+  expect(await top('#depth-pitch')).toBeLessThan(await top('#why-more'));
+  const answerBox = await page.locator('#answer').boundingBox();
+  expect(answerBox.y + answerBox.height).toBeLessThan(900);
+  expect(await top('#depth-pitch')).toBeLessThan(900);
+  // The answer is one server sentence: it names the thinnest slots, and nothing on the page words it.
+  expect(answer.answer).toMatch(/^Cover is thinnest at left centre back, right centre back and right back: 4 players for 3 places, so 2 absences there leave no XI\./);
+  // Every detail section is closed, and its one line shows.
+  const sections = page.locator('.pl-more > details');
+  expect(await sections.count()).toBe(5); // why, targets, absences, the brief, about these numbers
+  expect(await sections.evaluateAll(all => all.filter(d => d.open).length)).toBe(0);
+  for (const id of ['#why-summary', '#targets-summary', '#about-summary']) {
+    await expect(page.locator(id)).toBeVisible();
+    await expect(page.locator(id)).not.toHaveText('');
+  }
+  // The research tools are there, behind their disclosures: absence stress, the brief, the ledger.
+  await expect(page.locator('#run-stress')).toBeHidden();
+  await expect(page.locator('#evidence-ledger')).toBeHidden();
+  await expect(page.locator('#not-measured li')).toHaveCount((await page.evaluate(() => state.catalogue.not_measured.length)));
+  expect(await overflows(page)).toBe(false);
+  await shot(page, 'squad-answer-1440.png');
+
+  // A phone: the answer and the pitch come within the first two screens, and the page is short.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('#depth-pitch')).toBeVisible();
+  expect(await top('#answer')).toBeLessThan(844);
+  expect(await top('#depth-pitch')).toBeLessThan(2 * 844);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThan(6500);
+  expect(await overflows(page)).toBe(false);
+  // Touch targets on a phone: the controls of the question and the names on the list.
+  for (const sel of ['#scenario', '#formation', '#targets', '#departures button', '#handoff a', '#depth-list button.depth-name']) {
+    const box = await page.locator(sel).first().boundingBox();
+    expect(box.height, sel).toBeGreaterThanOrEqual(44);
+  }
+  expect(errors).toEqual([]);
+});
+
+test('a thin slot hands its whole problem to Signings, which opens on it with an answer', async ({ page }) => {
+  test.setTimeout(300000);
+  const errors = watch(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, '', { closed: true });
+  // A departure and a league percentile: the problem the link must carry.
+  let depth = reply(page, '/api/squad/answer');
+  await page.locator('#departures button[data-preset="exclude-3322"]').click();
+  await depth;
+  depth = reply(page, '/api/squad/answer');
+  await page.locator('#targets').selectOption('progression-league-p75');
+  const answer = await (await depth).json();
+  await expect(page.locator('#answer')).toHaveText(answer.answer, { timeout: 60000 });
+  expect(answer.answer.startsWith('Without Cristiano Ronaldo, cover is thinnest at')).toBe(true);
+  // The address of the page is the server's link to this problem.
+  expect(new URL(page.url()).pathname + new URL(page.url()).search).toBe(answer.share_href);
+  const rightBack = answer.thin.find(t => t.slot_id === 'rb');
+  const link = page.locator('#handoff a[data-slot="rb"]');
+  await expect(link).toHaveText('Find cover for right back');
+  await expect(link).toHaveAttribute('href', rightBack.href);
+  const asked = page.waitForRequest(r => r.url().endsWith('/api/transfer/answer'), { timeout: 120000 });
+  const answered = page.waitForResponse(r => r.url().endsWith('/api/transfer/answer'), { timeout: 150000 });
+  await link.click();
+  await expect(page).toHaveURL(/\/transfer\?/);
+  const body = (await asked).postDataJSON();
+  expect([body.scenario_id, body.formation, body.slot_id, body.excludes, body.requirements]).toEqual([
+    'madrid-planning-2018-05-21', '4-3-3', 'rb', [RONALDO],
+    [{ requirement_id: 'progression', source: 'LEAGUE_PERCENTILE', percentile: 75 }]]);
+  const signings = await (await answered).json();
+  // An answer on arrival: the slot is chosen, the sentence is the server's, the list is there.
+  await expect(page.locator('#slot')).toHaveValue('rb');
+  await expect(page.locator('#answer')).toHaveText(signings.answer);
+  await expect(page.locator('#targets')).toHaveValue('progression-league-p75');
+  await expect(page.locator('#departures button[data-preset="exclude-3322"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#candidates > li')).toHaveCount(Math.min(signings.count, 25));
+  // And back: the link to Squad depth carries the same problem.
+  await expect(page.locator('#next-actions a')).toHaveAttribute('href', signings.squad_href);
+  expect(signings.squad_href).toBe(answer.share_href);
+  expect(errors).toEqual([]);
 });

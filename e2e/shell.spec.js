@@ -39,9 +39,39 @@ for (const [width, height] of [[1440, 900], [390, 844], [320, 700]]) {
         const size = await link.evaluate(a => parseFloat(getComputedStyle(a).fontSize));
         expect(size, path).toBeGreaterThanOrEqual(12);
       }
+      // The wordmark is the phone header's home control: a full touch target there (S7).
+      if (width <= 560) {
+        const home = await page.locator('.site-header .wordmark').boundingBox();
+        expect(Math.min(home.width, home.height), path).toBeGreaterThanOrEqual(44);
+      }
     }
   });
 }
+
+test('a row of tabs that scrolls sideways fades at the edge where more tabs wait', async ({ page }) => {
+  // S6 (ADR-0034): the Table's competitions at 390 px. The selected tab is brought into view.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/match-centre/leagues?league=fr.1', { waitUntil: 'domcontentloaded' });
+  const tabs = page.locator('.ui-tablist').first();
+  await expect(tabs.getByRole('tab')).toHaveCount(6);
+  await expect(tabs).toHaveAttribute('data-more', /start/);
+  await expect(tabs.getByRole('tab', { name: 'Ligue 1' })).toBeInViewport({ ratio: 0.95 });
+  await tabs.evaluate(row => { row.scrollLeft = 0; });
+  await expect(tabs).toHaveAttribute('data-more', 'end');
+  expect(await tabs.evaluate(row => getComputedStyle(row).maskImage)).toContain('gradient');
+});
+
+test('an address the site does not serve gets its own page, with the shell and the ways on', async ({ page }) => {
+  // S2 (ADR-0034): never the framework's JSON. Both apps install the same handler
+  // (galactico/match_centre/errors.py), so the page is asserted on the app under test.
+  const reply = await page.goto('/match-centre/nope', { waitUntil: 'domcontentloaded' });
+  expect(reply.status()).toBe(404);
+  expect(reply.headers()['content-type'] || '').toMatch(/^text\/html/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText("That page isn't here");
+  await expect(page.locator('header.site-header')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Go to Matches' })).toHaveAttribute('href', '/match-centre');
+  await expect(page.locator('main')).not.toContainText('detail');
+});
 
 test('the theme switch follows the reader, persists, and the skip link reaches the page', async ({ page }) => {
   await page.goto('/match-centre');

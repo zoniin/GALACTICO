@@ -20,6 +20,12 @@
    any scale of the drawing. Both are rounded rects, so no rule for a mark's circle reaches
    them; a page's sheet (labs.css) draws them.
 
+   A row that scrolls sideways. A tab list (.ui-tablist) or a strip (.ui-strip) says it
+   holds more than it shows: data-more names the edge ("start", "end" or both) where items sit
+   beyond view, and components.css fades that edge. When its selected item changes (a tab, a
+   pressed chip, the current page), the row is scrolled to bring it into view, the row only,
+   never the page.
+
    Declares one global, Site. */
 (function () {
   'use strict';
@@ -27,10 +33,38 @@
   var ARCHIVE_MISSING = "The 2017/18 archive isn't installed on this server.";
   var SETUP = 'https://github.com/zoniin/GALACTICO#running-it';
   var natural = new WeakMap();
+  var shown = new WeakMap();
   var queued = 0;
+
+  function strips() {
+    var rows = document.querySelectorAll('.ui-tablist, .ui-strip');
+    for (var i = 0; i < rows.length; i++) edges(rows[i]);
+  }
+
+  function edges(row) {
+    var chosen = row.querySelector('[aria-selected="true"], [aria-pressed="true"], [aria-current="page"]');
+    if (!shown.has(row)) {
+      row.addEventListener('scroll', function () { edges(row); }, { passive: true });
+      shown.set(row, null);
+    }
+    if (chosen && shown.get(row) !== chosen && row.scrollWidth > row.clientWidth) {
+      var box = row.getBoundingClientRect(), item = chosen.getBoundingClientRect();
+      row.scrollLeft += item.left - box.left - (box.width - item.width) / 2;
+    }
+    shown.set(row, chosen);
+    var more = [];
+    if (row.scrollLeft > 1) more.push('start');
+    if (row.scrollLeft + row.clientWidth < row.scrollWidth - 1) more.push('end');
+    var value = more.join(' ');
+    if ((row.getAttribute('data-more') || '') !== value) {
+      if (value) row.setAttribute('data-more', value);
+      else row.removeAttribute('data-more');
+    }
+  }
 
   function fit() {
     queued = 0;
+    strips();
     var texts = document.querySelectorAll('svg text');
     var i, text, size, matrix, scale;
     // The size each label was drawn at, read before any is changed.
@@ -62,7 +96,7 @@
     if (window.MutationObserver) {
       new MutationObserver(queue).observe(document.body, {
         childList: true, subtree: true, attributes: true,
-        attributeFilter: ['class', 'hidden', 'open', 'aria-selected'],
+        attributeFilter: ['class', 'hidden', 'open', 'aria-selected', 'aria-pressed'],
       });
     }
   }

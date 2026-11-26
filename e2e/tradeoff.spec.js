@@ -1,5 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const BASE = process.env.GALACTICO_URL || 'http://127.0.0.1:8111';
+// ADR-0034 (answer-first pages): the hard-floor question is a closed disclosure under
+// "Advanced", opened here as a reader opens it; the main minima are "Set targets", a lock is
+// listed as "Locked in", and the dirty-minima note says "Apply your edited targets". Every
+// assertion about the floors, the certificate, the roster order and gold is unchanged.
 
 test('hard-floor progression query renders its own certificate and rejects obsolete responses', async ({ page }, testInfo) => {
   test.setTimeout(240000);
@@ -11,6 +15,8 @@ test('hard-floor progression query renders its own certificate and rejects obsol
   });
   await page.goto(BASE + '/xi');
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 150000 });
+  await page.locator('#tradeoff-panel > summary').click();
+  await expect(page.locator('#tradeoff-panel')).toHaveAttribute('open', '');
   await expect(page.locator('#solve-tradeoff')).toBeEnabled();
   const mainPlayers = await page.locator('#xi-pitch .player').evaluateAll(nodes => nodes.map(node => node.dataset.player));
   const originalFloors = {};
@@ -18,7 +24,9 @@ test('hard-floor progression query renders its own certificate and rejects obsol
     const key = await input.getAttribute('data-floor');
     const value = await input.inputValue();
     originalFloors[key] = Number(value);
-    expect(value).toBe(await page.locator('#minimum-inputs [data-requirement="' + key + '"]').inputValue());
+    // ADR-0034 (G5-4): a target's field shows three significant figures and keeps the exact
+    // target in data-exact; the hard limits copy the exact target, never the rounded one.
+    expect(value).toBe(await page.locator('#minimum-inputs [data-requirement="' + key + '"]').getAttribute('data-exact'));
   }
   expect(Object.keys(originalFloors).sort()).toEqual(['left_pass_origins', 'progression', 'right_pass_origins']);
 
@@ -103,15 +111,15 @@ test('hard-floor progression query renders its own certificate and rejects obsol
   await delayedQuery(async () => {
     await page.locator('#lock-player').click();
     await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
-    await expect(page.locator('#constraints')).toContainText('LOCK');
+    await expect(page.locator('#constraints')).toContainText('Locked in');
   });
   for (const [key, value] of Object.entries(originalFloors)) {
     expect(Number(await page.locator('[data-floor="' + key + '"]').inputValue())).toBe(value);
   }
   // Dirty parent minima cannot accidentally be mixed with the displayed snapshot.
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   await page.locator('#minimum-inputs input').first().fill('0');
   await expect(page.locator('#solve-tradeoff')).toBeDisabled();
-  await expect(page.locator('#tradeoff-status')).toContainText('Apply the edited main minima');
+  await expect(page.locator('#tradeoff-status')).toContainText('Apply your edited targets');
   expect(errors).toEqual([]);
 });

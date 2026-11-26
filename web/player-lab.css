@@ -1,0 +1,930 @@
+/* Player profiles (index.html, served at /player): the page parts the components do not draw.
+   In the page layer, above the components; every value is a role of tokens.css.
+
+   Answer first: the search, the player's name, the server's sentence, then one card per measure
+   with its percentile as the headline. The value, the spread of his own estimate and the
+   reliability word sit in each card's "How sure is this?" disclosure.
+
+   Gold is the selected subject only: the player whose profile is open (his mark on a strip, the
+   dots of his own estimate, his dot on the map, his row in a list), always with its dark edge
+   on a light surface. A withheld measure is neither gold nor red: "we do not know" never reads
+   as "this player is bad". The scatter is a chart, dark in both themes. */
+@layer page {
+  :root {
+    --gold: var(--selected);
+    /* Not in the gold family and not in the red family: a withheld measurement is neither
+       the selected player nor a bad player. */
+    --warn: var(--text-muted);
+  }
+
+  .player-lab .hidden {
+    display: none !important;
+  }
+
+  .pl-views {
+    margin-bottom: var(--space-5);
+  }
+
+  .pl-view > .page-header {
+    margin-bottom: var(--space-5);
+  }
+
+  .pl-line {
+    display: block;
+    height: 1.1em;
+    margin: 0.3em 0;
+    max-width: 60ch;
+  }
+
+  .pl-line-short {
+    max-width: 32ch;
+  }
+
+  #page-state {
+    margin: 0 0 var(--space-5);
+  }
+
+  /* ------------------------------------------------------------ search */
+
+  .pl-find {
+    display: grid;
+    gap: 6px;
+    max-width: 36rem;
+    margin: 0 0 var(--space-6);
+  }
+
+  .search {
+    position: relative;
+  }
+
+  .search .ui-input,
+  .pl-find .ui-input {
+    width: 100%;
+    min-height: 48px;
+    padding-inline: var(--space-4);
+    font-size: var(--text-md);
+  }
+
+  .results {
+    position: absolute;
+    z-index: var(--z-raised);
+    top: calc(100% + 4px);
+    right: 0;
+    left: 0;
+    max-height: 22rem;
+    overflow: auto;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-chip);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-2);
+  }
+
+  .results button {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-3);
+    width: 100%;
+    min-height: var(--target-touch);
+    padding: var(--space-2) var(--space-4);
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+  }
+
+  .results button:last-child {
+    border-bottom: 0;
+  }
+
+  .results button:hover,
+  .results button:focus-visible {
+    background: var(--surface-2);
+  }
+
+  .results button > span:first-child {
+    font-weight: var(--weight-semibold);
+  }
+
+  .results .t {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .results .m {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .results .none {
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* ------------------------------------------------------------ the player's header */
+
+  /* The facts, a dot between each two. The box reaches 20 px left of the text and its first
+     20 px are clipped, so the dot before a fact that starts a line is never drawn. */
+  .pl-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) 0;
+    margin: 0 0 0 -20px;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    clip-path: inset(0 0 0 20px);
+  }
+
+  .pl-facts span {
+    position: relative;
+    margin-left: 20px;
+  }
+
+  .pl-facts span::before {
+    content: "·";
+    position: absolute;
+    left: -13px;
+    color: var(--text-subtle);
+  }
+
+  .pl-section {
+    margin: 0 0 var(--space-6);
+  }
+
+  .pl-section > h2 {
+    margin: 0 0 var(--space-4);
+    font-size: var(--text-xl);
+  }
+
+  .section-note {
+    margin: calc(var(--space-2) * -1) 0 var(--space-4);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .pl-skeleton {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: var(--space-4);
+  }
+
+  .pl-skeleton .ui-skeleton {
+    height: 220px;
+    border-radius: var(--radius-card);
+  }
+
+  /* ------------------------------------------------------------ a measure's card */
+
+  .measures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+    gap: var(--space-4);
+  }
+
+  /* Each card's three rows (head, strip, "How sure is this?") are rows of the list, so the
+     strips line up across a row of cards, and one card's open disclosure moves no other's. */
+  .card.measure {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--space-3) var(--space-4);
+    min-width: 0;
+    padding: var(--space-5);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+    box-shadow: var(--shadow-1);
+  }
+
+  .measure .m-head {
+    min-width: 0;
+  }
+
+  .measure .name {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: var(--weight-semibold);
+  }
+
+  .measure .claim {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    line-height: var(--leading-snug);
+  }
+
+  .m-place {
+    display: grid;
+    align-self: start;
+    justify-items: end;
+    margin: 0;
+    line-height: 1;
+  }
+
+  .pct {
+    color: var(--text);
+    font: var(--weight-bold) var(--text-3xl) / 1 var(--font-display);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pct-unit {
+    margin-top: 4px;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .m-strip,
+  .measure .insufficient,
+  .measure .how-sure {
+    grid-column: 1 / -1;
+  }
+
+  .measure .insufficient {
+    margin: 0;
+  }
+
+  .insufficient small {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .m-strip .pctsub {
+    margin: var(--space-2) 0 0;
+  }
+
+  .pctsub {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* The percentile strip: the population's range, his mark in it. */
+  .strip {
+    position: relative;
+    height: 34px;
+  }
+
+  .strip svg {
+    display: block;
+    width: 100%;
+    height: 34px;
+    overflow: visible;
+  }
+
+  .scale {
+    display: flex;
+    justify-content: space-between;
+    color: var(--text-subtle);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* His marks: gold, always with a dark edge (gold alone is under 3:1 on a light page), set in
+     an overlay above the stretched drawing, so a bar stays a bar and a dot stays round. */
+  .mark-frame {
+    position: relative;
+    display: block;
+  }
+
+  .mark-frame .selected-mark {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    box-sizing: border-box;
+    border: 1px solid var(--selected-edge);
+    border-radius: 2px;
+    background: var(--gold);
+  }
+
+  /* A player's mark in a list or a pair: plain, so gold stays the selected subject's. */
+  .mark-frame .plain-mark {
+    position: absolute;
+    z-index: 2;
+    top: 50%;
+    box-sizing: border-box;
+    border: 2px solid var(--surface-1);
+    background: var(--text);
+  }
+
+  .dots {
+    position: relative;
+    display: block;
+    height: 12px;
+    margin: 0 6px;
+  }
+
+  .dots .selected-mark {
+    position: absolute;
+    top: 1px;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    box-sizing: border-box;
+    border: 1px solid var(--selected-edge);
+    border-radius: 50%;
+    background: var(--gold);
+  }
+
+  .how-sure {
+    margin: var(--space-1) 0 0;
+    background: var(--surface-2);
+  }
+
+  .how-sure > summary {
+    min-height: 40px;
+    font-size: var(--text-sm);
+  }
+
+  .how-sure .ui-disclosure-body {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .how-sure p {
+    margin: 0;
+  }
+
+  .val-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--space-2);
+  }
+
+  .val {
+    font-size: var(--text-xl);
+    font-weight: var(--weight-semibold);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .unit,
+  .how-sure .note {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+  }
+
+  .dots-row {
+    padding: var(--space-1) 0;
+  }
+
+  /* Reliability is told by the form of the badge's border, never by colour: red-amber-green
+     would make "we do not know" read as "this player is bad". */
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  .badge::first-letter {
+    text-transform: uppercase;
+  }
+
+  .g-strong {
+    border-style: solid;
+    color: var(--text);
+  }
+
+  .g-limited {
+    border-style: dashed;
+  }
+
+  .g-insufficient {
+    border-style: dotted;
+  }
+
+  /* ------------------------------------------------------------ where his passes start */
+
+  .ui-card.pl-section {
+    padding: var(--space-5);
+  }
+
+  .style-row {
+    display: grid;
+    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+    gap: var(--space-3) var(--space-6);
+    align-items: center;
+    padding: var(--space-4) 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .style-row .name {
+    font-weight: var(--weight-semibold);
+  }
+
+  .style-row .claim {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .style-row .claim .badge {
+    margin-top: var(--space-2);
+  }
+
+  .style-row .insufficient {
+    margin: 0;
+  }
+
+  .share {
+    margin: 0 0 var(--space-1);
+    font-weight: var(--weight-medium);
+  }
+
+  .spectrum {
+    margin-top: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* The channel names sit under the bar, outside its box: the box once clipped what overflowed
+     it, so the names its legend explains were never drawn. A channel too narrow to hold its
+     name shows none, rather than one that runs into its neighbour's. */
+  .zones-wrap {
+    margin-top: var(--space-4);
+    padding-bottom: 1.6rem;
+  }
+
+  .zones {
+    display: flex;
+    height: 30px;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+  }
+
+  .zones div {
+    position: relative;
+    container-type: inline-size;
+  }
+
+  .zones div span {
+    position: absolute;
+    inset: auto 0 -1.45rem 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Each channel's percentage, the server's, inside its segment (white on the dark chart
+     surface) when it fits. */
+  .zones div b {
+    position: absolute;
+    inset: 50% 0 auto 0;
+    transform: translateY(-50%);
+    color: var(--chart-text);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  @container (max-width: 1.6rem) {
+    .zones div span {
+      visibility: hidden;
+    }
+  }
+
+  @container (max-width: 2.4rem) {
+    .zones div b {
+      visibility: hidden;
+    }
+  }
+
+  /* ------------------------------------------------------------ compare */
+
+  .pl-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+    max-width: 48rem;
+    margin-bottom: var(--space-6);
+  }
+
+  #cmp {
+    max-width: 64rem;
+  }
+
+  #cmp h2 {
+    margin: var(--space-6) 0 var(--space-3);
+    font-size: var(--text-xl);
+  }
+
+  #cmp .lede {
+    max-width: 72ch;
+    margin: 0 0 var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .cmp-names,
+  .cmp {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(7rem, 10rem) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-3);
+    align-items: center;
+  }
+
+  .cmp-names {
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--border);
+    font-weight: var(--weight-semibold);
+  }
+
+  .cmp-names span:last-child {
+    text-align: right;
+  }
+
+  .cmp {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cmp-style {
+    grid-template-columns: minmax(0, 1fr) minmax(8rem, 12rem) minmax(0, 1fr);
+  }
+
+  .cmp .bar-l,
+  .cmp .bar-r {
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+
+  /* Both sides neutral. Gold on one bar asserted a winner by which search box you typed into,
+     and reversed itself if you swapped the order. */
+  .cmp .bar-l i,
+  .cmp .bar-r i {
+    display: block;
+    height: 100%;
+    background: var(--text-muted);
+  }
+
+  .cmp .bar-l {
+    direction: rtl;
+  }
+
+  .cmp .mid {
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    text-align: center;
+  }
+
+  .cmp .lang {
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .cmp .lang.material {
+    color: var(--text);
+  }
+
+  .cmp .audit {
+    color: var(--text-subtle);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ------------------------------------------------------------ explore */
+
+  .pl-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-5);
+  }
+
+  .pl-chips .ui-chip {
+    min-height: 40px;
+  }
+
+  #explore-body .lede {
+    max-width: 72ch;
+    margin: 0 0 var(--space-1);
+  }
+
+  #explore-body > .pctsub {
+    margin: 0 0 var(--space-4);
+  }
+
+  .ex-list {
+    display: grid;
+    border-top: 1px solid var(--border);
+  }
+
+  .ex-row {
+    display: grid;
+    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) minmax(6rem, 15rem);
+    gap: var(--space-1) var(--space-4);
+    align-items: center;
+    min-height: var(--target-touch);
+    padding: var(--space-2) var(--space-2);
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .ex-row:hover {
+    background: var(--surface-2);
+  }
+
+  .ex-row > div:first-child > span:first-child {
+    font-weight: var(--weight-semibold);
+  }
+
+  /* The player whose profile is open: a gold bar with its dark edge, never gold alone. */
+  .ex-row[aria-current="true"] {
+    background: var(--surface-2);
+    box-shadow: inset 4px 0 0 var(--selected), inset 6px 0 0 var(--selected-edge);
+  }
+
+  .ex-bar {
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+
+  .ex-bar i {
+    display: block;
+    height: 100%;
+    background: var(--text-muted);
+  }
+
+  .ex-val {
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .ex-val.muted {
+    color: var(--text-subtle);
+  }
+
+  /* ------------------------------------------------------------ map */
+
+  .pl-map {
+    position: relative;
+  }
+
+  #scatter {
+    display: block;
+    width: 100%;
+    height: 460px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--chart-bg);
+  }
+
+  .pl-tip {
+    position: absolute;
+    z-index: var(--z-raised);
+    max-width: 220px;
+    padding: 4px 8px;
+    border-radius: var(--radius-control);
+    background: var(--surface-1);
+    color: var(--text);
+    font-size: var(--text-xs);
+    box-shadow: var(--shadow-2);
+    pointer-events: none;
+  }
+
+  .pl-legend {
+    margin-top: var(--space-3);
+  }
+
+  .pl-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pl-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--text-muted);
+    border-radius: 50%;
+  }
+
+  .pl-dot-solid {
+    border-color: var(--text);
+    background: var(--text);
+  }
+
+  .quad {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1) var(--space-5);
+    margin-top: var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* ------------------------------------------------------------ why only five */
+
+  .pl-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    margin: 0 0 var(--space-5);
+    color: var(--text-muted);
+    font-size: var(--text-lg);
+  }
+
+  .pl-counts b {
+    color: var(--text);
+    font: var(--weight-bold) var(--text-2xl) / 1 var(--font-display);
+  }
+
+  .why {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--space-4);
+  }
+
+  .why > div {
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-chip);
+    background: var(--surface-1);
+  }
+
+  .why h3 {
+    margin: var(--space-1) 0;
+    font-size: var(--text-md);
+  }
+
+  .why p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .why p strong {
+    color: var(--text);
+  }
+
+  .tag {
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+  }
+
+  .t-ship {
+    color: var(--text);
+  }
+
+  .t-rej,
+  .t-res {
+    color: var(--text-muted);
+  }
+
+  .replication {
+    font-size: var(--text-xs);
+  }
+
+  /* The credit for analysis formed from StatsBomb data. The logo is the provider's own file
+     and is drawn as it is: on a plain plate, with no filter, tint or opacity. */
+  .credit {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-4) var(--space-5);
+    align-items: start;
+    margin-top: var(--space-6);
+  }
+
+  .credit .plate {
+    justify-self: start;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--logo-plate);
+    line-height: 0;
+  }
+
+  .credit img {
+    display: block;
+    width: 170px;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .credit p {
+    max-width: 64ch;
+    margin: 0 0 var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .credit p.notes {
+    margin: 0;
+  }
+
+  /* ------------------------------------------------------------ about these numbers */
+
+  .pl-about {
+    margin-top: var(--space-7);
+  }
+
+  .pl-about p {
+    max-width: 80ch;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .pl-about dl {
+    display: grid;
+    grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+    gap: var(--space-1) var(--space-4);
+    margin: var(--space-3) 0;
+    font-size: var(--text-sm);
+  }
+
+  .pl-about dt {
+    color: var(--text-muted);
+  }
+
+  .pl-about dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ------------------------------------------------------------ phones */
+
+  @media (max-width: 800px) {
+    .style-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .credit {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ex-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .ex-row > div:nth-child(2) {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    .ex-row > div:last-child {
+      grid-row: 1;
+      grid-column: 2;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .pl-pair {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .cmp,
+    .cmp-names,
+    .cmp-style {
+      grid-template-columns: minmax(0, 1fr) minmax(6rem, 8rem) minmax(0, 1fr);
+    }
+
+    .card.measure {
+      padding: var(--space-4);
+    }
+
+    #scatter {
+      height: 360px;
+    }
+
+    .quad {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .pl-about dl {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* A control a thumb reaches is 44 px tall. */
+    .pl-chips .ui-chip,
+    .how-sure > summary,
+    .page-actions .ui-btn {
+      min-height: var(--target-touch);
+    }
+  }
+}

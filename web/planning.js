@@ -212,11 +212,13 @@
   const option = (v, label, selected, data = '') => `<option value="${esc(v)}"${selected ? ' selected' : ''}${data}>${esc(label)}</option>`;
 
   // Options of #scenario: the catalogue's planning points, then the clubs, in the server's order.
-  function scenarioOptions(catalogue, clubs, selected) {
+  // labels: the server's short name for a planning point (/api/planning/targets), when sent.
+  function scenarioOptions(catalogue, clubs, selected, labels) {
     const first = list(catalogue?.scenarios).filter(object);
     const listed = first.map(s => s.scenario_id);
     const rest = list(clubs).filter(c => object(c) && !listed.includes(c.scenario_id));
-    return first.map(s => option(s.scenario_id, s.label ?? s.team_name ?? s.scenario_id, s.scenario_id === selected)).join('') +
+    const named = s => (object(labels) && text(labels[s.scenario_id]) ? labels[s.scenario_id] : null) ?? s.label ?? s.team_name ?? s.scenario_id;
+    return first.map(s => option(s.scenario_id, named(s), s.scenario_id === selected)).join('') +
       rest.map(c => option(c.scenario_id, [c.team_name, c.competition_label].filter(text).join(' · ') || c.scenario_id,
         c.scenario_id === selected, ` data-eligibility="${esc(word(c.eligibility_kind))}"`)).join('');
   }
@@ -556,7 +558,7 @@
     const r = object(reply) ? reply : {};
     const sent = JSON.stringify({declared: list(r.declared), ledger: list(r.ledger), provenance: r.provenance ?? null}, null, 2);
     return '<div id="ledger">' + S.ledger(r.declared, r.ledger) + research(r.provenance?.verdicts, r.research_statement) +
-      `<details><summary>Ledger and provenance as returned</summary><pre id="provenance">${esc(sent)}</pre></details></div>`;
+      `<details class="gp-technical"><summary>Technical record (JSON)</summary><p class="figure-note">The ledger and provenance exactly as the server sent them, for anyone checking the arithmetic.</p><pre id="provenance">${esc(sent)}</pre></details></div>`;
   }
 
   // The shell's panel from the server's list (its nine, then the planning items), with
@@ -616,6 +618,46 @@
   // no edited input waiting, stored inputs present, and an XI to compare against.
   const blocked = s => !object(s) || s.busy === true || s.childBusy === true || s.dirty === true || !object(s.stored) || s.fieldable === false;
 
+  /* ---- The hand-off link ------------------------------------------------------------
+     Squad depth and Signings carry a planning problem in the URL (F13): the server writes
+     the link (planning_answers.handoff_query), a page reads it here. Reading it decides
+     nothing: a value is taken as written, or left out when it is not of its field's form,
+     and the server refuses a problem it does not accept. ``target`` is
+     requirement:SOURCE[:percentile or value]. */
+  function fromQuery(search) {
+    const q = new URLSearchParams(typeof search === 'string' ? search : '');
+    const one = key => { const v = q.get(key); return text(v) ? v : null; };
+    const whole = key => { const v = one(key); return v !== null && /^\d{1,4}$/.test(v) ? Number(v) : null; };
+    const requirements = [];
+    for (const target of q.getAll('target')) {
+      const [requirement_id, source, extra] = String(target).split(':');
+      if (!/^[a-z_]{3,40}$/.test(requirement_id ?? '') || !(source in SOURCE_FIELD)) continue;
+      const entry = {requirement_id, source};
+      if (source === 'LEAGUE_PERCENTILE') {
+        if (!/^\d{1,2}$/.test(extra ?? '')) continue;
+        entry.percentile = Number(extra);
+      } else if (source === 'EXPLICIT') {
+        if (!/^\d+(\.\d+)?$/.test(extra ?? '')) continue;
+        entry.value = Number(extra);
+      }
+      requirements.push(entry);
+    }
+    const filters = {};
+    for (const key of ['min_minutes', 'min_age', 'max_age']) if (whole(key) !== null) filters[key] = whole(key);
+    if (['left', 'right', 'both'].includes(one('foot'))) filters.foot = one('foot');
+    return {
+      scenario_id: one('scenario'),
+      formation: one('formation'),
+      slot_id: /^[a-z]{2,3}$/.test(one('slot') ?? '') ? one('slot') : null,
+      excludes: q.getAll('exclude').filter(v => /^\d{1,10}$/.test(v)).map(Number),
+      draft: {requirements, experimental_opt_in: q.get('optin') === '1'},
+      leagues: q.getAll('league').filter(v => /^[A-Za-z]{2,20}$/.test(v)),
+      filters,
+      order: one('order'),
+      stated: q.getAll('target').length > 0,
+    };
+  }
+
   root.GP = Object.freeze({
     signed, value, declared, origin, source, certificate,
     status, completeness,
@@ -626,6 +668,7 @@
     row, nameButton, orderOptions, orderedBy, ordered,
     ledger, research, notMeasured,
     tracker, ticket, run, invalidate, blocked,
+    fromQuery,
     COPY,
   });
 })(window);

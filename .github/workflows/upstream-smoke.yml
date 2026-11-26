@@ -1,0 +1,27 @@
+name: upstream-smoke
+
+# Every test stubs the current-season upstreams (OpenFootball, OpenLigaDB, the Wikipedia squad
+# page the Lineup reads), so a change at a source goes unnoticed by the test job. This job asks
+# each real source once a day through the project's own feed code (scripts/upstream_smoke.py)
+# and writes its status, row count and latest result date to the run summary. It fails when an
+# upstream fails or comes back empty; a late one is reported without failing. It is apart from
+# the test job: a source being down is not a broken commit.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv python install 3.12
+      - run: uv venv && uv pip install -e ".[api]"
+      - name: probe the live upstreams
+        run: uv run python scripts/upstream_smoke.py

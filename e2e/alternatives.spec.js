@@ -1,6 +1,10 @@
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 const BASE = process.env.GALACTICO_URL || 'http://127.0.0.1:8111';
+// ADR-0034 (answer-first pages): "Other XIs that meet your targets just as closely" is a closed
+// disclosure under "Advanced", opened here as a reader opens it; the target editor is "Set
+// targets", the button "Show other XIs", and a lock is listed as "Locked in". Every assertion
+// about the witnesses, their order, their objective and gold is unchanged.
 
 test('equivalent XI exploration renders real diverse witnesses and discards a stale lock response', async ({ page }, testInfo) => {
   test.setTimeout(240000);
@@ -12,7 +16,7 @@ test('equivalent XI exploration renders real diverse witnesses and discards a st
   });
   await page.goto(BASE + '/xi');
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 150000 });
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   const minimumInputs = await page.locator('#minimum-inputs input').all();
   const originalMinima = await Promise.all(minimumInputs.map(input => input.inputValue()));
   await minimumInputs[0].fill('0');
@@ -22,8 +26,10 @@ test('equivalent XI exploration renders real diverse witnesses and discards a st
   await page.locator('#apply-minima').click();
   await expect(page.locator('#solver-status')).toHaveText('OPTIMAL', { timeout: 120000 });
   await expect(page.locator('#explore-alternatives')).toBeEnabled();
+  await page.locator('#alternatives-panel > summary').click();
+  await expect(page.locator('#alternatives-panel')).toHaveAttribute('open', '');
   const responsePromise = page.waitForResponse(response => response.url().endsWith('/api/xi/alternatives'));
-  await page.getByRole('button', { name: 'Explore equivalent XIs', exact: true }).click();
+  await page.getByRole('button', { name: 'Show other XIs', exact: true }).click();
   const response = await responsePromise;
   expect(response.ok()).toBe(true);
   const data = await response.json();
@@ -74,7 +80,7 @@ test('equivalent XI exploration renders real diverse witnesses and discards a st
   await expect(page.locator('#explore-alternatives')).toBeDisabled();
   await page.locator('#lock-player').click();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
-  await expect(page.locator('#constraints')).toContainText('LOCK');
+  await expect(page.locator('#constraints')).toContainText('Locked in');
   release();
   await delayedResponse;
   await expect(page.locator('#alternatives-body')).toBeHidden();

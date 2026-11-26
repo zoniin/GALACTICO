@@ -8,6 +8,15 @@
 // A server returning 200 proves a document was delivered. It does not prove the
 // application inside the document works. These tests execute the real page in a
 // real browser and fail on any uncaught page error.
+//
+// ADR-0034 (answer-first pages) re-pinned the words and places these tests read, and no
+// number, order, colour or credit: the player's name is the page's h1 (#player-title) and his
+// team and minutes its facts line (#player-facts), not a box inside #profile; a withheld
+// measure reads "Withheld"; the reliability badge reads "Reliability: <word>"; the percentile
+// sentence under each strip is the server's answer line (/api/answers/player/<id>), its place
+// also the card's headline; a comparison is headed "A v B" (#compare-title) and its
+// observed-location section "Where their passes start"; the registry counts sit in the
+// "Why only five?" view.
 
 const { test, expect } = require('@playwright/test');
 
@@ -26,7 +35,9 @@ async function openPlayer(page, query) {
   await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
   await page.fill('#q', query);
   await page.waitForSelector('#results button[data-id]', { timeout: 10000 });
+  const name = await page.locator('#results button[data-id] span').first().textContent();
   await page.click('#results button[data-id]');
+  await expect(page.locator('#player-title')).toHaveText(name);
   await page.waitForSelector('#profile .card', { timeout: 10000 });
 }
 
@@ -48,7 +59,7 @@ function bars(page, scope) {
 async function openProfile(page, player) {
   await page.fill('#q', player.name);
   await page.click(`#results button[data-id="${player.player_id}"]`);
-  await expect(page.locator('#profile .phead h2')).toHaveText(player.name);
+  await expect(page.locator('#player-title')).toHaveText(player.name);
 }
 
 test.describe('player profile', () => {
@@ -58,16 +69,25 @@ test.describe('player profile', () => {
 
     const profile = page.locator('#profile');
     await expect(profile).toBeVisible();
-    await expect(profile).toContainText('Modrić');
-    await expect(profile).toContainText('Real Madrid');
+    await expect(page.locator('#player-title')).toContainText('Modrić');
+    await expect(page.locator('#player-facts')).toContainText('Real Madrid');
+    // One h1 on screen, the player's name, and the server's answer under it.
+    await expect(page.locator('h1:visible')).toHaveCount(1);
+    const id = new URL(page.url()).searchParams.get('player');
+    const answer = await page.evaluate(i => fetch('/api/answers/player/' + i).then(r => r.json()), id);
+    await expect(page.locator('#player-answer')).toHaveText(answer.answer);
 
     // Every shipped quality construct must draw a card.
     for (const label of ['Progression', 'Progression per action', 'Chance creation']) {
       await expect(profile).toContainText(label);
     }
-    // And the style section must be present and labelled as style.
-    await expect(profile).toContainText('Half-space pass-origin share');
-    await expect(profile).toContainText('observed location · not ranked');
+    // And the style section must be present and labelled as style. ADR-0034 (G4-3): in the
+    // server's plain words, with "not ranked" in its closed "How to read this".
+    const share = answer.measures.find(m => m.construct_id === 'half_space_share');
+    await expect(profile).toContainText('Passes from the half-spaces');
+    await expect(profile).toContainText(share.share_line);
+    expect(share.note_line).toContain('not ranked');
+    await expect(profile).not.toContainText('observed location');
 
     expect(errors, 'uncaught page errors').toEqual([]);
   });
@@ -82,10 +102,19 @@ test.describe('player profile', () => {
   test('style shows the pitch geometry reference, not a merit bar', async ({ page }) => {
     await openPlayer(page, 'marcelo');
     const style = page.locator('#profile');
-    await expect(style).toContainText('originated in the');
-    await expect(style).toContainText('Pitch-area reference');
-    // Both references, answering different questions, neither called expected.
-    await expect(style).toContainText('median');
+    // ADR-0034 (G4-3): both references are the server's sentences: his share beside his
+    // group's median (visible), and the share of the pitch those channels cover (closed).
+    const id = new URL(page.url()).searchParams.get('player');
+    const answer = await page.evaluate(i => fetch('/api/answers/player/' + i).then(r => r.json()), id);
+    const shares = answer.measures.filter(m => m.share_line);
+    expect(shares.length).toBe(2);
+    for (const m of shares) {
+      await expect(style).toContainText(m.share_line);
+      expect(m.share_line).toContain('median');
+      expect(m.area_line).toMatch(/cover \d+% of the pitch's width; his share is/);
+      expect(m.area_line).not.toContain('pts');
+    }
+    await expect(style).not.toContainText('Pitch-area reference');
     const body = await page.locator('main').innerText();
     expect(body).not.toContain('Expected');
     // The neutral tick is a dashed line in the geo bar.
@@ -114,6 +143,7 @@ test.describe('semantic invariants', () => {
 
   test('hero counts come from the registry', async ({ page }) => {
     await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
+    await page.click('button[data-view="why"]');
     const counts = await page.evaluate(() =>
       fetch('/api/constructs').then(r => r.json()).then(d => d.counts));
     const hero = await page.locator('#hero').innerText();
@@ -130,12 +160,14 @@ test.describe('comparison', () => {
       await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
       await page.click('button[data-view="compare"]');
       const response = page.waitForResponse(r => r.url().includes('/api/compare?') && r.ok());
+      const answered = page.waitForResponse(r => r.url().includes('/api/answers/compare?') && r.ok());
       for (const [sel, box, name] of [['#qa', '#ra', a], ['#qb', '#rb', b]]) {
         await page.fill(sel, name);
         await page.waitForSelector(`${box} button[data-id]`, { timeout: 10000 });
         await page.click(`${box} button[data-id]`);
       }
       const data = await (await response).json();
+      const said = await (await answered).json();
       await page.waitForSelector('#cmp .cmp', { timeout: 10000 });
       const ordered = [
         ...data.deltas.filter(row => row.family !== 'style'),
@@ -153,9 +185,14 @@ test.describe('comparison', () => {
         const leader = row.family !== 'style' && row.interpretable && !row.tied
           ? (row.delta > 0 ? data.left.name : data.right.name) : null;
         expect(row.leader, row.construct_id + ' names the measured leader').toBe(leader);
-        const expected = row.family !== 'style' && row.interpretable
-          ? `${leader || ''} ${row.language}`.trim() : row.language;
-        expect(caption, row.construct_id + ' renders its API interpretation').toBe(expected);
+        // ADR-0034 (G4-2): the words under a row are the server's caption, which names a
+        // player higher only where the API names a leader and bolds him only where the
+        // difference is directional; player_lab's language ("no better direction") is not
+        // printed.
+        const caption_ = said.rows.find(r => r.construct_id === row.construct_id);
+        expect(caption, row.construct_id + ' renders the server caption').toBe(caption_.caption);
+        if (leader) expect(caption_.caption.startsWith(leader), row.construct_id).toBe(true);
+        expect(caption).not.toContain('better');
         await expect(rendered.locator('strong')).toHaveCount(
           row.family !== 'style' && row.directional_difference ? 1 : 0);
       }
@@ -204,7 +241,7 @@ test.describe('comparison marks', () => {
     }
     const data = await (await answered).json();
     // Two players inside the context: the server's note speaks of marks, and they are drawn.
-    await expect(page.locator('#cmp h2', { hasText: 'Observed location' })
+    await expect(page.locator('#cmp h2', { hasText: 'Where their passes start' })
       .locator('xpath=following-sibling::p[1]')).toHaveText(data.observed_location_note);
     expect(data.observed_location_note).toContain('the marks show where');
     const style = data.deltas.filter(row => row.family === 'style');
@@ -294,13 +331,13 @@ test.describe('gated values', () => {
         await page.fill('#q', keeper.name);
         await page.click(`#results button[data-id="${keeper.player_id}"]`);
         const profile = page.locator('#profile');
-        await expect(profile.locator('.phead h2')).toHaveText(keeper.name);
+        await expect(page.locator('#player-title')).toHaveText(keeper.name);
         await expect(profile.locator('.insufficient')).toHaveCount(shipped.length);
         for (const construct of shipped) {
           const row = profile.locator('.card, .style-row')
             .filter({ has: page.locator('.name', { hasText: new RegExp(`^${construct.label}$`) }) });
           await expect(row, construct.id + ' is one row').toHaveCount(1);
-          await expect(row).toContainText('WITHHELD');
+          await expect(row).toContainText('Withheld');
           await expect(row).toContainText(reason);
           await expect(row.locator('svg'), construct.id + ' draws no bar').toHaveCount(0);
         }
@@ -364,12 +401,13 @@ test.describe('gated values', () => {
         }
         const withOutfield = await (await compared).json();
         await expect(page.locator('#cmp .cmp')).toHaveCount(shipped.length);
+        // ADR-0034 (G4-2): the server's caption, with the reason as player_lab gives it.
         for (const line of await page.locator('#cmp .cmp .lang').allInnerTexts()) {
-          expect(line).toBe(`not comparable — withheld for ${keeper.name}. ${reason}`);
+          expect(line).toBe(`Not comparable: withheld for ${keeper.name}. ${reason}`);
         }
         // The note above the observed-location rows is the server's and is true of them:
         // it said "the marks show where each one's completed passes started" over no mark.
-        const note = page.locator('#cmp h2', { hasText: 'Observed location' })
+        const note = page.locator('#cmp h2', { hasText: 'Where their passes start' })
           .locator('xpath=following-sibling::p[1]');
         await expect(note).toHaveText(withOutfield.observed_location_note);
         expect(withOutfield.observed_location_note).toBe(
@@ -381,17 +419,18 @@ test.describe('gated values', () => {
         // Two goalkeepers: each is given his own reason, on every row and in the note.
         const second = keepers[1];
         expect(second, 'one goalkeeper in the bundle: the pair is not tested').toBeTruthy();
-        compared = page.waitForResponse(r => r.url().includes(`b=${second.player_id}`) && r.ok());
+        compared = page.waitForResponse(r => r.url().includes('/api/compare?')
+          && r.url().includes(`b=${second.player_id}`) && r.ok());
         await page.fill('#qb', second.name);
         await page.click(`#rb button[data-id="${second.player_id}"]`);
         const twoKeepers = await (await compared).json();
         const each = [keeper, second].map(k =>
           `${k.name}: ${served.find(r => r.name === k.name).reason}`).join(' ');
-        await expect(page.locator('#cmp .phead h2')).toContainText(second.name);
+        await expect(page.locator('#compare-title')).toContainText(second.name);
         await expect(page.locator('#cmp .cmp')).toHaveCount(shipped.length);
         for (const line of await page.locator('#cmp .cmp .lang').allInnerTexts()) {
           expect(line).toBe(
-            `not comparable — withheld for ${keeper.name} and ${second.name}. ${each}`);
+            `Not comparable: withheld for ${keeper.name} and ${second.name}. ${each}`);
         }
         await expect(note).toHaveText(twoKeepers.observed_location_note);
         expect(twoKeepers.observed_location_note).toContain(
@@ -438,8 +477,14 @@ test.describe('explore', () => {
       // On both sides of the reference: in the reply, and in the values the page prints.
       expect(reply.rows.filter(r => r.value < reply.reference).length).toBeGreaterThan(0);
       expect(reply.rows.filter(r => r.value > reply.reference).length).toBeGreaterThan(0);
-      const printed = (await page.locator('#explore-body .card > div:last-child')
-        .allInnerTexts()).map(Number);
+      // ADR-0034 (G4-6): each value is the server's, with its unit in words ("46% of his
+      // completed passes"); the share is read back from it.
+      const words = await page.evaluate(() => fetch('/api/answers/explore/half_space_share?limit=40')
+        .then(r => r.json()));
+      const texts = await page.locator('#explore-body .card > div:last-child').allInnerTexts();
+      expect(texts).toEqual(reply.rows.map(r => words.values[String(r.player_id)]));
+      await expect(page.locator('#explore-answer')).toHaveText(words.answer);
+      const printed = texts.map(t => parseFloat(t) / 100);
       expect(printed.length).toBe(40);
       expect(Math.min(...printed)).toBeLessThan(reply.reference);
       expect(Math.max(...printed)).toBeGreaterThan(reply.reference);
@@ -524,7 +569,7 @@ test.describe('what a profile prints', () => {
         els => els.map(el => ({ text: el.textContent, title: el.getAttribute('title') })));
       expect(badges.length).toBe(subject.rows.length);
       for (const [index, row] of subject.rows.entries()) {
-        expect(badges[index].text).toBe(`estimator signal: ${row.signal}`);
+        expect(badges[index].text).toBe(`Reliability: ${row.signal}`);
         // The sentence is the server's, word for word.
         expect(badges[index].title).toBe(row.signal_note);
         const [, strong, limited] = row.signal_note.match(
@@ -562,12 +607,18 @@ test.describe('what a profile prints', () => {
     });
     expect(subject, 'no place ends in 1, 2 or 3: nothing is tested').not.toBeNull();
     await openProfile(page, subject.player);
+    const answer = await page.evaluate(id => fetch('/api/answers/player/' + id).then(r => r.json()),
+      subject.player.player_id);
+    const lines = answer.measures.filter(m => m.kind === 'directional');
     const printed = await page.locator('#profile .card .pctsub').allInnerTexts();
     expect(printed.length).toBe(3);
-    // The sentence written out here from the values served, and the one the server sent.
-    expect(printed).toEqual(subject.rows.map(row => `${ordinal(Math.round(row.percentile))} `
-      + `percentile among ${row.reference_label} · n=${row.reference_n}`));
-    expect(printed).toEqual(subject.rows.map(row => row.percentile_note));
+    // The place written out here from the values served, at the head of the line the server
+    // sent; and the same place is the card's headline.
+    expect(printed).toEqual(lines.map(m => m.percentile_line));
+    expect(printed.map(line => line.split(' percentile among ')[0]))
+      .toEqual(subject.rows.map(row => ordinal(Math.round(row.percentile))));
+    expect(await page.locator('#profile .card .pct').allInnerTexts())
+      .toEqual(subject.rows.map(row => ordinal(Math.round(row.percentile))));
     expect(printed.some(sentence => /^\d*(1st|2nd|3rd) percentile/.test(sentence))).toBe(true);
   });
 
@@ -627,10 +678,12 @@ test.describe('in a browser whose own number format is not English', () => {
     await openProfile(page, subject);
     const english = n => n.toLocaleString('en-US');
     expect(english(floor)).toBe('1,800');
-    await expect(page.locator('#profile .fact .v').first()).toHaveText(english(subject.minutes));
+    await expect(page.locator('#player-facts')).toContainText(`${english(subject.minutes)} minutes`);
     await expect(page.locator('#profile .insufficient small')).toHaveText(
-      `This estimator needs ${english(floor)} minutes before a point estimate is shown; `
+      `This measure needs ${english(floor)} minutes before a number is shown; `
       + `he played ${english(subject.minutes)}.`);
+    await expect(page.locator('#profile .insufficient .ui-callout-title'))
+      .toHaveText(`Not enough minutes to judge (under ${english(floor)})`);
     // And in the search results, where the same count is printed.
     await page.fill('#q', subject.name);
     await expect(page.locator(`#results button[data-id="${subject.player_id}"] .m`))
@@ -709,4 +762,126 @@ test.describe('analysis formed from StatsBomb data', () => {
         expect(errors, 'uncaught page errors').toEqual([]);
       });
   }
+});
+
+test.describe('the address and the way between views', () => {
+  // F6: the view, the player, the pair and the measure were not in the address, so Back left
+  // the app and nothing could be shared; Explore's rows and the map's dots led nowhere.
+  test('back, forward and a shared link open the same screen', async ({ page }) => {
+    const errors = watch(page);
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
+    const modric = new URL(page.url()).searchParams.get('player');
+    expect(modric).toMatch(/^\d+$/);
+    await expect(page.locator('#player-title')).toHaveText('L. Modrić');
+
+    await page.click('button[data-view="explore"]');
+    await expect(page.locator('#explore-title')).toHaveText('Progression');
+    expect(new URL(page.url()).searchParams.get('view')).toBe('explore');
+    await page.click('#explore-tabs button[data-c="chance_creation"]');
+    await expect(page.locator('#explore-title')).toHaveText('Chance creation');
+    expect(new URL(page.url()).searchParams.get('measure')).toBe('chance_creation');
+    await expect(page.locator('#explore-tabs button[data-c="chance_creation"]'))
+      .toHaveAttribute('aria-pressed', 'true');
+
+    // A row opens its player's profile.
+    const row = page.locator('#explore-body .card').first();
+    const [id, name] = [await row.getAttribute('data-player'),
+      (await row.locator('div:first-child > span:first-child').innerText()).trim()];
+    await row.click();
+    await expect(page.locator('#player-title')).toHaveText(name);
+    expect(new URL(page.url()).searchParams.get('player')).toBe(id);
+    await expect(page.locator('h1:visible')).toHaveCount(1);
+
+    await page.goBack();
+    await expect(page.locator('#explore-title')).toHaveText('Chance creation');
+    await page.goBack();
+    await expect(page.locator('#explore-title')).toHaveText('Progression');
+    await page.goBack();
+    await expect(page.locator('#player-title')).toHaveText('L. Modrić');
+    await page.goForward(); await page.goForward(); await page.goForward();
+    await expect(page.locator('#player-title')).toHaveText(name);
+
+    // A shared comparison opens as it was shared, with the server's heading and sentence.
+    const kroos = await page.evaluate(() => fetch('/api/players?q=kroos&limit=1')
+      .then(r => r.json()).then(d => d.players[0].player_id));
+    await page.goto(`${BASE}/player?view=compare&a=${modric}&b=${kroos}`, { waitUntil: 'networkidle' });
+    const said = await page.evaluate(([a, b]) => fetch(`/api/answers/compare?a=${a}&b=${b}`)
+      .then(r => r.json()), [modric, kroos]);
+    await expect(page.locator('#compare-title')).toHaveText('L. Modrić v T. Kroos');
+    await expect(page.locator('#compare-title')).toHaveText(said.title);
+    await expect(page.locator('#compare-answer')).toHaveText(said.answer);
+    await expect(page.locator('#qa')).toHaveValue('L. Modrić');
+    await expect(page.locator('#qb')).toHaveValue('T. Kroos');
+    expect(await page.locator('#cmp .cmp').count()).toBeGreaterThan(0);
+    expect(errors, 'uncaught page errors').toEqual([]);
+  });
+
+  test('a dot on the map opens its player, and the player opened is the gold one', async ({ page }) => {
+    const errors = watch(page);
+    await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
+    await page.click('button[data-view="map"]');
+    await expect(page.locator('#scatter')).toBeVisible();
+    await expect(page.locator('#map-subject')).toContainText('L. Modrić');
+    // A dot other than his, where the page drew it.
+    const target = await page.evaluate(() => {
+      const { pts, X, Y } = scatterDrawn;
+      // One that no other dot sits within 12 px of, so the click can only mean him.
+      const alone = q => pts.every(o => o === q || Math.hypot(X(o.x) - X(q.x), Y(o.y) - Y(q.y)) > 12);
+      const p = pts.find(q => q.player_id !== state.player && q.team === 'Real Madrid' && alone(q));
+      return { id: p.player_id, name: p.name, x: X(p.x), y: Y(p.y) };
+    });
+    await page.locator('#scatter').click({ position: { x: target.x, y: target.y } });
+    await expect(page.locator('#player-title')).toHaveText(target.name);
+    expect(new URL(page.url()).searchParams.get('player')).toBe(String(target.id));
+    expect(new URL(page.url()).searchParams.get('view')).toBeNull();
+    expect(errors, 'uncaught page errors').toEqual([]);
+  });
+
+  for (const width of [390, 320]) {
+    test(`every view has one h1 and fits ${width} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      for (const view of ['', '?view=compare&a=8287&b=8278', '?view=explore', '?view=map', '?view=why']) {
+        await page.goto(BASE + '/player' + view, { waitUntil: 'networkidle' });
+        await expect(page.locator('h1:visible')).toHaveCount(1);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth
+          <= document.documentElement.clientWidth), `overflow at ${width} px: ${view}`).toBe(true);
+        // A control a thumb reaches is at least 44 px tall: the views and the search.
+        for (const box of await page.locator('[role="tab"], #q').evaluateAll(
+          els => els.filter(el => el.offsetParent).map(el => el.getBoundingClientRect().height))) {
+          expect(box).toBeGreaterThanOrEqual(44);
+        }
+      }
+    });
+  }
+
+  // ADR-0034 (G4-5): an unknown player keeps the H1 first, says why under it, and offers the
+  // default profile, so the page is never an empty heading.
+  test('an unknown player says so under the H1 and offers a profile to open', async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(BASE + '/player?player=999999', { waitUntil: 'networkidle' });
+    await expect(page.locator('#player-title')).toHaveText('Player profiles');
+    const note = page.locator('#player-state');
+    await expect(note).toBeVisible();
+    await expect(note).toContainText('That player is not in the 2017/18 archive.');
+    const top = async sel => (await page.locator(sel).boundingBox()).y;
+    expect(await top('#player-title')).toBeLessThan(await top('#player-state'));
+    expect(await top('#player-state')).toBeLessThan(await top('#q'));
+    await page.locator('#show-default').click();
+    await expect(page.locator('#player-title')).toHaveText('L. Modrić');
+    await expect(note).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
+  test('an archive that will not load says so in words, and the search box is not left dead',
+    async ({ page }) => {
+      await page.route('**/api/meta', route => route.fulfill({ status: 503,
+        contentType: 'application/json', body: JSON.stringify({ detail: 'synthetic' }) }));
+      await page.goto(BASE + '/player', { waitUntil: 'networkidle' });
+      const state = page.locator('#page-state');
+      await expect(state).toBeVisible();
+      await expect(state).toContainText("The 2017/18 archive isn't installed on this server.");
+      await expect(page.locator('#view-player')).toBeHidden();
+      await expect(state).not.toContainText('synthetic');
+    });
 });

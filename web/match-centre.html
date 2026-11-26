@@ -4,40 +4,82 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!--shell:head-->
-  <link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css">
+  <link rel="stylesheet" href="/static/matches.css">
   <script src="/static/match-centre.js" defer></script>
 </head>
 <body>
   <!--shell:header-->
-  <main id="main" class="frame">
-    <div class="heading"><h1>Matches</h1>
-      <label class="source" hidden>Data source <select id="source"><option value="openfootball">OpenFootball</option></select></label>
-    </div>
-    <p id="coverage">Loading coverage…</p>
-    <div class="layout">
-      <section class="board" aria-label="Scoreboard">
-        <div class="daybar">
-          <button id="back" aria-label="Previous day">←</button>
-          <label><span class="sr">Fixture date</span><input type="date" id="day"></label>
-          <button id="forward" aria-label="Next day">→</button><button id="today">Today</button>
+  <main id="main" class="page-main matches">
+    <header class="page-header">
+      <h1>Matches</h1>
+      <p class="page-answer" id="answer" aria-live="polite"><span class="ui-skeleton mc-line"></span><span class="ui-skeleton mc-line mc-line-short"></span><span class="sr-only">Loading Real Madrid’s fixtures…</span></p>
+      <div class="page-actions" id="answer-actions"></div>
+      <div class="mc-fresh" id="freshness" hidden>
+        <span class="eyebrow-text" id="freshness-label">Results through</span>
+        <ul class="mc-fresh-list" id="freshness-list" aria-labelledby="freshness-label"></ul>
+        <details class="mc-fresh-more" id="freshness-more" hidden>
+          <summary>More competitions (<span id="freshness-more-count"></span>)</summary>
+          <ul class="mc-fresh-list" id="freshness-more-list"></ul>
+        </details>
+        <p class="mc-lag" id="lag" hidden></p>
+      </div>
+    </header>
+
+    <div class="mc-layout">
+      <section class="ui-card mc-board" aria-labelledby="board-day">
+        <div class="mc-daybar">
+          <button type="button" class="ui-btn mc-step" id="back"><span aria-hidden="true">‹</span><span class="mc-step-text">Previous</span></button>
+          <div class="mc-day">
+            <h2 id="board-day">Fixtures</h2>
+            <span class="mc-day-tag" id="day-tag" hidden>Today</span>
+          </div>
+          <button type="button" class="ui-btn mc-step" id="forward"><span class="mc-step-text">Next</span><span aria-hidden="true">›</span></button>
         </div>
-        <div class="filters" aria-label="Fixture filters">
-          <button data-filter="all" aria-pressed="true">All matches</button><button data-filter="madrid" aria-pressed="false">Real Madrid</button>
-          <button data-filter="saved" aria-pressed="false">Saved</button><button data-filter="live" aria-pressed="false" hidden>Live</button>
+        <div class="mc-toolbar">
+          <div class="ui-segmented mc-filters" role="group" aria-label="Show">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="madrid" aria-pressed="false">Real Madrid</button>
+            <button type="button" data-filter="saved" aria-pressed="false">Saved</button>
+            <button type="button" data-filter="live" aria-pressed="false" hidden>Live</button>
+          </div>
+          <label class="ui-field mc-league"><span class="sr-only">Competition</span>
+            <select id="league" class="ui-select"><option value="">All competitions</option></select></label>
+          <div class="mc-date">
+            <button type="button" class="ui-btn ui-btn-ghost" id="day-pick"><svg class="mc-cal" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><rect x="3" y="4.5" width="14" height="12" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg>Go to a date</button>
+            <input type="date" id="day" class="ui-input" aria-label="Go to a date" tabindex="-1">
+          </div>
+          <label class="ui-field mc-source" hidden><span class="ui-label">Data source</span>
+            <select id="source" class="ui-select"><option value="openfootball">OpenFootball</option></select></label>
         </div>
-        <label class="search"><span class="sr">Search teams and competitions</span><input type="search" id="search" placeholder="Search teams or competitions"></label>
-        <div id="meta" class="note" role="status"></div>
-        <div id="fixtures"></div>
-        <div id="nearby" class="actions"></div>
+        <div id="meta" class="mc-meta" role="status"></div>
+        <div id="fixtures" class="mc-fixtures" aria-busy="true">
+          <div class="mc-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+        </div>
       </section>
-      <aside aria-label="Match report">
-        <div id="spotlight"></div>
-        <section class="report" id="report" aria-label="Selected match" tabindex="-1">
-          <h2>Match report</h2><p>Choose a fixture to open its report.</p>
+
+      <aside class="mc-side" aria-label="Match report">
+        <section class="ui-card mc-report" id="report" tabindex="-1" aria-labelledby="report-title">
+          <h2 id="report-title" class="mc-report-title">Match report</h2>
+          <div class="mc-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
         </section>
       </aside>
     </div>
-    <footer><a href="https://github.com/openfootball/football.json">OpenFootball coverage</a> · <a href="https://www.api-football.com/documentation-v3">API-Football coverage</a></footer>
+
+    <details class="ui-disclosure mc-about">
+      <summary>About these numbers</summary>
+      <div class="ui-disclosure-body">
+        <ul class="mc-about-list">
+          <li>Fixtures and results come from OpenFootball’s free files, which volunteers update after play, so results can arrive days or weeks late. Each competition shows the date its results reach.</li>
+          <li>Bundesliga and Premier League results missing from OpenFootball are filled in from OpenLigaDB, once both clubs and the matchday match. A result OpenFootball already has is never replaced, and a filled-in result takes the date and kick-off OpenLigaDB gives it.</li>
+          <li>Champions League fixtures, results and scorers come from OpenLigaDB alone. Clubs take the name OpenFootball gives them, or the English form, so a club has one name on every page.</li>
+          <li>Scorers and minutes appear where OpenLigaDB lists them: the Bundesliga, the Premier League and the Champions League. The free La Liga, Serie A and Ligue 1 feeds don’t name scorers.</li>
+          <li>Kick-off times are local times, as each source publishes them. Recent form counts the last five reported results in the same competition.</li>
+          <li>Saved matches stay in this browser only.</li>
+        </ul>
+        <p class="mc-credits">Data: <a href="https://github.com/openfootball/football.json">OpenFootball</a> (<a href="https://github.com/openfootball/football.json/blob/master/LICENSE.md">CC0 1.0</a>) · <a href="https://www.openligadb.de/">OpenLigaDB</a> (<a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>)<span id="private-credit" hidden> · <a href="https://www.api-football.com/documentation-v3">API-Football</a> (private, on this computer only)</span>.</p>
+      </div>
+    </details>
   </main>
   <!--shell:footer-->
-</body></html>
+</body>
+</html>

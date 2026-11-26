@@ -9,6 +9,7 @@ module the hosted function cannot import.
 from __future__ import annotations
 
 import ast
+import html
 import json
 import re
 from datetime import date
@@ -325,24 +326,69 @@ def test_slash_is_matches_on_both_apps_and_old_links_keep_working(hosted, local)
     assert hosted.get("/player").status_code == 404
 
 
+def test_a_missing_page_is_the_sites_own_page_and_an_api_keeps_its_json(hosted):
+    # S2 (ADR-0034): a browser gets a designed page with the shell and the ways on, never the
+    # framework's JSON; an archive page on the hosted app says where the archive runs.
+    browser = {"accept": "text/html,application/xhtml+xml"}
+    for path, heading in (("/nope", "That page isn't here"),
+                          ("/player", "The 2017/18 archive isn't on this site"),
+                          ("/match?id=1", "The 2017/18 archive isn't on this site")):
+        reply = hosted.get(path, headers=browser)
+        assert reply.status_code == 404 and reply.headers["content-type"].startswith("text/html")
+        page = html.unescape(reply.text)
+        assert f"<h1>{heading}</h1>" in page and '<header class="site-header"' in page
+        assert "<title>Page not found · Galáctico</title>" in page
+        assert re.findall(r'<a class="ui-btn[^"]*" href="([^"]+)"', page) == [
+            "/match-centre", "/match-centre/leagues", "/lineup"]
+        assert '"detail"' not in page
+        assert scan_labels(shell.visible_text(reply.text)) == []
+    assert "runs only on a local install" in hosted.get("/squad", headers=browser).text
+    # An API path, a static file or a client that does not ask for HTML keeps the JSON reply.
+    for path, headers in (("/api/nope", browser), ("/static/nope.css", browser), ("/nope", {})):
+        reply = hosted.get(path, headers=headers)
+        assert reply.status_code == 404 and reply.json() == {"detail": "Not Found"}
+    unknown = hosted.get("/api/match-centre/goal-scout/es", headers=browser)
+    assert unknown.status_code == 404 and "La Liga" in unknown.json()["detail"]
+
+
+def test_the_local_app_answers_a_missing_page_with_the_same_designed_page(local):
+    # ADR-0034: the local app installs the hosted app's handler, so a mistyped address is the
+    # site's page there too; its archive pages are served, so none of them is "not here".
+    browser = {"accept": "text/html,application/xhtml+xml"}
+    reply = local.get("/nope", headers=browser)
+    assert reply.status_code == 404 and reply.headers["content-type"].startswith("text/html")
+    page = html.unescape(reply.text)
+    assert "<h1>That page isn't here</h1>" in page and '<header class="site-header"' in page
+    assert re.findall(r'<a class="ui-btn[^"]*" href="([^"]+)"', page)[0] == "/match-centre"
+    assert scan_labels(shell.visible_text(reply.text)) == []
+    for path, headers in (("/api/nope", browser), ("/static/nope.css", browser), ("/nope", {})):
+        reply = local.get(path, headers=headers)
+        assert reply.status_code == 404 and reply.json() == {"detail": "Not Found"}
+    # A JSON 404 an API route raises keeps its own detail.
+    assert local.get("/api/players/0", headers=browser).headers["content-type"].startswith(
+        "application/json")
+
+
 def test_about_the_numbers_lists_what_this_app_serves(hosted, local):
     sections = re.compile(r'<section class="page-section about-section" id="([\w-]+)"')
     answer = re.compile(r'<p class="page-answer">([^<]*)</p>')
     hosted_page = hosted.get("/about").text
-    assert sections.findall(hosted_page) == ["sources"]
+    # Re-pinned under ADR-0034 (S4): both apps explain how this season's numbers are gathered.
+    assert sections.findall(hosted_page) == ["this-season", "sources"]
     # The hosted site serves no archive and no StatsBomb-derived analysis (R7).
     assert "StatsBomb" not in hosted_page and "Pappalardo" in hosted_page
-    # It promises what it holds, and one section needs no list of contents.
-    assert answer.findall(hosted_page) == ["Where every number comes from."]
-    assert '<meta name="description" content="Where every number comes from.">' in hosted_page
-    assert '<nav class="about-contents"' not in hosted_page
+    # It promises what it holds.
+    said = ("How this season's results, tables and goals are gathered and where every number "
+            "comes from.")
+    assert answer.findall(html.unescape(hosted_page)) == [said]
+    assert "Results through" in hosted_page and "five games" in hosted_page
     local_page = local.get("/about").text
     assert sections.findall(local_page) == [
-        "why-only-five", "evidence-classes", "verdicts", "not-measured", "sources"]
-    assert answer.findall(local_page) == [
+        "why-only-five", "evidence-classes", "verdicts", "not-measured", "this-season", "sources"]
+    assert answer.findall(html.unescape(local_page)) == [
         "Why only five measures are shown, what kind of number each one is, which claims have "
-        "been tested and how they stand, what this site does not measure and where every number "
-        "comes from."]
+        "been tested and how they stand, what this site does not measure, how this season's "
+        "results, tables and goals are gathered and where every number comes from."]
     contents = re.search(r'<nav class="about-contents".*?</nav>', local_page, re.S).group(0)
     assert re.findall(r'href="#([\w-]+)"', contents) == sections.findall(local_page)
     # The sources table names every source the pages read; the one analysis formed from

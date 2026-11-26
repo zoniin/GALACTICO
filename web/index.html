@@ -4,267 +4,111 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!--shell:head-->
-<style>
-/* Player Lab only, written before the design system: in the legacy layer (tokens.css declares
-   the order). Its old names are re-pointed at the design system's roles, so the page follows the
-   light and the dark theme: --ink-* are the page, card and rules, --bone-* the text, --gold the
-   selected player (his mark on a strip and his own estimate's dots, and nothing else). The
-   scatter is a chart, dark in both themes. Labels are sentence case and 12 px and up. */
-@layer legacy {
-:root{
-  --ink-900:var(--bg); --ink-850:var(--chart-bg); --ink-800:var(--surface-1);
-  --ink-700:var(--border); --ink-600:var(--border-control);
-  --bone-100:var(--text); --bone-300:var(--text-muted); --bone-500:var(--text-subtle);
-  --gold:var(--selected); --gold-dim:var(--border-control);
-  --pos:var(--live); --neg:var(--danger);
-  /* Not in the gold family and not in the red family: a withheld
-     measurement is neither the selected player nor a bad player. */
-  --warn:var(--text-muted);
-  --chalk:var(--border);
-  --serif:var(--font-sans);
-  --ui:var(--font-sans);
-  --mono:var(--font-sans);
-}
-body{font-size:15px;line-height:1.55}
-.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
-
-/* The views of this page. The site header is the shell's. */
-.bar{
-  position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:1rem 1.4rem;
-  margin:0 0 2rem;padding:.5rem 0;background:var(--ink-900);
-  border-bottom:1px solid var(--ink-700);
-}
-.bar nav{display:flex;flex-wrap:wrap;gap:.2rem;font-size:14px;font-weight:600;color:var(--bone-300)}
-.bar nav button{background:none;border:0;color:inherit;font:inherit;cursor:pointer;
-  min-height:40px;padding:.2em .7em;border-radius:var(--radius-control);border-bottom:2px solid transparent}
-.bar nav button:hover{color:var(--bone-100);background:var(--surface-2)}
-.bar nav button[aria-current="true"]{color:var(--bone-100);border-bottom-color:var(--accent)}
-@media(max-width:800px){.bar{flex-wrap:wrap;gap:.4rem}.bar nav{flex:1 0 100%}}
-
-main{max-width:var(--frame);margin:0 auto;padding:var(--space-5) var(--gutter) var(--space-7)}
-section{margin-bottom:3.4rem}
-h1{font:700 clamp(2.1rem,1.5rem + 2vw,3.25rem)/1.05 var(--font-display);
-  margin:0 0 .6rem;letter-spacing:-.01em;text-wrap:balance}
-h2{font:700 var(--text-xl)/1.15 var(--font-display);color:var(--bone-100);margin:0 0 1rem;
-  padding-bottom:.5rem;border-bottom:1px solid var(--ink-700)}
-p.lede{color:var(--bone-300);max-width:64ch;margin:0 0 1.6rem;font-size:var(--text-lg);line-height:1.45}
-
-/* search */
-.search{position:relative;max-width:34rem}
-input[type=search]{
-  width:100%;background:var(--ink-800);border:1px solid var(--ink-600);color:var(--bone-100);
-  font:inherit;padding:.7rem .9rem;border-radius:var(--radius-control)}
-.results{position:absolute;z-index:20;left:0;right:0;background:var(--ink-800);
-  border:1px solid var(--ink-600);border-top:0;max-height:20rem;overflow:auto;box-shadow:var(--shadow-2)}
-.results button{display:flex;width:100%;gap:.8rem;align-items:baseline;background:none;
-  border:0;color:inherit;font:inherit;text-align:left;padding:.6rem .9rem;cursor:pointer}
-.results button:hover{background:var(--surface-2)}
-.results .t{color:var(--bone-300);font-size:14px}
-.results .m{margin-left:auto;font-size:13px;color:var(--bone-300);font-variant-numeric:tabular-nums}
-
-/* player head */
-.phead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:1.4rem;
-  border-bottom:1px solid var(--ink-700);padding-bottom:1.1rem;margin-bottom:1.8rem}
-.phead h2{margin:0;padding:0;border:0;font:700 clamp(2.1rem,1.5rem + 2vw,3.25rem)/1.05 var(--font-display);
-  letter-spacing:-.01em;color:var(--bone-100)}
-.phead .sub{font-size:14px;color:var(--bone-300)}
-.phead .facts{margin-left:auto;display:flex;gap:1.8rem;text-align:right}
-.fact .k{font-size:12px;font-weight:600;color:var(--bone-300)}
-.fact .v{font-size:1.1rem;font-weight:600;font-variant-numeric:tabular-nums}
-
-/* construct cards */
-.cards{display:grid;gap:0;border-top:1px solid var(--ink-700)}
-.card{padding:1.15rem 0;border-bottom:1px solid var(--ink-700);
-  display:grid;grid-template-columns:15rem minmax(0,1fr) 10.5rem;gap:1.6rem;align-items:center}
-@media(max-width:800px){.card{grid-template-columns:1fr;gap:.6rem}}
-.card .name{font-size:1.1rem;font-weight:600}
-.card .claim{color:var(--bone-300);font-size:14px;max-width:28ch;margin-top:.15rem}
-.card .val{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
-.card .unit{font-size:12px;color:var(--bone-300);text-align:right}
-
-/* percentile strip — quality only */
-.strip{position:relative;height:34px}
-.strip svg{display:block;width:100%;height:34px;overflow:visible}
-.strip .axis{font-size:12px;fill:var(--bone-500)}
-.pct{font-size:15px;font-weight:600;color:var(--bone-100)}
-.pctsub{font-size:13px;color:var(--bone-300)}
-/* His marks: gold, always with a dark edge (gold alone is under 3:1 on a light page), set in
-   an overlay above the stretched drawing, so a bar stays a bar and a dot stays round. */
-.mark-frame{position:relative;display:block}
-.mark-frame .selected-mark{position:absolute;z-index:2;top:50%;box-sizing:border-box;
-  background:var(--gold);border:1px solid var(--selected-edge)}
-.dots{position:relative;display:block;height:12px}
-.dots .selected-mark{position:absolute;top:1px;width:10px;height:10px;margin-left:-5px;
-  box-sizing:border-box;border-radius:50%;background:var(--gold);border:1px solid var(--selected-edge)}
-.replication{font-size:var(--text-xs);color:var(--bone-300)}
-
-/* style panel — deliberately NOT a percentile */
-.style-row{display:grid;grid-template-columns:15rem 1fr;gap:1.6rem;align-items:center;
-  padding:1.15rem 0;border-bottom:1px solid var(--ink-700)}
-@media(max-width:800px){.style-row{grid-template-columns:1fr}}
-/* The channel names sit under the bar, outside its box. The box used to clip what
-   overflowed it, so the names its legend explains were never drawn. A channel too narrow
-   to hold its name shows none, rather than one that runs into its neighbour's. */
-.zones{display:flex;height:30px;border:1px solid var(--ink-600)}
-.zones div{position:relative;container-type:inline-size}
-.zones div span{position:absolute;inset:auto 0 -1.45rem 0;text-align:center;white-space:nowrap;
-  font-size:12px;font-weight:600;color:var(--bone-300)}
-@container (max-width:1.6rem){.zones div span{visibility:hidden}}
-.spectrum{margin-top:1.8rem;font-size:13px;color:var(--bone-300)}
-
-/* badges */
-/* Grade is encoded by FORM, never colour. Red-amber-green would make
-   "we do not know" read as "this player is bad" — the merit reading the
-   measurement work spent months removing. */
-.badge{display:inline-block;font-size:12px;font-weight:600;line-height:1.5;
-  padding:.1em .6em;border:1px solid var(--ink-600);border-radius:var(--radius-control);
-  color:var(--bone-300);white-space:nowrap}
-.badge::first-letter{text-transform:uppercase}
-.g-strong{border-style:solid;color:var(--bone-100)}
-.g-limited{border-style:dashed}
-.g-insufficient{border-style:dotted}
-.b-none{color:var(--bone-300)}
-
-.insufficient{font-size:14px;color:var(--warn);
-  border-left:3px solid var(--ink-600);padding-left:.8rem}
-.insufficient small{display:block;color:var(--bone-300);font-size:13px;margin-top:.2rem}
-
-/* scatter: a chart, dark in both themes */
-#scatter{width:100%;height:460px;display:block;background:var(--ink-850);
-  border:1px solid var(--ink-700);border-radius:var(--radius-chip)}
-.quad{font-size:13px;color:var(--bone-300);
-  display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1.4rem;margin-top:.8rem}
-
-/* why-five */
-.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:0;
-  border-top:1px solid var(--ink-700)}
-.why > div{padding:1.1rem 1.4rem 1.1rem 0;border-bottom:1px solid var(--ink-700)}
-.why h3{font-size:1.05rem;font-weight:600;margin:.3rem 0 .35rem}
-.why p{color:var(--bone-300);font-size:14px;margin:0}
-.tag{font-size:12px;font-weight:700}
-.t-ship{color:var(--pos)} .t-rej{color:var(--neg)} .t-res{color:var(--warn)}
-
-/* The credit for analysis formed from StatsBomb data. The logo is the provider's own
-   file and is drawn as it is: on a plain plate, with no filter, tint or opacity. */
-.credit{display:grid;grid-template-columns:auto 1fr;gap:1rem 1.6rem;align-items:start;
-  margin-top:1.8rem}
-@media(max-width:800px){.credit{grid-template-columns:1fr}}
-.credit .plate{background:var(--logo-plate);padding:.6rem .8rem;line-height:0;justify-self:start;
-  border:1px solid var(--ink-700)}
-.credit img{display:block;width:170px;max-width:100%;height:auto}
-.credit p{margin:0 0 .5rem;color:var(--bone-300);font-size:14px;max-width:64ch}
-.credit p.notes{font-size:13px;color:var(--bone-300);margin:0}
-
-/* compare */
-.cmp{display:grid;grid-template-columns:1fr 9rem 1fr;gap:.8rem;align-items:center;
-  padding:.85rem 0;border-bottom:1px solid var(--ink-700)}
-.cmp .bar-l,.cmp .bar-r{height:8px;background:var(--surface-2)}
-/* Both sides neutral. Gold on one bar asserted a winner by which search
-   box you typed into, and reversed itself if you swapped the order. */
-.cmp .bar-l i,.cmp .bar-r i{display:block;height:100%;background:var(--ink-600)}
-.cmp .bar-l{direction:rtl}
-.cmp .mid{text-align:center;font-size:13px;font-weight:600}
-.cmp .lang{grid-column:1/-1;font-size:13px;color:var(--bone-300);margin-top:.3rem}
-.cmp .lang.material{color:var(--bone-100)}
-
-details{border-top:1px solid var(--ink-700);padding:.7rem 0}
-summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--bone-100)}
-summary:hover{color:var(--link)}
-details .body{padding:.8rem 0 .2rem;font-size:14px;color:var(--bone-300)}
-details dl{display:grid;grid-template-columns:12rem 1fr;gap:.3rem 1rem;margin:0;font-size:13px}
-details dt{color:var(--bone-300)}
-.hidden{display:none}
-.foot{font-size:13px;color:var(--bone-300);line-height:1.7;
-  border-top:1px solid var(--ink-700);padding-top:1.2rem}
-}
-</style>
+<link rel="stylesheet" href="/static/player-lab.css">
 </head>
 <body>
 <!--shell:header-->
-<main id="main">
-<div class="bar">
-  <nav aria-label="Player Lab views">
-    <button data-view="player" aria-current="true">Player</button>
-    <button data-view="map">Map</button>
-    <button data-view="explore">Explore</button>
-    <button data-view="compare">Compare</button>
-    <button data-view="why">Why only five?</button>
-  </nav>
-</div>
-  <!-- PLAYER ------------------------------------------------------------ -->
-  <div id="view-player">
-    <section id="intro">
-      <h1 id="hero">Five constructs survived.</h1>
-      <p class="lede">Galáctico does not manufacture ratings. Eight candidate measures went
-        through reliability, confound and incremental-information testing across five leagues
-        and a second data provider. Four survived cleanly, one survives conditionally, and
-        three did not. This is what is left.</p>
+<main id="main" class="page-main player-lab">
+  <div class="ui-tablist pl-views" role="tablist" aria-label="Player profiles views">
+    <button type="button" class="ui-tab" role="tab" id="tab-player" data-view="player" aria-controls="view-player" aria-selected="true">Profile</button>
+    <button type="button" class="ui-tab" role="tab" id="tab-compare" data-view="compare" aria-controls="view-compare" aria-selected="false" tabindex="-1">Compare</button>
+    <button type="button" class="ui-tab" role="tab" id="tab-explore" data-view="explore" aria-controls="view-explore" aria-selected="false" tabindex="-1">Explore a measure</button>
+    <button type="button" class="ui-tab" role="tab" id="tab-map" data-view="map" aria-controls="view-map" aria-selected="false" tabindex="-1">Map</button>
+    <button type="button" class="ui-tab" role="tab" id="tab-why" data-view="why" aria-controls="view-why" aria-selected="false" tabindex="-1">Why only five?</button>
+  </div>
+  <div id="page-state" role="status" hidden></div>
+
+  <!-- PROFILE ----------------------------------------------------------- -->
+  <section id="view-player" class="pl-view" role="tabpanel" aria-labelledby="tab-player">
+    <header class="page-header pl-head">
+      <h1 id="player-title">Player profiles</h1>
+      <p class="pl-facts" id="player-facts"></p>
+      <p class="page-answer" id="player-answer" aria-live="polite"><span class="ui-skeleton pl-line"></span><span class="ui-skeleton pl-line pl-line-short"></span></p>
+      <div id="player-state" class="ui-callout" data-tone="info" role="status" hidden></div>
+      <div class="page-actions" id="player-actions"></div>
+    </header>
+    <div class="pl-find">
+      <label class="ui-label" for="q">Find a player</label>
       <div class="search">
-        <input type="search" id="q" placeholder="Search a player or club — Modrić, Kroos, Isco…"
-               autocomplete="off" aria-label="Search players">
-        <div class="results hidden" id="results" role="listbox"></div>
+        <input type="search" id="q" class="ui-input" placeholder="Name or club: Modrić, Kroos, Isco…"
+               autocomplete="off" aria-controls="results" aria-describedby="q-help">
+        <div class="results" id="results" role="listbox" aria-label="Players found" hidden></div>
       </div>
-    </section>
-    <section id="profile" class="hidden"></section>
-  </div>
-
-  <!-- MAP --------------------------------------------------------------- -->
-  <div id="view-map" class="hidden">
-    <section>
-      <h1>Volume is not efficiency.</h1>
-      <p class="lede">Progression per 90 against progression per completed pass. A player can
-        be high-volume and ordinary-efficiency, or low-volume and elite-efficiency. Collapsing
-        these into one rating would destroy the only interesting thing about the pair.</p>
-      <canvas id="scatter" aria-label="Scatter of progression per 90 against progression per action"></canvas>
-      <div class="quad">
-        <span>↖ high volume · low efficiency</span>
-        <span>↗ high volume · high efficiency — the rare corner</span>
-        <span>↙ low volume · low efficiency</span>
-        <span>↘ low volume · high efficiency — selective, used sparingly</span>
-      </div>
-    </section>
-  </div>
-
-  <!-- EXPLORE ----------------------------------------------------------- -->
-  <div id="view-explore" class="hidden">
-    <section>
-      <h1>Explore a construct.</h1>
-      <p class="lede">Distributions across the competition. Quality constructs can be ordered;
-        style constructs cannot, and are not presented as a ranking.</p>
-      <div id="explore-tabs" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.2rem"></div>
-      <div id="explore-body"></div>
-    </section>
-  </div>
+      <p class="ui-help" id="q-help">Every La Liga player with 900+ minutes in 2017/18.</p>
+    </div>
+    <div id="profile" class="hidden"></div>
+    <div id="profile-loading" class="pl-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+  </section>
 
   <!-- COMPARE ----------------------------------------------------------- -->
-  <div id="view-compare" class="hidden">
-    <section>
-      <h1>Compare two players.</h1>
-      <p class="lede">The difference is the point, not two profiles side by side. Where a gap is
-        smaller than the measurement can separate, it says so.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;max-width:44rem">
-        <div class="search"><input type="search" id="qa" placeholder="First player…" autocomplete="off">
-          <div class="results hidden" id="ra"></div></div>
-        <div class="search"><input type="search" id="qb" placeholder="Second player…" autocomplete="off">
-          <div class="results hidden" id="rb"></div></div>
-      </div>
-      <div id="cmp" style="margin-top:2rem"></div>
-    </section>
-  </div>
+  <section id="view-compare" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-compare">
+    <header class="page-header">
+      <h1 id="compare-title">Compare two players</h1>
+      <p class="page-answer" id="compare-answer" aria-live="polite">Pick two players. Where a gap is smaller than the measurement can separate, it says so.</p>
+    </header>
+    <div class="pl-pair">
+      <div class="ui-field search"><label class="ui-label" for="qa">First player</label>
+        <input type="search" id="qa" class="ui-input" placeholder="Name or club" autocomplete="off" aria-controls="ra">
+        <div class="results" id="ra" role="listbox" aria-label="Players found" hidden></div></div>
+      <div class="ui-field search"><label class="ui-label" for="qb">Second player</label>
+        <input type="search" id="qb" class="ui-input" placeholder="Name or club" autocomplete="off" aria-controls="rb">
+        <div class="results" id="rb" role="listbox" aria-label="Players found" hidden></div></div>
+    </div>
+    <div id="cmp" aria-live="polite"></div>
+  </section>
+
+  <!-- EXPLORE ----------------------------------------------------------- -->
+  <section id="view-explore" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-explore">
+    <header class="page-header">
+      <h1 id="explore-title">Explore a measure</h1>
+      <p class="page-answer" id="explore-answer"></p>
+    </header>
+    <div id="explore-tabs" class="pl-chips" role="group" aria-label="Measure"></div>
+    <div id="explore-body" aria-live="polite"></div>
+  </section>
+
+  <!-- MAP --------------------------------------------------------------- -->
+  <section id="view-map" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-map">
+    <header class="page-header">
+      <h1>Progression: how much, and how efficiently</h1>
+      <p class="page-answer">Each dot is one outfield player: progression per 90 minutes (up) against progression per completed pass (across). Select a dot to open his profile.</p>
+    </header>
+    <div class="pl-map">
+      <canvas id="scatter" role="img" aria-label="Scatter of progression per 90 against progression per completed pass"></canvas>
+      <div class="pl-tip" id="scatter-tip" hidden></div>
+    </div>
+    <ul class="ui-legend pl-legend">
+      <li><span class="pl-dot pl-dot-solid" aria-hidden="true"></span>Real Madrid</li>
+      <li><span class="pl-dot" aria-hidden="true"></span>Other clubs</li>
+      <li><span class="ui-selected-mark" aria-hidden="true"></span><span id="map-subject">The player you opened</span></li>
+    </ul>
+    <div class="quad">
+      <span>↖ high volume, low efficiency</span>
+      <span>↗ high volume, high efficiency</span>
+      <span>↙ low volume, low efficiency</span>
+      <span>↘ low volume, high efficiency</span>
+    </div>
+  </section>
 
   <!-- WHY --------------------------------------------------------------- -->
-  <div id="view-why" class="hidden">
-    <section>
-      <h1>Why only five?</h1>
-      <p class="lede">Every candidate went through the same lifecycle: definition, reliability,
-        confound audit, construct validity, incremental information, robustness. Three failed at
-        three different stages, and the differences matter more than the failures.</p>
-      <div class="why" id="why"></div>
-      <div class="credit" id="why-credit"></div>
-    </section>
-  </div>
+  <section id="view-why" class="pl-view hidden" role="tabpanel" aria-labelledby="tab-why">
+    <header class="page-header">
+      <h1>Why only five measures?</h1>
+      <p class="page-answer">Every candidate went through the same tests: definition, reliability, confounds, validity, added information and a second data provider. Three failed, at three different stages.</p>
+    </header>
+    <p id="hero" class="pl-counts"></p>
+    <div class="why" id="why"></div>
+    <div class="credit" id="why-credit"></div>
+  </section>
 
-  <div class="foot" id="foot"></div>
+  <details class="ui-disclosure pl-about" id="about">
+    <summary>About these numbers</summary>
+    <div class="ui-disclosure-body">
+      <p id="foot"></p>
+      <dl id="provenance" hidden></dl>
+      <p><a href="/about">Methods, sources and licences</a></p>
+    </div>
+  </details>
 </main>
 <!--shell:footer-->
 
@@ -278,206 +122,332 @@ const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
 // A count of minutes, written one way in every browser. The browser's own format writes
 // 1,800 as "1.800" under a German or a Spanish locale, inside an English sentence.
 const whole = n => n.toLocaleString('en-US');
-const UNITS = {progression:"xT / 90", progression_per_action:"xT / pass",
-  chance_creation:"xT / 90", half_space_share:"share", width:"share"};
 let META = null, CONSTRUCTS = null;
 
-/* ---------- view switching ---------- */
-document.querySelectorAll('.bar nav button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.bar nav button').forEach(x => x.setAttribute('aria-current', x === b));
-  ['player','map','explore','compare','why'].forEach(v =>
-    $('#view-' + v).classList.toggle('hidden', v !== b.dataset.view));
-  if (b.dataset.view === 'map') drawScatter();
-  if (b.dataset.view === 'explore') initExplore();
+/* ---------- views and the address ---------- */
+/* What is on screen is in the address: the view, the player, the pair compared and the measure
+   explored. Back, forward and a shared link open the same screen. */
+const VIEWS = ['player', 'compare', 'explore', 'map', 'why'];
+const DEFAULT_PLAYER = 'modric';  // the profile a bare /player opens on
+const state = {view: 'player', player: null, a: null, b: null, measure: null};
+function readAddress(){
+  const q = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
+  const id = k => (/^\d+$/.test(q.get(k) || '') ? Number(q.get(k)) : null);
+  state.view = VIEWS.includes(q.get('view')) ? q.get('view') : 'player';
+  // A view whose address names no player keeps the one last opened, for the Profile tab.
+  state.player = id('player') ?? state.player; state.a = id('a'); state.b = id('b');
+  state.measure = q.get('measure');
+}
+function address(){
+  const q = new URLSearchParams();
+  if (state.view !== 'player') q.set('view', state.view);
+  if (state.player && ['player', 'map', 'explore'].includes(state.view)) q.set('player', state.player);
+  if (state.view === 'compare') { if (state.a) q.set('a', state.a); if (state.b) q.set('b', state.b); }
+  if (state.view === 'explore' && state.measure) q.set('measure', state.measure);
+  const query = q.toString();
+  return (typeof location === 'undefined' ? '/player' : location.pathname) + (query ? '?' + query : '');
+}
+function go(next, replace){
+  Object.assign(state, next);
+  if (typeof history !== 'undefined') history[replace ? 'replaceState' : 'pushState'](null, '', address());
+  return show();
+}
+const openPlayer = id => go({view: 'player', player: Number(id)});
+
+function selectTab(view){
+  document.querySelectorAll('.pl-views [role="tab"]').forEach(tab => {
+    const on = tab.dataset.view === view;
+    tab.setAttribute('aria-selected', on);
+    tab.tabIndex = on ? 0 : -1;
+  });
+  VIEWS.forEach(v => $('#view-' + v).classList.toggle('hidden', v !== view));
+}
+async function show(){
+  selectTab(state.view);
+  $('#page-state').hidden = true;
+  $('#player-state').hidden = true;
+  try {
+    if (state.view === 'player') await openProfile();
+    else if (state.view === 'compare') await openCompare();
+    else if (state.view === 'explore') await initExplore();
+    else if (state.view === 'map') await drawScatter();
+  } catch (failed) { trouble(failed); }
+}
+// A view that cannot load says so in words, in place of the view: the archive missing (503)
+// in the site's one sentence; anything else, what to try.
+function trouble(failed){
+  // An unknown player: the H1 stays first, the reason sits under it, and one action opens the
+  // default profile, so the page is never empty.
+  if (failed === 404 && state.view === 'player') {
+    $('#profile-loading').hidden = true;
+    $('#profile').classList.add('hidden');
+    $('#player-title').textContent = 'Player profiles';
+    $('#player-answer').hidden = true;
+    $('#player-facts').innerHTML = '';
+    const note = $('#player-state');
+    note.innerHTML = '<p>That player is not in the 2017/18 archive. Find another one below.</p>';
+    note.hidden = false;
+    $('#player-actions').innerHTML = '<button type="button" class="ui-btn ui-btn-primary" id="show-default">Show L. Modrić</button>';
+    $('#show-default').onclick = () => { state.player = null; go({view: 'player', player: null}); };
+    return;
+  }
+  const box = $('#page-state');
+  box.className = 'ui-callout';
+  box.dataset.tone = failed === 503 ? 'unavailable' : 'error';
+  box.innerHTML = '<p>' + (failed === 503 ? Site.archiveMissing()
+    : failed === 404 ? 'That player is not in the 2017/18 archive. Find another one below.'
+    : 'This view could not load. Reload the page to try again.') + '</p>';
+  box.hidden = false;
+  $('#profile-loading').hidden = true;
+  if (state.view === 'player') {
+    $('#player-title').textContent = 'Player profiles';
+    $('#player-answer').hidden = true;
+    $('#player-facts').innerHTML = $('#player-actions').innerHTML = '';
+    $('#profile').classList.add('hidden');
+  }
+  if (failed === 503) VIEWS.forEach(v => $('#view-' + v).classList.add('hidden'));
+}
+document.querySelectorAll('.pl-views [role="tab"]').forEach((tab, i, tabs) => {
+  tab.addEventListener('click', () => go({view: tab.dataset.view}));
+  tab.addEventListener('keydown', e => {
+    const step = {ArrowRight: 1, ArrowLeft: -1}[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const next = tabs[(i + step + tabs.length) % tabs.length];
+    next.focus(); next.click();
+  });
 });
 
 /* ---------- search ---------- */
 function wireSearch(input, box, onPick){
-  let t;
+  let t, asked = 0;
+  const close = () => { box.hidden = true; input.setAttribute('aria-expanded', 'false'); };
   input.addEventListener('input', () => {
     clearTimeout(t);
     t = setTimeout(async () => {
-      const q = input.value.trim();
-      if (q.length < 2){ box.classList.add('hidden'); return; }
-      const d = await api('/api/players?q=' + encodeURIComponent(q) + '&limit=10');
+      const q = input.value.trim(), mine = ++asked;
+      if (q.length < 2){ close(); return; }
+      let d;
+      try { d = await api('/api/players?q=' + encodeURIComponent(q) + '&limit=10'); }
+      catch (failed) { if (mine === asked) { box.innerHTML = '<p class="none">Search is unavailable right now.</p>'; box.hidden = false; } return; }
+      if (mine !== asked) return;
       box.innerHTML = d.players.map(p =>
-        `<button data-id="${p.player_id}"><span>${p.name}</span>
-         <span class="t">${p.team} · ${p.position}</span>
+        `<button type="button" role="option" data-id="${p.player_id}"><span>${esc(p.name)}</span>
+         <span class="t">${esc(p.team)} · ${esc(p.position)}</span>
          <span class="m">${whole(p.minutes)}′</span></button>`).join('')
-        || '<button disabled><span class="t">no match</span></button>';
-      box.classList.remove('hidden');
-      box.querySelectorAll('button[data-id]').forEach(btn => btn.onclick = () => {
-        box.classList.add('hidden'); input.value = btn.querySelector('span').textContent;
-        onPick(+btn.dataset.id);
+        || '<p class="none">No player found. Try a surname or a club.</p>';
+      box.hidden = false; input.setAttribute('aria-expanded', 'true');
+      box.querySelectorAll('button[data-id]').forEach(btn => {
+        btn.onclick = () => { close(); input.value = btn.querySelector('span').textContent;
+          onPick(+btn.dataset.id); };
+        btn.onkeydown = e => {
+          const sib = e.key === 'ArrowDown' ? btn.nextElementSibling : e.key === 'ArrowUp' ? btn.previousElementSibling : null;
+          if (e.key === 'Escape') { close(); input.focus(); }
+          if (sib) { e.preventDefault(); sib.focus(); }
+        };
       });
     }, 140);
   });
+  input.addEventListener('keydown', e => {
+    const first = box.querySelector('button[data-id]');
+    if (e.key === 'Escape') close();
+    if (first && !box.hidden && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+      e.preventDefault(); e.key === 'Enter' ? first.click() : first.focus();
+    }
+  });
+  document.addEventListener('click', e => { if (!box.contains(e.target) && e.target !== input) close(); });
 }
 
-/* ---------- percentile strip (QUALITY only) ---------- */
+/* ---------- percentile strip (directional measures only) ---------- */
 /* A percentile is a position in the BETWEEN-player distribution. Reliability is
    a property of the estimator. They are different quantities, and an earlier
    version widened the percentile marker with reliability — which reads as a
-   confidence interval on this player, which it is not. The rug shows the
-   population, the marker shows where he sits in it, the grade is stated in words. */
+   confidence interval on this player, which it is not. The line is the population's
+   range, the marker shows where he sits in it, the grade is stated in words. */
 function strip(pct, population){
   if (pct === null || pct === undefined) return '';
   const x = Math.max(0, Math.min(100, pct));
-  // The rug used to plot other players' PERCENTILES on a percentile axis,
-  // which is uniform by definition and therefore carried exactly zero
-  // information while looking like a distribution. Removed rather than
-  // redrawn: a value-space distribution belongs on a value axis, and this
-  // strip is a position axis.
-  const rug = '';
   // His mark is a gold bar with a dark edge in an overlay, like geoBar's, so the stretched
   // drawing cannot widen it, and it stays visible on a light page.
   return `<span class="mark-frame"><span class="selected-mark"
-      style="left:${x}%;width:6px;height:20px;margin:-10px 0 0 -3px"></span>
-    <svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img">
-    <line x1="0" y1="17" x2="100" y2="17" stroke="var(--ink-600)" stroke-width="1"
+      style="left:${x}%;width:8px;height:22px;margin:-11px 0 0 -4px"></span>
+    <svg viewBox="0 0 100 34" preserveAspectRatio="none" role="img" aria-label="Percentile ${Math.round(x)} of 100">
+    <line x1="0" y1="17" x2="100" y2="17" stroke="var(--border-control)" stroke-width="2"
       vector-effect="non-scaling-stroke"/>
-    ${[25,50,75].map(t=>`<line x1="${t}" y1="12" x2="${t}" y2="22" stroke="var(--ink-600)"
+    ${[0,25,50,75,100].map(t=>`<line x1="${t}" y1="11" x2="${t}" y2="23" stroke="var(--border-control)"
       stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('')}
-    ${rug}
   </svg></span>`;
 }
 
 /* ---------- style zones (NOT a percentile) ---------- */
-function zoneBar(z){
-  const seg = [["left_wide","LW"],["left_half","LH"],["centre","C"],["right_half","RH"],["right_wide","RW"]];
+// The five channels left to right, each labelled with the server's name and percentage
+// (/api/answers/player zones): the page writes no share of its own.
+function zoneBar(zones){
   // Shaded by distance from the centre on a chart surface, dark in both themes.
   const tone = ["var(--chart-bg-2)","var(--chart-grid)","var(--chart-axis)","var(--chart-grid)","var(--chart-bg-2)"];
-  return `<div class="zones" role="img" aria-label="Share of completed passes by pitch channel">` +
-    seg.map(([k,l],i)=>{
-      const v = (z[k]||0);
-      return `<div style="flex:${Math.max(v,0.001)};background:${tone[i]}"
-        title="${l} ${(v*100).toFixed(0)}%"><span>${l}</span></div>`;
-    }).join('') + `</div>`;
+  return `<div class="zones" role="img" aria-label="${esc(zones.map(z => z.label + ' ' + z.share_text).join(', '))}">` +
+    zones.map((z, i) => `<div style="flex:${Math.max(z.share, 0.001)};background:${tone[i] || tone[2]}"
+        title="${esc(z.label)} ${esc(z.share_text)}"><span>${esc(z.short)}</span><b>${esc(z.share_text)}</b></div>`).join('') + `</div>`;
 }
 
-/* ---------- withheld outside the declared context ---------- */
-/* A row that says so, with the server's reason. Not a zero and not a blank, and
-   not INSUFFICIENT SIGNAL either: more minutes would not change it. */
+/* ---------- a measure with no number ---------- */
+/* A row that says so, with the server's reason. Not a zero and not a blank. Withheld is
+   outside the measure's declared context (more minutes would not change it); the other is a
+   minutes floor not reached. */
 const outOfContext = c => c.render_state === 'out_of_context';
-const withheld = c => `<div class="insufficient">WITHHELD · OUTSIDE DECLARED CONTEXT
-  <small>${c.notes}</small></div>`;
+const said = (c, ANSWER) => ((ANSWER && ANSWER.measures) || []).find(m => m.construct_id === c.construct_id) || {};
+const noNumber = (title, line) => `<div class="insufficient ui-callout" data-tone="withheld">
+  <p class="ui-callout-title">${esc(title)}</p><small>${esc(line)}</small></div>`;
+const withheld = (c, s) => noNumber(s.status_title || 'Withheld', s.status_line || c.notes);
+// The line under the title is the server's (/api/answers/player): this page writes no
+// sentence with a number in it. Without the server's lines the title stands alone.
+const belowFloor = (c, s) => noNumber(s.status_title || 'Not enough minutes to judge', s.status_line || '');
 
 /* ---------- profile ---------- */
+let profileVersion = 0;
+async function openProfile(){
+  if (!state.player && state.a) state.player = state.a;
+  if (!state.player) {
+    const first = await api('/api/players?q=' + DEFAULT_PLAYER + '&limit=1');
+    if (!first.players.length) { emptyProfile(); return; }
+    state.player = first.players[0].player_id;
+    if (typeof history !== 'undefined') history.replaceState(null, '', address());
+  }
+  await showPlayer(state.player);
+}
+function emptyProfile(){
+  $('#player-title').textContent = 'Player profiles';
+  $('#player-answer').textContent = 'Find a player above to open his profile.';
+  $('#profile-loading').hidden = true;
+}
 async function showPlayer(id){
-  const p = await api('/api/players/' + id);
+  const mine = ++profileVersion;
+  $('#profile-loading').hidden = false;
+  $('#profile').classList.add('hidden');
+  // The profile and the sentences the server wrote about it. A profile still draws if its
+  // sentences cannot load; the answer line is then left out, never written here.
+  const [p, ANSWER] = await Promise.all([api('/api/players/' + id),
+    api('/api/answers/player/' + id).catch(() => null)]);
+  if (mine !== profileVersion) return;
   const q = p.constructs.filter(c => c.family === 'quality');
   const s = p.constructs.filter(c => c.family === 'style');
   const el = $('#profile');
 
   const qualityCards = q.map(c => {
     const def = CONSTRUCTS.shipped.find(x => x.id === c.construct_id) || {};
-    if (outOfContext(c))
-      return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
-        <div class="claim">${def.claim||''}</div></div>
-        ${withheld(c)}
-        <div><div class="val" style="color:var(--bone-500)">—</div>
-          <div class="unit">${UNITS[c.construct_id]||''}</div></div></div>`;
+    const say = said(c, ANSWER);
+    const head = `<div class="m-head"><h3 class="name">${esc(label(c.construct_id))}</h3>
+        <p class="claim">${esc(def.claim)}</p></div>`;
+    if (outOfContext(c)) return `<article class="card measure">${head}${withheld(c, say)}</article>`;
     if (c.render_state === 'insufficient_signal')
-      return `<div class="card"><div><div class="name">${label(c.construct_id)}</div>
-        <div class="claim">${def.claim||''}</div></div>
-        <div class="insufficient">INSUFFICIENT SIGNAL
-          <small>This estimator needs ${whole(c.minutes_floor)} minutes before a point
-          estimate is shown; he played ${whole(p.minutes)}.</small></div>
-        <div><div class="val" style="color:var(--bone-500)">—</div>
-          <div class="unit">${UNITS[c.construct_id]||''}</div></div></div>`;
+      return `<article class="card measure">${head}${belowFloor(c, say)}</article>`;
     const signal = c.signal;
-    return `<div class="card">
-      <div><div class="name">${label(c.construct_id)}</div>
-        <div class="claim">${def.claim||''}</div></div>
-      <div><div class="strip">${strip(c.percentile, POPULATION[c.construct_id])}</div>
-        <div class="pctsub">${esc(c.percentile_note)}</div></div>
-      <div><div class="val">${c.display ?? '—'}</div>
-        <div class="unit">${UNITS[c.construct_id]||''}</div>
-        ${c.quantiles ? `<div class="unit" style="opacity:.7;margin-top:.35rem">uncertainty in this estimate</div>
-          <div style="height:12px" 
-          title="Match-level block bootstrap over this player's ${c.n_matches} matches — the uncertainty in HIS estimate, not the estimator's reliability">${
-          quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
-          <div class="unit" style="opacity:.7">90% ${c.quantiles[0].toFixed(3)}–${c.quantiles[c.quantiles.length-1].toFixed(3)}</div>` : ''}
-        <div style="margin-top:.4rem;text-align:right"><span class="badge g-${signal}"
-          title="${esc(c.signal_note)}">estimator signal: ${signal}</span></div>
-      </div></div>`;
+    const place = say.place ? `<p class="m-place"><span class="pct">${esc(say.place)}</span>
+        <span class="pct-unit">percentile</span></p>` : '';
+    return `<article class="card measure">${head}${place}
+      <div class="m-strip"><div class="strip">${strip(c.percentile, POPULATION[c.construct_id])}</div>
+        <div class="scale" aria-hidden="true"><span>0</span><span>50</span><span>100</span></div>
+        <p class="pctsub${say.place ? ' sr-only' : ''}">${esc(say.percentile_line || c.percentile_note)}</p></div>
+      <details class="ui-disclosure how-sure"><summary>How sure is this?
+          <span class="ui-disclosure-summary">${esc(say.reliability_label || 'Reliability: ' + signal)}</span></summary>
+        <div class="ui-disclosure-body">
+          <p class="val-line"><span class="val">${esc(c.display ?? '—')}</span>
+            <span class="unit">${esc(say.value_line ? say.value_line.replace(/^[^:]*:\s*/, '') : UNITS[c.construct_id] || '')}</span></p>
+          ${c.quantiles ? `<div class="dots-row">${quantileDots(c.quantiles, c.quantiles[0], c.quantiles[c.quantiles.length-1])}</div>
+            ${say.uncertainty_line ? `<p class="note">${esc(say.uncertainty_line)}</p>` : ''}` : ''}
+          <p class="note"><span class="badge g-${signal}"
+            title="${esc(c.signal_note)}">Reliability: ${esc(signal)}</span></p>
+          <p class="note">${esc(c.signal_note)}</p>
+        </div></details>
+    </article>`;
   }).join('');
 
+  // A pass-origin share: the server's name and sentence (his share beside his group's median),
+  // the strip against the share of the pitch those channels cover, and the rest closed.
   const styleRows = s.map(c => {
-    const def = CONSTRUCTS.shipped.find(x => x.id === c.construct_id) || {};
+    const say = said(c, ANSWER), name = say.share_label || label(c.construct_id);
+    const head = `<div><h3 class="name">${esc(name)}</h3>`;
     if (outOfContext(c))
-      return `<div class="style-row">
-        <div><div class="name">${label(c.construct_id)}</div>
-          <div class="claim">${def.claim||''}</div></div>
-        ${withheld(c)}</div>`;
-    return `<div class="style-row">
-      <div><div class="name">${label(c.construct_id)}</div>
-        <div class="claim">${def.claim||''}</div>
-        <div class="claim" style="color:var(--bone-500);margin-top:.4rem">
-          <span class="badge b-none">observed location · not ranked</span></div></div>
-      <div><div class="mono" style="font-size:.95rem">${(c.value*100).toFixed(0)}% of completed passes
-          originated in the ${c.construct_id === 'width' ? 'wide channels' : 'half-spaces'}</div>
+      return `<div class="style-row">${head}</div>${withheld(c, say)}</div>`;
+    return `<div class="style-row">${head}
+        ${say.share_text ? `<p class="m-place"><span class="pct">${esc(say.share_text)}</span></p>` : ''}</div>
+      <div>${say.share_line ? `<p class="share">${esc(say.share_line)}</p>` : ''}
         <div class="strip" style="height:18px">${geoBar(c.value, c.geometric_neutral)}</div>
-        <div class="spectrum">
-          Pitch-area reference ${(c.geometric_neutral*100).toFixed(0)}%
-          &nbsp;·&nbsp; ${c.departure >= 0 ? '+' : ''}${(c.departure*100).toFixed(0)} pts${
-            c.population_median != null ? `<br>Comparable ${p.position} median ${(c.population_median*100).toFixed(0)}%
-            &nbsp;·&nbsp; ${c.value - c.population_median >= 0 ? '+' : ''}${((c.value - c.population_median)*100).toFixed(0)} pts` : ''}
-          <br><span style="color:var(--bone-300)">${c.style_band}</span></div></div>
+        ${say.area_line || say.note_line ? `<details class="ui-disclosure how-sure"><summary>How to read this</summary>
+          <div class="ui-disclosure-body">${say.area_line ? `<p class="note">${esc(say.area_line)}</p>` : ''}
+          ${say.note_line ? `<p class="note">${esc(say.note_line)}</p>` : ''}</div></details>` : ''}</div>
     </div>`;
   }).join('');
+  const zones = (ANSWER && ANSWER.zones) || [];
 
   el.innerHTML = `
-    <div class="phead">
-      <div><h2>${p.name}</h2>
-        <div class="sub">${p.team} · ${p.position} · ${p.competition} ${p.season}</div></div>
-      <div class="facts">
-        <div class="fact"><div class="k">Minutes</div><div class="v">${whole(p.minutes)}</div></div>
-        <div class="fact"><div class="k">Estimator</div><div class="v" style="font-size:.8rem">${p.regime}_v1</div></div>
-      </div>
-    </div>
-    <h2>Quality</h2><div class="cards">${qualityCards}</div>
-    <h2 style="margin-top:2.4rem">Observed location — descriptive, no good direction</h2>
-    <div class="cards">${styleRows}</div>
-    ${Object.keys(p.zone_shares || {}).length
-      ? `<div style="margin-top:1rem;padding-bottom:.7rem">${zoneBar(p.zone_shares)}</div>
-    <div class="spectrum">Share of completed passes by origin channel. LW / LH = left wide and left
-      half-space, C = centre, RH / RW = right. Where a player's passes started is
-      partly where he was deployed; this describes the season, not a disposition.</div>`
-      : `<div class="spectrum" id="zones-withheld">The channel breakdown is withheld with the
-      pass-origin shares above, which it restates. ${(s.find(outOfContext) || {}).notes || ''}</div>`}
-    <details style="margin-top:2rem"><summary>View provenance</summary>
-      <div class="body"><dl>
-        <dt>construct set</dt><dd>${p.constructs.map(c=>c.construct_id).join(', ')}</dd>
-        <dt>estimator</dt><dd>${p.regime}_v1</dd>
-        <dt>source</dt><dd>Pappalardo/Wyscout open dataset, CC BY 4.0</dd>
-        <dt>season</dt><dd>${p.competition} ${p.season}</dd>
-        <dt>xT model</dt><dd>${META.xt_version}</dd>
-        <dt>dataset hash</dt><dd>${META.dataset_hash}</dd>
-        <dt>artifact version</dt><dd>${META.version_key}</dd>
-        <dt>generated</dt><dd>${META.generated_at}</dd>
-      </dl></div></details>`;
+    <section class="pl-section" aria-labelledby="produces">
+      <h2 id="produces">What he produces</h2>
+      ${ANSWER && ANSWER.reference_line ? `<p class="section-note">${esc(ANSWER.reference_line)}</p>` : ''}
+      <div class="cards measures">${qualityCards}</div>
+    </section>
+    <section class="pl-section ui-card" aria-labelledby="starts">
+      <h2 id="starts">Where his passes start</h2>
+      <p class="section-note">These shares describe his season. A higher share is not a merit.</p>
+      <div class="cards">${styleRows}</div>
+      ${zones.length
+        ? `<div class="zones-wrap">${zoneBar(zones)}</div>
+      <div class="spectrum">${esc(ANSWER.zones_line || '')}</div>`
+        : Object.keys(p.zone_shares || {}).length ? ''
+        : `<div class="spectrum" id="zones-withheld">The channel breakdown is withheld with the
+        pass-origin shares above, which it restates. ${esc((s.find(outOfContext) || {}).notes)}</div>`}
+    </section>`;
+
+  // The header: his name, the facts, the server's sentence, and where to go next.
+  $('#player-title').textContent = p.name;
+  if (typeof document !== 'undefined' && 'title' in document) document.title = p.name + ' · Player profiles · Galáctico';
+  $('#player-facts').innerHTML = ((ANSWER && ANSWER.facts) || [p.team, p.position, whole(p.minutes) + ' minutes'])
+    .map(f => `<span>${esc(f)}</span>`).join('');
+  const answer = $('#player-answer');
+  answer.textContent = (ANSWER && ANSWER.answer) || '';
+  answer.hidden = !(ANSWER && ANSWER.answer);
+  // The map draws a player only where both of its measures show a number.
+  const onMap = ['progression', 'progression_per_action'].every(id =>
+    (p.constructs.find(c => c.construct_id === id) || {}).render_state === 'point_estimate');
+  $('#player-actions').innerHTML =
+    `<a class="ui-btn ui-btn-primary" href="?view=compare&a=${p.player_id}" data-go="compare">Compare with another player</a>` +
+    (onMap ? `<a class="ui-btn" href="?view=map&player=${p.player_id}" data-go="map">See him on the map</a>` : '');
+  $('#player-actions').querySelectorAll('[data-go]').forEach(a => a.onclick = e => {
+    e.preventDefault();
+    go(a.dataset.go === 'compare' ? {view: 'compare', a: p.player_id, b: null} : {view: 'map'});
+  });
+  $('#provenance').innerHTML = `
+        <dt>Measures</dt><dd>${p.constructs.map(c => esc(label(c.construct_id))).join(', ')}</dd>
+        <dt>Estimator</dt><dd>${esc(p.regime)}_v1</dd>
+        <dt>Source</dt><dd>Pappalardo/Wyscout open dataset, CC BY 4.0</dd>
+        <dt>Season</dt><dd>${esc(p.competition)} ${esc(p.season)}</dd>
+        <dt>xT model</dt><dd>${esc(META.xt_version)}</dd>
+        <dt>Dataset hash</dt><dd class="id">${esc(META.dataset_hash)}</dd>
+        <dt>Artifact version</dt><dd class="id">${esc(META.version_key)}</dd>
+        <dt>Generated</dt><dd>${esc(META.generated_at)}</dd>`;
+  $('#provenance').hidden = false;
+  $('#profile-loading').hidden = true;
   el.classList.remove('hidden');
-  
 }
 
 /* Style shares are geometry-dominated. Wide is 42% of the pitch's width by
    area, the half-spaces 32%. A 42% width share is NO preference, and a filled bar
    on a 0-100 track would state the opposite. So the neutral point is drawn and
-   the deviation from it is the mark. */
-function geoBar(v, neutral){
+   the deviation from it is the mark. His own mark is gold, the selected subject; a list or a
+   pair draws each player's mark plain, and gold only for the player whose profile is open. */
+function geoBar(v, neutral, mark = 'selected-mark'){
   const x = Math.max(0, Math.min(100, v*100)), n = neutral*100;
   // The marker sits in an absolutely-positioned overlay rather than inside the
   // stretched SVG, so it stays a point instead of becoming a lozenge.
   // The mark is centred on the drawing's line, whatever height the drawing is given.
   return '<span class="mark-frame">' +
-    '<span class="selected-mark" style="left:' + x + '%;width:10px;height:10px;' +
+    '<span class="' + mark + '" style="left:' + x + '%;width:10px;height:10px;' +
     'margin:-5px 0 0 -5px;border-radius:50%"></span>' +
     '<svg viewBox="0 0 100 18" preserveAspectRatio="none" role="img"' +
     ' aria-label="Channel share against the pitch own geometry">' +
-    '<line x1="0" y1="9" x2="100" y2="9" stroke="var(--ink-600)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
-    '<line x1="' + n + '" y1="2" x2="' + n + '" y2="16" stroke="var(--bone-500)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>' +
-    '<line x1="' + Math.min(n,x) + '" y1="9" x2="' + Math.max(n,x) + '" y2="9" stroke="var(--bone-300)" stroke-width="3" vector-effect="non-scaling-stroke"/>' +
+    '<line x1="0" y1="9" x2="100" y2="9" stroke="var(--border-control)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
+    '<line x1="' + n + '" y1="2" x2="' + n + '" y2="16" stroke="var(--text-subtle)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>' +
+    '<line x1="' + Math.min(n,x) + '" y1="9" x2="' + Math.max(n,x) + '" y2="9" stroke="var(--text-muted)" stroke-width="3" vector-effect="non-scaling-stroke"/>' +
     '</svg></span>';
 }
 
@@ -487,12 +457,15 @@ function geoBar(v, neutral){
 const inStrip = bar => '<div class="strip">' + bar + '</div>';
 
 let POPULATION = {};
+// The unit of a value when the server's sentences did not load.
+const UNITS = {progression: "xT per 90 minutes", progression_per_action: "xT per completed pass",
+  chance_creation: "xT per 90 minutes"};
 
 /* The player's OWN uncertainty, from a match-level block bootstrap. Drawn as
    discrete quantile dots rather than a violin or a whisker: dots show asymmetry,
    are countable, imply no Gaussian, and do not over-weight the endpoints the way
-   an error bar does. Deliberately unlike the population rug beneath the
-   percentile strip, because these are different quantities. */
+   an error bar does. Deliberately unlike the percentile strip, because these are
+   different quantities. */
 function quantileDots(quantiles, lo, hi){
   if (!quantiles || hi <= lo) return '';
   const x = v => Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100));
@@ -506,15 +479,16 @@ function quantileDots(quantiles, lo, hi){
 // interface still using the stronger word. No name is built here from an id.
 const label = k => (CONSTRUCTS.shipped.find(c => c.id === k) || {}).label || k;
 
-/* ---------- scatter ---------- */
-let scatterData = null;
+/* ---------- map ---------- */
+let scatterData = null, scatterDrawn = null;
 async function drawScatter(){
   if (!scatterData) scatterData = await api('/api/scatter');
   const cv = $('#scatter'), dpr = window.devicePixelRatio || 1;
-  const w = cv.clientWidth, h = 460;
+  const w = cv.clientWidth, h = cv.clientHeight || 460;
+  if (!w) return;
   cv.width = w * dpr; cv.height = h * dpr;
   const g = cv.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0,0,w,h);
-  const pts = scatterData.points, pad = 54;
+  const pts = scatterData.points, pad = w < 520 ? 40 : 54;
   const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
   const xr = [Math.min(...xs), Math.max(...xs)], yr = [Math.min(...ys), Math.max(...ys)];
   const X = v => pad + (v - xr[0]) / (xr[1]-xr[0]) * (w - pad*1.5);
@@ -528,112 +502,180 @@ async function drawScatter(){
   g.beginPath(); g.moveTo(pad, Y(my)); g.lineTo(w-pad*0.5, Y(my)); g.stroke();
 
   // Real Madrid's players solid, everyone else open: the same colour, told apart by shape.
+  // The player opened last is the selected subject: gold, drawn last, with his name.
+  const r = w < 520 ? 3.2 : 2.8;
   pts.forEach(p => {
-    g.beginPath(); g.arc(X(p.x), Y(p.y), 2.6, 0, 7);
+    if (p.player_id === state.player) return;
+    g.beginPath(); g.arc(X(p.x), Y(p.y), r, 0, 7);
     if (p.team === 'Real Madrid') { g.fillStyle = role('--chart-text'); g.fill(); }
     else { g.strokeStyle = role('--chart-text-muted'); g.lineWidth = 1; g.stroke(); }
   });
-  g.fillStyle = role('--chart-text-muted');
+  const him = pts.find(p => p.player_id === state.player);
+  $('#map-subject').textContent = him ? him.name + ' (the player you opened)' : 'The player you opened (not on this map)';
   g.font = `600 12px ${role('--font-sans')}`;
-  g.fillText('progression per completed pass →', pad, h - 18);
-  g.save(); g.translate(18, h-pad); g.rotate(-Math.PI/2);
+  if (him) {
+    g.beginPath(); g.arc(X(him.x), Y(him.y), r + 3, 0, 7);
+    g.fillStyle = role('--selected'); g.fill();
+    g.lineWidth = 2; g.strokeStyle = role('--chart-bg'); g.stroke();
+    g.fillStyle = role('--chart-text');
+    const right = X(him.x) > w - 140;
+    g.textAlign = right ? 'right' : 'left';
+    g.fillText(him.name, X(him.x) + (right ? -10 : 10), Y(him.y) - 8);
+    g.textAlign = 'left';
+  }
+  g.fillStyle = role('--chart-text-muted');
+  g.fillText('progression per completed pass →', pad, h - 14);
+  g.save(); g.translate(16, h-pad); g.rotate(-Math.PI/2);
   g.fillText('progression per 90 →', 0, 0); g.restore();
-  g.fillStyle = role('--chart-text'); g.textAlign = 'right';
-  g.fillText('solid = Real Madrid', w - 14, 22); g.textAlign = 'left';
 
-  cv.onmousemove = e => {
-    const r = cv.getBoundingClientRect(), mxp = e.clientX-r.left, myp = e.clientY-r.top;
-    const near = pts.find(p => Math.hypot(X(p.x)-mxp, Y(p.y)-myp) < 6);
-    cv.title = near ? `${near.name} — ${near.team} · ${near.position} · ${near.minutes}′` : '';
+  scatterDrawn = {pts, X, Y};
+  const near = e => {
+    const box = cv.getBoundingClientRect(), mxp = e.clientX - box.left, myp = e.clientY - box.top;
+    let found = null, best = 12;
+    pts.forEach(p => { const d = Math.hypot(X(p.x) - mxp, Y(p.y) - myp); if (d < best) { best = d; found = p; } });
+    return found;
   };
+  const tip = $('#scatter-tip');
+  cv.onmousemove = e => {
+    const p = near(e);
+    cv.style.cursor = p ? 'pointer' : 'default';
+    tip.hidden = !p;
+    if (p) {
+      tip.textContent = `${p.name} · ${p.team} · ${whole(p.minutes)}′`;
+      tip.style.left = Math.min(X(p.x) + 12, w - 220) + 'px';
+      tip.style.top = Math.max(Y(p.y) - 36, 4) + 'px';
+    }
+  };
+  cv.onmouseleave = () => { tip.hidden = true; };
+  cv.onclick = e => { const p = near(e); if (p) openPlayer(p.player_id); };
 }
+let resized;
+window.addEventListener?.('resize', () => {
+  clearTimeout(resized);
+  resized = setTimeout(() => { if (state.view === 'map' && scatterData) drawScatter(); }, 150);
+});
 
 /* ---------- explore ---------- */
 let exploreInit = false;
 async function initExplore(){
-  if (exploreInit) return; exploreInit = true;
+  const ids = CONSTRUCTS.shipped.map(c => c.id);
+  const id = ids.includes(state.measure) ? state.measure : ids[0];
   const tabs = $('#explore-tabs');
-  tabs.innerHTML = CONSTRUCTS.shipped.map((c,i) =>
-    `<button class="badge ${i===0?'g-strong':'b-none'}" data-c="${c.id}"
-      style="cursor:pointer;background:none">${label(c.id)}</button>`).join('');
-  tabs.querySelectorAll('button').forEach(b => b.onclick = () => {
-    tabs.querySelectorAll('button').forEach(x=>x.className='badge b-none');
-    b.className = 'badge g-strong'; loadExplore(b.dataset.c);
-  });
-  loadExplore(CONSTRUCTS.shipped[0].id);
+  if (!exploreInit) {
+    exploreInit = true;
+    tabs.innerHTML = CONSTRUCTS.shipped.map(c =>
+      `<button type="button" class="ui-chip" data-c="${c.id}" aria-pressed="false">${esc(label(c.id))}</button>`).join('');
+    tabs.querySelectorAll('button').forEach(b => b.onclick = () => go({view: 'explore', measure: b.dataset.c}));
+  }
+  tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === id));
+  const def = CONSTRUCTS.shipped.find(c => c.id === id) || {};
+  $('#explore-title').textContent = label(id);
+  $('#explore-answer').textContent = def.claim || '';
+  await loadExplore(id);
 }
 async function loadExplore(id){
   // The server orders every row, cuts the list, and says in words which order it used and
   // how many rows it listed. This draws the rows as they arrive and sorts nothing: the sort
   // that was here ran on a list already cut to the highest values, under a sentence that
   // said "in either direction".
-  const d = await api('/api/explore/' + id + '?limit=40');
+  const [d, ANSWER] = await Promise.all([api('/api/explore/' + id + '?limit=40'),
+    api('/api/answers/explore/' + id + '?limit=40').catch(() => null)]);
   const top = d.population_range ? d.population_range[1] : 0;
+  // The sentence above the list and each row's value with its unit are the server's.
+  if (ANSWER) { $('#explore-title').textContent = ANSWER.title || label(id); $('#explore-answer').textContent = ANSWER.answer; }
+  const valueText = r => (ANSWER && ANSWER.values && ANSWER.values[r.player_id]) || '';
   // Style is drawn against the pitch-area reference the server ordered by, not as a
   // descending fill from zero. Filled bars sorted high-to-low in the accent colour are
   // the most fixed "more is better" idiom in the medium, and a line of grey disclaimer
-  // text does not override one.
-  $('#explore-body').innerHTML = `<p class="lede" style="margin-bottom:.5rem">${esc(d.order_note)}</p>
-    <p class="pctsub" style="margin:0 0 1.2rem">${esc(d.listed_note)}</p>` +
-    `<div class="cards">` + d.rows.map(r => {
+  // text does not override one. Each row opens the player's profile.
+  $('#explore-body').innerHTML = `<p class="lede">${esc(d.order_note)}</p>
+    <p class="pctsub">${esc(d.listed_note)}</p>` +
+    `<div class="cards ex-list">` + d.rows.map(r => {
     const withheld = r.render_state === 'insufficient_signal';
-    return `<div class="card" data-player="${r.player_id}" style="grid-template-columns:14rem 1fr 7rem;padding:.55rem 0">
-      <div><span>${r.name}</span> <span class="pctsub">${r.team} · ${r.minutes}′</span></div>
+    const current = r.player_id === state.player ? ' aria-current="true"' : '';
+    return `<a class="card ex-row" data-player="${r.player_id}" href="?player=${r.player_id}"${current}>
+      <div><span>${esc(r.name)}</span> <span class="pctsub">${esc(r.team)} · ${whole(r.minutes)}′</span></div>
       <div>${d.orderable_as_ranking
-        ? `<div style="height:8px;background:var(--ink-700)"><i style="display:block;height:100%;
-             width:${top > 0 ? (r.value/top*100).toFixed(1) : 0}%;background:var(--ink-600)"></i></div>`
-        : d.reference === null ? '' : inStrip(geoBar(r.value, d.reference))}</div>
-      <div class="mono" style="text-align:right;font-size:.82rem;color:${withheld?'var(--bone-500)':'inherit'}">${
-        withheld ? '— withheld' : r.value.toFixed(4)}</div>
-    </div>`; }).join('') + `</div>`;
+        ? `<div class="ex-bar"><i style="width:${top > 0 ? (r.value/top*100).toFixed(1) : 0}%"></i></div>`
+        : d.reference === null ? '' : inStrip(geoBar(r.value, d.reference, current ? 'selected-mark' : 'plain-mark'))}</div>
+      <div class="ex-val${withheld ? ' muted' : ''}">${esc(valueText(r) || (withheld ? 'Withheld' : ''))}</div>
+    </a>`; }).join('') + `</div>`;
+  $('#explore-body').querySelectorAll('[data-player]').forEach(a => a.onclick = e => {
+    e.preventDefault(); openPlayer(a.dataset.player);
+  });
 }
 
 /* ---------- compare ---------- */
-let cmpA = null, cmpB = null;
+let cmpA = null, cmpB = null, cmpVersion = 0;
+async function openCompare(){
+  cmpA = state.a; cmpB = state.b;
+  if (!cmpA || !cmpB) {
+    $('#compare-title').textContent = 'Compare two players';
+    $('#compare-answer').textContent = 'Pick two players. Where a gap is smaller than the measurement can separate, it says so.';
+    $('#cmp').innerHTML = '';
+    if (cmpA && !$('#qa').value) {
+      const p = await api('/api/players/' + cmpA).catch(() => null);
+      if (p) $('#qa').value = p.name;
+    }
+    return;
+  }
+  await runCompare();
+}
 async function runCompare(){
   if (!cmpA || !cmpB) return;
-  const d = await api(`/api/compare?a=${cmpA}&b=${cmpB}`);
-  $('#cmp').innerHTML = `<div class="phead" style="border:0;padding:0;margin-bottom:1rem">
-      <div><h2 style="font-size:1.5rem">${d.left.name} <span style="color:var(--bone-500)">vs</span> ${d.right.name}</h2></div></div>` +
-    (() => {
+  const mine = ++cmpVersion;
+  const [d, ANSWER] = await Promise.all([api(`/api/compare?a=${cmpA}&b=${cmpB}`),
+    api(`/api/answers/compare?a=${cmpA}&b=${cmpB}`).catch(() => null)]);
+  if (mine !== cmpVersion) return;
+  $('#compare-title').textContent = (ANSWER && ANSWER.title) || `${d.left.name} v ${d.right.name}`;
+  $('#compare-answer').textContent = (ANSWER && ANSWER.answer) || '';
+  // The words under each row are the server's (/api/answers/compare rows): who is higher only
+  // where the server names a leader. Without them the row's own caption is left out.
+  const captions = new Map(((ANSWER && ANSWER.rows) || []).map(r => [r.construct_id, r]));
+  const lang = x => {
+    const said = captions.get(x.construct_id);
+    if (!said) return '';
+    return said.strong && said.caption.startsWith(said.strong)
+      ? `<strong>${esc(said.strong)}</strong>${esc(said.caption.slice(said.strong.length))}` : esc(said.caption);
+  };
+  if ($('#qa').value !== d.left.name) $('#qa').value = d.left.name;
+  if ($('#qb').value !== d.right.name) $('#qb').value = d.right.name;
+  const names = `<div class="cmp-names" aria-hidden="true"><span>${esc(d.left.name)}</span>
+      <span></span><span>${esc(d.right.name)}</span></div>`;
+  $('#cmp').innerHTML = (() => {
       const q = d.deltas.filter(x => x.family !== 'style');
       const st = d.deltas.filter(x => x.family === 'style');
       const section = (title, note) =>
-        `<h2 style="margin:2rem 0 .6rem">${title}</h2>` +
-        (note ? `<p class="lede" style="margin-bottom:.8rem">${esc(note)}</p>` : '');
-      // The note above the observed-location rows is the server's, true of the rows it
-      // sent: marks for both players, or none and why. The note written here spoke of
-      // marks above rows that drew none.
-      return section('Quality') + q.map(row).join('') +
-        section('Observed location', d.observed_location_note) +
+        `<h2>${title}</h2>` +
+        (note ? `<p class="lede">${esc(note)}</p>` : '') + names;
+      // The note above the pass-origin rows is the server's, true of the rows it sent:
+      // marks for both players, or none and why. The note written here spoke of marks
+      // above rows that drew none.
+      return section('What they produce') + q.map(row).join('') +
+        section('Where their passes start', d.observed_location_note) +
         st.map(row).join('');
     })();
 
   function row(x){
-      if (!x.interpretable) return `<div class="cmp"><div class="mid">${label(x.construct_id)}</div><div class="lang">${x.language}</div></div>`;
-      // Style rows must not reuse the quality grammar. A full bar for the higher
+      if (!x.interpretable) return `<div class="cmp"><div class="mid">${esc(label(x.construct_id))}</div><div class="lang">${lang(x)}</div></div>`;
+      // Style rows must not reuse the directional grammar. A full bar for the higher
       // value sat directly beneath captions reading "materially higher", so a
       // blind reader concluded one player edged the other on half-space.
       if (x.family === 'style') {
         const n = (CONSTRUCTS.channel_geometry||{})[x.construct_id];
-        return `<div class="cmp" style="grid-template-columns:1fr 12rem 1fr">
-          <div>${inStrip(geoBar(x.left, n))}</div>
-          <div class="mid">${label(x.construct_id)}<br>
-            <span class="badge b-none" style="margin-top:.3rem">not ranked</span></div>
-          <div>${inStrip(geoBar(x.right, n))}</div>
-          <div class="lang">${x.language}</div></div>`;
+        return `<div class="cmp cmp-style">
+          <div>${inStrip(geoBar(x.left, n, 'plain-mark'))}</div>
+          <div class="mid">${esc(label(x.construct_id))}</div>
+          <div>${inStrip(geoBar(x.right, n, 'plain-mark'))}</div>
+          <div class="lang">${lang(x)}</div></div>`;
       }
       const m = Math.max(Math.abs(x.left), Math.abs(x.right)) || 1;
       return `<div class="cmp">
         <div class="bar-l"><i style="width:${Math.abs(x.left)/m*100}%"></i></div>
-        <div class="mid">${label(x.construct_id)}</div>
+        <div class="mid">${esc(label(x.construct_id))}</div>
         <div class="bar-r"><i style="width:${Math.abs(x.right)/m*100}%"></i></div>
-        <div class="lang ${x.directional_difference && x.family !== 'style' ? 'material':''}">
-          ${x.family === 'style' ? x.language
-            : x.directional_difference ? `<strong>${x.leader}</strong> ${x.language}`
-            : x.interpretable ? `${x.leader || ''} ${x.language}`
-            : x.language}
-          <span class="mono" style="color:var(--bone-500)"> · ${x.left.toFixed(4)} vs ${x.right.toFixed(4)}${
+        <div class="lang ${x.directional_difference ? 'material':''}">${lang(x)}
+          <span class="audit"> · ${x.left.toFixed(4)} v ${x.right.toFixed(4)}${
             x.difference_interval ? ` · difference 90% ${x.difference_interval[0].toFixed(4)} to ${x.difference_interval[1].toFixed(4)}` : ''}</span>
         </div></div>`;
   }
@@ -657,10 +699,10 @@ function renderWhy(){
         : esc(c.external_replication_label)}</span></p></div>`);
   const rej = CONSTRUCTS.rejected.map(c => `<div>
     <div class="tag t-rej">Rejected</div><h3>${esc(c.label)}</h3>
-    <p><strong style="color:var(--bone-300)">${esc(c.headline)}.</strong> ${esc(c.detail)}</p></div>`);
+    <p><strong>${esc(c.headline)}.</strong> ${esc(c.detail)}</p></div>`);
   const res = CONSTRUCTS.research_only.map(c => `<div>
     <div class="tag t-res">Research only</div><h3>${esc(c.label)}</h3>
-    <p><strong style="color:var(--bone-300)">${esc(c.headline)}.</strong> ${esc(c.detail)}${
+    <p><strong>${esc(c.headline)}.</strong> ${esc(c.detail)}${
       c.note ? `<br><span class="replication">research note: ${
         noteLink(c.note, c.note.title)}</span>` : ''}</p></div>`);
   $('#why').innerHTML = [...ship, ...rej, ...res].join('');
@@ -675,33 +717,23 @@ function renderWhy(){
 (async () => {
   META = await api('/api/meta');
   CONSTRUCTS = await api('/api/constructs');
-  const k = CONSTRUCTS.counts;
-  $('#hero').textContent =
-    `${k.proposed} proposed. ${k.tested} tested. ${k.surviving} survive.`;
-  $('#foot').innerHTML =
-    `Historical laboratory. These estimators run on Pappalardo/Wyscout ${META.season} event data
-     (CC BY 4.0) — they are <strong>not</strong> the current season, and a LIVE regime would use a
-     different estimator with different uncertainty and different sample thresholds.<br>
-     ${META.player_count} players · ${META.minutes_floor}+ minutes · artifact ${META.version_key} ·
-     generated ${META.generated_at}`;
   renderWhy();
-  wireSearch($('#q'), $('#results'), showPlayer);
-  wireSearch($('#qa'), $('#ra'), id => { cmpA = id; runCompare(); });
-  wireSearch($('#qb'), $('#rb'), id => { cmpB = id; runCompare(); });
-  const first = await api('/api/players?q=modric&limit=1');
-  if (first.players.length) showPlayer(first.players[0].player_id);
-})().catch(failed => {
-  // Nothing loaded: say so in place of the views, never fail silently. A 503 is the archive
-  // missing; the server's own detail is written for whoever runs it.
-  const state = document.createElement('div');
-  state.className = 'ui-callout';
-  state.setAttribute('role', 'status');
-  state.dataset.tone = failed === 503 ? 'unavailable' : 'error';
-  state.innerHTML = '<p>' + (failed === 503 ? Site.archiveMissing()
-    : 'Player profiles could not load. Reload the page to try again.') + '</p>';
-  $('.bar').after(state);
-  document.querySelectorAll('[id^="view-"]').forEach(view => view.classList.add('hidden'));
-});
+  const k = CONSTRUCTS.counts;
+  $('#hero').innerHTML = `<span><b>${esc(k.proposed)}</b> proposed.</span>
+    <span><b>${esc(k.tested)}</b> tested.</span> <span><b>${esc(k.surviving)}</b> survive.</span>`;
+  $('#foot').innerHTML =
+    `These measures come from Pappalardo/Wyscout event data for La Liga ${esc(META.season)}
+     (CC BY 4.0). They describe that season, not the current one. ${esc(META.player_count)} players
+     with ${esc(META.minutes_floor)}+ minutes · artifact <span class="id">${esc(META.version_key)}</span>
+     · generated ${esc(META.generated_at)}.`;
+  wireSearch($('#q'), $('#results'), id => openPlayer(id));
+  wireSearch($('#qa'), $('#ra'), id => go({view: 'compare', a: id, b: state.b}));
+  wireSearch($('#qb'), $('#rb'), id => go({view: 'compare', a: state.a, b: id}));
+  window.addEventListener?.('popstate', () => { readAddress(); show(); });
+  readAddress();
+  if (typeof history !== 'undefined') history.replaceState(null, '', address());
+  await show();
+})().catch(trouble);
 </script>
 </body>
 </html>

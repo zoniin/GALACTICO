@@ -1,4 +1,9 @@
-"""Pre-match classification and per-player evidence for the private scouting page."""
+"""Pre-match classification and per-player evidence for the private scouting page.
+
+Re-pinned under ADR-0034 ("Answer-first pages"): the group of a match against a club in places
+1-6 is keyed "places_1_6", not "top", a banned token as a served value (R3); the comparison
+still accepts "top" from an old link (the gated call below asks for it that way).
+"""
 
 import asyncio
 from datetime import UTC, datetime
@@ -6,10 +11,17 @@ from datetime import UTC, datetime
 import httpx
 import pytest
 
+from galactico.domain.labels import scan_labels
 from galactico.match_centre.api_football import ApiFootball
 from galactico.match_centre.feed import FeedError, Snapshot
 from galactico.match_centre.local import create_app
-from galactico.match_centre.scouting import Scouting, opponent_groups
+from galactico.match_centre.scouting import (
+    Scouting,
+    baseline_error,
+    baseline_lines,
+    lines,
+    opponent_groups,
+)
 
 
 def game(fid, home, away, goals=(1, 0), day="2026-08-01"):
@@ -25,13 +37,33 @@ def test_classification_uses_only_prior_dates_and_withholds_cutoff_ties():
              for r in range(1, 6) for i in range(1, 5)]
     slate.extend([game(100, 1, 6, (0, 8), "2026-09-01"),
                   game(101, 2, 1, (0, 3), "2026-09-01")])
-    assert set(opponent_groups(slate, 1).values()) == {"top", "unclassified"}
+    assert set(opponent_groups(slate, 1).values()) == {"places_1_6", "unclassified"}
     assert opponent_groups(slate, 1)[100] == "unclassified"
-    assert opponent_groups(slate, 1)[101] == "top"
+    assert opponent_groups(slate, 1)[101] == "places_1_6"
     slate.extend([game(102, 1, 8, (0, 1), "2026-09-02"),
                   game(103, 4, 5, (4, 0), "2026-09-02"),
                   game(104, 1, 5, (0, 1), "2026-09-03")])
     assert opponent_groups(slate, 1)[104] == "other"
+
+
+def test_only_the_rows_a_table_counts_move_it_and_every_club_match_is_classified():
+    # A European competition's table is its league phase: a knockout result never moves it,
+    # though the knockout match itself is classified by the table before its date.
+    slate = [game(10*r+i, i, i+4, goals=(i, 0), day=f"2026-08-{r:02}")
+             for r in range(1, 6) for i in range(1, 5)]
+    for row in slate:
+        row["phase"] = "league"
+    knockout = game(200, 8, 2, (9, 0), "2026-09-01")
+    knockout["phase"] = "knockout"
+    later = game(201, 1, 8, (1, 0), "2026-09-02")
+    later["phase"] = "knockout"
+    slate += [knockout, later]
+    # Places: 4, 3, 2, 1 on 15 points, then 5, 6 (goal difference); 7 and 8 below.
+    counted = opponent_groups(slate, 1, lambda row: row["phase"] == "league")
+    assert counted[201] == "other"
+    # Counted, the 9-0 would lift club 8 into the first six.
+    assert opponent_groups(slate, 1)[201] == "places_1_6"
+    assert opponent_groups(slate, 2, lambda row: row["phase"] == "league")[200] == "other"
 
 
 def player(pid, role, mins, passes):
@@ -67,8 +99,20 @@ def test_compare_uses_only_metric_supported_minutes_and_reports_coverage(monkeyp
                                     "observed": 90, "count": 2, "per90": 2.0, "gap": 1.0}]
         assert data["coverage"][0] == {"club": "Club 52", "covered": 2, "matches": 3,
                                        "unclassified": 3}
+        # The lines the page prints are the server's (R10), with the reports' numbers only.
+        assert data["lines"] == {
+            "madrid": "Real Madrid's midfielders: 1.00 key passes per 90, from 180 observed of "
+                      "180 reported minutes.",
+            "order": "Ordered by key passes per 90, then observed minutes, then name.",
+            "coverage": ["Club 52: player reports for 2 of 3 selected matches; 3 season "
+                         "matches not classified by the opponent's place.",
+                         "Club 541: player reports for 2 of 2 selected matches; 2 season "
+                         "matches not classified by the opponent's place."]}
         gated = await service.compare(39, 2026, 52, "M", "key_passes", "top", 90)
         assert gated["players"] == [] and gated["madrid"]["per90"] is None
+        assert gated["lines"]["madrid"].startswith("Real Madrid's midfielders: under 90 "
+                                                   "observed minutes for key passes")
+        assert scan_labels([data["lines"], gated["lines"]]) == []
 
     asyncio.run(run())
 
@@ -92,3 +136,28 @@ def test_vendor_query_rejection_is_sanitised(monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "get", get)
     with pytest.raises(FeedError, match="plan and quota"):
         asyncio.run(ApiFootball("test-only").fetch_fixtures({"ids": "1-2"}))
+
+
+def test_madrid_against_the_league_is_said_by_the_server_with_its_schedule():
+    data = {"madrid": {"team_games": 7}, "other_clubs": {"team_games": 131}}
+    table = {"madrid": ["Real Madrid CF"], "competition": "La Liga", "code": "es.1",
+             "credits": [{"name": "OpenFootball"}],
+             "freshness": {"note": "La Liga results stop at Sun 20 Sep: 61 later fixtures have "
+                                   "no result in the free feed yet.", "label": "", "stale": True}}
+    said = baseline_lines(data, table)
+    assert said["line"] == ("From Real Madrid CF's 7 reported matches, against 131 team matches "
+                            "of the other La Liga clubs.")
+    assert said["schedule"] == "/match-centre/leagues?league=es.1&team=Real+Madrid+CF"
+    assert said["stale"] is True and said["note"].startswith("La Liga results stop")
+    fresh = baseline_lines({"madrid": {"team_games": 0}, "other_clubs": {"team_games": 0}},
+                           {**table, "freshness": {"note": None, "label": "No results "
+                                                   "reported yet", "stale": False}})
+    assert fresh["line"] == "No Real Madrid La Liga result is reported up to that date."
+    assert fresh["note"] == "No results reported yet."
+    assert baseline_error("Season file unavailable.") == (
+        "OpenFootball's La Liga file can't be reached right now.")
+    assert baseline_error("Invalid season file.") == "Invalid season file."
+    assert scan_labels([said, fresh, baseline_error("")]) == []
+    assert lines("D", "goals", 270, {"per90": None}, [])["madrid"] == (
+        "Real Madrid's defenders: under 270 observed minutes for goals, so no reference rate "
+        "(0 observed of 0 reported minutes).")

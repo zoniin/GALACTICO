@@ -57,12 +57,14 @@ __all__ = [
     "Page",
     "Section",
     "Source",
+    "MISSING",
     "about",
     "current_season",
     "footer_markup",
     "head_markup",
     "header_markup",
     "nav_markup",
+    "not_found",
     "page",
     "render",
     "served_paths",
@@ -131,7 +133,9 @@ SOURCES: dict[str, Source] = {source.key: source for source in (
     Source("openfootball", "OpenFootball", "Fixtures, results and league tables, 2026/27",
            "CC0 1.0", "https://github.com/openfootball/football.json/blob/master/LICENSE.md",
            "https://github.com/openfootball/football.json"),
-    Source("openligadb", "OpenLigaDB", "Goal reports, 2026/27",
+    Source("openligadb", "OpenLigaDB",
+           "Champions League fixtures and results, missing Bundesliga and Premier League "
+           "results, and goal reports, 2026/27",
            "ODbL 1.0", "https://opendatacommons.org/licenses/odbl/1-0/",
            "https://www.openligadb.de/"),
     Source("wikipedia", "Wikipedia contributors", "Squad, appearances and goals, 2026/27",
@@ -165,11 +169,11 @@ class Page:
 
 PAGES: dict[str, Page] = {item.key: item for item in (
     Page("matches", "match-centre.html", "/match-centre", "matches", "current", "Matches",
-         ("openfootball",), aliases=("/",)),
+         ("openfootball", "openligadb"), aliases=("/",)),
     Page("table", "leagues.html", "/match-centre/leagues", "table", "current", "Table",
-         ("openfootball",)),
+         ("openfootball", "openligadb")),
     Page("scouting", "scouting.html", "/match-centre/scouting", "players", "current",
-         "Goals by opponent", ("openligadb", "openfootball")),
+         "Goals by opponent", ("openligadb", "openfootball", "wikipedia")),
     Page("lineup", "studio.html", "/lineup", "lineup", "current", "Lineup",
          ("wikipedia", "openligadb", "openfootball", "pappalardo")),
     Page("player", "index.html", "/player", "players", "archive", "Player profiles",
@@ -406,6 +410,41 @@ def page(request: Any, key: str, *, slots: dict[str, str] | None = None) -> str:
     spec = PAGES[key]
     markup = (WEB / spec.file).read_text(encoding="utf-8")
     return render(markup, spec, served_paths(request.app), slots=slots)
+
+
+# ------------------------------------------------------------------ a page that isn't here
+
+
+MISSING = Page("missing", "missing.html", "", None, None, "Page not found")
+"""The page a request for an address the app does not serve is answered with (status 404)."""
+
+_WAYS_ON = ("matches", "table", "lineup")
+"""The destinations a missing page offers, the first as the primary action."""
+
+
+def not_found(request: Any, *, today: date | None = None) -> str:
+    """The designed page for an address the serving app does not answer: one heading, one
+    sentence and the ways on, with the site's header and footer. An archive page asked of an
+    app that serves no archive (the hosted one) says where the archive runs."""
+    routes = served_paths(request.app)
+    path = str(request.url.path).rstrip("/") or "/"
+    archive = path in {spec.path for spec in PAGES.values() if spec.season == "archive"}
+    if archive:
+        heading = "The 2017/18 archive isn't on this site"
+        answer = ("The 2017/18 archive runs only on a local install. This site shows the "
+                  "current season.")
+    else:
+        heading = "That page isn't here"
+        answer = "The address may be mistyped, or the page has moved."
+    ways = [(item.label, href) for item in NAV if item.key in _WAYS_ON
+            and (href := _link(item, routes)) is not None]
+    actions = "".join(
+        f'<a class="ui-btn{" ui-btn-primary" if i == 0 else ""}" href="{_e(href)}">'
+        f'{_e(("Go to " + label) if i == 0 else label)}</a>'
+        for i, (label, href) in enumerate(ways))
+    markup = (WEB / MISSING.file).read_text(encoding="utf-8")
+    return render(markup, MISSING, routes, today=today,
+                  slots={"heading": _e(heading), "answer": _e(answer), "actions": actions})
 
 
 # ------------------------------------------------------------------ About the numbers

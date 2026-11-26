@@ -1,52 +1,147 @@
-<!doctype html><html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><!--shell:head--><link rel="stylesheet" href="/static/match-centre.css"><link rel="stylesheet" href="/static/studio-shell.css"><script src="/static/scouting.js" defer></script>
-<link rel="stylesheet" href="/static/goal-scout.css"><script type="module" src="/static/goal-scout.js"></script>
-</head><body>
-<!--shell:header-->
-<main id="main" class="frame scout"><div class="heading"><h1>Goals by opponent</h1></div>
-<article id="goals" aria-labelledby="goals-heading">
-<div class="goal-title"><div><p class="goal-kicker">Current season</p><h2 id="goals-heading">Goal explorer</h2></div><span id="goals-season"></span></div>
-<p>See who scored for a club and which opponents those goals came against.</p>
-<div class="goal-controls">
-<label>Goal explorer league<select id="goals-league"><option value="es">La Liga</option><option value="en">Premier League</option><option value="de">Bundesliga</option></select></label>
-<label>Club to explore<select id="goals-club" disabled></select></label>
-<label>Opponent strength<select id="goals-split" aria-label="Opponent strength"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option><option value="unclassified">Unclassified</option></select></label>
-<label>Match opponent<select id="goals-opponent" disabled><option value="">All clubs</option></select></label>
-</div>
-<p id="goals-status" role="status">Loading reported goals…</p>
-<div id="goals-data" hidden>
-<div class="goal-metrics"><div><strong id="goals-games"></strong><span>Club matches</span></div><div><strong id="goals-total"></strong><span>Team goals</span></div><div><strong id="goals-named"></strong><span>Named player goals</span></div></div>
-<h3>Recorded scorers</h3><div id="goals-scorers" class="scorer-picks"></div>
-<section id="goals-comparison" aria-labelledby="goals-comparison-title" hidden>
-<div class="comparison-heading"><h3 id="goals-comparison-title">Compare recorded goals</h3>
-<label>Compare with a teammate<select id="goals-peer"></select></label></div>
-<div class="comparison-scroll"><table id="goals-matrix" aria-labelledby="goals-comparison-title"></table></div>
-<p class="comparison-note">Matches count club fixtures. Player minutes and appearances are unavailable in this feed. The fraction shows named player goals out of reported team goals.</p>
-<div class="comparison-share"><button id="goals-copy" type="button">Copy comparison link</button><span id="goals-share-status" role="status"></span>
-<input id="goals-share-url" aria-label="Comparison URL" readonly hidden></div>
-</section>
-<h3>Match log</h3><div id="goals-log"></div>
-<p class="goal-method">Club identities are checked against the <a href="https://github.com/openfootball/football.json">OpenFootball league schedule</a>. When reported scores disagree, the table uses OpenFootball and the goal log excludes that match. Opponent groups use the table before the match date once every club has played five games. Games with an unresolved sixth-place tie for that opponent stay unclassified.</p>
-</div>
-<small id="goals-credit"></small></article>
-<article aria-labelledby="baseline-title">
-<h2 id="baseline-title">Madrid against the league</h2>
-<label>As of date<input id="baseline-day" type="date" required></label>
-<div id="baseline" aria-live="polite"></div>
-</article>
-<div id="connection" role="status">Checking the data connection…</div>
-<section id="setup" class="ui-callout" data-tone="unavailable" aria-labelledby="setup-title" hidden><h2 id="setup-title" class="ui-callout-title">Player comparison</h2><p>Player comparison needs a licensed data key and runs only on a local install.</p></section>
-<form id="filters" hidden>
-<label>Season starting year<input name="season" type="number" min="2010" required></label>
-<label>League<select name="league"></select></label><label>Club<select name="club" required></select></label>
-<label>Position<select name="role"></select></label>
-<label>Madrid need<select name="metric"><option value="key_passes">Create shots · key passes</option><option value="tackles">Make tackles</option><option value="shots">Take shots</option><option value="goals">Score goals</option></select></label>
-<label>Opponents<select name="split" aria-label="Opponents"><option value="all">All opponents</option><option value="top">Top six before matchday</option><option value="other">Outside the top six</option></select></label>
-<label>Minimum observed minutes<input name="min_minutes" type="number" min="1" max="5000" value="270" required></label>
-<button type="submit">Compare with Madrid</button></form>
-<div id="result" aria-live="polite"></div>
-<details><summary>How the comparison works</summary>
-<p>Each player’s rate uses reported events per 90 minutes with a known value. A recorded zero counts. Missing values and their minutes are excluded. Madrid’s reference pools players in the same provider position.</p>
-<p>The opponent table uses completed league matches before the fixture’s UTC date, ordered by points, goal difference and goals scored. The top-six split starts once every club has played five games. Ties across sixth place stay unclassified. All opponents includes those games.</p>
-<p>The table orders eligible players by the selected rate in their own league. It applies no league multiplier. Role, minutes, data coverage and transfer cost all matter when interpreting a gap.</p></details>
-</main><!--shell:footer--></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--shell:head-->
+  <link rel="stylesheet" href="/static/goals.css">
+  <script type="module" src="/static/goal-scout.js"></script>
+  <script src="/static/scouting.js" defer></script>
+</head>
+<body>
+  <!--shell:header-->
+  <main id="main" class="page-main goals-page">
+    <header class="page-header">
+      <h1>Goals by opponent</h1>
+      <p class="page-answer" id="goals-answer" aria-live="polite"><span class="ui-skeleton gs-line"></span><span class="ui-skeleton gs-line gs-line-short"></span><span class="sr-only">Loading this season’s goals…</span></p>
+      <p class="gs-opening" id="goals-opening" hidden></p>
+    </header>
+
+    <section class="ui-card gs-card gs-squad" id="squad" aria-labelledby="squad-title">
+      <div class="gs-head">
+        <div class="gs-title">
+          <h2 id="squad-title">Real Madrid scorers</h2>
+          <p class="gs-meta" id="squad-meta">All competitions</p>
+        </div>
+      </div>
+      <div id="squad-body" aria-live="polite" aria-busy="true">
+        <div class="gs-skeleton" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+      </div>
+    </section>
+
+    <section class="ui-card gs-card" id="goals" aria-labelledby="goals-title">
+      <div class="gs-head">
+        <div class="gs-title">
+          <h2 id="goals-title">Goals</h2>
+          <p class="gs-meta" id="goals-meta"></p>
+        </div>
+        <div class="gs-pickers">
+          <div class="ui-field"><label class="ui-label" for="goals-league">Competition</label>
+            <select id="goals-league" class="ui-select"><!--slot:leagues--></select></div>
+          <div class="ui-field"><label class="ui-label" for="goals-club">Club</label>
+            <select id="goals-club" class="ui-select" disabled><option value="">Loading clubs…</option></select></div>
+        </div>
+      </div>
+
+      <div id="goals-state"></div>
+
+      <div class="gs-skeleton" id="goals-skeleton" aria-hidden="true">
+        <div class="gs-skeleton-stats"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+        <span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
+      </div>
+
+      <div id="goals-data" hidden>
+        <div class="ui-stats gs-stats">
+          <div class="ui-stat"><span class="ui-stat-label">Matches</span><strong class="ui-stat-value" id="goals-games"></strong></div>
+          <div class="ui-stat"><span class="ui-stat-label">Goals</span><strong class="ui-stat-value" id="goals-total"></strong></div>
+          <div class="ui-stat"><span class="ui-stat-label">Credited to a player</span><strong class="ui-stat-value" id="goals-named"></strong></div>
+        </div>
+        <p class="gs-stats-note"><span class="gs-through" id="goals-through"></span> Own goals, and goals the feed doesn’t name, are not credited to a player.</p>
+
+        <div id="goals-scorers">
+          <h3 class="gs-subtitle" id="scorers-title">Scorers, by the opponent’s place before kick-off</h3>
+          <p class="gs-order"><span id="goals-order"></span> Pick a scorer to list the matches he scored in.</p>
+          <div class="gs-matrix-wrap"><table class="gs-matrix" id="goals-matrix" aria-labelledby="scorers-title"></table></div>
+          <button type="button" class="ui-btn ui-btn-ghost gs-more" id="goals-more" hidden></button>
+          <p class="gs-band-note" id="goals-band-note"></p>
+        </div>
+
+        <h3 class="gs-subtitle" id="log-title">Matches <span class="gs-order">Newest first</span></h3>
+        <div class="gs-log-head">
+          <div class="gs-filters">
+            <div class="gs-chips" role="group" aria-label="Opponent’s place before kick-off" id="goals-split"></div>
+            <div class="ui-field gs-opponent"><label class="ui-label" for="goals-opponent">Opponent</label>
+              <select id="goals-opponent" class="ui-select"><option value="">All opponents</option></select></div>
+          </div>
+        </div>
+        <p class="gs-filtered" id="goals-filtered" hidden><span class="ui-selected-mark" aria-hidden="true"></span><span id="goals-filtered-name"></span><button type="button" class="ui-btn ui-btn-ghost" id="goals-unpick">Show every match</button></p>
+        <ol class="gs-log" id="goals-log" aria-labelledby="log-title"></ol>
+
+        <div class="gs-share">
+          <button type="button" class="ui-btn" id="goals-copy">Copy link to this view</button>
+          <span class="gs-share-status" id="goals-share-status" role="status"></span>
+          <input id="goals-share-url" class="ui-input" aria-label="Link to this view" readonly hidden>
+        </div>
+        <ul class="gs-notes" id="goals-notes" hidden></ul>
+        <p class="gs-credit" id="goals-credit"></p>
+      </div>
+    </section>
+
+    <section class="ui-card gs-card gs-baseline" id="baseline" aria-labelledby="baseline-title">
+      <div class="gs-head">
+        <div class="gs-title">
+          <h2 id="baseline-title">Real Madrid in La Liga</h2>
+          <p class="gs-meta">Goals per match, against the other clubs of the league</p>
+        </div>
+        <a class="ui-btn" id="baseline-schedule" href="/match-centre/leagues?league=es.1">Real Madrid’s La Liga schedule <span aria-hidden="true">›</span></a>
+      </div>
+      <div id="baseline-body" aria-live="polite">
+        <div class="gs-skeleton-stats" aria-hidden="true"><span class="ui-skeleton"></span><span class="ui-skeleton"></span><span class="ui-skeleton"></span></div>
+      </div>
+    </section>
+
+    <section class="ui-card gs-card gs-compare" id="compare" aria-labelledby="compare-title" hidden>
+      <div class="gs-title">
+        <h2 id="compare-title">Compare players with Real Madrid’s</h2>
+        <p class="gs-meta">API-Football, on this install only</p>
+      </div>
+      <form id="filters" class="gs-form">
+        <div class="ui-field"><label class="ui-label" for="compare-season">Season starting year</label><input id="compare-season" class="ui-input" name="season" type="number" min="2010" required></div>
+        <div class="ui-field"><label class="ui-label" for="compare-league">League</label><select id="compare-league" class="ui-select" name="league"></select></div>
+        <div class="ui-field"><label class="ui-label" for="compare-club">Club</label><select id="compare-club" class="ui-select" name="club" required></select></div>
+        <div class="ui-field"><label class="ui-label" for="compare-role">Position</label><select id="compare-role" class="ui-select" name="role"></select></div>
+        <div class="ui-field"><label class="ui-label" for="compare-metric">Measure</label><select id="compare-metric" class="ui-select" name="metric"><option value="key_passes">Key passes</option><option value="tackles">Tackles</option><option value="shots">Shots</option><option value="goals">Goals</option></select></div>
+        <div class="ui-field"><label class="ui-label" for="compare-split">Opponents</label><select id="compare-split" class="ui-select" name="split"><option value="all">All opponents</option><option value="places_1_6">Places 1–6 before kick-off</option><option value="other">Places 7 and below before kick-off</option></select></div>
+        <div class="ui-field"><label class="ui-label" for="compare-min-minutes">Minimum observed minutes</label><input id="compare-min-minutes" class="ui-input" name="min_minutes" type="number" min="1" max="5000" value="270" required></div>
+        <div class="gs-form-actions"><button class="ui-btn ui-btn-primary" type="submit">Compare with Real Madrid</button></div>
+      </form>
+      <p class="gs-meta" id="connection" role="status"></p>
+      <div id="result" aria-live="polite"></div>
+      <details class="ui-disclosure">
+        <summary>How the comparison works</summary>
+        <div class="ui-disclosure-body">
+          <p>Each player’s rate uses reported events per 90 minutes with a known value. A recorded zero counts. Missing values and their minutes are left out. Real Madrid’s reference pools the players in the same position.</p>
+          <p>Opponent places come from completed league matches before the fixture’s date, ordered by points, goal difference and goals scored, once every club has played five games. A tie across sixth place stays unclassified; all opponents includes those games.</p>
+          <p>Players are listed by the chosen measure per 90 in their own league, with no league multiplier. Position, minutes, data coverage and transfer cost all matter when reading a gap.</p>
+        </div>
+      </details>
+    </section>
+
+    <details class="ui-disclosure gs-about">
+      <summary>About these numbers</summary>
+      <div class="ui-disclosure-body">
+        <ul class="gs-about-list">
+          <li>Goals and scorers come from OpenLigaDB, a community feed, for the Champions League, the Premier League and the Bundesliga. It has no current La Liga season, so La Liga goals are not here; La Liga results are on the Table page.</li>
+          <li>A Premier League or Bundesliga club is matched to OpenFootball’s schedule. When the two feeds report different results for a match, it keeps OpenFootball’s result and loses its goal list.</li>
+          <li>The opponent’s place comes from a table of that competition’s results dated before the match, ordered by points, goal difference and goals scored: the Champions League uses its league-phase table. A match is not classified while any club has played fewer than five games, or when the opponent is level on sixth place.</li>
+          <li>The feed has no minutes or appearances, so these are counts of goals, not rates. A goal the feed does not name counts for the club only, and an own goal counts for the club and for no player.</li>
+          <li>Real Madrid in La Liga compares their goals per match with the pooled matches of the other La Liga clubs, from OpenFootball’s reported results.</li>
+          <li>Real Madrid scorers lists every player the Wikipedia article on the season credits with a goal, in all competitions, by goals and then name, as of the article’s last edit.</li>
+          <li>Where the feed lists one player under two forms of his name (“N. Jackson” and “Nicolas Jackson”), his goals are counted once. Different initials are never joined.</li>
+        </ul>
+      </div>
+    </details>
+  </main>
+  <!--shell:footer-->
+</body>
+</html>

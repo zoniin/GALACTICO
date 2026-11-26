@@ -1,15 +1,33 @@
-"""Season schedules and recent form from the public-domain OpenFootball files."""
+"""Season schedules, results, tables and match reports from the public feeds.
+
+OpenFootball's public-domain files give the five leagues' schedules and results. Its volunteers'
+results lag behind play, so the Bundesliga and the Premier League take the results it lacks
+from OpenLigaDB (``openligadb.fill``), and the Champions League, which it does not carry, comes
+from OpenLigaDB alone (``openligadb.europe``). Every competition reaches the pages as one
+``League``: OpenFootball's row shape, each row with its goals where a feed names them.
+
+The board, the table and the report each say how far a competition's results reach
+(``freshness.progress``) and open with one sentence composed here (``answers``), never in the
+browser (R10). A list's order is declared: fixtures by competition, then kick-off; a table by
+points, then goal difference, then goals scored.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
+from dataclasses import dataclass
 from datetime import date
+from urllib.parse import urlencode
 
 import httpx
 
 from ..providers import assert_may_host
+from .answers import MADRID, club_answer, lag_answer, madrid_answer, table_answer
 from .feed import FeedCache, FeedError, Snapshot
+from .freshness import progress
+from .openligadb import EUROPE, FILLS, LICENCE, OpenLigaDB, europe, fill
 
 LEAGUES = {
     "es.1": "La Liga",
@@ -18,7 +36,19 @@ LEAGUES = {
     "it.1": "Serie A",
     "fr.1": "Ligue 1",
 }
-MADRID = {"Real Madrid CF", "Real Madrid", "Real Madrid Club de Fútbol"}
+COMPETITIONS = {"es.1": "La Liga", "ucl": "Champions League", "en.1": "Premier League",
+                "de.1": "Bundesliga", "it.1": "Serie A", "fr.1": "Ligue 1"}
+"""Every competition the pages show, in the order they show them: Madrid's two first."""
+ORDER = "Ordered by points, then goal difference, then goals scored."
+SAVED_LIMIT = 60
+CREDITS = {
+    "openfootball": {"name": "OpenFootball", "licence": "CC0 1.0",
+                     "url": "https://github.com/openfootball/football.json",
+                     "licence_url": "https://github.com/openfootball/football.json/blob/"
+                                    "master/LICENSE.md"},
+    "openligadb": {"name": "OpenLigaDB", "licence": "ODbL 1.0",
+                   "url": "https://www.openligadb.de/", "licence_url": LICENCE},
+}
 
 
 def season_start(day: date) -> int:
@@ -37,11 +67,11 @@ def final_score(row: dict) -> list[int] | None:
 
 def _fixture(code: str, season: int, row: dict, day: date) -> dict:
     home, away = row["team1"], row["team2"]
-    identity = "\0".join([code, str(season), home, away, row.get("round", "")])
+    identity = "\0".join([code, str(season), home, away, row.get("round") or ""])
     key = hashlib.sha256(identity.encode()).hexdigest()[:16]
     score = final_score(row)
     return {
-        "id": f"{code}-{season}-{key}", "competition": LEAGUES[code],
+        "id": f"{code}-{season}-{key}", "code": code, "competition": COMPETITIONS[code],
         "home": home, "away": away, "madrid": home in MADRID or away in MADRID,
         "day": row["date"], "kickoff": row.get("time"), "round": row.get("round"),
         "score": score, "live": False, "status": "FT" if score is not None else (
@@ -91,7 +121,8 @@ def results_table(rows: list[dict], cutoff: str) -> tuple[list[dict], int, int]:
                                                     -c["gf"], c["team"].casefold()))
     last = None
     for position, entry in enumerate(ordered, start=1):
-        record = (entry["points"], entry["gf"]-entry["ga"], entry["gf"])
+        entry["gd"] = entry["gf"] - entry["ga"]
+        record = (entry["points"], entry["gd"], entry["gf"])
         if record != last:
             rank = position
         entry["rank"] = rank
@@ -99,9 +130,58 @@ def results_table(rows: list[dict], cutoff: str) -> tuple[list[dict], int, int]:
     return ordered, reported, missing
 
 
+def parse_key(key: str) -> tuple[str, int] | None:
+    """A public fixture id's competition and season, or ``None`` for a malformed id."""
+    parts = key.split("-")
+    if (len(parts) != 3 or parts[0] not in COMPETITIONS
+            or not re.fullmatch(r"[0-9]{4}-[0-9a-f]{16}", "-".join(parts[1:]))):
+        return None
+    return parts[0], int(parts[1])
+
+
+def _kickoff(game: dict) -> tuple:
+    return (game["day"], game["kickoff"] or "99:99", game["home"].casefold())
+
+
+def _board_order(game: dict) -> tuple:
+    return (list(COMPETITIONS).index(game["code"]), game["kickoff"] or "99:99",
+            game["home"].casefold())
+
+
+@dataclass(frozen=True)
+class League:
+    """One competition's season as the pages read it."""
+
+    code: str
+    year: int
+    rows: list[dict]
+    checked: str
+    warning: str | None
+    filled: int
+    sources: tuple[str, ...]
+
+    @property
+    def name(self) -> str:
+        return COMPETITIONS[self.code]
+
+    @property
+    def table_rows(self) -> list[dict]:
+        """The rows a table counts: a European competition's league phase only."""
+        return [row for row in self.rows if row.get("stage", "league") == "league"]
+
+    def freshness(self, cutoff: date, today: date) -> dict:
+        return progress(self.name, self.table_rows, cutoff, today,
+                        "openligadb" if self.filled else None)
+
+    def credits(self) -> list[dict]:
+        return [CREDITS[key] for key in self.sources]
+
+
 class OpenFootball:
     def __init__(self) -> None:
         self.cache = FeedCache(30)
+        self.ligadb = OpenLigaDB()
+        self._built: dict[tuple, list[dict]] = {}
 
     async def season(self, code: str, year: int) -> Snapshot:
         assert_may_host("openfootball")
@@ -125,22 +205,61 @@ class OpenFootball:
 
         return await self.cache.get(f"{code}/{year}", 3600, fetch)
 
+    def _memo(self, key: tuple, build) -> list[dict]:
+        # A season is rebuilt only when one of its snapshots was refetched (a new time and a
+        # new list); the cache holds each snapshot's list for as long as it serves it.
+        if key not in self._built:
+            self._built[key] = build()
+            while len(self._built) > 24:
+                self._built.pop(next(iter(self._built)))
+        return self._built[key]
+
+    async def league(self, code: str, year: int) -> League:
+        """``code``'s season: OpenFootball's, filled from OpenLigaDB where it carries the league;
+        or OpenLigaDB's alone for a European competition (no rows when it publishes none)."""
+        if code in EUROPE:
+            snap = await self.ligadb.season(EUROPE[code], year)
+            rows = self._memo((code, year, snap.checked, id(snap.rows)),
+                              lambda: europe(snap.rows))
+            return League(code, year, rows, snap.checked, snap.warning, 0, ("openligadb",))
+        season = await self.season(code, year)
+        rows, filled, sources = season.rows, 0, ("openfootball",)
+        if code in FILLS and season.rows:
+            try:
+                extra = await self.ligadb.season(FILLS[code], year)
+            except FeedError:
+                pass  # The free file alone; its freshness line says how far it reaches.
+            else:
+                built = self._memo((code, year, season.checked, id(season.rows),
+                                    extra.checked, id(extra.rows)),
+                                   lambda: [fill(season.rows, extra.rows)])
+                rows, filled = built[0]
+                sources = ("openfootball", "openligadb")
+        return League(code, year, rows, season.checked, season.warning, filled, sources)
+
+    async def _leagues(self, year: int, codes=None) -> dict[str, League | FeedError]:
+        codes = list(codes or COMPETITIONS)
+        found = await asyncio.gather(*(self.league(code, year) for code in codes),
+                                     return_exceptions=True)
+        for value in found:
+            if isinstance(value, BaseException) and not isinstance(value, FeedError):
+                raise value
+        return dict(zip(codes, found, strict=True))
+
     async def fixtures(self, day: date, today: date) -> dict:
         year = season_start(day)
-        seasons = await asyncio.gather(*(self.season(code, year) for code in LEAGUES),
-                                       return_exceptions=True)
-        matches, dates, checked, warnings = [], set(), [], []
+        matches, dates, checked, warnings, notes = [], set(), [], [], {}
         madrid_fixture = None
-        for code, season in zip(LEAGUES, seasons, strict=True):
-            if isinstance(season, BaseException):
-                if not isinstance(season, FeedError):
-                    raise season
-                warnings.append(f"{LEAGUES[code]} · {season}")
+        for code, league in (await self._leagues(year)).items():
+            if isinstance(league, FeedError):
+                warnings.append(f"{COMPETITIONS[code]} · {league}")
                 continue
-            checked.append(season.checked)
-            if season.warning:
-                warnings.append(f"{LEAGUES[code]} · showing cached schedule.")
-            for row in season.rows:
+            if not league.rows:
+                continue  # A European competition with no season published.
+            checked.append(league.checked)
+            if league.warning:
+                warnings.append(f"{league.name} · showing cached schedule.")
+            for row in league.rows:
                 dates.add(row["date"])
                 is_madrid = row["team1"] in MADRID or row["team2"] in MADRID
                 if (is_madrid and row["date"] >= day.isoformat() and
@@ -148,24 +267,97 @@ class OpenFootball:
                     madrid_fixture = _fixture(code, year, row, today)
                 if row["date"] == day.isoformat():
                     matches.append(_fixture(code, year, row, today))
+            fresh = league.freshness(today, today)
+            if any(m["code"] == code and m["status"] == "Result pending" for m in matches):
+                notes[code] = fresh["label"]
         if not checked:
             raise FeedError("No league schedules could be loaded for this season.")
-        return {"matches": matches, "checked": min(checked), "warnings": warnings,
+        return {"matches": sorted(matches, key=_board_order), "checked": min(checked),
+                "warnings": warnings,
                 "next": min((d for d in dates if d > day.isoformat()), default=None),
                 "previous": max((d for d in dates if d < day.isoformat()), default=None),
-                "madrid_fixture": madrid_fixture}
+                "madrid_fixture": madrid_fixture, "through": notes,
+                "order": "By competition, then kick-off time."}
+
+    async def nearest(self, today: date) -> date:
+        """The day the board opens on: today when it has fixtures, else the nearer of the
+        previous and the next day that has (the next on a tie)."""
+        board = await self.fixtures(today, today)
+        if board["matches"]:
+            return today
+        options = [date.fromisoformat(d) for d in (board["next"], board["previous"]) if d]
+        return min(options, key=lambda d: abs((d - today).days), default=today)
+
+    async def summary(self, today: date) -> dict:
+        """Madrid's next fixture and latest reported result, and each competition's freshness."""
+        year = season_start(today)
+        leagues = await self._leagues(year)
+        games, freshness, warnings, checked = [], [], [], []
+        goals: dict[str, list | None] = {}
+        for code, league in leagues.items():
+            if isinstance(league, FeedError):
+                warnings.append(f"{COMPETITIONS[code]} · {league}")
+                continue
+            if not league.rows:
+                continue
+            checked.append(league.checked)
+            freshness.append({"code": code, **league.freshness(today, today)})
+            for row in league.rows:
+                if row["team1"] in MADRID or row["team2"] in MADRID:
+                    games.append(game := _fixture(code, year, row, today))
+                    goals[game["id"]] = row.get("goals")
+        if not checked:
+            raise FeedError("No league schedules could be loaded for this season.")
+        upcoming = min((g for g in games if g["score"] is None
+                        and g["day"] >= today.isoformat()), key=_kickoff, default=None)
+        last = max((g for g in games if g["score"] is not None
+                    and g["day"] <= today.isoformat()), key=_kickoff, default=None)
+        missing = sum(1 for g in games if g["score"] is None and last is not None
+                      and last["day"] < g["day"] < today.isoformat())
+        # Madrid's own competitions must all answer, or the sentence could name the wrong
+        # next fixture; it is withheld instead.
+        whole = not any(isinstance(leagues[code], FeedError) for code in ("es.1", "ucl"))
+        # The sentence names the last result's scorers where the feed lists every goal.
+        latest = dict(last, goals=goals.get(last["id"])) if last is not None else None
+        return {"answer": madrid_answer(upcoming, latest, missing, today) if whole else None,
+                "unavailable": None if whole else "Real Madrid's fixtures can't be loaded "
+                                                  "right now.",
+                "next": upcoming if whole else None, "last": last if whole else None,
+                "freshness": freshness, "lag": lag_answer(freshness), "today": today,
+                "checked": min(checked),
+                "warnings": warnings}
 
     async def competition(self, code: str, day: date, today: date, team: str | None) -> dict:
         year = season_start(day)
-        season = await self.season(code, year)
+        league = await self.league(code, year)
         cutoff = min(day, today)
-        table, reported, missing = results_table(season.rows, cutoff.isoformat())
-        matches = [_fixture(code, year, row, today) for row in season.rows
-                   if team and team in (row["team1"], row["team2"])]
-        return {"competition": LEAGUES[code], "season": year, "cutoff": cutoff,
-                "table": table, "reported": reported, "missing": missing,
-                "fixtures": sorted(matches, key=lambda m: (m["day"], m["kickoff"] or "")),
-                "checked": season.checked, "warnings": [season.warning] if season.warning else []}
+        table, reported, missing = results_table(league.table_rows, cutoff.isoformat())
+        fresh = league.freshness(cutoff, today)
+        matches = sorted((_fixture(code, year, row, today) for row in league.rows
+                          if team and team in (row["team1"], row["team2"])), key=_kickoff)
+        payload = {"competition": league.name, "code": code, "season": year, "cutoff": cutoff,
+                   "table": table, "reported": reported, "missing": missing,
+                   "fixtures": matches, "checked": league.checked,
+                   "warnings": [league.warning] if league.warning else [],
+                   "freshness": fresh, "order": ORDER,
+                   "answer": table_answer(league.name, table, fresh, dated=cutoff < today),
+                   "credits": league.credits(),
+                   "madrid": sorted(row["team"] for row in table if row["team"] in MADRID),
+                   "stage": "League phase" if code in EUROPE else None}
+        if team:
+            # Each result as the club's (W, D or L), decided here, not in the browser.
+            outcomes = {}
+            for game in matches:
+                if game["score"] is not None:
+                    own, against = (game["score"] if game["home"] == team
+                                    else reversed(game["score"]))
+                    outcomes[game["id"]] = "W" if own > against else "L" if own < against else "D"
+            payload["outcomes"] = outcomes
+            row = next((entry for entry in table if entry["team"] == team), None)
+            upcoming = next((m for m in matches if m["score"] is None
+                             and m["day"] >= today.isoformat()), None)
+            payload["club_answer"] = club_answer(team, league.name, row, upcoming, today)
+        return payload
 
     async def madrid_baseline(self, day: date, today: date) -> dict:
         league = await self.competition("es.1", day, today, None)
@@ -185,12 +377,75 @@ class OpenFootball:
             "madrid": rates(madrid), "other_clubs": rates(others)}
 
     async def detail(self, code: str, year: int, key: str, today: date) -> dict | None:
-        season = await self.season(code, year)
-        for row in season.rows:
+        league = await self.league(code, year)
+        for row in league.rows:
             game = _fixture(code, year, row, today)
-            if game["id"] == key:
-                return {"match": game, "checked": season.checked, "warnings": (
-                    ["Showing a cached season file."] if season.warning else []),
-                    "form": {name: recent_form(season.rows, name, row["date"])
-                             for name in (game["home"], game["away"])}}
+            if game["id"] != key:
+                continue
+            report = {"match": game, "checked": league.checked, "warnings": (
+                ["Showing a cached season file."] if league.warning else []),
+                "form": {name: recent_form(league.rows, name, row["date"])
+                         for name in (game["home"], game["away"])},
+                "clubs": [_club_links(code, name, None if year == season_start(today)
+                                      else row["date"]) for name in (game["home"], game["away"])],
+                "through": league.freshness(today, today)["label"],
+                "credits": league.credits()}
+            report.update(_goals_report(league, row, game))
+            return report
         return None
+
+    async def saved(self, keys: list[str], today: date) -> dict:
+        """The saved fixtures still in the feeds, by date then kick-off, whatever their day."""
+        wanted: dict[tuple[str, int], set[str]] = {}
+        for key in dict.fromkeys(keys[:SAVED_LIMIT]):
+            if (parsed := parse_key(key)) is not None:
+                wanted.setdefault(parsed, set()).add(key)
+        found, warnings, missing = [], [], []
+        loaded = await asyncio.gather(*(self.league(code, year) for code, year in wanted),
+                                      return_exceptions=True)
+        for (code, year), league in zip(wanted, loaded, strict=True):
+            if isinstance(league, BaseException):
+                if not isinstance(league, FeedError):
+                    raise league
+                warnings.append(f"{COMPETITIONS[code]} · {league}")
+                continue
+            games = {g["id"]: g for g in (_fixture(code, year, row, today) for row in league.rows)}
+            found += [games[key] for key in wanted[(code, year)] if key in games]
+            missing += sorted(key for key in wanted[(code, year)] if key not in games)
+        return {"matches": sorted(found, key=lambda g: (_kickoff(g)[:2], _board_order(g))),
+                "missing": missing, "warnings": warnings}
+
+
+def _club_links(code: str, team: str, day: str | None) -> dict:
+    """A club's schedule and its row in the table; of the match's own season when that is
+    not the current one."""
+    page = "/match-centre/leagues?"
+    season = {"day": day} if day else {}
+    return {"team": team,
+            "schedule": page + urlencode({"league": code, **season, "team": team}),
+            "table": page + urlencode({"league": code, **season, "highlight": team})}
+
+
+def _goals_report(league: League, row: dict, game: dict) -> dict:
+    """The match's goals where a feed lists them, or one plain line where none does."""
+    if game["score"] is None:
+        return {"goals": None, "goals_note": None}
+    if sum(game["score"]) == 0:
+        return {"goals": [], "goals_note": "No goals."}
+    goals = row.get("goals")
+    if goals is None:
+        if "openligadb" in league.sources:
+            note = "The feed has no goal list for this match."
+        else:
+            note = f"The free {league.name} feed doesn't name scorers."
+        return {"goals": None, "goals_note": note}
+    unlisted = sum(game["score"]) - len(goals)
+    note = None
+    if unlisted > 0:
+        note = (f"{unlisted} {'goal is' if unlisted == 1 else 'goals are'} "
+                "missing from the feed's goal list.")
+    return {"goals": goals, "goals_note": note, "goals_credit": CREDITS["openligadb"]}
+
+
+__all__ = ["COMPETITIONS", "LEAGUES", "League", "OpenFootball", "final_score", "parse_key",
+           "recent_form", "results_table", "season_start"]

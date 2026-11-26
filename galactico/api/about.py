@@ -5,7 +5,9 @@ defined: the construct registry (through Player Lab's ``/api/constructs`` reply)
 evidence classes (``domain.provenance.EvidenceClass``), the verdict registry
 (``domain.verdicts``) and the nine things no page measures (``api.shell.NOT_MEASURED``). The
 page shell (``galactico.site_nav``) lists them before the data sources; the hosted app has no
-archive and hands over none of them.
+archive and hands over none of them. After them comes the current season's section, how this
+season's results, tables and goals are gathered (``match_centre.methods``), which the hosted
+app hands over too.
 
 What is not repeated here: the external-replication label of each measure and the
 research-only conclusion. Both are analysis formed from StatsBomb data, and Player Lab's
@@ -25,6 +27,7 @@ from fastapi import HTTPException
 
 from ..domain import verdicts
 from ..domain.provenance import EvidenceClass
+from ..match_centre import methods
 from ..site_nav import Section
 from . import shell
 from .runtime import VERDICTS_CLAIM
@@ -177,10 +180,12 @@ def not_measured() -> Section:
 
 def sections(constructs: Callable[[], dict[str, Any]], *, note_base: str,
              player_lab: str = "/player") -> tuple[Callable[[], Section], ...]:
-    """The archive sections, in page order, as the shell's ``about`` calls them."""
+    """The archive sections, then the current season's, in page order, as the shell's
+    ``about`` calls them."""
     return (
         lambda: why_only_five(constructs, player_lab),
         evidence_classes,
         lambda: verdict_registry(note_base),
         not_measured,
+        methods.current_season,
     )

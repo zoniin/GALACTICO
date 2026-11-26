@@ -1,0 +1,545 @@
+/* Match reports (match.html): the page parts the components and labs.css do not draw. In the page
+   layer, above both; every value is a role of tokens.css.
+
+   Answer first: the picker, the match named in the H1, the server's sentence, then the
+   scoreboard with the scorers. The panels follow in the order a match is read: lineups and key
+   moments, shots and passing, threat flow, then player by player and both teams side by side.
+   "About these numbers" is closed.
+
+   Gold is the selected subject only: the match on screen in the season strip, the selected
+   player's shots and passing node, his name in the player list. A result's colour always sits
+   beside its letter. Pitches and charts are dark in both themes. */
+@layer page {
+  .match-report .hidden {
+    display: none !important;
+  }
+
+  .mr-line {
+    display: block;
+    height: 1.1em;
+    margin: 0.3em 0;
+    max-width: 60ch;
+  }
+
+  .mr-line-short {
+    max-width: 32ch;
+  }
+
+  /* ------------------------------------------------------------ the picker */
+
+  .mr-list-label {
+    margin: 0 0 6px;
+  }
+
+  .mr-picker {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: end;
+    gap: var(--space-2);
+    max-width: 44rem;
+    margin: 0 0 var(--space-3);
+  }
+
+  .mr-select .ui-select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: var(--target-touch);
+  }
+
+  .mr-step {
+    min-height: var(--target-touch);
+  }
+
+  .mr-step span[aria-hidden] {
+    font-size: var(--text-lg);
+    line-height: 1;
+  }
+
+  /* The season: one square per match, by date, its result's letter on its tint. */
+  .mr-season {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 var(--space-6);
+  }
+
+  .mr-season button {
+    width: 26px;
+    height: 26px;
+    min-height: 0;
+    padding: 0;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    background: var(--surface-1);
+    color: var(--text);
+    font: var(--weight-bold) var(--text-xs) / 1 var(--font-sans);
+  }
+
+  .mr-season button[data-result="W"] {
+    border-color: var(--live);
+    background: var(--live-soft);
+  }
+
+  .mr-season button[data-result="L"] {
+    border-color: var(--danger);
+    background: var(--danger-soft);
+  }
+
+  .mr-season button:hover {
+    border-color: var(--text);
+  }
+
+  /* The match on screen: the selected subject, gold with its dark edge. */
+  .mr-season button[aria-current="true"] {
+    border: 2px solid var(--selected-edge);
+    background: var(--selected);
+    color: var(--on-selected);
+  }
+
+  .mr-head {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: var(--space-5);
+  }
+
+  /* A long link wraps on a narrow phone rather than widening the page. */
+  .mr-head .ui-btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .mr-head h1 {
+    max-width: none;
+  }
+
+  /* ------------------------------------------------------------ states */
+
+  .mr-status {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    background: var(--surface-1);
+    color: var(--text);
+  }
+
+  .mr-status.error {
+    border-left: 4px solid var(--danger);
+    background: var(--danger-soft);
+  }
+
+  .mr-loading {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* ------------------------------------------------------------ the scoreboard */
+
+  .mr-board {
+    margin: 0 0 var(--space-5);
+    padding: var(--space-5) var(--space-6);
+  }
+
+  .mr-when {
+    margin: 0 0 var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+    text-align: center;
+  }
+
+  .mr-score-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .mr-team {
+    display: grid;
+    justify-items: end;
+    text-align: right;
+    min-width: 0;
+  }
+
+  .mr-team.mr-away {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .mr-side {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mr-name {
+    margin: 2px 0 var(--space-2);
+    font: var(--weight-bold) var(--text-2xl) / 1.05 var(--font-display);
+    overflow-wrap: anywhere;
+  }
+
+  .mr-score {
+    display: flex;
+    gap: 6px;
+    margin: var(--space-3) 0 0;
+    font: var(--weight-bold) clamp(40px, 6vw, 64px) / 1 var(--font-display);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .mr-score span {
+    color: var(--text-subtle);
+  }
+
+  .mr-scorers {
+    margin: 0;
+    padding: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    list-style: none;
+  }
+
+  .mr-scorers li {
+    margin: 2px 0;
+  }
+
+  /* ------------------------------------------------------------ panels */
+
+  .mr-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+    margin: 0 0 var(--space-5);
+  }
+
+  .mr-grid.mr-equal {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mr-card {
+    min-width: 0;
+  }
+
+  .mr-wide {
+    margin: 0 0 var(--space-5);
+  }
+
+  .mr-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2) var(--space-3);
+    margin: 0 0 var(--space-3);
+  }
+
+  .mr-card-head h2 {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .mr-card .figure-note {
+    margin: var(--space-3) 0 0;
+  }
+
+  .mr-lead {
+    margin-top: 0;
+  }
+
+  .mr-card .ui-segmented > button {
+    min-height: 36px;
+  }
+
+  .mr-lineups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .mr-lineups h3 {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-md);
+  }
+
+  .mr-lineups .ledger td {
+    padding: 6px 0;
+    font-size: var(--text-sm);
+  }
+
+  .mr-lineups .ledger td:first-child {
+    padding-right: var(--space-2);
+  }
+
+  .mr-lineups tr.group th {
+    padding: var(--space-3) 0 var(--space-1);
+    border-bottom: 1px solid var(--border-control);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+    text-align: left;
+  }
+
+  .mr-lineups .pos {
+    display: inline-block;
+    min-width: 2.2em;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mr-more {
+    margin-top: var(--space-2);
+    padding: var(--space-2) 0 0;
+  }
+
+  .mr-more summary {
+    font-size: var(--text-sm);
+  }
+
+  .timeline {
+    max-height: 420px;
+  }
+
+  .timeline li.kind-goal .event-title,
+  .timeline li.kind-own_goal .event-title {
+    font-weight: var(--weight-bold);
+  }
+
+  .mr-key,
+  .team-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  .mr-key {
+    color: var(--text-muted);
+  }
+
+  .mr-key span::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: var(--chart-team-1);
+    vertical-align: -1px;
+  }
+
+  .mr-key span:last-child::before {
+    background: var(--chart-team-2);
+  }
+
+  .team-key {
+    margin: 0;
+  }
+
+  .mr-team-field {
+    max-width: 18rem;
+    margin: 0 0 var(--space-3);
+  }
+
+  /* The selected player's shots, on the dark pitch: gold needs no edge there. */
+  .pitch .shot.selected circle {
+    stroke: var(--gold);
+    stroke-width: 0.8;
+  }
+
+  .pitch .shot.selected.goal circle {
+    fill: var(--gold);
+  }
+
+  .flow {
+    border-radius: 0 0 var(--radius-chip) var(--radius-chip);
+  }
+
+  .player-list button {
+    min-height: 36px;
+  }
+
+  .player-detail .ledger td {
+    font-size: var(--text-sm);
+  }
+
+  #team-profiles .ledger td,
+  #team-profiles .ledger th {
+    padding-right: var(--space-3);
+  }
+
+  /* ------------------------------------------------------------ about these numbers */
+
+  .mr-about {
+    margin: var(--space-6) 0 var(--space-4);
+  }
+
+  .mr-note {
+    margin: 0 0 var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .mr-availability {
+    display: grid;
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .mr-availability dt {
+    font-weight: var(--weight-semibold);
+  }
+
+  .mr-availability dt::first-letter {
+    text-transform: uppercase;
+  }
+
+  .mr-availability dd {
+    margin: 0;
+    color: var(--text-muted);
+  }
+
+  .mr-raw {
+    border-top: 1px solid var(--border);
+  }
+
+  /* ------------------------------------------------------------ narrower screens */
+
+  @media (max-width: 960px) {
+    .mr-grid,
+    .mr-grid.mr-equal {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .mr-season {
+      display: none;
+    }
+
+    .mr-picker {
+      margin-bottom: var(--space-5);
+    }
+
+    .mr-step-text {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    .mr-board,
+    .mr-card {
+      padding: var(--space-4);
+    }
+
+    .mr-name {
+      font-size: var(--text-lg);
+    }
+
+    .mr-score-row {
+      gap: var(--space-2);
+    }
+
+    .mr-availability {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* A control a thumb reaches is 44 px tall. */
+    .mr-card .ui-segmented > button,
+    .player-list button,
+    .mr-team-field .ui-select,
+    .mr-more summary,
+    .mr-about > summary,
+    .mr-raw > summary,
+    .page-actions .ui-btn {
+      min-height: var(--target-touch);
+    }
+
+    /* Eleven names at 12 px do not fit a pitch this wide: the selected player's is drawn, and
+       every node keeps its name in its title and its label. */
+    .mr-network text.minor {
+      display: none;
+    }
+
+    .mr-teams > summary {
+      min-height: var(--target-touch);
+    }
+  }
+
+  /* A mark on a pitch takes a 44 px touch target on a touch screen, at any scale. */
+  @media (pointer: coarse), (max-width: 640px) {
+    .match-report .pitch .hit {
+      stroke-width: 44px;
+    }
+  }
+
+  .mr-notice {
+    margin: var(--space-3) 0 0;
+  }
+
+  .mr-player-meta {
+    margin: 0 0 var(--space-1);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .mr-metrics td:last-child,
+  .mr-metrics th:last-child {
+    text-align: right;
+  }
+
+  .mr-defs {
+    display: grid;
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+    gap: var(--space-2) var(--space-4);
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-sm);
+  }
+
+  .mr-defs dt {
+    font-weight: var(--weight-semibold);
+  }
+
+  .mr-defs dd {
+    margin: 0;
+    color: var(--text-muted);
+  }
+
+  .mr-teams {
+    padding: 0;
+  }
+
+  .mr-teams > summary {
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .mr-teams-title {
+    font: var(--weight-bold) var(--text-xl) / 1.15 var(--font-display);
+  }
+
+  .mr-teams > .ui-disclosure-body {
+    padding: 0 var(--space-5) var(--space-4);
+  }
+
+  .mr-unlabelled {
+    margin: var(--space-2) 0 0;
+  }
+
+  @media (max-width: 640px) {
+    .mr-defs {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

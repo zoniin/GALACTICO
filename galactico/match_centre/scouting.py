@@ -1,11 +1,19 @@
-"""Compare observed output against a Madrid role with a pre-match opponent split."""
+"""Compare observed output against a Madrid role with a pre-match opponent split.
+
+The opponent split (``opponent_groups``) is shared with the goal explorer (``goal_scout``):
+places 1-6 or 7 and below in a table of the competition's results dated before the match,
+once every club has played five games; a tie across sixth place stays unclassified. The
+private comparison's lines (``compare``) are composed here, never in the browser (R10).
+"""
 
 from __future__ import annotations
 
 import asyncio
 from collections import defaultdict
+from collections.abc import Callable
 from functools import partial
 from itertools import groupby
+from urllib.parse import urlencode
 
 from .api_football import ApiFootball
 from .feed import FeedError
@@ -14,7 +22,13 @@ LEAGUES = {39: "Premier League", 140: "La Liga", 78: "Bundesliga", 135: "Serie A
 ROLES = {"G": "Goalkeepers", "D": "Defenders", "M": "Midfielders", "F": "Forwards"}
 METRICS = {"key_passes": ("passes", "key"), "tackles": ("tackles", "total"),
            "shots": ("shots", "total"), "goals": ("goals", "total")}
-SPLITS = {"all", "top", "other"}
+PLACES_1_6 = "places_1_6"
+"""The group of a match against a club in places 1-6 before kick-off."""
+SPLITS = {"all", PLACES_1_6, "other"}
+SPLIT_ALIASES = {"top": PLACES_1_6}
+"""An old link's group key, and the key it means now."""
+MEASURES = {"key_passes": "key passes", "tackles": "tackles", "shots": "shots",
+            "goals": "goals"}
 MADRID_ID = 541
 
 
@@ -28,7 +42,11 @@ def _league_day(row: dict) -> str:
     return row["fixture"]["date"][:10]
 
 
-def opponent_groups(rows: list, club: int) -> dict[int, str]:
+def opponent_groups(rows: list, club: int,
+                    counts: Callable[[dict], bool] | None = None) -> dict[int, str]:
+    """Each completed match of ``club``: "places_1_6" (the opponent in places 1-6 before the match
+    date), "other" or "unclassified". ``counts`` says which completed rows make the table (a
+    European competition's league phase); every completed match of the club is classified."""
     table = {team: [0, 0, 0, 0] for team in teams(rows)}  # points, GD, GF, games
     completed = [r for r in rows if r["fixture"]["status"]["short"] == "FT"
                  and all(isinstance(r["goals"].get(s), int) for s in ("home", "away"))]
@@ -46,11 +64,13 @@ def opponent_groups(rows: list, club: int) -> dict[int, str]:
             split = "unclassified"
             if enough:
                 if profile > top[5] or (profile == top[5] and top[5] != top[6]):
-                    split = "top"
+                    split = PLACES_1_6
                 elif profile < top[5]:
                     split = "other"
             groups[row["fixture"]["id"]] = split
         for row in games:
+            if counts is not None and not counts(row):
+                continue
             for side, other in (("home", "away"), ("away", "home")):
                 scored, conceded = row["goals"][side], row["goals"][other]
                 entry = table[row["teams"][side]["id"]]
@@ -124,6 +144,7 @@ class Scouting:
 
     async def compare(self, league: int, season: int, club: int, role: str, metric: str,
                       split: str, min_minutes: int) -> dict:
+        split = SPLIT_ALIASES.get(split, split)
         candidate, madrid = await asyncio.gather(
             self.sample(league, season, club, role, metric, split),
             self.sample(140, season, MADRID_ID, role, metric, split))
@@ -140,11 +161,63 @@ class Scouting:
             per90 = 90 * player["count"] / player["observed"]
             gap = per90 - rate if rate is not None else None
             rows.append({**player, "per90": per90, "gap": gap})
+        coverage = [{k: sample[k] for k in ("club", "covered", "matches", "unclassified")}
+                    for sample in (candidate, madrid)]
         return {"club": candidate["club"], "role": role, "metric": metric, "split": split,
                 "season": season, "min_minutes": min_minutes,
                 "players": sorted(rows, key=lambda p: (-p["per90"], -p["observed"], p["name"])),
                 "madrid": {**reference, "per90": rate},
-                "coverage": [{k: sample[k] for k in ("club", "covered", "matches", "unclassified")}
-                             for sample in (candidate, madrid)],
+                "coverage": coverage,
+                "lines": lines(role, metric, min_minutes, {**reference, "per90": rate}, coverage),
                 "checked": min(candidate["checked"], madrid["checked"]),
                 "warnings": sorted(set(candidate["warnings"] + madrid["warnings"]))}
+
+
+def lines(role: str, metric: str, min_minutes: int, madrid: dict, coverage: list) -> dict:
+    """The comparison's sentences: Madrid's reference, the list's order and each sample's
+    coverage. Every number is a count or a rate of the reports (R8)."""
+    group, measure = ROLES[role].lower(), MEASURES[metric]
+    observed, minutes = madrid.get("observed", 0), madrid.get("minutes", 0)
+    if madrid.get("per90") is None:
+        reference = (f"Real Madrid's {group}: under {min_minutes} observed minutes for "
+                     f"{measure}, so no reference rate ({observed} observed of {minutes} "
+                     "reported minutes).")
+    else:
+        reference = (f"Real Madrid's {group}: {madrid['per90']:.2f} {measure} per 90, from "
+                     f"{observed} observed of {minutes} reported minutes.")
+    return {
+        "madrid": reference,
+        "order": f"Ordered by {measure} per 90, then observed minutes, then name.",
+        "coverage": [f"{c['club']}: player reports for {c['covered']} of {c['matches']} "
+                     f"selected matches; {c['unclassified']} season matches not classified by "
+                     "the opponent's place." for c in coverage],
+    }
+
+
+def baseline_error(detail: str) -> str:
+    """A failure of OpenFootball's La Liga file in words a reader can act on."""
+    if detail in ("", "Feed unavailable.", "Season file unavailable."):
+        return "OpenFootball's La Liga file can't be reached right now."
+    return detail
+
+
+def baseline_lines(data: dict, table: dict) -> dict:
+    """Real Madrid against the rest of La Liga (``OpenFootball.madrid_baseline``), in words:
+    which club, how many matches each side of the comparison rests on, how far the results
+    reach, and the club's schedule on the Table page. ``table`` is that day's La Liga table
+    (``OpenFootball.competition``)."""
+    club = next(iter(table["madrid"]), None)
+    competition, code = table["competition"], table["code"]
+    games, others = data["madrid"]["team_games"], data["other_clubs"]["team_games"]
+    if club is None or not games:
+        line = f"No Real Madrid {competition} result is reported up to that date."
+    else:
+        matches = f"{games} reported {'match' if games == 1 else 'matches'}"
+        line = (f"From {club}'s {matches}, against {others} team matches of the other "
+                f"{competition} clubs.")
+    fresh = table["freshness"]
+    return {"club": club, "competition": competition, "line": line,
+            "note": fresh["note"] or f"{fresh['label']}.", "stale": fresh["stale"],
+            "schedule": ("/match-centre/leagues?" + urlencode({"league": code, "team": club})
+                         if club else None),
+            "credits": table["credits"]}

@@ -7,7 +7,10 @@
    declared requirements (/api/xi/frontier), and an XI a declared risk rule over the shared
    resampled worlds selects (/api/xi/risk/tail, /api/xi/risk/regret). Every render function
    takes a reply and returns a markup string; every server string passes through Shell.esc,
-   and every table is a row list the server sent, printed in the order received.
+   and every table is a row list the server sent, printed in the order received. On the page
+   they sit under "Advanced" (ADR-0034): the ranges, the frontier and the risk rule are closed
+   disclosures, each naming its question in plain words with one line saying what it does;
+   the conflict panel is an open section, shown only when the solve above is infeasible.
 
    Non-claim: the page knows nothing about football. It computes no eligibility, coverage,
    objective, bound, count or plot position; it sorts nothing, groups nothing and looks
@@ -35,14 +38,17 @@
   const DASH = S.num(null);
 
   const COPY = Object.freeze({
-    section: 'Exact questions on the declared model',
-    // True in every state: without the opt-in the ceilings and risk panels hold progression
-    // alone while the solve above holds three requirements, and their replies say so.
-    lead: 'Each panel asks one exact question with the decision point, formation, locks and exclusions of the XI solved above, and sends nothing until its own button is pressed. Where an answer holds other requirements in force than the solve above, it says so. Every answer is arithmetic on the prior rates under the declared rules, not a forecast and not a ranking.',
-    wait: 'Re-solve the main XI first.',
+    section: 'Questions on the same model',
+    // One line on screen; the whole lead sits in a closed disclosure under it.
+    short: 'Each asks one question about the XI above and runs only when you press its button.',
+    optIn: 'Also check the two wide-channel targets (experimental)',
+    // True in every state: without the opt-in the ranges and the risk rule hold ball
+    // progression alone while the XI above holds three targets, and their replies say so.
+    lead: 'Each asks one question with the match, formation, locks and exclusions of the XI above, and sends nothing until you press its button. Where an answer holds other targets than the XI above, it says so. Every answer is arithmetic on past rates under the stated rules: not a forecast, not a ranking.',
+    wait: 'Waiting for the XI above.',
     menus: 'Loading the menus',
-    computing: 'Computing on the declared model',
-    choose: 'Choose a requirement',
+    computing: 'Working it out',
+    choose: 'Choose a target',
     chooseWorlds: 'Choose a world count',
     chooseRule: 'Choose a rule',
     menusFailed: 'The menus of these panels',
@@ -55,21 +61,29 @@
     pointPair: 'At the point-estimate rates',
   });
 
-  // The four panels, in their fixed order. The conflict panel is shown only when the solve
-  // above is infeasible.
+  // The four panels, in their fixed order, each with one line saying what it does. The
+  // conflict panel is shown, open, only when the XI above cannot be found; the other three
+  // are closed until the reader opens them.
   const PANELS = Object.freeze([
     {key: 'conflict', id: 'conflict-panel', button: 'explain-conflict', thing: 'The explanation',
-     title: 'Which declarations cannot hold together',
-     label: 'Explain, including the two EXPERIMENTAL requirements the solve above used'},
+     title: 'Which of your choices clash',
+     line: 'A set of your choices that cannot all hold together; drop any one and the rest can, where the check settles.',
+     label: 'Explain the clash, with the two experimental channel targets the XI above used'},
     {key: 'ceilings', id: 'ceilings-panel', button: 'solve-ceilings', thing: 'The ranges',
-     title: 'Attainable range of each requirement sum', label: 'Compute the attainable ranges'},
+     title: 'How low and how high each target can go',
+     line: 'The least and the largest total any XI reaches on each target.',
+     label: 'Show the ranges'},
     {key: 'frontier', id: 'frontier-panel', button: 'solve-frontier', thing: 'The sums',
-     title: 'Nondominated requirement sums', label: 'List the nondominated sums'},
+     title: 'How far two or three targets go together',
+     line: 'Each listed combination: no XI reaches more on every chosen target at once.',
+     label: 'List the combinations'},
     {key: 'risk', id: 'risk-panel', button: 'solve-risk', thing: 'The selection',
-     title: 'Declared risk preference over resampled matches', label: 'Select an XI under this rule'},
+     title: 'An XI picked by a risk rule',
+     line: 'A stated rule over resampled seasons picks one XI and shows its gaps in each.',
+     label: 'Pick an XI by this rule'},
   ]);
   const DIMENSIONS = Object.freeze(['frontier-dim-1', 'frontier-dim-2', 'frontier-dim-3']);
-  const DIMENSION_LABELS = Object.freeze(['First requirement', 'Second requirement', 'Third requirement, if any']);
+  const DIMENSION_LABELS = Object.freeze(['First target', 'Second target', 'Third target, if any']);
   const PLOT_BOX = '-0.05 -0.05 1.1 1.1';
   const POINT_RADIUS = '0.022';
 
@@ -329,16 +343,29 @@
   /* -------------------------------------------------------------------- frame */
 
   function frame() {
-    return '<section class="panel xi-ext" aria-labelledby="xi-ext-title">' +
-      `<div class="panel-head"><h2 id="xi-ext-title">${esc(COPY.section)}</h2></div>` +
-      `<p class="small subtle xi-lead">${esc(COPY.lead)}</p>` +
-      '<label class="xi-optin"><input type="checkbox" id="xi-experimental-opt-in" autocomplete="off" disabled> <span id="xi-opt-in-label"></span></label>' +
+    return '<section class="xi-ext" aria-labelledby="xi-ext-title">' +
+      `<h3 id="xi-ext-title" class="xi-ext-title">${esc(COPY.section)}</h3>` +
+      `<p class="small subtle xi-lead-short">${esc(COPY.short)}</p>` +
+      `<details class="xi-more xi-lead-more"><summary>What these questions hold</summary><p class="small subtle xi-lead">${esc(COPY.lead)}</p></details>` +
+      `<label class="xi-optin"><input type="checkbox" id="xi-experimental-opt-in" autocomplete="off" disabled> <span id="xi-opt-in-label">${esc(COPY.optIn)}</span></label>` +
       `<p id="xi-ext-status" class="small subtle" role="status">${S.loading(COPY.menus)}</p></section>` +
-      PANELS.map(p => `<section id="${p.id}" class="panel xi-panel${p.key === 'conflict' ? ' hidden' : ''}" aria-labelledby="xi-${p.key}-title">` +
-        `<div class="panel-head"><h2 id="xi-${p.key}-title">${esc(p.title)}</h2></div>` +
-        `<div class="xi-controls" id="xi-${p.key}-controls">${controls(p.key)}<button id="${p.button}" disabled>${esc(p.label)}</button></div>` +
-        `<div class="xi-body" id="xi-${p.key}-body" aria-live="polite">${para(COPY.wait, 'small subtle')}</div></section>`).join('');
+      PANELS.map(p => p.key === 'conflict' ? opened(p) : closed(p)).join('');
   }
+
+  // A panel's controls, its one button and its body.
+  function inner(p) {
+    return `<div class="xi-controls" id="xi-${p.key}-controls">${controls(p.key)}<button id="${p.button}" disabled>${esc(p.label)}</button></div>` +
+      `<div class="xi-body" id="xi-${p.key}-body" aria-live="polite">${para(COPY.wait, 'small subtle')}</div>`;
+  }
+
+  const opened = p => `<section id="${p.id}" class="panel xi-panel hidden" aria-labelledby="xi-${p.key}-title">` +
+    `<div class="panel-head"><h3 id="xi-${p.key}-title">${esc(p.title)}</h3></div>` +
+    `<p class="small subtle xi-tool-line">${esc(p.line)}</p>${inner(p)}</section>`;
+
+  const closed = p => `<details id="${p.id}" class="xi-panel xi-tool">` +
+    `<summary><span class="xi-tool-title" id="xi-${p.key}-title">${esc(p.title)}</span>` +
+    `<span class="xi-tool-line">${esc(p.line)}</span></summary>` +
+    `<div class="xi-tool-body">${inner(p)}</div></details>`;
 
   function controls(key) {
     if (key === 'frontier') {
@@ -526,7 +553,6 @@
       // A reply that is not an object is a failure, said as one: the panels stay disabled.
       if (!object(menus)) throw new Error('the reply is not a menu');
       st.menus = menus;
-      $('#xi-opt-in-label').textContent = String(st.menus.opt_in_label || '');
       $('#xi-experimental-opt-in').disabled = false;
       const labels = object(st.menus.world_count_texts) ? st.menus.world_count_texts : {};
       $('#risk-worlds').innerHTML = options(COPY.chooseWorlds, list(st.menus.world_counts).map((b, i) => [String(i), String(labels[String(b)] ?? '')]));

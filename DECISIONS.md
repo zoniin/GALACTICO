@@ -1630,3 +1630,354 @@ replace one page at a time, answer first.
 
 **Reversal.** A reader study showing that the job-based nav hides a lab people looked for; a
 host that serves pages without the shell (the placeholders would then need a static fill).
+
+---
+
+## ADR-0034 — Answer-first pages
+
+**Problem.** ADR-0033 gave every page one shell and one design system, and kept every page's
+markup. The pages still opened on controls, caveats and research vocabulary: Squad Lab was about
+22,000 px tall on a phone, the XI page opened on a goalkeeper and a form, the Transfer page made
+a reader press "Set the problem" and "Re-solve" before any answer and then grouped its list by
+the outcome of the re-solve, Player Lab kept no state in its address, a match report linked
+every match to an XI scenario it did not have, and the current-season side was stale or empty
+where its sources lagged (La Liga goals were a 503 everywhere; the Bundesliga and Premier League
+tables stopped weeks back; the board opened on an empty day; the Champions League was missing).
+The UX audit of 26 November 2026 (sections 3.3, 3.4, 4.7, 4.8, the gaps F1 to F20) and the
+redesign brief's decision 4 asked for one template on every page, answer first. R13 pins the
+shipped pages' bytes and several shipped replies, and ADR-0011 freezes Player Lab; both give way
+for exactly the edits below.
+
+**Decision.** Every page follows one template: the season chip (the shell's), an H1 that names
+the object or the question, one answer sentence the server writes, then the primary visual,
+then detail in tabs or disclosures closed by default, then "About these numbers", closed. Words
+follow the audit's glossary (section 4.7). Loading, empty, unavailable, error and withheld
+states are designed, and no developer text reaches a reader. Every page works at 1440, 390 and
+320 px with no horizontal overflow and 44 px targets on a phone.
+
+- *The answer sentences, on the server (R10).* No football sentence is assembled in a browser.
+  The full app's sentences are written in three new modules beside the frozen lab APIs, each
+  asking the lab route itself so a sentence is about the reply the page holds and a refusal
+  there is the same refusal here, and each passing `api.runtime.finalize`:
+  `galactico/api/player_answers.py` (`GET /api/answers/player/{id}`, `/api/answers/compare`,
+  `/api/answers/explore/{construct}`, `/api/answers/matches`, `/api/answers/match/{id}`),
+  `galactico/api/xi_answers.py` (`GET /api/answers/xi/scenarios`, `POST /api/answers/xi`) and
+  `galactico/api/planning_answers.py` (`GET /api/planning/targets`, `POST /api/squad/answer`,
+  `POST /api/transfer/answer`). The hosted app's sentences are written in
+  `galactico/match_centre/answers.py` (Matches and Table), `goal_scout.py` (Players),
+  `scouting.py` (Real Madrid against La Liga) and `studio.py` (Lineup). The hosted function
+  cannot import `galactico.domain`, so `tests/test_matches_table.py`, `test_goal_scout.py`,
+  `test_season_scouting.py` and `test_lineup_studio.py` run every sentence shape through
+  `scan_labels`. Every number in a sentence is one the reply carries (R8); a list is in the
+  order of a declared, visible key (R1); a percentile sentence follows the registry's order,
+  never the player's highest first.
+- *Matches and Table* (F2, F3, F7, F8, F10, F16, F19). `galactico/match_centre/openligadb.py`
+  fills a result OpenFootball's Bundesliga and Premier League files have not reported from
+  OpenLigaDB (`bl1`, `pl`), once `goal_scout.verify_fixtures`' club matching confirms both
+  clubs and the matchday; a result OpenFootball has is never replaced, and a filled result
+  takes the feed's date (the old one kept as `scheduled_date`). The Champions League comes
+  from OpenLigaDB `ucl` alone, written in OpenFootball's row shape, its clubs named as
+  OpenFootball names them, else in English (`CLUB_NAMES`). `freshness.py` says how current
+  each competition is from its own rows ("Results through Sun 20 Sep", "Table after matchday 7
+  of 38", the count of later fixtures without a result), shown in place of a "last checked"
+  time. The board opens on the nearest day with fixtures (the server picks it when `day` is
+  left out), filters by competition, polls only while a match is in play, and lists saved
+  matches across dates (`GET /api/match-centre/saved`). `GET /api/match-centre/summary` is the
+  page's answer: Madrid's last result with its scorers where the feed names every goal, and the
+  next match. A table's answer says Madrid's place in the declared order (points, goal
+  difference, goals scored), in the past tense where results stop early. Public replies carry
+  `Vercel-CDN-Cache-Control` with stale-while-revalidate, never on a reply with a warning and
+  never when the private feed is mounted.
+- *Players, this season* (F1, F20). La Liga is not offered: OpenLigaDB has no current `la1`
+  season, so `goal_scout.LEAGUES` is the Champions League (Real Madrid, read from OpenLigaDB
+  without the OpenFootball check), the Premier League and the Bundesliga, and
+  `/api/match-centre/goal-scout/es` and `/la1` are 404s that say why. The first view
+  (`GET /api/match-centre/goal-scout`) is Madrid's next opponent where the feed carries its
+  competition, else Madrid in the Champions League, with one line saying which; in a league the
+  preferred club is Madrid's next, else last, Champions League opponent from it, else the first
+  club by name. The group of matches against a club in places 1 to 6 is keyed `places_1_6`
+  (`top` was a banned token as a served value, R3; old links still work). A scorer listed under
+  two names is joined only by a declared rule (`merge_scorers`); a group with no match is not
+  offered; the unclassified count is said beside the split. The page opens on a "Real Madrid
+  scorers" card (`GET /api/studio/scorers`, Wikipedia's counts, by goals then name). Cut: the
+  teammate side-by-side comparison, the "Opponent strength" control and La Liga in the explorer.
+- *Lineup* (F9, F12, F15). The server proposes the default XI by a declared key (most 2026/27
+  appearances in each position), stated on the board; within a position a player stands where
+  the first position of his Wikipedia infobox puts him (side, and attacking or defensive for a
+  midfielder), else by shirt number, and the key line says which rule applied. The lineup and
+  formation are in the address (copy-link, a toast, a broken-link notice;
+  `GET /api/studio/lineup` answers a link with its sentence, 422 with a plain refusal), and the
+  local save is a convenience. Madrid's next fixture comes from the Matches page's schedule
+  (`GET /api/studio/next`). An archive sample is labelled as the 2017/18 match it is (its
+  competition and date) and sits in a closed "Archive: where he played in 2017/18"; the drawn
+  role area says it is drawn, not measured. A bench player is placed by tapping him, then the
+  position he takes. The page loads one page-layer sheet, `web/lineup.css`.
+- *Player profiles* (F6). The player's name is the H1 and his facts line sits under it; the
+  percentile is each measure's headline; the view and the player are in the address (back,
+  forward and a shared link open the same screen); Explore rows and scatter dots open their
+  player; an unknown player says so under the H1 and offers a profile. "View provenance" and
+  the evidence detail are one closed "About these numbers". List and comparison marks are
+  plain (`plain-mark`), so gold stays the selected player's.
+- *Match reports* (F7 for the archive, F18). The H1 names the match, the sentence restates the
+  recorded result and the scorers read from the goal events, in the order scored, and only where
+  they add up to the recorded score; lineups and key moments come first, the measures a reader
+  sees first are plain counts in the server's words, and the rest sits under "More measures". A
+  link to Check against targets is served only for a match with a prepared scenario; the silent
+  fallback to the prepared XI scenarios is gone. A link to a match the archive does not hold
+  opens the season's last match and says so. A Madrid league match of 2017/18 on the Matches
+  page links to its archive report where the app serves it.
+- *Check against targets* (the XI page). The H1 is the question ("Can an XI meet your
+  targets?"), the sentence says how many measured targets the XI meets, and "No XI meets all of
+  them" only where the lab proves it. The choices are "Before the match", "Formation" and "Aim"
+  ("Meet every target", "Get as close as possible to every target"); the XI is drawn on a dark
+  portrait pitch as on Lineup; the targets are listed in plain words with "Set targets" closed
+  under them. The research tools (other XIs, the hard-limit question, how often each player is
+  picked, the ranges, the frontier, the risk rule) are closed disclosures under "Advanced", each
+  with one line saying what it does; the clash panel stays an open section, shown only when the
+  solve is infeasible, and says "a set of your choices that cannot all hold together", not the
+  smallest (the conflict method certifies a minimal set). The declarations are in the address.
+- *Squad depth and Signings* (F13, F14). Squad depth answers which positions are thinnest,
+  draws them on the pitch, and gives every recruitable position a "Find cover" link to Signings
+  that carries the scenario, formation, departures, targets (`target=requirement:SOURCE[:value]`),
+  the experimental opt-in and the slot in the address (`planning_answers.handoff_query`);
+  Signings reads the link, solves on arrival and keeps nothing in browser storage. Its list is
+  one server reply in the order of one declared factual key (minutes, age or name; ties by
+  player id), with the sentence that says which key is in force; changing the key asks the
+  server. The outcome of a re-solve is a sentence in the candidate's row, never a place in the
+  list: no outcome band and no grouping by outcome (ADR-0023). The pool is "eligible" at a
+  position, never said to "play" it, because the data records a broad position only. The
+  per-row break-even strips, the row fill and the full targets editor are gone from the list;
+  one candidate's break-even carry-over fraction is under "Advanced: how much of his output
+  must carry over" in his panel, and targets arrive by the link, the menu or Squad depth's
+  editor.
+- *Shell additions.* A browser asking either app for an address it does not serve gets the
+  site's own page (`galactico/match_centre/errors.py`, `web/missing.html`,
+  `site_nav.not_found`: one heading, one sentence, the ways on; installed by
+  `galactico/api/player_lab.py` and `galactico/match_centre/public.py`); an archive page asked of the
+  hosted app says the archive runs only on a local install. API paths, static files and
+  clients that do not ask for HTML keep the JSON 404. "About the numbers" gains "This season's
+  results, tables and goals" (`galactico/match_centre/methods.py`) on both apps. Matches and
+  Table credit OpenLigaDB beside OpenFootball, and Players credits Wikipedia.
+  `web/components.css` documents the page-header slot order (`.page-scope`, H1, `.page-answer`,
+  `.page-actions` with at most one primary, `.page-controls`), adds the scrolling strip with
+  edge fades (`.ui-strip`), raises `.ui-btn` to 44 px at 640 px and below, and makes the
+  wordmark a 44 px target on a phone. `web/tokens.css` adds `--kit-keeper`. Each page has its
+  own sheet in `@layer page`: `matches.css`, `goals.css`, `lineup.css`, `player-lab.css`,
+  `match-lab.css`, `xi.css`, `planning-pages.css`. `web/match-centre.css`, `goal-scout.css`,
+  `studio.css` and `studio-shell.css` are deleted, and no page loads them.
+- *A scheduled upstream probe* (F11). Every test stubs the current-season upstreams.
+  `scripts/upstream_smoke.py` asks each real source once through the project's own feed code and
+  reports its status, row count, latest result date and, for the two fill leagues, how many
+  matches the club matching confirmed; a failed or empty upstream fails it, a late one is
+  reported (and fails only with `--max-age`). `.github/workflows/upstream-smoke.yml` runs it
+  once a day and on demand, apart from the test job: a source being down is not a broken
+  commit. The CI lint step and `make lint` also lint `scripts/`, and `make e2e` runs
+  `e2e/xi-extensions.spec.js` as CI does.
+
+**The R13 and ADR-0011 override (in the form of W8).** This change overrides R13, and ADR-0011
+for `web/index.html`, for exactly these edits, and for nothing else of the pages' behaviour.
+The frozen lab APIs (`/api/players*`, `/api/compare`, `/api/explore/*`, `/api/scatter`,
+`/api/matches*`, `/api/xi/*`, the runtime, squad and transfer routes) return the same bytes;
+the frozen files (`optimization/historical.py`, `xi/domain.py`, `xi/solver.py`,
+`xi/tradeoffs.py`, `models/xt/grid.py`, `squad/kernel.py`) are untouched. Each override names
+the pin, old → new, and why.
+
+- *Pages.* The markup, copy, scripts and sheets of every page file (`match-centre.html`,
+  `leagues.html`, `scouting.html`, `studio.html`, `index.html`, `match.html`, `xi.html`,
+  `squad.html`, `transfer.html`), with the scripts they load (`match-centre.js`, `leagues.js`,
+  `scouting.js`, `goal-scout.js`, `goal-links.js`, `studio.js`, `studio-formation.js`,
+  `planning.js`, `xi-extensions.js`), rewritten to the template above. The ADR-0011 freeze is
+  lifted for exactly `index.html`'s markup, copy and the re-pins below; `index.html` still
+  defines `strip`, `geoBar`, `quantileDots`, `showPlayer`, `META`, `CONSTRUCTS`, `loadExplore`,
+  `runCompare`, `cmpA` and `cmpB` and writes `#profile`, `#why`, `#why-credit`, `#explore-body`
+  and `#cmp`; `geoBar` gains a third argument for the mark class (default `selected-mark`, so
+  the profile is unchanged). `match.html` still defines `selectedPlayer`, `renderPlayers`,
+  `match` and `metricRows`, and its rows still show the status tokens.
+- *`tests/test_xi_extensions_render.py`.* `SHIPPED_XI_HTML` re-pinned twice under this ADR, from
+  `4d9cd94b…` to `18f108a2…` (answer first: the question H1, the server's sentence, the three
+  choices in the glossary's words, the XI beside "Your targets", the research tools under
+  "Advanced", the record in "About these numbers", the menu from `/api/answers/xi/scenarios`,
+  the declarations in the address) and from `18f108a2…` to `9200a696…` (the review fixes: the
+  portrait pitch with 44 px places, the first outfield player selected on arrival, a target's
+  field at three significant figures with the exact target sent unless edited, `data-exact`,
+  the aim as two radios on a narrow phone, "Technical record (JSON)"). The five additive edits
+  are unchanged. The frame test: "Re-solve the main XI first." (four times) → "Waiting for the
+  XI above." (four times), the ranges, frontier and risk panels are closed `<details>` with a
+  title and one line, the lead says "Where an answer holds other targets than the XI above, it
+  says so.", and the opt-in reads "Explain the clash, with the two experimental channel targets
+  the XI above used". New: the clash line claims a minimal set, never the smallest, and the
+  kit's copy holds no "EXPERIMENTAL". Why: the template and the glossary; the conflict method
+  certifies minimality, not the smallest count.
+- *`tests/test_planning_render.py`.* The Transfer lede "The list is grouped first by the outcome
+  of the re-solve, in a fixed sequence; inside a group it is in the order of a key you choose."
+  → the script uses `order.statement` and `outcome_sentence`, contains no `.sort(` and no
+  `GP.ordered(`, and "grouped first by the outcome" appears nowhere. Why: F14 and ADR-0023;
+  grouping by outcome put the candidates who close the gap first, a shortlist ordered by
+  modelled change. `squad.html`'s list of the labels it assembles keeps its count of 7 with the
+  glossary's words: "Below the gate:" → "Under 900 minutes:", "Excluded by you:" → "Left out
+  by you:", "Raises the least declared shortfall when used here:" → "Widens the gap to your
+  targets here:", "Available here and at no other slot:" → "Can play only here:", "No
+  measurement this slot needs:" → "Missing a measurement this position needs:", "Declared for
+  other slots only:" → "Declared for other positions only:", "Admitted by position, no
+  eligibility rule:" → "Listed position only, no declared role:"; in the player panel "Why he
+  is in no solve" → "Why he is in no count", "Recorded on the declared requirements" → "His
+  recorded rates", "Absence stress" → "When he is missing", "nominal minutes" → "minutes",
+  "shortfalls in units of" → "gaps in units of".
+- *`tests/test_web_render.py`.* "WITHHELD · OUTSIDE DECLARED CONTEXT" → "Withheld"; "INSUFFICIENT
+  SIGNAL" → "Not enough minutes to judge"; "estimator signal: limited" → "Reliability: limited";
+  "This estimator needs 1,800 minutes" → "This measure needs 1,800 minutes"; "Minutes 1,340",
+  read from `#profile`, → "1,340 minutes", read from the header's `#player-facts`; the
+  comparison's "Observed location" → "Where their passes start". The percentile sentence, the
+  status line, the share lines and the comparison captions are the server's, and the page
+  composes none when they are missing. The count per measure is unchanged.
+- *`tests/test_match_lab.py`.* New pins only: the page prints the server's title, sentence,
+  scoreboard and XI link and writes none of its own; the sections read in match order with
+  "About these numbers" last; the script writes no result word; the first table holds the plain
+  counts under the server's names.
+- *`tests/test_site_nav.py`.* "About the numbers": hosted sections `["sources"]` →
+  `["this-season", "sources"]`; hosted answer "Where every number comes from." → "How this
+  season's results, tables and goals are gathered and where every number comes from."; local
+  sections gain "this-season" before "sources" and the local answer gains the clause. New: both
+  apps answer a missing page with the designed 404 and keep the JSON 404 for an API path, a
+  static file or a client that does not ask for HTML. Matches and Table credit `("openfootball",
+  "openligadb")` (was `("openfootball",)`), Players adds "wikipedia", and OpenLigaDB's
+  `used_for` "Goal reports, 2026/27" → "Champions League fixtures and results, missing
+  Bundesliga and Premier League results, and goal reports, 2026/27".
+- *`tests/test_web_shell.py` and `tests/test_design_tokens.py`.* Every `web/*.html` is a page of
+  `PAGES` → `PAGES` plus `site_nav.MISSING`; `LEGACY_SHEETS` drops `match-centre.css`,
+  `studio-shell.css`, `studio.css` and `goal-scout.css`, and a new test asserts each is gone and
+  loaded by no page. The required sheets `{labs, match-centre, studio, index, squad}` →
+  `{labs, matches, goals, lineup, index, squad}`. The SVG-text set no longer requires
+  "xi.html <script>": the XI page labels its pitch in HTML (12 px floor, as every sheet). The
+  colour, contrast, gold and 12 px rules apply to every new sheet unchanged.
+- *`tests/test_goal_scout.py` and `tests/test_season_scouting.py`.* `/goal-scout/es` 503 → 404
+  ("La Liga goals aren't in the free goal feed: OpenLigaDB has no current La Liga season."),
+  and the unavailable-feed test asks for `en` with the plain detail "The free goal feed,
+  OpenLigaDB, can't be reached right now."; `LEAGUES` `{es, en, de}` → `{ucl, en, de}`; the
+  preferred club of `en` and `de` from fixed ids (Crystal Palace 2489, Bayern 40) → the declared
+  rule above, stated in `opening`; the group key `top` → `places_1_6` in `goal_scout`,
+  `scouting.opponent_groups`, `goal-scout.js` and the comparison select (`top` still accepted);
+  an answer with no classified match drops the split clause ("…, all in matches not yet
+  classified by the opponent's place." → "…"); a feed that names fewer goals than were scored
+  says "the feed names the scorers of N of them"; the La Liga lead-in → "La Liga goals aren't in
+  the free goal feed, so this shows Real Madrid in the Champions League."; server cache 6 h →
+  1 h, and the CDN header `s-maxage=21600` → `1800` (900 for the first view). Additions to the
+  reply (`code`, `leagues`, `club_name`, `club_list`, `answer`, `opening`, `bands`,
+  `band_note`, `scorers`, `order`, `opponents`, `opponent`, `notes`, `classified`,
+  `split_note`, `through`; per match `day_label`, `split_label`, `result`, `note`; per event
+  `scorer`), an `opponent` query parameter, and `parse_matches` rows' `group`; every existing
+  key is kept, `clubs` included. `scouting.opponent_groups` takes an optional `counts` (default
+  unchanged). `/api/match-centre/scouting/madrid` adds the lines the page prints (`club`,
+  `competition`, `line`, `note`, `stale`, `schedule`, `credits`). Why: F1, F20 and R3.
+- *`tests/test_lineup_studio.py`.* A roster row `{id, name, number, group, nation, archive, apps,
+  goals}` in parse order → the same plus `short`, in the declared order (GK, DF, MF, FW, then
+  shirt number), and players in a proposal carry `position`, `side` and `depth`; `SAMPLES`
+  4-tuples with "Deportivo v Villarreal" and "Lyon v Nice" → `Sample(match_id, player, match,
+  competition, day)` with "Deportivo La Coruña v Villarreal" and "Olympique Lyonnais v Nice", as
+  the public data names them, and the activity reply adds `competition` and `label`;
+  `/api/studio/squad` from the roster only → the roster plus `season_label`, `order`, `key`,
+  `rule`, `formations`, `default`, `sides`, `revised`, `revised_label` and `proposals` (per
+  formation `xi`, `ties`, `answer`, `names`); the hand-picked `preferred` map of
+  `web/studio-formation.js` → the server's proposal. Why: F9, F12, F15, R1 and R10.
+- *`tests/test_match_centre.py`.* An autouse fixture answers OpenLigaDB with an empty season,
+  so no test reaches an upstream; no assertion changed.
+- *Current-season replies.* `/api/match-centre/fixtures`: `day` optional (the server picks the
+  nearest day with fixtures); adds `code`, `through` and `order`; Champions League matches; the
+  server's order. `/api/match-centre/leagues/{code}`: accepts `ucl`, `day` optional; adds `gd`,
+  `answer`, `freshness`, `order`, `credits`, `madrid`, `stage`, `outcomes`, `club_answer`. A
+  report key accepts `ucl-…` ids and adds `goals`, `goals_note`, `clubs`, `through`, `credits`
+  and `archive`. `/api/match-centre` adds `competitions`. New routes: `/api/match-centre/summary`,
+  `/api/match-centre/saved`, `/api/match-centre/goal-scout`, `/api/studio/scorers`,
+  `/api/studio/lineup`, `/api/studio/next`. Every existing field is kept.
+- *e2e specs.* `e2e/match-centre.spec.js` rewritten for the new Matches and Table: the report
+  score "0 – 0" as page text → "0–0" in the scoreboard; "Recent form" a button → a heading (the
+  private feed's sections are real tabs); the search box and "No fixtures match these filters on
+  this date." → the competition filter and "No Premier League matches on this day."; the inline
+  "2 fixtures through that date have no reported result" → the server's banner "Table after
+  matchday N of M" and its note, which still counts them; the always-visible footer links
+  "OpenFootball coverage · API-Football coverage" → "About these numbers" with the OpenFootball
+  and OpenLigaDB credits (API-Football's only where its data appears). `e2e/players.spec.js`:
+  `places_1_6`; the chips `['All opponents2', 'Places 1–61', 'Places 7–360', 'Not
+  classified1']` → `['All opponents2', 'Places 1–61', 'Not classified1']`; the teammate test is
+  removed with the comparison. `e2e/studio.spec.js` rewritten: the La Liga goal links, the
+  `#match-prep` panel and the "Compare Mbappé with a teammate" and "Scout Example opponent"
+  links are gone with the La Liga goal source; "Save lineup" → "Save on this device"; "Event
+  heatmap" / "Role zone" → "Archive sample" / "Role area"; `#sample` "ST · Planned position" →
+  "Drawn area for the ST role, not measured", and "<match> · <date>" → the server's archive
+  label; a player without a sample has no map panel; a bench tap waits for a position; the
+  default slot is the ST; `.slot` → `.ln-slot`. `e2e/smoke.spec.js`: the player's name
+  `#profile .phead h2` → `#player-title` (the h1), his team `#profile` → `#player-facts`;
+  "WITHHELD" → "Withheld"; "estimator signal: X" → "Reliability: X" (its title still equals
+  `signal_note` word for word); `.pctsub` equal to player_lab's `percentile_note` → the server's
+  `percentile_line` ("94th percentile among La Liga midfielders with 900+ minutes in 2017/18 (127
+  players)"), the ordinal still checked against `round(percentile)`; "This estimator needs …
+  before a point estimate is shown" → "This measure needs … before a number is shown", with
+  "Not enough minutes to judge (under 1,800)"; `#cmp h2` "Observed location" → "Where their
+  passes start", `#cmp .phead h2` → `#compare-title`; the second keeper's wait narrowed to
+  `/api/compare?`. `e2e/labs.spec.js`: `#score-note` "NOT_IDENTIFIED" → "One-number match
+  summary: not identified."; the XI H1 and sentence; the quick picks named in plain words
+  ("Ronaldo, Benzema and Bale together", "Isco at the tip of a diamond"); "Not checked" for the
+  lab's NOT_EVALUATED. `e2e/repairs.spec.js`: "Building match intelligence" → "Loading the
+  match"; a picker option `date.slice(0,10) + ' · ' + label` ("2017-08-20 · Deportivo La
+  Coruña - Real Madrid, 0 - 3") → the server's line ("Sun 20 Aug 2017 · Deportivo La Coruña
+  0–3 Real Madrid"), with the date order checked; the coverage line is the server's sentence;
+  "Find the XI again" and "Set targets". `e2e/alternatives.spec.js`, `e2e/tradeoff.spec.js` and
+  `e2e/xi-extensions.spec.js`: each tool is opened from its closed disclosure; "Adjust
+  requirement minima" → "Set targets", the solve button → "Find the XI again", a lock is
+  "Locked in"; the requests on load add `GET /api/answers/xi/scenarios` and
+  `POST /api/answers/xi`. `e2e/squad.spec.js`: `#eyebrow` the browser-built "team · season ·
+  matches before" → the server's scope line; `#constraints button` ("EXCLUDE name ×") →
+  `#departures` chips ("Without <name> ×"); `#presets` → the `#targets` select and a departures
+  chip; the `#audit` button removed (any change runs the audit); "Apply the edited minima and
+  re-audit before asking this." → "Apply the edited targets before asking this."; "Squad audit
+  unavailable:" → "Squad depth unavailable:"; "Absence stress unavailable:" → "Absences
+  unavailable:"; the address is the server's share link; the page's own season chip is gone.
+  `e2e/transfer.spec.js` rewritten: the "Set the problem" (`#apply`) and "Re-solve with each
+  listed candidate" (`#search`) buttons, the row fill (`#fill-status`, `#fill-stop`, the
+  21-cell strips), the outcome bands and the client-side reorder (the old pins at
+  `transfer.spec.js:88-360`) → an answer on arrival, rows equal to the server's in the server's
+  order, one request per order change, and the gold, late-reply, superseded-answer, 429,
+  not-certified, no-XI-world, comma-locale and 320 px checks re-expressed on the new markup.
+  `e2e/shell.spec.js` gains the 404 page (on both apps), the 44 px wordmark and the strip
+  fades. `e2e/screenshots.spec.js` captures the new pages: Squad depth and Signings open from
+  the hand-off link (`?exclude=3322&target=progression:EXPLICIT:4`, and `4.2` with `slot=st`)
+  and are captured at the top, answer first. The tracked images `01`, `03`, `04`, `06`, `07`,
+  `09`, `10`, `11`, `12`, `17` and `18` under `docs/screenshots/` were regenerated on the local
+  corpus and inspected (each shows Pappalardo/Wyscout data only); `08-why.png`, which shows the
+  labels formed from StatsBomb data, stays as committed.
+
+No assertion about a number, an order, gold, the copy guard, overflow or a credit was weakened;
+each was re-expressed on the new markup or made stronger.
+
+**Evidence.** The UX audit and the redesign brief. `tests/test_player_answers.py`,
+`test_xi_answers.py` and `test_planning_answers.py`: every branch of every sentence over
+synthetic replies, the routes end to end, and the real archive where it is built; each passes
+the copy guard, every number in it is one the reply carries, a list of candidates is in the
+order of the declared key and never of a modelled change, and the hand-off link reads back in
+the browser kit as the problem it was written from. `tests/test_matches_table.py`: the fill
+never replaces a reported result, the freshness lines from the rows, every answer shape through
+`scan_labels` with its numbers checked, no German Champions League name. The e2e suite on the
+local corpus: answer before the primary visual and above the fold at 1440 px, the detail
+closed, gold the selected subject only, no overflow at 390 and 320 px, 44 px targets, the
+late-reply and superseded-reply checks, and the designed states.
+
+**Alternatives rejected.** Keeping the lab layouts and adding a sentence on top (the controls
+would still come first). Writing the sentences in the browser from the replies (R10). Ordering
+Signings by the outcome of the re-solve, even within a declared key (ADR-0023). Keeping La Liga
+in the goal explorer with an empty state (every link to it was a dead end, F1). Estimating a
+missing La Liga result or scorer (R8). Precomputing an XI scenario for every match (F18's large
+option; hiding the link is exact and small). Polling the board every minute on any day (F16).
+
+**Open.** The brief lists `/player` first under Players; the review asked for the current-season
+page first. That is a root decision and is unchanged here.
+
+**Confidence.** High that every page leads with a server sentence that passes the copy guard and
+carries only numbers its reply carries, that the frozen APIs and files are unchanged, and that
+the order, gold, overflow and credit checks hold (the tests above). Medium on the Wikipedia
+placement rule and on the Champions League knockout stages, which OpenLigaDB has not yet
+published.
+
+**Reversal.** A reader study showing that the answer sentence is read as a recommendation; a
+source that carries current La Liga goals under a licence the site may use (La Liga then
+returns to the explorer); a test showing a recorded rate carries over after a move (Signings
+could then say more than eligibility).

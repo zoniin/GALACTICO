@@ -39,6 +39,7 @@ from ..domain.provenance import DEFAULT_GATE
 from ..features.estimators import CHANNEL_GEOMETRY, describe_style
 from ..features.spec import SPECS
 from ..identity import normalise_name
+from ..match_centre import errors
 from ..match_centre.routes import make_router as match_centre_router
 from ..profiles import REJECTED, RESEARCH_ONLY, RenderState
 from ..profiles.build import BUILD_RULES, UNTESTED, construct_version
@@ -626,6 +627,8 @@ def index(request: Request) -> str:
 
 # The archive's sections of "About the numbers", read from the registries where they are defined.
 app.state.about_sections = about.sections(constructs, note_base=RESEARCH_NOTE_BASE)
+# A browser asking for an address this app does not serve gets the site's own page (ADR-0034).
+errors.install(app)
 
 
 if STATIC.exists():

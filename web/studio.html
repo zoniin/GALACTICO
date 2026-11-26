@@ -4,56 +4,56 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <!--shell:head-->
-    <link rel="stylesheet" href="/static/studio-shell.css" />
-    <link rel="stylesheet" href="/static/studio.css" />
+    <link rel="stylesheet" href="/static/lineup.css" />
     <script src="/static/studio.js" type="module"></script>
   </head>
   <body class="studio">
     <!--shell:header-->
-    <main id="main" class="frame">
-      <div class="studio-head">
-        <div>
-          <p class="kicker">Real Madrid <span>/</span> <span id="season">First team</span></p>
-          <h1>Lineup<span>.</span></h1>
+    <main id="main" class="page-main lineup">
+      <header class="page-header ln-header">
+        <h1>Lineup</h1>
+        <p class="page-answer" id="answer" aria-live="polite">
+          <span class="ui-skeleton ln-line"></span><span class="ui-skeleton ln-line ln-line-short"></span
+          ><span class="sr-only">Loading the proposed XI…</span>
+        </p>
+        <p class="sr-only" id="answer-names"></p>
+        <div class="page-actions ln-actions">
+          <button type="button" class="ui-btn ui-btn-primary" id="copy" disabled>
+            <svg class="ln-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+              <path d="M8.5 11.5a3.5 3.5 0 0 0 5 0l2.5-2.5a3.5 3.5 0 0 0-5-5l-1 1" />
+              <path d="M11.5 8.5a3.5 3.5 0 0 0-5 0L4 11a3.5 3.5 0 0 0 5 5l1-1" />
+            </svg>
+            Copy link
+          </button>
+          <button type="button" class="ui-btn" id="save" disabled>Save on this device</button>
+          <button type="button" class="ui-btn ui-btn-ghost" id="reset" hidden>
+            Back to the proposed XI
+          </button>
         </div>
-        <div class="tools">
-          <a href="/match-centre/scouting#goals" class="scout-link">Goals by opponent ↗</a>
-          <button id="undo" disabled><span aria-hidden="true">↶</span> Undo</button
-          ><button id="save" class="primary" disabled>Save lineup</button>
-        </div>
-      </div>
-      <p id="notice" class="notice" role="status" aria-live="polite">Loading the first team…</p>
-      <div class="studio-grid">
-        <section class="board-col" aria-labelledby="starting">
-          <details id="match-prep" class="match-prep" hidden>
-            <summary>
-              <span class="prep-label">Next in La Liga</span><strong id="prep-opponent"></strong>
-              <span id="prep-date"></span>
-            </summary>
-            <div class="prep-body">
-              <p id="prep-schedule" hidden></p>
-              <p>Last five reported results · newest first</p>
-              <div id="prep-form"></div>
-              <a id="prep-scout">Scout opponent</a>
-              <small>Match reports from <a href="https://www.openligadb.de/">OpenLigaDB</a> under <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a>.</small>
-            </div>
-          </details>
-          <div class="pitch-card">
-            <div class="board-bar">
-              <h2 id="starting"><i class="field-icon" aria-hidden="true"></i>Starting XI</h2>
-              <label class="formation-label"
+      </header>
+      <div id="notice" class="ui-callout ln-notice" data-tone="caution" role="status" hidden></div>
+      <p id="live" class="sr-only" aria-live="polite"></p>
+
+      <div class="ln-layout">
+        <div class="ln-primary">
+          <section class="ln-board" aria-labelledby="starting">
+            <div class="ln-board-bar">
+              <div class="ln-board-title">
+                <h2 id="starting">Starting XI</h2>
+                <span class="ln-status" id="xi-status" hidden></span>
+              </div>
+              <label class="ln-formation"
                 ><span>Formation</span>
-                <select id="formation" aria-label="Formation">
+                <select id="formation" aria-label="Formation" disabled>
                   <option>4-3-3</option>
-                  <option>4-2-3-1</option>
-                  <option>4-4-2</option>
-                  <option>3-5-2</option>
                 </select></label
               >
             </div>
-            <div class="field" id="field" aria-label="Tactical pitch">
+            <p class="ln-key" id="key"><span class="ui-skeleton ln-key-line"></span></p>
+            <p class="ln-ties" id="ties" hidden></p>
+            <div class="ln-field" id="field" aria-label="Tactical pitch">
               <svg
-                class="markings"
+                class="ln-markings"
                 viewBox="0 0 640 440"
                 preserveAspectRatio="none"
                 aria-hidden="true"
@@ -68,79 +68,91 @@
                     d="M279 78q41 32 82 0 M279 362q41-32 82 0 M17 27q11 0 11-11 M612 16q0 11 11 11 M17 413q11 0 11 11 M612 424q0-11 11-11"
                   />
                 </g>
-                <g class="spots">
+                <g class="ln-spots">
                   <circle cx="320" cy="220" r="2.8" />
                   <circle cx="320" cy="62" r="2.5" />
                   <circle cx="320" cy="378" r="2.5" />
                 </g>
               </svg>
-              <span class="direction">↑ Attack</span>
-              <div id="slots"></div>
+              <span class="ln-direction" aria-hidden="true">↑ Attack</span>
+              <div id="slots" class="ln-slots"></div>
             </div>
-            <div class="board-foot">
-              <span
-                ><span class="selected-dot"></span>
-                <span id="picked">Select a shirt to inspect a player</span></span
-              >
-              <div class="board-actions">
-                <a href="#player-name" class="inspect-link">View profile ↓</a
-                ><button id="swap" disabled>Swap position</button>
+            <div class="ln-board-foot">
+              <p class="ln-picked" id="picked">Loading the squad…</p>
+              <div class="ln-board-actions">
+                <a href="#player-name" class="ln-inspect">View profile</a>
+                <button type="button" class="ln-pitch-btn" id="cancel" hidden>Cancel</button>
+                <button type="button" class="ln-pitch-btn" id="undo" disabled>
+                  <span aria-hidden="true">↶</span> Undo
+                </button>
+                <button type="button" class="ln-pitch-btn" id="swap" aria-pressed="false" disabled>
+                  Swap position
+                </button>
               </div>
             </div>
-          </div>
-          <section class="bench" aria-labelledby="bench-title">
-            <div class="section-row">
-              <h2 id="bench-title">Substitutes</h2>
-              <span id="bench-count"></span>
-            </div>
-            <p id="bench-hint">Choose a substitute for the selected position.</p>
-            <div id="bench-list"></div>
           </section>
-        </section>
-        <aside class="inspector" aria-label="Player inspection">
-          <section class="profile" aria-labelledby="player-name">
-            <div class="hero">
-              <div class="hero-lines"></div>
-              <p class="hero-label"><i></i> Player profile</p>
-              <div class="profile-copy">
-                <p id="given-name"></p>
+
+          <section class="ui-card ln-bench" aria-labelledby="bench-title">
+            <div class="ln-section-head">
+              <h2 id="bench-title">Substitutes</h2>
+              <span class="ln-count" id="bench-count"></span>
+            </div>
+            <p class="ln-hint" id="bench-hint">Tap a substitute, then the position he takes.</p>
+            <div id="bench-list" class="ln-bench-list" aria-busy="true">
+              <span class="ui-skeleton"></span><span class="ui-skeleton"></span
+              ><span class="ui-skeleton"></span><span class="ui-skeleton"></span>
+            </div>
+            <p class="ln-order" id="bench-order"></p>
+          </section>
+        </div>
+
+        <aside class="ln-side" aria-label="Next match and player">
+          <section class="ui-card ln-next" id="next" aria-labelledby="next-title">
+            <div class="ln-section-head">
+              <h2 id="next-title" class="eyebrow-text">Next match</h2>
+              <span class="ln-venue" id="next-venue" hidden></span>
+            </div>
+            <div id="next-body" class="ln-next-body" aria-busy="true">
+              <span class="ui-skeleton ln-next-line"></span
+              ><span class="ui-skeleton ln-next-line ln-line-short"></span>
+            </div>
+          </section>
+
+          <section class="ui-card ln-profile" id="profile" aria-labelledby="player-name" hidden>
+            <div class="ln-hero">
+              <div class="ln-hero-copy">
+                <p class="ln-hero-label" id="hero-label">Player</p>
+                <p class="ln-given" id="given-name"></p>
                 <h2 id="player-name" tabindex="-1">Choose a player</h2>
-                <p id="player-meta"></p>
+                <p class="ln-meta" id="player-meta"></p>
               </div>
-              <div class="hero-kit">
+              <div class="ln-kit" aria-hidden="true">
                 <img src="/static/assets/studio-kit.webp" alt="" /><strong
                   id="hero-number"
                 ></strong>
               </div>
             </div>
-            <div class="metrics">
-              <div><span>Appearances</span><strong id="apps">—</strong></div>
-              <div><span>Goals</span><strong id="goals">—</strong></div>
-              <div><span>XI role</span><strong id="xi-role">—</strong></div>
-            </div>
-            <p id="season-note" class="profile-note">Season totals · all competitions</p>
+            <dl class="ln-stats">
+              <div><dt>Appearances</dt><dd id="apps">—</dd></div>
+              <div><dt>Goals</dt><dd id="goals">—</dd></div>
+              <div><dt>In this XI</dt><dd id="xi-role">—</dd></div>
+            </dl>
+            <p class="ln-note" id="season-note">This season, all competitions.</p>
           </section>
-          <section class="profile-goals" aria-labelledby="profile-goals-title">
-            <h2 id="profile-goals-title">La Liga goal log</h2>
-            <p id="profile-goal-results">Loading league reports…</p>
-            <a id="profile-scout" class="profile-scout" hidden></a>
-            <small><a href="https://www.openligadb.de/">OpenLigaDB</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL 1.0</a></small>
-          </section>
-          <section class="analysis" aria-labelledby="map-title">
-            <div class="section-row">
-              <h2 id="map-title">Activity map</h2>
+
+          <details class="ui-disclosure ln-map" id="map-panel" hidden>
+            <summary><h2 id="map-title" class="ln-map-title">Archive: where he played in 2017/18</h2></summary>
+            <div class="ui-disclosure-body ln-map-body">
+            <div class="ln-section-head">
               <span class="season-chip" data-season="archive" id="map-season" hidden
                 ><span class="sr-only">Season </span>2017/18 archive</span
               >
-              <span class="analysis-icon" aria-hidden="true">⌖</span>
             </div>
-            <div class="map-tabs" aria-label="Map view">
-              <button id="events" aria-pressed="true">Event heatmap</button
-              ><button id="role" aria-pressed="false">Role zone</button>
+            <div class="ui-segmented ln-map-views" role="group" aria-label="Map view">
+              <button type="button" id="events" aria-pressed="true">Archive sample</button
+              ><button type="button" id="role" aria-pressed="false">Role area</button>
             </div>
-            <div class="map-label">
-              <span id="sample">Select a player</span><span>Attack →</span>
-            </div>
+            <p class="ln-sample" id="sample"></p>
             <canvas
               id="map"
               width="660"
@@ -148,43 +160,70 @@
               role="img"
               aria-label="Player activity map"
             ></canvas>
-            <div class="map-caption">
+            <div class="ln-map-caption">
               <span id="sample-count"></span
               ><label id="action-label" hidden
-                ><span class="sr">Action filter</span
+                ><span class="sr-only">Action filter</span
                 ><select id="action" aria-label="Action filter"></select
               ></label>
             </div>
-            <div
-              id="density-scale"
-              class="density-scale"
-              hidden
-              aria-label="Relative action density"
-            >
+            <div id="density-scale" class="ln-density" hidden aria-label="Relative action density">
               Fewer actions <i aria-hidden="true"></i> More
             </div>
-            <p class="map-detail" id="map-detail"></p>
-            <details class="importer">
-              <summary>Import match events</summary>
-              <p>
-                Upload a CSV with <code>x,y</code> and optional <code>type</code>. Use 0–100
-                coordinates, attacking left to right, with y increasing downwards. Each row is an
-                action by the selected player.
-              </p>
+            <p class="ln-map-detail" id="map-detail"></p>
+            </div>
+          </details>
+        </aside>
+      </div>
+
+      <details class="ui-disclosure ln-tools" id="tools">
+        <summary>Analyst tools <span class="ui-disclosure-summary">Import match events</span></summary>
+        <div class="ui-disclosure-body">
+          <p>
+            Draw the selected player’s actions from your own file: a CSV with <code>x</code> and
+            <code>y</code> from 0 to 100, attacking left to right with y running downwards, and an
+            optional <code>type</code>. The file stays in this tab.
+          </p>
+          <div class="ln-import">
+            <label class="ui-field"
+              ><span class="ui-label">Events for <span id="import-player">the selected player</span></span>
               <input
                 type="file"
                 id="file"
                 accept=".csv,text/csv"
                 aria-label="Import coordinates for selected player"
-              /><button id="clear-import" hidden>Remove imported events</button>
-            </details>
-          </section>
-        </aside>
-      </div>
-      <footer class="sources">
-        <span id="roster-credit">Squad and season totals by Wikipedia contributors.</span> Adapted
-        under <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>.
-      </footer>
+            /></label>
+            <button type="button" class="ui-btn" id="clear-import" hidden>Remove imported events</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="ui-disclosure ln-about">
+        <summary>About these numbers</summary>
+        <div class="ui-disclosure-body">
+          <ul class="ln-about-list">
+            <li id="rule">The proposed XI is picked by appearances this season.</li>
+            <li>
+              Appearances and goals are this season’s, in all competitions, from the Wikipedia
+              season article. <span id="roster-credit"></span>
+            </li>
+            <li>
+              The next match comes from the schedule the Matches page reads: OpenFootball, and
+              OpenLigaDB for the Champions League. Kick-off times are local.
+            </li>
+            <li>
+              An activity map is an archive sample: the player’s last recorded match in the
+              public 2017/18 Wyscout data (Pappalardo et al.). A player with no sample shows no
+              map. Colour shows where his actions started, not how they went.
+            </li>
+            <li>A role area is drawn from the formation, not measured.</li>
+            <li>
+              A link carries the formation and the shirt numbers. A saved lineup stays in this
+              browser only.
+            </li>
+          </ul>
+        </div>
+      </details>
     </main>
     <!--shell:footer-->
   </body>

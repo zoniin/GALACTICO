@@ -1,4 +1,8 @@
-"""Exercise both fixture sources, using only invented match records in the test suite."""
+"""Exercise both fixture sources, using only invented match records in the test suite.
+
+OpenLigaDB (the Bundesliga and Premier League fill, the Champions League) answers an empty
+season here unless a test says otherwise, so no test reaches an upstream.
+"""
 
 import asyncio
 from datetime import UTC, date, datetime
@@ -12,6 +16,7 @@ from galactico.match_centre.api_football import ApiFootball
 from galactico.match_centre.feed import FeedCache, FeedError, Snapshot
 from galactico.match_centre.local import create_app
 from galactico.match_centre.openfootball import OpenFootball
+from galactico.match_centre.openligadb import OpenLigaDB
 
 DAY = date(2026, 10, 10)
 CHECKED = datetime(2026, 10, 10, 12, tzinfo=UTC).isoformat()
@@ -21,6 +26,14 @@ GAMES = [
     dict(date="2026-10-09", team1="Test B", team2="Test A"),
     dict(date="2026-10-10", team1="Real Madrid", team2="Test C", score={"ht": [1, 0]}),
 ]
+
+
+@pytest.fixture(autouse=True)
+def no_openligadb(monkeypatch):
+    async def season(self, shortcut, year):
+        return Snapshot([], CHECKED)
+
+    monkeypatch.setattr(OpenLigaDB, "season", season)
 
 
 def test_public_scoreboard_form_and_date_boundaries(monkeypatch):

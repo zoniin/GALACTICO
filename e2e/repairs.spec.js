@@ -109,7 +109,7 @@ test('Match Lab applies only the newest selection and drops a stale error state'
   await page.locator('#match-select').selectOption('2565907');
   await loading.intercepted;
   await expect(page.locator('#status')).toBeVisible();
-  await expect(page.locator('#status')).toContainText('Building match intelligence');
+  await expect(page.locator('#status')).toContainText('Loading the match');
   await expect(page.locator('#status')).not.toHaveClass(/error/);
   loading.release();
   await expect(page.locator('#match-body')).toBeVisible({ timeout: 60000 });
@@ -123,28 +123,36 @@ test('Match Lab applies only the newest selection and drops a stale error state'
 test('Match Lab prints labels, coverage and clearances as recorded and fits 390 and 320 px', async ({ page }) => {
   test.setTimeout(240000);
   const errors = watch(page);
-  const listing = page.waitForResponse(r => r.url().endsWith('/api/matches'), { timeout: 150000 });
+  const listing = page.waitForResponse(r => r.url().endsWith('/api/answers/matches'), { timeout: 150000 });
   const detail = page.waitForResponse(r => r.url().endsWith('/api/matches/2565907'), { timeout: 150000 });
   await page.goto(BASE + '/match?id=2565907');
   const matches = (await (await listing).json()).matches;
   const match = await (await detail).json();
   await expect(page.locator('#match-body')).toBeVisible({ timeout: 150000 });
 
-  // Labels: the provider's escape text must never reach a reader.
+  // Labels: the provider's escape text must never reach a reader. ADR-0034: each option is the
+  // server's line for the match (the site's date, then the result), in date order.
   const options = await page.locator('#match-select option').allTextContents();
-  expect(options).toEqual(matches.map(m => m.date.slice(0, 10) + ' · ' + m.label));
+  expect(options).toEqual(matches.map(m => m.label));
+  expect(matches.map(m => m.date)).toEqual(matches.map(m => m.date).sort());
   expect(options.filter(text => text.includes('\\'))).toEqual([]);
-  expect(options).toContain('2017-08-20 · Deportivo La Coruña - Real Madrid, 0 - 3');
+  expect(options).toContain('Sun 20 Aug 2017 · Deportivo La Coruña 0–3 Real Madrid');
 
   // Coverage: the four server values, each under its own name, and no serialised object.
-  const note = page.locator('#network-note');
+  // ADR-0034 (G4-1): the line is the server's sentence (/api/answers/match network_coverage),
+  // under "How a pass is linked to its receiver", not the visible note under the drawing.
+  const said = await page.evaluate(() => fetch('/api/answers/match/2565907').then(r => r.json()));
+  const note = page.locator('#network-coverage');
   for (const network of match.passing_network) {
     await page.locator('#network-team').selectOption(String(network.team_id));
     const c = network.coverage;
-    await expect(note).toContainText('Recipient coverage: ' + c.matched_passes + ' matched of '
-      + c.total_completed_passes + ' completed passes; ' + c.inferred + ' inferred, ' + c.direct + ' direct.');
+    await expect(note).toHaveText(said.network_coverage[String(network.team_id)]);
+    await expect(note).toContainText(c.matched_passes + ' of ' + c.total_completed_passes
+      + ' completed passes are linked to a receiver: ' + c.inferred + ' by the next recorded action, '
+      + c.direct + ' recorded directly.');
     await expect(note).not.toContainText('{');
     await expect(note).not.toContainText('matched_passes');
+    await expect(page.locator('#network-note')).not.toContainText('Recipient coverage');
   }
 
   // Clearances: eleven were recorded in this match (Barcelona 6, Real Madrid 5). The page
@@ -152,9 +160,12 @@ test('Match Lab prints labels, coverage and clearances as recorded and fits 390 
   const clearances = match.team_profiles.map(profile => profile.metrics.find(m => m.id === 'clearances'));
   expect(clearances.map(m => m.value)).toEqual([6, 5]);
   expect(clearances[0].label).not.toMatch(/tagged/i);
-  const row = page.locator('#team-profiles tbody tr').filter({ hasText: clearances[0].label });
+  // ADR-0034 (G4-1): the team table names the measure in the server's words ("Clearances")
+  // and prints the count alone; it sits in "Both teams, side by side", closed by default.
+  await page.locator('#teams-more > summary').click();
+  const row = page.locator('#team-profiles tbody tr').filter({ hasText: /^\s*Clearances/ });
   await expect(row).toHaveCount(1);
-  await expect(row.locator('td.mono')).toHaveText([/^6\s*events$/, /^5\s*events$/]);
+  await expect(row.locator('td.mono')).toHaveText([/^6$/, /^5$/]);
   await expect(page.locator('#team-profiles')).not.toContainText('Tagged clearances');
 
   expect(await page.locator('svg').evaluateAll(svgs => svgs.some(s => /NaN|undefined/.test(s.outerHTML)))).toBe(false);
@@ -204,10 +215,12 @@ test('XI Lab blocks an empty minimum and compares only when something was locked
   await expect(page.locator('main')).not.toContainText('lock/exclusion');
   const scenarios = await page.locator('#scenario option').allTextContents();
   expect(scenarios.filter(text => text.includes('\\'))).toEqual([]);
-  expect(scenarios).toContain('Real Madrid · before Atlético Madrid · 2018-04-08');
+  // ADR-0034: each match is the server's line for it, the opponent then the site's date.
+  expect(scenarios).toContain('Atlético Madrid · Sun 8 Apr 2018');
 
   // An emptied minimum is not zero. The browser's own validity message stops the re-solve.
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  // ADR-0034: the minima are the targets, edited under "Set targets".
+  await page.getByText('Set targets', { exact: true }).click();
   const progression = page.locator('input[data-requirement="progression"]');
   await page.locator('input[data-requirement="left_pass_origins"]').fill('50');
   await progression.fill('');
@@ -215,7 +228,7 @@ test('XI Lab blocks an empty minimum and compares only when something was locked
   await page.locator('#apply-minima').click();
   // A solve hides the body before its first await, so a started solve cannot hide here.
   await expect(page.locator('#xi-body')).toBeVisible();
-  await expect(page.locator('#solve')).toHaveText('Re-solve XI');
+  await expect(page.locator('#solve')).toHaveText('Find the XI again');
   expect(await progression.evaluate(input => ({
     value: input.value,
     missing: input.validity.valueMissing,
@@ -283,7 +296,8 @@ test('XI Lab disables every control that starts a solve while one is running', a
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 150000 });
   await expect(page.locator('#presets button')).toHaveCount(2);
   await expectStarters('toBeEnabled');
-  await expect(page.locator('#solve')).toHaveText('Re-solve XI');
+  // ADR-0034: the button is named in plain words.
+  await expect(page.locator('#solve')).toHaveText('Find the XI again');
 
   await page.locator('#mode').selectOption('SATISFY');
   await inFlight(2);

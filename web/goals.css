@@ -1,0 +1,731 @@
+/* Goals by opponent (scouting.html): the page parts the components do not draw. In the page
+   layer, above the components; every value is a role of tokens.css, so the page follows both
+   themes.
+
+   Colour carries no merit. A result badge pairs its letter with its tint; an opponent's goal is
+   told from the club's by the words "for <club>" beside it, not by a colour alone. Gold is the
+   selected subject only: the scorer a reader picked, a fill with its dark edge. The column of
+   the opponent group a reader chose is the accent's soft tint. On a phone every control is at
+   least 44 px tall and the scorer table stacks, so nothing scrolls sideways. */
+@layer page {
+  /* ------------------------------------------------------------ the page header */
+
+  .goals-page .page-header {
+    margin-bottom: var(--space-5);
+  }
+
+  .gs-line {
+    display: block;
+    height: 1.1em;
+    max-width: 60ch;
+    margin: 0.3em 0;
+  }
+
+  .gs-line-short {
+    max-width: 32ch;
+  }
+
+  .gs-opening {
+    max-width: 72ch;
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* ------------------------------------------------------------ cards */
+
+  .gs-card {
+    margin: 0 0 var(--space-5);
+    scroll-margin-top: var(--space-4);
+  }
+
+  .gs-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+    margin-bottom: var(--space-4);
+  }
+
+  .gs-title {
+    min-width: 0;
+  }
+
+  .gs-title h2 {
+    margin: 0;
+    font-size: var(--text-xl);
+    overflow-wrap: anywhere;
+  }
+
+  .gs-meta {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .gs-pickers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 15rem));
+    gap: var(--space-3);
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .gs-subtitle {
+    margin: var(--space-6) 0 var(--space-1);
+    font-size: var(--text-md);
+  }
+
+  .gs-order {
+    margin: 0 0 var(--space-3);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-regular);
+  }
+
+  .gs-subtitle .gs-order {
+    margin-left: var(--space-2);
+  }
+
+  .gs-stats {
+    margin: 0 0 var(--space-2);
+  }
+
+  .gs-stats .ui-stat {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .gs-stats-note {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .goals-page .ui-callout p {
+    margin: 0;
+  }
+
+  .gs-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin: var(--space-2) 0 0;
+  }
+
+  /* While a new report loads, the old one stays in place, quieter, and cannot be used. */
+  .gs-card.is-busy #goals-data {
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity var(--duration-fast) var(--ease);
+  }
+
+  /* ------------------------------------------------------------ loading */
+
+  .gs-skeleton {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .gs-skeleton > .ui-skeleton {
+    height: 44px;
+  }
+
+  .gs-skeleton-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+  }
+
+  .gs-skeleton-stats .ui-skeleton {
+    height: 84px;
+  }
+
+  /* ------------------------------------------------------------ scorers by opponent group */
+
+  .gs-matrix-wrap {
+    max-width: 100%;
+  }
+
+  .gs-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gs-matrix th,
+  .gs-matrix td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .gs-matrix th:first-child {
+    width: 40%;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .gs-matrix thead th {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-semibold);
+  }
+
+  .gs-matrix tbody td {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+  }
+
+  .gs-matrix tfoot th,
+  .gs-matrix tfoot td {
+    color: var(--text-muted);
+    font-weight: var(--weight-semibold);
+  }
+
+  .gs-matrix tfoot tr:first-child > * {
+    border-top: 2px solid var(--border-control);
+  }
+
+  .gs-matrix .is-band {
+    background: var(--accent-soft);
+  }
+
+  .gs-matrix thead .is-band {
+    color: var(--text);
+  }
+
+  /* The picked scorer: a gold bar with its dark edge beside it, never gold alone. */
+  .gs-matrix tr[aria-selected="true"] {
+    box-shadow: inset 4px 0 0 var(--selected), inset 6px 0 0 var(--selected-edge);
+  }
+
+  .gs-name {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 36px;
+    margin: -4px 0;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    background: none;
+    color: var(--text);
+    font: var(--weight-semibold) var(--text-sm) / 1.25 var(--font-sans);
+    text-align: left;
+    text-decoration: underline dotted;
+    text-decoration-color: var(--text-subtle);
+    text-underline-offset: 0.25em;
+    cursor: pointer;
+  }
+
+  .gs-name:hover {
+    border-color: var(--border-control);
+    background: var(--surface-1);
+    text-decoration-color: currentColor;
+  }
+
+  .gs-name[aria-pressed="true"] {
+    text-decoration: none;
+  }
+
+  .gs-more {
+    margin-top: var(--space-2);
+  }
+
+  .gs-band-note {
+    max-width: 80ch;
+    margin: var(--space-3) 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  /* ------------------------------------------------------------ the match list */
+
+  .gs-log-head {
+    margin: var(--space-3) 0;
+  }
+
+  .gs-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+    min-width: 0;
+  }
+
+  .gs-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .gs-chip {
+    min-height: 40px;
+  }
+
+  .gs-chip-count {
+    min-width: 22px;
+    padding: 1px 6px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .gs-opponent {
+    width: min(100%, 16rem);
+  }
+
+  .gs-filtered {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-semibold);
+  }
+
+  .gs-log {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .gs-match {
+    border-top: 1px solid var(--border);
+  }
+
+  .gs-match summary {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr) auto 16px;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 56px;
+    padding: var(--space-2) var(--space-2);
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .gs-match summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .gs-match summary::after {
+    content: "";
+    justify-self: end;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: rotate(45deg);
+    transition: transform var(--duration-fast) var(--ease);
+  }
+
+  .gs-match details[open] summary::after {
+    transform: rotate(225deg);
+  }
+
+  .gs-match summary:hover {
+    background: var(--surface-2);
+  }
+
+  .gs-date {
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gs-opp {
+    display: grid;
+    min-width: 0;
+  }
+
+  .gs-opp strong {
+    font-size: var(--text-md);
+    font-weight: var(--weight-semibold);
+    overflow-wrap: anywhere;
+  }
+
+  .gs-sub {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gs-result {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .gs-result b {
+    min-width: 3ch;
+    font-size: var(--text-lg);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .gs-goals {
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-3) calc(7rem + var(--space-5));
+    list-style: none;
+  }
+
+  .gs-goal {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px var(--space-3);
+    padding: 4px 0;
+    font-size: var(--text-sm);
+  }
+
+  .gs-minute {
+    min-width: 3ch;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .gs-scorer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: var(--weight-medium);
+  }
+
+  .gs-goal.is-picked .gs-scorer {
+    font-weight: var(--weight-bold);
+  }
+
+  .gs-goal.is-against .gs-scorer,
+  .gs-side {
+    color: var(--text-muted);
+  }
+
+  .gs-side {
+    font-size: var(--text-xs);
+  }
+
+  .gs-tag {
+    padding: 0 6px;
+    border: 1px solid var(--border-control);
+    border-radius: var(--radius-control);
+    color: var(--text);
+    font-size: var(--text-xs);
+  }
+
+  .gs-note {
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-3) calc(7rem + var(--space-5));
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gs-log .ui-empty {
+    margin: var(--space-3) 0;
+  }
+
+  /* ------------------------------------------------------------ share, notes, credits */
+
+  .gs-share {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin: var(--space-4) 0 0;
+  }
+
+  .gs-share-status {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gs-share .ui-input {
+    flex-basis: 100%;
+  }
+
+  .gs-notes {
+    margin: var(--space-3) 0 0;
+    padding-left: 1.2em;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  .gs-credit {
+    margin: var(--space-3) 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  /* ------------------------------------------------------------ Real Madrid's scorers */
+
+  .gs-squad .gs-head {
+    margin-bottom: var(--space-2);
+  }
+
+  .gs-squad-answer {
+    max-width: 68ch;
+    margin: 0 0 var(--space-3);
+  }
+
+  .gs-squad-table th[scope="row"] {
+    font-weight: var(--weight-medium);
+    text-align: left;
+  }
+
+  .gs-squad-table .num {
+    width: 4.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gs-squad-table td:last-child {
+    font-weight: var(--weight-bold);
+  }
+
+  .gs-through {
+    color: var(--text);
+    font-weight: var(--weight-semibold);
+  }
+
+  /* ------------------------------------------------------------ Real Madrid in La Liga */
+
+  .gs-baseline .gs-line-text {
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-sm);
+  }
+
+  .gs-fresh {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-sm);
+  }
+
+  .gs-fresh[data-stale] {
+    padding: var(--space-2) var(--space-3);
+    border-left: 4px solid var(--warning);
+    border-radius: var(--radius-control);
+    background: var(--warning-soft);
+  }
+
+  /* ------------------------------------------------------------ the private comparison */
+
+  .gs-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+    align-items: end;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 var(--space-3);
+  }
+
+  .gs-compare-result {
+    margin-top: var(--space-4);
+  }
+
+  .gs-compare-result .gs-subtitle {
+    margin-top: 0;
+  }
+
+  /* ------------------------------------------------------------ about these numbers */
+
+  .gs-about-list {
+    margin: 0;
+    padding-left: 1.2em;
+    font-size: var(--text-sm);
+  }
+
+  .gs-about-list li + li {
+    margin-top: var(--space-2);
+  }
+
+  /* ------------------------------------------------------------ phones and tablets */
+
+  @media (max-width: 960px) {
+    .goals-page .ui-select,
+    .goals-page .ui-input,
+    .goals-page .ui-btn,
+    .gs-chip,
+    .gs-name {
+      min-height: var(--target-touch);
+    }
+
+    .gs-name {
+      margin: 0;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .gs-head {
+      align-items: stretch;
+    }
+
+    .gs-pickers {
+      flex: 1 1 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gs-filters {
+      align-items: stretch;
+    }
+
+    .gs-chips,
+    .gs-opponent {
+      flex: 1 1 100%;
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .gs-card {
+      padding: var(--space-4);
+    }
+
+    .gs-pickers {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gs-skeleton-stats .ui-skeleton {
+      height: 72px;
+    }
+
+    /* The stat row stays one row of three. */
+    .gs-stats {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    .gs-stats .ui-stat {
+      padding: var(--space-2) var(--space-3);
+    }
+
+    .gs-stats .ui-stat-value {
+      font-size: var(--text-xl);
+    }
+
+    /* The scorer table, stacked: each scorer two lines, his name and his total on the first,
+       the three opponent groups, each labelled, on the second. */
+    .gs-matrix,
+    .gs-matrix tbody,
+    .gs-matrix tfoot {
+      display: block;
+    }
+
+    .gs-matrix thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    .gs-matrix tr {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0 var(--space-3);
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gs-matrix tr[aria-selected="true"] {
+      padding-left: var(--space-3);
+    }
+
+    .gs-matrix th,
+    .gs-matrix td {
+      padding: 2px 4px;
+      border: 0;
+      text-align: left;
+    }
+
+    .gs-matrix th:first-child {
+      flex: 1 1 calc(100% - 6rem);
+      width: auto;
+      min-width: 0;
+    }
+
+    .gs-matrix td[data-band="all"] {
+      flex: 0 0 auto;
+      margin-left: auto;
+      font-size: var(--text-lg);
+      text-align: right;
+    }
+
+    .gs-matrix td:not([data-band="all"]) {
+      font-size: var(--text-sm);
+    }
+
+    .gs-matrix td::before {
+      content: attr(data-label) " ";
+      color: var(--text-muted);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-medium);
+    }
+
+    .gs-matrix td[data-band="all"]::before {
+      content: "All ";
+    }
+
+    .gs-matrix .is-band {
+      border-radius: var(--radius-control);
+    }
+
+    .gs-matrix tfoot tr:first-child {
+      border-top: 2px solid var(--border-control);
+    }
+
+    .gs-matrix tfoot tr:first-child > * {
+      border-top: 0;
+    }
+
+    .gs-chip {
+      flex: 1 1 auto;
+      justify-content: space-between;
+    }
+
+    .gs-match summary {
+      grid-template-columns: minmax(0, 1fr) auto 16px;
+      gap: 2px var(--space-3);
+    }
+
+    .gs-date {
+      grid-column: 1;
+      grid-row: 1;
+      font-size: var(--text-xs);
+    }
+
+    .gs-opp {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .gs-result {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+    }
+
+    .gs-match summary::after {
+      grid-column: 3;
+      grid-row: 1 / span 2;
+    }
+
+    .gs-goals,
+    .gs-note {
+      padding-left: var(--space-2);
+    }
+
+    .gs-minute {
+      min-width: 4ch;
+    }
+  }
+}

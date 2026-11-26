@@ -19,22 +19,25 @@ from galactico import site_nav
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 LAYER_ORDER = "@layer tokens, base, legacy, components, page;"
-LEGACY_SHEETS = ("labs.css", "labs-shared.css", "planning.css", "xi-extensions.css",
-                 "match-centre.css", "studio-shell.css", "studio.css",
-                 "goal-scout.css")
+LEGACY_SHEETS = ("labs.css", "labs-shared.css", "planning.css", "xi-extensions.css")
+GONE_SHEETS = ("match-centre.css", "studio-shell.css", "studio.css", "goal-scout.css")
+"""The current-season pages' old sheets. Their pages load page-layer sheets now (matches.css,
+goals.css, lineup.css); re-pinned under ADR-0034, the four are deleted, not kept empty."""
 NEW_SHEETS = ("tokens.css", "base.css", "components.css")
 
 
 def test_every_html_file_is_a_page_of_the_shell():
-    # The invented-figures demo is gone (R8), and no page is served outside the shell.
+    # The invented-figures demo is gone (R8), and no page is served outside the shell: the
+    # pages, and the designed page for an address the app does not serve (ADR-0034, S2).
     assert {path.name for path in WEB.glob("*.html")} == {
-        spec.file for spec in site_nav.PAGES.values()}
+        spec.file for spec in site_nav.PAGES.values()} | {site_nav.MISSING.file}
     assert not (WEB / "matchroom-demo.html").exists()
 
 
-@pytest.mark.parametrize("key", sorted(site_nav.PAGES))
+@pytest.mark.parametrize("key", [*sorted(site_nav.PAGES), "missing"])
 def test_a_page_file_holds_the_placeholders_and_no_chrome_of_its_own(key):
-    html = (WEB / site_nav.PAGES[key].file).read_text(encoding="utf-8")
+    spec = site_nav.MISSING if key == "missing" else site_nav.PAGES[key]
+    html = (WEB / spec.file).read_text(encoding="utf-8")
     for placeholder in site_nav.PLACEHOLDERS:
         assert html.count(placeholder) == 1, placeholder
     # The head placeholder comes before any sheet, so the layer order is declared first.
@@ -96,3 +99,10 @@ def test_the_kit_and_the_shell_scripts_declare_no_global():
     theme = (WEB / "theme.js").read_text(encoding="utf-8")
     assert theme.lstrip().startswith("/*") and "(function () {" in theme
     assert "localStorage" in theme and "galactico-theme" in theme
+
+
+@pytest.mark.parametrize("name", GONE_SHEETS)
+def test_a_retired_sheet_is_gone_and_no_page_loads_it(name):
+    assert not (WEB / name).exists()
+    for path in [*WEB.glob("*.html"), *WEB.glob("*.js")]:
+        assert f"/static/{name}" not in path.read_text(encoding="utf-8"), path.name

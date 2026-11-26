@@ -3,6 +3,10 @@
 // else until their own button is pressed, render what the server sent in the order it sent it,
 // and drop a reply whose request belongs to an earlier solve. No screenshot is written here:
 // the tracked XI Lab captures are labs.spec.js's (ROOT-DECISIONS 2.7 X14).
+// ADR-0034 (answer-first pages): the ranges, the frontier and the risk rule are closed
+// disclosures under "Advanced", so a test opens one before it presses its button; the page's
+// own controls are named in the glossary's words ("Set targets", "Find the XI again"); and the
+// page asks its menu and its answer sentence of /api/answers/xi*, not of the panels' routes.
 const { test, expect } = require('@playwright/test');
 const BASE = process.env.GALACTICO_URL || 'http://127.0.0.1:8111';
 const SLOW = 150000;
@@ -63,7 +67,14 @@ const posted = (page, suffix) => page.waitForResponse(
 
 async function solved(page) {
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: SLOW });
-  await expect(page.locator('#solve')).toHaveText('Re-solve XI', { timeout: SLOW });
+  await expect(page.locator('#solve')).toHaveText('Find the XI again', { timeout: SLOW });
+}
+
+// A research tool is a closed disclosure (ADR-0034): open it, once, as a reader would.
+async function openTool(page, id) {
+  const tool = page.locator(id);
+  if (!(await tool.evaluate(el => el.open))) await tool.locator(':scope > summary').click();
+  await expect(tool).toHaveAttribute('open', '');
 }
 
 // Main minima applied (all three are then sent by the page), a lock and an exclusion; then one
@@ -71,7 +82,7 @@ async function solved(page) {
 // excluded player is one the locked solve left out, so the XI it found still stands.
 async function declareMain(page, { minima = true } = {}) {
   if (minima) {
-    await page.getByText('Adjust requirement minima', { exact: true }).click();
+    await page.getByText('Set targets', { exact: true }).click();
     await page.locator('#apply-minima').click();
     await solved(page);
   }
@@ -131,29 +142,35 @@ test('the panels mount before the first solve, send one corpus-free GET on load 
   });
   await page.goto(BASE + '/xi');
   await solved(page);
+  // The answer sentence has come back, so its request is among those made on load.
+  await expect(page.locator('#answer .ui-skeleton')).toHaveCount(0, { timeout: SLOW });
   expect(mountedBeforeSolve).toEqual([true, true, true, true]);
   await expect(page.locator('#solve-ceilings')).toBeEnabled();
   await expect(page.locator('#solve-frontier')).toBeDisabled();
   await expect(page.locator('#solve-risk')).toBeDisabled();
   await expect(page.locator('#conflict-panel')).toBeHidden();
   // The only new request on load is the menus' GET; nothing reads the corpus for the panels.
-  expect(requests.sort()).toEqual(['GET /api/xi/extensions', 'GET /api/xi/scenarios', 'POST /api/xi/solve']);
+  // ADR-0034: the page's menu (the lab's scenarios, in a reader's words) and its answer
+  // sentence come from /api/answers/xi*, which the panels never call.
+  expect(requests.sort()).toEqual(['GET /api/answers/xi/scenarios', 'GET /api/xi/extensions',
+    'POST /api/answers/xi', 'POST /api/xi/solve']);
 
   // The shipped flows with the panels mounted send no new POST.
   const before = requests.length;
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   await page.locator('input[data-requirement="progression"]').fill('1.5');
   await page.locator('#apply-minima').click();
   await solved(page);
   await page.locator('#lock-player').click();
   await solved(page);
-  await page.getByRole('button', { name: 'BBC constraint', exact: true }).click();
+  await page.getByRole('button', { name: 'Ronaldo, Benzema and Bale together', exact: true }).click();
   await solved(page);
   await page.locator('#mode').selectOption('SATISFY');
   await solved(page);
   const later = requests.slice(before);
   expect(later.filter(r => NEW_ROUTES.some(path => r.endsWith(path)))).toEqual([]);
-  expect(later.filter(r => r.startsWith('POST') && r !== 'POST /api/xi/solve')).toEqual([]);
+  expect(later.filter(r => r.startsWith('POST') && r !== 'POST /api/xi/solve'
+    && r !== 'POST /api/answers/xi')).toEqual([]);
   // No id appears twice on the page.
   const duplicates = await page.evaluate(() => {
     const ids = [...document.querySelectorAll('[id]')].map(e => e.id);
@@ -172,6 +189,7 @@ test('ceilings send the main declarations and only the minima in force, and prin
   const menus = await (await page.request.get(BASE + '/api/xi/extensions')).json();
   const input = await declareMain(page);
 
+  await openTool(page, '#ceilings-panel');
   const reply = posted(page, '/api/xi/ceilings');
   await page.locator('#solve-ceilings').click();
   const response = await reply;
@@ -214,6 +232,7 @@ test('the frontier needs the opt-in, sends its dimensions in order and draws eve
   await expect(page.locator('#frontier-panel')).toContainText(menus.frontier_opt_in_text);
   await expect(page.locator('#solve-frontier')).toBeDisabled();
 
+  await openTool(page, '#frontier-panel');
   await page.locator('#xi-experimental-opt-in').check();
   await page.locator('#frontier-dim-1').selectOption('progression');
   await expect(page.locator('#solve-frontier')).toBeDisabled();
@@ -289,6 +308,7 @@ test('recorded frontier replies at a deadline print the server sentence and, wit
   for (const recorded of recordings) {
     expect(JSON.stringify(recorded.statements) + JSON.stringify(recorded.ledger)).not.toContain('Complete');
   }
+  await openTool(page, '#frontier-panel');
   await page.locator('#xi-experimental-opt-in').check();
   await page.locator('#frontier-dim-1').selectOption('progression');
   await page.locator('#frontier-dim-2').selectOption('left_pass_origins');
@@ -318,6 +338,7 @@ test('risk options are the server menu, integers are sent as served and tables a
   await page.goto(BASE + '/xi');
   await solved(page);
   const menus = await (await page.request.get(BASE + '/api/xi/extensions')).json();
+  await openTool(page, '#risk-panel');
   await expect(page.locator('#risk-worlds')).toHaveValue('');
   await expect(page.locator('#risk-rule')).toHaveValue('');
   await expect(page.locator('#solve-risk')).toBeDisabled();
@@ -407,7 +428,7 @@ test('an infeasible Satisfy solve is explained in its own arithmetic, with the o
   await solved(page);
   await page.locator('#mode').selectOption('SATISFY');
   await solved(page);
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   await page.locator('input[data-requirement="progression"]').fill('1000');
   await page.locator('#apply-minima').click();
   await expect(page.locator('#solver-status')).toHaveText('INFEASIBLE', { timeout: SLOW });
@@ -450,6 +471,8 @@ test('a reply whose request belongs to an earlier solve is discarded and the pan
   await solved(page);
 
   // A ceilings reply held across a lock: the main solve starts, the reply comes back stale.
+  await openTool(page, '#ceilings-panel');
+  await openTool(page, '#risk-panel');
   const heldCeilings = holdReply();
   await page.route('**/api/xi/ceilings', heldCeilings.handler);
   await page.locator('#solve-ceilings').click();
@@ -460,7 +483,7 @@ test('a reply whose request belongs to an earlier solve is discarded and the pan
   await heldSolve.intercepted;
   heldCeilings.release();
   await consumed(page, '/api/xi/ceilings');
-  await expect(page.locator('#xi-ceilings-body')).toHaveText('Re-solve the main XI first.');
+  await expect(page.locator('#xi-ceilings-body')).toHaveText('Waiting for the XI above.');
   await expect(page.locator('#solve-ceilings')).toBeDisabled();
   heldSolve.release();
   await solved(page);
@@ -475,11 +498,11 @@ test('a reply whose request belongs to an earlier solve is discarded and the pan
   await page.route('**/api/xi/risk/tail', heldRisk.handler);
   await page.locator('#solve-risk').click();
   await heldRisk.intercepted;
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   await page.locator('input[data-requirement="progression"]').fill('1.25');
   heldRisk.release();
   await consumed(page, '/api/xi/risk/tail');
-  await expect(page.locator('#xi-risk-body')).toHaveText('Re-solve the main XI first.');
+  await expect(page.locator('#xi-risk-body')).toHaveText('Waiting for the XI above.');
   await expect(page.locator('#solve-risk')).toBeDisabled();
   await page.locator('#apply-minima').click();
   await solved(page);
@@ -507,9 +530,10 @@ test('a menu reply that is not a menu disables every panel with its error; a min
   });
   await page.reload();
   await solved(page);
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   await page.locator('#apply-minima').click();
   await solved(page);
+  await openTool(page, '#ceilings-panel');
   const reply = posted(page, '/api/xi/ceilings');
   await page.locator('#solve-ceilings').click();
   const response = await reply;
@@ -538,7 +562,8 @@ test('the new panels never widen the page at 390 and 320 px and add no duplicate
     // No rendered panel id collides with another or with a shipped one.
     expect(await duplicateIds(page)).toEqual([]);
   };
-  // Ceilings, frontier and risk rendered together on a feasible solve.
+  // Ceilings, frontier and risk rendered together on a feasible solve, each opened.
+  for (const id of ['#ceilings-panel', '#frontier-panel', '#risk-panel']) await openTool(page, id);
   const reply = posted(page, '/api/xi/ceilings');
   await page.locator('#solve-ceilings').click();
   await reply;
@@ -560,7 +585,7 @@ test('the new panels never widen the page at 390 and 320 px and add no duplicate
   // The conflict panel, on an infeasible Satisfy solve, explained.
   await page.locator('#mode').selectOption('SATISFY');
   await solved(page);
-  await page.getByText('Adjust requirement minima', { exact: true }).click();
+  await page.getByText('Set targets', { exact: true }).click();
   await page.locator('input[data-requirement="progression"]').fill('1000');
   await page.locator('#apply-minima').click();
   await expect(page.locator('#solver-status')).toHaveText('INFEASIBLE', { timeout: SLOW });

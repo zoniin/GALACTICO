@@ -10,45 +10,59 @@ order on every page, and on a phone it is a tab bar at the bottom of the screen:
 
 | Place | Current season (2026/27) | 2017/18 archive (local, with the corpus) |
 |---|---|---|
-| **Matches** | `/` and `/match-centre`: fixtures, results and match reports | `/match`: Match Lab |
+| **Matches** | `/` and `/match-centre`: fixtures, results and match reports | `/match`: Match reports (Match Lab) |
 | **Table** | `/match-centre/leagues`: tables and club schedules | — |
-| **Players** | `/match-centre/scouting`: goals by opponent | `/player`: Player Lab |
-| **Lineup** | `/lineup`: the lineup studio | `/xi`: XI Lab |
-| **Squad & signings** | — | `/squad` and `/transfer`: Squad Lab and Transfer Lab |
+| **Players** | `/match-centre/scouting`: goals by opponent | `/player`: Player profiles (Player Lab) |
+| **Lineup** | `/lineup`: pick and share an XI | `/xi`: Check against targets (XI Lab) |
+| **Squad & signings** | — | `/squad` and `/transfer`: Squad depth and Signings (Squad Lab and Transfer Lab) |
 
-A chip in every page header says which season the page's numbers come from. The hosted site
+Every page opens the same way (ADR-0034): a chip saying which season its numbers come from,
+a heading that names the page's object or question, **one answer sentence the server writes**,
+then the main picture, then detail in tabs and disclosures that start closed, then "About
+these numbers", closed. No football sentence is put together in the browser. The hosted site
 serves the current-season pages and lists only those; the local app serves both columns. The
-footer of every page links **About the numbers** (`/about`): the data sources and licences of
-the pages the app serves and, on the local app, why only five measures survive, the evidence
-classes, the verdict registry and what is not measured. Old links keep working: `/?player=`
-opens Player Lab at `/player`, and `/?day=` and `/?match=` open the match board.
+footer of every page links **About the numbers** (`/about`): how this season's results, tables
+and goals are gathered, the data sources and licences of the pages the app serves and, on the
+local app, why only five measures survive, the evidence classes, the verdict registry and what
+is not measured. Old links keep working: `/?player=` opens Player profiles at `/player`, and
+`/?day=` and `/?match=` open the match board. An address the app does not serve gets the
+site's own "That page isn't here" page; on the hosted site an archive address says the archive
+runs only on a local install.
 
-## Lineup studio
+## Lineup
 
-[Open the squad builder](https://galactico-sandy.vercel.app/lineup) to edit Madrid’s current XI.
-Change shape, swap shirts, substitute from the bench and save the team on your device.
-The roster and all-competition appearances and goals come from the current season’s
-Wikipedia tables. The activity panel labels each available archive match and date.
-Import player event CSVs with 0–100 `x,y` coordinates and an optional `type` column
-for your own measured heatmap. Imported coordinates stay in the browser tab.
-The role-zone view follows the selected position in your formation. Open the next league
-fixture above the pitch for venue, reported dates, both clubs’ recent form and the
-opponent’s scorers. Players with matched league goals link directly to their comparison.
+[Open the lineup](https://galactico-sandy.vercel.app/lineup) to pick Madrid’s current XI.
+The board opens on the XI the server proposes by a declared key, stated on the board: the
+players with the most 2026/27 appearances in each position. Within a position a player stands
+where the first position of his Wikipedia infobox puts him (left, centre or right, and
+attacking or defensive for a midfielder), else by shirt number. Change shape, tap a bench
+player and then the position he takes, and copy a link that opens the same lineup; saving on
+the device is a convenience. The roster and all-competition appearances and goals come from
+the current season’s Wikipedia tables, credited with the article's edit date. Madrid's next
+fixture comes from the Matches schedule, with a link to the opponent's goals where the free
+goal feed covers its competition. A player's 2017/18 archive sample sits in a closed "Archive:
+where he played in 2017/18", labelled with its match, competition and date; the role area for
+a position is drawn, not measured. Import player event CSVs with 0–100 `x,y` coordinates and an
+optional `type` column under "Analyst tools" for your own measured heatmap; imported
+coordinates stay in the browser tab.
 
 Live match reports use a separate [API-Football account](https://dashboard.api-football.com/).
 Set `API_FOOTBALL_KEY` in the local server’s `.env`. API-Football supplies aggregates.
 The studio’s measured maps require event locations.
 
-## Free goal explorer
+## Goals by opponent
 
-The public scouting page reads OpenLigaDB’s current La Liga, Premier League and Bundesliga
-match reports without an API key. Choose a club, compare scorers against opponents inside or
-outside the pre-match top six, and open a scoreline for recorded goal minutes.
-Choose a specific opponent and a scorer to see their goals by opponent strength.
-Add a teammate for a side-by-side comparison. The URL preserves the matchup and both players. The club’s
-reported match score and the number of named player goals are shown separately.
-The lineup studio also matches named La Liga events to the selected Madrid player.
-[Open the goal explorer](https://galactico-sandy.vercel.app/match-centre/scouting#goals) · [OpenLigaDB](https://www.openligadb.de/)
+The public Players page opens on Real Madrid's scorers this season (Wikipedia's counts, by
+goals then name), then reads OpenLigaDB’s current Champions League, Premier League and
+Bundesliga match reports without an API key. It opens on Madrid's next opponent where the feed
+carries its competition, else on Madrid in the Champions League, and says which. Choose a club,
+split its matches by the opponent's place before kick-off (places 1–6, places 7 and below, not
+yet classified; the unclassified count is shown), pick an opponent, and open a scoreline for the
+recorded goal minutes. The URL keeps the club, the split, the opponent and the scorer. The club’s reported
+score and the number of named goals are shown separately; a scorer listed under two names is
+joined only by a declared rule. La Liga is not offered: OpenLigaDB has no current La Liga
+season, so there is no free source of its goals.
+[Open goals by opponent](https://galactico-sandy.vercel.app/match-centre/scouting#goals) · [OpenLigaDB](https://www.openligadb.de/)
 
 ## Current match centre
 
@@ -56,19 +70,27 @@ Run `python -m pip install -e ".[api]"` and `python -m galactico.match_centre.lo
 Open [the match centre](http://127.0.0.1:8091/match-centre). No historical data download is needed.
 
 The public scoreboard reads this season’s fixtures and reported results for La Liga,
-the Premier League, Bundesliga, Serie A and Ligue 1. Pick a day, follow Madrid’s next
-league fixture, save matches or inspect either club’s last five reported league results
-before a fixture. **Leagues** shows tables from reported scores as of a chosen date
-and links every club’s season schedule back to individual match reports. It shows how
-many results are missing and uses points, goal difference and goals scored. OpenFootball publishes community-maintained season files. Score
-updates can lag, and missing results stay marked as pending.
-[OpenFootball](https://github.com/openfootball/football.json)
+the Premier League, Bundesliga, Serie A, Ligue 1 and the Champions League. It opens on the
+nearest day with fixtures, with one sentence on Madrid's last result (and its scorers, where the
+feed names every goal) and next match. Filter by competition, save matches across dates, or
+inspect either club’s last five reported results before a fixture. **Table** shows tables from
+reported scores as of a chosen date, ordered by points, goal difference and goals scored, says
+where Madrid stand in one sentence, and links every club’s season schedule back to individual
+match reports. Each competition says how current it is from its own rows: "Results through
+<date>", and "Table after matchday N of M" with the count of later fixtures without a result
+where its file lags. OpenFootball publishes community-maintained season files whose scores can
+lag; a Bundesliga or Premier League result they have not reported is filled from OpenLigaDB once
+both clubs and the matchday match, and a result they have is never replaced. The Champions
+League comes from OpenLigaDB alone. La Liga has no free fill, so its table says where its
+results stop. Nothing missing is estimated.
+[OpenFootball](https://github.com/openfootball/football.json) · [OpenLigaDB](https://www.openligadb.de/)
 
 For in-play coverage, copy `.env.example` to `.env` in the checkout and set
 `API_FOOTBALL_KEY` there before starting the same command. An exported environment
 variable takes precedence over the file. An account with access to the relevant season and competitions is
 required. Switch the source to **API-Football** for match clocks, events, lineups and
-team and player totals. Today’s board and open report refresh every minute while visible.
+team and player totals. A match in play, on the board or in an open report, refreshes every
+minute while the page is visible; nothing else is polled.
 The private server binds to loopback. The regular lab server also serves the public
 scoreboard at `/match-centre`.
 The home page of every app is the match board (`/`, the same page as `/match-centre`), and it
@@ -80,8 +102,8 @@ the subscription key for private match reports; the source control appears only 
 from publicly reported results as of the selected date, including sample sizes and missing games.
 Open it in the private match centre with a provider key to select a season, league, club and
 position. For example, choose Crystal Palace midfielders and key passes, then compare
-their output against top-six opponents with Madrid midfielders facing top-six La Liga
-opposition. Candidates are listed from the selected club’s actual player reports.
+their output against opponents in places 1–6 with Madrid midfielders facing La Liga
+opposition in places 1–6. Candidates are listed from the selected club’s actual player reports.
 The screen shows observed minutes, missing coverage, the Madrid rate and each gap.
 It ranks players on one selected need and applies no assumed league-strength bonus.
 
@@ -96,30 +118,31 @@ removed (ADR-0033); its old address opens the match centre.
 2 rejected, 1 research-only, 3 proposed but not yet through the lifecycle.
 <!-- /generated:counts -->
 
-![Player Lab](docs/screenshots/01-profile.png)
+![Player profiles (Player Lab)](docs/screenshots/01-profile.png)
 
-Five connected historical workstations now run locally:
+Five connected historical workstations run locally. Each page answers its question in one
+sentence first and keeps the research tools under closed disclosures (ADR-0034):
 
-- **Player Lab** — five surviving season constructs, with shared-match uncertainty and evidence gates.
-- **Match Lab** — actual lineups, key/tactical timelines, positive pass-xT flow, shot locations, inferred passing networks and player-match contribution vectors.
-- **XI Lab** — exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Four exact additions sit under the main solve: the attainable range of each requirement, a certified minimal conflicting set when the minima cannot all hold, the nondominated sums of two or three declared requirements (never ranked), and declared-risk selection over resampled matches. The two side requirements enter them only with the experimental opt-in. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
-- **Squad Lab** — for a declared squad, template and minima: who is eligible where and why not, which absences raise the declared shortfall or leave no fieldable XI, and what an addition at a slot would have to supply. Real Madrid at the end of 2017/18 by default; any league club under an unreviewed position rule.
-- **Transfer Lab** — for a slot you declare: every gated player admitted there, placed at that slot and re-solved exactly, with the smallest share of his recorded rates that must carry over for the conclusion to hold. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
+- **Player profiles** (Player Lab) — five surviving season constructs, with shared-match uncertainty and evidence gates; the percentile among the player's position group is each measure's headline, and the view and player are in the URL.
+- **Match reports** (Match Lab) — the recorded result and its scorers first, then actual lineups, key/tactical timelines, shot locations, inferred passing networks, positive pass-xT flow and player-match contribution vectors.
+- **Check against targets** (XI Lab) — "Can an XI meet your targets?": exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Four exact additions sit under the main solve: the attainable range of each requirement, a certified minimal conflicting set when the minima cannot all hold, the nondominated sums of two or three declared requirements (never ranked), and declared-risk selection over resampled matches. The two side requirements enter them only with the experimental opt-in. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
+- **Squad depth** (Squad Lab) — "Where is cover thin?": for a declared squad, template and minima: who is eligible where and why not, which absences raise the declared shortfall or leave no fieldable XI, and what an addition at a slot would have to supply. Real Madrid at the end of 2017/18 by default; any league club under an unreviewed position rule.
+- **Signings** (Transfer Lab) — "Who could fill this position?": for a slot you declare, or the one Squad depth hands over in the link: every gated player eligible there, listed by a declared factual key (minutes, age or name, never by the outcome), each placed at that slot and re-solved exactly, with one sentence on what that did to the gap and, under Advanced, the smallest share of his recorded rates that must carry over for the conclusion to hold. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
 
 XI Lab does **not** identify the best football XI. Its default solve finds XIs with the
 least shortfall against declared progression and pass-origin requirements.
 Thresholds and eligibility are inspectable rules; finishing, defensive structure,
 goalkeeping quality and fitness are not modeled.
 
-![Historical XI Lab](docs/screenshots/11-xi-lab.png)
+![Check against targets (XI Lab)](docs/screenshots/11-xi-lab.png)
 
-Click **Explore equivalent XIs** to inspect different personnel with the same
-certified shortfall objective. Each alternative replaces at least two players;
+Open **Other XIs that meet your targets just as closely** under Advanced to inspect different
+personnel with the same certified shortfall objective. Each alternative replaces at least two players;
 the search is not a ranking or exhaustive catalogue of every optimum.
 [Search contract](docs/research/XI-EQUIVALENT-ALTERNATIVES.md)
 
-Ask **Maximize pass-xT under these floors** for a different, deliberately narrow
-question: how much summed historical passing progression can this squad accommodate
+Open **Most ball progression with every target as a hard limit** for a different,
+deliberately narrow question: how much summed historical passing progression can this squad accommodate
 while preserving your explicit hard floors? Its own XI, floor ledger and maximizing
 certificate stay separate from the main pitch and its uncertainty. Finishing,
 creation, defending and keeper quality do not enter this objective. This is neither
@@ -137,21 +160,24 @@ data cannot. These print the question back, with what it is conditional on.
 [Decisions](DECISIONS.md) ADR-0018 to ADR-0031 ·
 [what they cannot say](KNOWN_LIMITATIONS.md)
 
-![Squad Lab](docs/screenshots/17-squad-lab.png)
+![Squad depth](docs/screenshots/17-squad-lab.png)
 
-Squad Lab with Cristiano Ronaldo excluded and a progression minimum of 4 declared.
-One ring per player and slot he is eligible for: dashed below the evidence gate,
-struck when excluded, underlined where placing him raises the least declared
-shortfall. Gold is the selected player, at every slot he can fill.
+Squad depth with Cristiano Ronaldo left out and a ball progression target of 4, opened from
+the link `/squad?exclude=3322&target=progression:EXPLICIT:4`. The sentence is the server's:
+where cover is thinnest, and what that leaves. On the pitch, one ring per player and position
+he is eligible for: dashed under 900 minutes, struck when left out; a dashed box marks a
+thinnest position. Gold is the selected player, at every position he can fill. Each "Find
+cover" link carries the problem to Signings.
 
-![Transfer Lab](docs/screenshots/18-transfer-lab.png)
+![Signings](docs/screenshots/18-transfer-lab.png)
 
-Transfer Lab on the same departure with a minimum of 4.2, recruiting at centre
-forward. Rows are grouped by what the exact re-solve returned and listed by name
-inside a group. The strip is the break-even carry-over fraction: the smallest share of his
-recorded rates that must carry over for the conclusion to hold (1.00 means it can
-lose nothing). It predicts nothing, and whether a rate
-repeats after a move has not been tested here.
+Signings on the same departure with a target of 4.2, recruiting at centre forward. The
+candidates are listed by minutes played, a declared factual key the page states, never by what
+the re-solve returned; each row says in one sentence what placing him there does to the gap.
+The selected candidate's panel shows the exact re-solve with him; under Advanced, the
+break-even carry-over fraction is the smallest share of his recorded rates that must carry over
+for the conclusion to hold. It predicts nothing, and whether a rate repeats after a move has
+not been tested here.
 
 Most football analytics projects ask what statistics they can calculate.
 Galáctico first asks whether the statistic means what its name implies.
@@ -249,7 +275,7 @@ They report **necessary–possible frequencies across equally optimal solutions*
 not probabilities of being the best player. More worlds are available through the API.
 
 ```bash
-uv run ruff check galactico tests
+uv run ruff check galactico tests scripts
 uv run pytest -q
 uv run python scripts/check_licensing.py
 npm install
@@ -263,6 +289,11 @@ Playwright starts its own local server and tests the actual historical data surf
 `git restore docs/screenshots` afterwards unless the change is intended and inspected.
 `make install`, `make prepare`, `make serve`, `make check` and `make e2e` are shortcuts
 where Make is available. No API key is needed for this public historical release.
+
+Every test stubs the current-season sources. `uv run python scripts/upstream_smoke.py` asks each
+live one (OpenFootball, OpenLigaDB, the Wikipedia squad page) once through the project's own
+feed code and prints its status, row count and latest result date; a failed or empty source
+fails it. `.github/workflows/upstream-smoke.yml` runs it once a day, apart from the test job.
 
 The repository contains **no football data**. Corpora are downloaded at runtime
 into a gitignored cache under each provider's own terms, and a CI guard fails on
@@ -291,8 +322,8 @@ and no StatsBomb-derived number. No StatsBomb data is in this repository, and no
 machine-readable table derived from it is in the tree. The StatsBomb-side figures
 printed here are published analysis.
 
-All five shipped labs are **historical**. They run on 2017/18 event data and are badged `LAB` in
-the interface. A LIVE regime would use a different estimator with different
+All five shipped labs are **historical**. They run on 2017/18 event data and carry the season
+chip "2017/18 archive · La Liga" in the interface. A LIVE regime would use a different estimator with different
 uncertainty and different sample thresholds, which is why constructs and
 estimators are separate objects in the registry.
 
@@ -319,7 +350,7 @@ without a permitted source.**
 | 1 | Measurement — five leagues | complete |
 | 1B | Replication + reconnaissance | complete |
 | 1C | External provider + season shift | complete |
-| 2 | Player Lab | frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027 (October 2026); statistical/API/browser gates repaired and verified |
+| 2 | Player Lab | frozen since ADR-0011, except the corrections of ADR-0025 and ADR-0027 (October 2026) and the answer-first page of ADR-0034 (markup and copy; the API is unchanged); statistical/API/browser gates repaired and verified |
 | Match | Match Lab | public historical v1 implemented |
 | 3 | XI Lab | experimental requirement engine implemented |
 | 4 | Squad Lab / Transfer Lab | exact tools implemented; nothing about carry-over is validated |
@@ -344,7 +375,7 @@ development-only tuning selected **context only**, not any player-history varian
 Incremental prediction was not established; no learned XI rating ships.
 [E-08](experiments/preregistered/E-08-partial-history/analysis.md)
 
-![Historical Match Lab](docs/screenshots/10-match-lab.png)
+![Match reports (Match Lab)](docs/screenshots/10-match-lab.png)
 
 Shots have no invented xG. Networks identify inferred rather than observed
 recipients. Threat flow is positive completed-pass xT, **not momentum**.
