@@ -59,7 +59,7 @@ BLOCK_MARGIN = 1.0
 BLOCK_WITHOUT_RESET = 60.0
 """How long a 429 blocks when its reply does not say when the counter resets."""
 
-DEFERRED_LINE = "Still loading. This page updates within a minute."
+DEFERRED_LINE = "Part of this page is still loading. Reload in a minute to see the rest."
 """What a reader may be shown for a deferred request. It names no key, plan or quota."""
 
 _AVAILABLE = "x-requests-available-minute"

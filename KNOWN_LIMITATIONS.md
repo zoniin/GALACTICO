@@ -536,6 +536,15 @@ to the server's sentence in a comparison. For the
 - The Table's La Liga sentence is in the past tense and dated by its matchday, because the free
   La Liga file stops weeks behind play; Madrid's current La Liga place is not known to the site.
 
+## Wikipedia through the MediaWiki API only (Phase D)
+
+- The Lineup reads its squad list through the MediaWiki API (`action=parse`, sent with
+  `maxlag=5`), no longer from the rendered article. The list exists only as rendered HTML, so
+  there is no second route to it: where the API turns the request away (a 429, or `maxlag` while
+  Wikipedia's databases lag), the Lineup serves the last list it read, dated, or answers "The
+  current squad list is unavailable." The infobox positions keep their fallback to each
+  article's source.
+
 ## Product scope
 
 No LLM invents a number or post-hoc tactical explanation. The frontend renders

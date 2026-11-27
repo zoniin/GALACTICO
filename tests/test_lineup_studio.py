@@ -14,6 +14,11 @@ public data names it; the hard-coded editorial XI is gone. The proposal's senten
 XI was picked and leaves the eleven names to the pitch (and to a screen-reader list,
 ``proposal_names``); within a position a player stands where his Wikipedia article's first
 position puts him (side, and for midfielders attacking or defensive), else by shirt number.
+
+Re-pinned under B13 (the season data layer, D2-B): the squad list is read through the MediaWiki
+API (``action=parse``, and the parsed revision's time for the day it was last edited), never the
+rendered page; on a stubbed article, ``/api/studio/*`` and ``/lineup`` answer with the same bytes
+the rendered page's read gave.
 """
 
 import asyncio
@@ -590,3 +595,146 @@ def test_every_slot_is_named_in_words_and_the_archive_sample_counts_in_football_
     by = {s["role"]: s for s in FORMATIONS["3-5-2"]}
     assert by["LWB"]["x"] < 12 and by["RWB"]["x"] > 88
     assert by["LWB"]["y"] - by["LCM"]["y"] >= 12 and by["RWB"]["y"] - by["RCM"]["y"] >= 12
+
+
+# ------------------------------------------------------------------ B13: the MediaWiki read
+
+
+def _stub_article():
+    """The squad list and a statistics table as the parser renders them (invented players),
+    and each player's infobox for the positions request."""
+    from urllib.parse import quote
+
+    import season_wiki as wiki
+    from season_v4 import SQUAD
+
+    head = "".join(f"<th>{h}</th>" for h in ("No.", "Pos.", "Nat.", "Player", "Total",
+                                             "La Liga"))
+    rows = "".join(
+        f'<tr><td>{p.shirt}</td><td>{p.group}</td><td>{p.nation}</td><td><a href="/wiki/'
+        f'{quote(p.wp_title, safe="(),_")}" title="{p.wp_title.replace("_", " ")}">{p.wp_name}'
+        f"</a></td><td>{(p.shirt * 7) % 19}</td><td>{p.shirt % 4}</td></tr>"
+        for p in SQUAD if p.group)
+    body = wiki.squad_html() + (f'<table class="wikitable"><tbody><tr>{head}</tr><tr><th>Apps'
+                                f"</th><th>Goals</th><th>Apps</th><th>Goals</th></tr>{rows}"
+                                "</tbody></table>")
+    boxes = {p.wp_title.replace("_", " "): wiki.infobox(
+        name=p.wp_name, position="[[Defender#Full-back|Left-back]]" if p.group == "DF"
+        else "[[Midfielder]]", born=(2000, 1, 1)) for p in SQUAD if p.wp_title}
+    return wiki, body, boxes
+
+
+def _upstream(monkeypatch, *, parse=None, stamp=None):
+    """Every Wikipedia request the Lineup makes, stubbed and recorded."""
+    wiki, body, boxes = _stub_article()
+    footer = ('<li id="footer-info-lastmod"> This page was last edited on 25 November 2026, '
+              "at 22:52</li>")
+    asked = []
+
+    async def get(self, url, params=None, **kwargs):
+        request = httpx.Request("GET", url, params=params)
+        asked.append((request, dict(self.headers)))
+        if url.endswith("/w/api.php") and params.get("action") == "parse":
+            reply = parse or wiki.parse_reply("", body)
+            return httpx.Response(200, json=reply, request=request)
+        if url.endswith("/w/api.php") and params.get("rvprop") == "timestamp|ids":
+            reply = stamp or wiki.revision_stamp(1000020, "2026-11-25T22:52:44Z")
+            return httpx.Response(200, json=reply, request=request)
+        if url.endswith("/w/api.php"):
+            titles = params["titles"].split("|")
+            return httpx.Response(200, json=wiki.articles_reply(
+                {t: boxes.get(t) for t in titles}), request=request)
+        if "/wiki/" in url:
+            return httpx.Response(200, text=body + footer, request=request)
+        return httpx.Response(404, request=request)
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", get)
+    return asked
+
+
+@pytest.fixture
+def fixed_clock(monkeypatch):
+    from datetime import UTC
+    from datetime import datetime as real
+
+    from galactico.match_centre import feed
+
+    class Fixed(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real(2026, 11, 26, 12, tzinfo=UTC)
+
+    monkeypatch.setattr(feed, "datetime", Fixed)
+
+
+PINNED = ("/api/studio/squad", "/api/studio/scorers", "/lineup",
+          "/api/studio/lineup?formation=4-3-3&xi=9-7-11-6-8-10-2-3-4-5-1&season=2026-27",
+          "/lineup?formation=4-3-3&xi=9-7-11-6-8-10-2-3-4-5-1")
+
+
+def _replies():
+    with TestClient(create_centre("Test")) as client:
+        return {path: (reply.status_code, sorted((k, v) for k, v in reply.headers.items()
+                                                  if k not in ("date", "content-length")),
+                       reply.content)
+                for path in PINNED for reply in [client.get(path)]}
+
+
+def test_the_squad_list_reads_through_mediawiki_and_every_reply_keeps_its_bytes(
+        monkeypatch, fixed_clock):
+    """R13: the rendered page's read (kept here as it was) and the MediaWiki read give the
+    same bytes on one stubbed article, for every Lineup reply that reads the squad list."""
+    from galactico.match_centre import studio as studio_module
+
+    asked = _upstream(monkeypatch)
+    new = _replies()
+    assert not [r for r, _ in asked if "/wiki/" in r.url.path]
+    parse = next(r for r, _ in asked if r.url.params.get("action") == "parse")
+    assert parse.url.host == "en.wikipedia.org" and parse.url.path == "/w/api.php"
+    assert dict(parse.url.params) == {
+        "action": "parse", "page": "2026–27 Real Madrid CF season", "prop": "text|revid",
+        "redirects": "1", "format": "json", "formatversion": "2", "maxlag": "5"}
+    stamp = next(r for r, _ in asked if r.url.params.get("rvprop") == "timestamp|ids")
+    assert stamp.url.params["revids"] == "1000020" and stamp.url.params["maxlag"] == "5"
+    assert all(headers["user-agent"] == studio_module.AGENT["User-Agent"]
+               for _, headers in asked)
+    # B13: every API request, the infobox batch included, carries maxlag.
+    api = [r for r, _ in asked if r.url.path == "/w/api.php"]
+    assert any("titles" in r.url.params for r in api)
+    assert all(r.url.params.get("maxlag") == "5" for r in api)
+
+    async def rendered_page(self, day):
+        # The read before B13: the rendered page, and its footer's last-edited day.
+        year, _, url = self._article(day)
+
+        async def fetch():
+            async with httpx.AsyncClient(headers=studio_module.AGENT, timeout=12) as client:
+                response = await client.get(url)
+            response.raise_for_status()
+            players = parse_roster(response.text)
+            self._revised[year] = revised_on(response.text)
+            return players
+
+        return await self.cache.get(f"roster/{year}", 6 * 3600, fetch)
+
+    monkeypatch.setattr(Studio, "squad", rendered_page)
+    old = _replies()
+    assert [r.url.path for r, _ in asked].count("/wiki/2026–27_Real_Madrid_CF_season") == 1
+    assert old == new
+    assert json.loads(new["/api/studio/squad"][2])["revised"] == "2026-11-25"
+    assert all(status == 200 for status, _, _ in new.values())
+
+
+def test_an_unreadable_parse_is_the_squad_list_unavailable_and_a_missing_time_no_date(
+        monkeypatch, fixed_clock):
+    import season_wiki as wiki
+
+    _upstream(monkeypatch, parse=wiki.maxlag_reply())
+    with TestClient(create_centre("Test")) as client:
+        reply = client.get("/api/studio/squad")
+    assert reply.status_code == 503
+    assert reply.json()["detail"] == "The current squad list is unavailable."
+    _upstream(monkeypatch, stamp={"batchcomplete": True, "query": {"pages": []}})
+    with TestClient(create_centre("Test")) as client:
+        data = client.get("/api/studio/squad").json()
+    assert data["revised"] is None and data["revised_label"] is None and data["players"]

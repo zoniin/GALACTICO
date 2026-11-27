@@ -197,11 +197,83 @@ _MONTH_NAMES = ("January", "February", "March", "April", "May", "June", "July", 
 
 
 def revised_on(html: str) -> str | None:
-    """The day the article was last edited, from its footer, as an ISO date; else ``None``."""
+    """The day the article was last edited, from its footer, as an ISO date; else ``None``.
+
+    The rendered page's footer, which the squad list no longer reads (B13: the revision's own
+    timestamp, ``revision_day``, gives the same UTC day); kept for the archive tests."""
     found = _LASTMOD.search(html)
     if found is None or found[2] not in _MONTH_NAMES:
         return None
     return date(int(found[3]), _MONTH_NAMES.index(found[2]) + 1, int(found[1])).isoformat()
+
+
+# ------------------------------------------------------------------ MediaWiki (B13)
+
+
+MAXLAG = "5"
+"""Seconds of database lag past which MediaWiki turns a request away (its etiquette)."""
+
+
+def article_title(url: str) -> str:
+    """The article title of an ``/wiki/`` URL: "2026–27 Real Madrid CF season"."""
+    return unquote(urlsplit(url).path).removeprefix("/wiki/").replace("_", " ")
+
+
+def parse_params(title: str, prop: str = "text|revid") -> dict[str, str]:
+    """``action=parse`` of ``title``'s current revision: its HTML and the revision's id."""
+    return {"action": "parse", "page": title, "prop": prop, "redirects": "1",
+            "format": "json", "formatversion": "2", "maxlag": MAXLAG}
+
+
+def parsed_article(payload: object) -> tuple[str, int | None]:
+    """The HTML and the revision id of an ``action=parse`` reply. A reply that is an error
+    (``maxlag`` among them) or carries no HTML is the squad list being unavailable."""
+    parsed = payload.get("parse") if isinstance(payload, dict) else None
+    text = parsed.get("text") if isinstance(parsed, dict) else None
+    if isinstance(text, dict):  # formatversion=1 writes {"*": html}
+        text = text.get("*")
+    if not isinstance(text, str) or not text:
+        raise FeedError("The current squad list is unavailable.")
+    revid = parsed.get("revid")
+    return text, revid if isinstance(revid, int) and not isinstance(revid, bool) else None
+
+
+def stamp_params(revid: int) -> dict[str, str]:
+    """``prop=revisions`` for one revision's id and time."""
+    return {"action": "query", "prop": "revisions", "revids": str(revid),
+            "rvprop": "timestamp|ids", "format": "json", "formatversion": "2",
+            "maxlag": MAXLAG}
+
+
+def revision_time(payload: object, revid: int | None = None) -> str | None:
+    """The timestamp of revision ``revid`` (any revision, without one) in a ``prop=revisions``
+    reply, as MediaWiki writes it ("2026-11-25T22:52:44Z"); else ``None``."""
+    query = payload.get("query") if isinstance(payload, dict) else None
+    pages = query.get("pages") if isinstance(query, dict) else None
+    for page in pages if isinstance(pages, list) else []:
+        for revision in (page.get("revisions") or []) if isinstance(page, dict) else []:
+            if not isinstance(revision, dict) or (revid is not None
+                                                  and revision.get("revid") != revid):
+                continue
+            stamp = revision.get("timestamp")
+            if isinstance(stamp, str) and re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", stamp):
+                return stamp
+    return None
+
+
+async def revision_day(client: httpx.AsyncClient, revid: int | None) -> str | None:
+    """The UTC day revision ``revid`` was saved, as an ISO date: the day the rendered page's
+    footer named. ``None`` where the revision's time cannot be read; the squad list stands
+    without it, as it did without a footer."""
+    if revid is None:
+        return None
+    try:
+        response = await client.get(API, params=stamp_params(revid))
+        response.raise_for_status()
+        stamp = revision_time(response.json(), revid)
+    except (httpx.HTTPError, ValueError):
+        return None
+    return stamp[:10] if stamp else None
 
 
 DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -650,7 +722,7 @@ class Studio:
         async def fetch() -> list:
             params = {"action": "query", "prop": "revisions", "rvprop": "content",
                       "rvslots": "main", "format": "json", "formatversion": "2",
-                      "redirects": "1", "titles": "|".join(titles)}
+                      "redirects": "1", "titles": "|".join(titles), "maxlag": MAXLAG}
             async with httpx.AsyncClient(headers=AGENT, timeout=12,
                                          follow_redirects=True) as client:
                 try:
@@ -685,16 +757,22 @@ class Studio:
         return year, season, f"https://en.wikipedia.org/wiki/{season}_Real_Madrid_CF_season"
 
     async def squad(self, day: date) -> Snapshot:
-        """The squad list of ``day``'s season article (``parse_roster``), kept six hours."""
+        """The squad list of ``day``'s season article (``parse_roster``), kept six hours.
+
+        Read through the MediaWiki API (B13), never the rendered page: one ``action=parse``
+        request gives the article's HTML, the transcluded squad list included, and the id of
+        the revision it rendered; one ``prop=revisions`` request gives that revision's time,
+        whose UTC day is the day the article was last edited (``revised``)."""
         year, _, url = self._article(day)
         assert_may_host("wikipedia")
 
         async def fetch() -> list:
             async with httpx.AsyncClient(headers=AGENT, timeout=12) as client:
-                response = await client.get(url)
-            response.raise_for_status()
-            players = parse_roster(response.text)
-            self._revised[year] = revised_on(response.text)
+                response = await client.get(API, params=parse_params(article_title(url)))
+                response.raise_for_status()
+                html, revid = parsed_article(response.json())
+                players = parse_roster(html)
+                self._revised[year] = await revision_day(client, revid)
             return players
 
         return await self.cache.get(f"roster/{year}", 6*3600, fetch)
