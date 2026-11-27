@@ -133,6 +133,23 @@ SOLUTION_WORDS: Mapping[str, str] = {
     "NO_SOLUTION": "No XI",
 }
 """A solver status of the lab, in a reader's words (the glossary): every panel prints these."""
+EXTENSION_WORDS: Mapping[str, str] = {
+    **SOLUTION_WORDS,
+    "CERTIFIED": "Proved",
+    "EXACT": "Every case worked out",
+    "COMPLETE": "Every case worked out",
+    "INCOMPLETE": "Not every case worked out",
+    "UNDECIDED": "Not settled",
+    "UNFIELDABLE": "No XI can be picked",
+    "NOT_SATISFIABLE": "No XI meets every limit",
+    "FLOORS_UNMET": "No XI meets every limit",
+    "MODEL_FEASIBLE": "Some XI meets every choice",
+    "SATISFIABLE": "Some XI meets every limit",
+    "DEADLINE": "Stopped at the time limit",
+    "TIME_LIMIT": "Stopped at the time limit",
+}
+"""The statuses of the questions under "Advanced" (ranges, combinations, the clash and the risk
+rule) in a reader's words (XI-7); a status this map does not hold prints as the lab sends it."""
 SEARCH_WORDS: Mapping[str, str] = {
     "LIMIT_REACHED": "Found as many as asked for; there may be more.",
     "EXHAUSTED": "No other XI with the same gaps differs by enough players.",
@@ -170,8 +187,8 @@ ROLE_WORDS: Mapping[str, tuple[str, ...]] = {
     "dm": ("holding midfield",),
     "cm": ("left central midfield", "right central midfield"),
     "am": ("attacking midfield",),
-    "lw": ("left wing",),
-    "rw": ("right wing",),
+    "lw": ("left forward",),
+    "rw": ("right forward",),
     "st": ("centre forward",),
 }
 """A role rule of the lab (``decision_lab.decision_inputs``) as the positions it opens, in the
@@ -252,6 +269,7 @@ def scenario_menu(lab: Mapping[str, Any]) -> dict:
         "targets": targets,
         "status_labels": dict(STATUS_LABELS),
         "solution_words": dict(SOLUTION_WORDS),
+        "extension_words": dict(EXTENSION_WORDS),
         "search_words": dict(SEARCH_WORDS),
         "slot_labels": dict(SLOT_LABELS),
         "frequency_worlds": FREQUENCY_WORLDS,

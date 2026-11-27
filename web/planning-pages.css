@@ -871,6 +871,13 @@
     text-align: left;
   }
 
+  /* The target editor's notes, in plain words beside a target's name (D6). */
+  .gp-req-note {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-regular);
+  }
+
   /* Phone targets (AR-2): a link to Signings is a button, every disclosure summary and
      checkbox label is 44 px tall, and the targets menu takes the whole row so its value is
      never cut off. */
@@ -907,6 +914,32 @@
     .pl-page input[type="checkbox"] {
       width: 22px;
       height: 22px;
+    }
+
+    /* Every field, menu, button and link a thumb reaches: 44 px, by padding (AR-2). */
+    .pl-page select,
+    .pl-page input:not([type="checkbox"]):not([type="radio"]),
+    .pl-page button {
+      min-height: var(--target-touch);
+    }
+
+    .pl-page .actions .ui-btn {
+      max-width: 100%;
+      white-space: normal;
+      text-align: left;
+    }
+
+    .pl-page .tabset button,
+    .pl-page .depth-name {
+      min-width: var(--target-touch);
+    }
+
+    .pl-page .pl-provenance a,
+    .pl-page .tr-profile a,
+    .pl-page .sq-profile a {
+      display: inline-flex;
+      align-items: center;
+      min-height: var(--target-touch);
     }
   }
 }

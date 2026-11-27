@@ -67,8 +67,8 @@
   const COPY = Object.freeze({
     railNote: 'The band is every sum some eligible XI of the gated squad attains. It is a model input, not team output. Ticks above the band are percentiles of league starting-XI sums; they describe, they do not prescribe.',
     requirementsNote: "A minimum is your declaration. The normaliser stays at this club's own median whatever the minimum, so shortfalls remain comparable across edits.",
-    declarationNote: 'Changing a minimum changes the decision problem. Unmeasured requirements cannot be declared. The two wide-channel requirements are experimental and need your opt-in.',
-    optIn: 'Declare the two experimental wide-channel requirements',
+    declarationNote: 'A new target asks a new question. Chance creation, rest defence and goalkeeping are not measured here, so they cannot be set. The two channel targets count only while the box above is ticked.',
+    optIn: 'Also set the two channel targets (passes from the left and the right channel)',
     worlds: 'Worlds resample the matches already played. A count of worlds is not a probability and not a forecast.',
     incomplete: 'A minimum is missing a field of its source. Nothing was sent.',
   });
@@ -318,24 +318,24 @@
     const menu = list(catalogue?.percentile_menu).filter(finite);
     // A requirement's class is the server's: on the row when it is in force, else the
     // catalogue's for that requirement. The opt-in carries the classes of the requirements
-    // the catalogue says need it. None sent: none drawn.
+    // the catalogue says need it. None sent: none drawn. The words around them are plain (D6).
     const served = list(catalogue?.requirements).filter(object);
     const classOf = r => r.evidence_class ?? served.find(q => q.requirement_id === r.requirement_id)?.evidence_class ?? null;
     const optInClasses = served.filter(q => q.needs_experimental_opt_in === true && text(q.evidence_class)).map(q => q.evidence_class);
     const blocks = list(rows).filter(r => object(r) && word(r.requirement_id)).map(r => {
       const id = r.requirement_id, name = esc(r.label ?? id);
       if (unmeasured(r)) {
-        return `<div class="gp-req-edit" data-undeclarable="${esc(id)}" data-status="UNMEASURED"><div><span class="gp-req-name">${name}</span> ${S.absent('UNMEASURED')}</div>${text(r.reason) ? `<div class="detail">${esc(r.reason)}</div>` : ''}</div>`;
+        return `<div class="gp-req-edit" data-undeclarable="${esc(id)}" data-status="UNMEASURED"><div><span class="gp-req-name">${name}</span> <span class="gp-req-note">Not measured here, so it cannot be set.</span></div></div>`;
       }
       const wide = experimental(r), entry = list(d.requirements).find(q => object(q) && q.requirement_id === id) ?? {};
       const source = text(entry.source) ? entry.source : 'CLUB_MEDIAN';
       const prefill = finite(entry.value) ? entry.value : (finite(r.minimum) ? r.minimum : null);
       const part = (token, label, field) => `<label class="control${source === token ? '' : ' hidden'}" data-for="${token}"><span class="label">${label}</span>${field}</label>`;
       return `<fieldset class="gp-req-edit" data-requirement="${esc(id)}"${wide ? ` data-experimental="true"${optIn ? '' : ' disabled'}` : ''}>` +
-        `<legend><span class="gp-req-name">${name}</span> ${S.evidenceBadge(classOf(r))}${wide ? ` <span class="badge gp-not-opted">${UNDECLARED.EXPERIMENTAL_NOT_OPTED_IN}</span>` : ''}</legend>` +
-        `<label class="control"><span class="label">Minimum source</span><select data-source aria-label="Minimum source: ${name}">${sources.map(s => option(s.source, s.label ?? s.source, s.source === source)).join('')}</select></label>` +
+        `<legend><span class="gp-req-name">${name}</span> ${S.evidenceBadge(classOf(r))}${wide ? ` <span class="gp-req-note gp-not-opted">Counts only while the box above is ticked</span>` : ''}</legend>` +
+        `<label class="control"><span class="label">Target from</span><select data-source aria-label="Target from: ${name}">${sources.map(s => option(s.source, s.label ?? s.source, s.source === source)).join('')}</select></label>` +
         part('LEAGUE_PERCENTILE', 'League percentile', `<select data-percentile required aria-label="League percentile: ${name}"${source === 'LEAGUE_PERCENTILE' ? '' : ' disabled'}>${option('', 'Choose a percentile…', !menu.includes(entry.percentile))}${menu.map(p => option(String(p), String(p), p === entry.percentile)).join('')}</select>`) +
-        part('EXPLICIT', 'Explicit minimum', `<input type="number" data-value-input min="0" max="1000" step="any" required aria-label="Explicit minimum: ${name}" value="${prefill === null ? '' : esc(shownValue(prefill))}"${prefill === null ? '' : ` data-exact="${esc(String(prefill))}" data-shown="${esc(shownValue(prefill))}"`}${source === 'EXPLICIT' ? '' : ' disabled'}>`) +
+        part('EXPLICIT', 'Your number', `<input type="number" data-value-input min="0" max="1000" step="any" required aria-label="Your number: ${name}" value="${prefill === null ? '' : esc(shownValue(prefill))}"${prefill === null ? '' : ` data-exact="${esc(String(prefill))}" data-shown="${esc(shownValue(prefill))}"`}${source === 'EXPLICIT' ? '' : ' disabled'}>`) +
         '</fieldset>';
     }).join('');
     return `<label class="gp-optin"><input type="checkbox" id="experimental-opt-in"${optIn ? ' checked' : ''}><span>${esc(COPY.optIn)} ${optInClasses.filter((c, i) => optInClasses.indexOf(c) === i).map(c => S.evidenceBadge(c)).join(' ')}</span></label>` +

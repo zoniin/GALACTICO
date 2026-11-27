@@ -443,8 +443,8 @@ function requirementRows() {
 function playerOptions() {
   const omitted = list(depth()?.omitted);
   const option = p => `<option value="${p.player_id}"${p.player_id === state.selected ? ' selected' : ''}>${esc(p.name)}${p.state === 'EXCLUDED' ? ' · left out' : ''}</option>`;
-  return `<option value=""${state.selected === null ? ' selected' : ''}>Choose a player…</option><optgroup label="In the counts">${squad().map(option).join('')}</optgroup>` +
-    (omitted.length ? `<optgroup label="Under 900 minutes">${omitted.map(option).join('')}</optgroup>` : '');
+  return `<option value=""${state.selected === null ? ' selected' : ''}>Choose a player…</option><optgroup label="In the counts, by name">${squad().map(option).join('')}</optgroup>` +
+    (omitted.length ? `<optgroup label="Under 900 minutes, by name">${omitted.map(option).join('')}</optgroup>` : '');
 }
 
 // The player panel: the server's plain view of him (/api/squad/answer players), printed as

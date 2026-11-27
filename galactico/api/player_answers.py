@@ -32,7 +32,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
+import threading
 import unicodedata
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime
@@ -61,9 +63,61 @@ __all__ = [
     "match_row",
     "player_answer",
     "router",
+    "madrid_listing",
+    "warm_archive",
 ]
 
 router = APIRouter(route_class=DecisionRoute)
+
+
+def warm_archive() -> threading.Thread | None:
+    """Build what the archive's first visits read, in the background, as the app starts
+    (SPD-2, SPD-3): Madrid's match list, which Match reports opens on (about 7 s from cold),
+    and the La Liga pool of the default squad, which Squad depth and Signings open on.
+
+    Each is cached where it is built, so a request that arrives first simply builds it itself;
+    nothing here changes a reply. A missing file is left to the request, which answers with
+    its own 503. Under a test run (``PYTEST_CURRENT_TEST``) it does nothing, so a test that
+    swaps the corpus never races it; ``GALACTICO_WARM_ARCHIVE=0`` turns it off."""
+    global _WARM_STARTED
+    if os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("GALACTICO_WARM_ARCHIVE") == "0":
+        return None
+    with _WARM_GUARD:
+        # The app's startup can run a router's handlers more than once: one warm per process.
+        if _WARM_STARTED:
+            return None
+        _WARM_STARTED = True
+
+    def run() -> None:
+        from . import planning
+
+        steps = (madrid_listing,
+                 lambda: planning.universe(planning.DEFAULT_PLANNING_SCENARIO, (), 0))
+        for step in steps:
+            try:
+                step()
+            except Exception:  # noqa: BLE001 - the request answers with its own error
+                continue
+
+    thread = threading.Thread(target=run, name="archive-warm", daemon=True)
+    thread.start()
+    return thread
+
+
+_WARM_GUARD = threading.Lock()
+_WARM_STARTED = False
+_LISTING_LOCK = threading.Lock()
+
+
+def madrid_listing() -> dict:
+    """The lab's list of Madrid's matches (``decision_lab.matches``), built once: a request
+    that arrives while the warm-up builds it waits for that build instead of starting a
+    second one beside it."""
+    with _LISTING_LOCK:
+        return decision_lab.matches()
+
+
+router.on_startup.append(warm_archive)
 
 PLAYER_ANSWERS_VERSION = "player-answers-v1"
 
@@ -847,9 +901,11 @@ def why_answer(registry: Mapping[str, Any]) -> dict:
     name, and each research note's link text."""
     k = registry["counts"]
     failed = int(k["rejected"]) + int(k["research_only"])
-    answer = (f"{k['tested']} of the {k['proposed']} proposed measures were tested, and "
-              f"{k['surviving']} are shown here: {failed} did not pass, "
-              f"{k['rejected']} rejected and {k['research_only']} left as a research question.")
+    rejected, research = int(k["rejected"]), int(k["research_only"])
+    answer = (f"{k['tested']} of the {k['proposed']} proposed measures were tested and "
+              f"{k['surviving']} are shown here. The other {failed} did not pass: "
+              f"{rejected} {'was' if rejected == 1 else 'were'} rejected and {research} "
+              f"{'is' if research == 1 else 'are'} left as a research question.")
 
     # A note's address names its research file, whose name the copy guard can refuse, so the
     # addresses travel in the provenance (read, not printed) and a link names its key.
@@ -951,7 +1007,7 @@ def _scenario_matches() -> dict[int, str]:
 @router.get("/api/answers/matches")
 def match_list() -> Response:
     """Madrid's matches of the archive, by date: the picker of Match reports."""
-    listing = decision_lab.matches()
+    listing = madrid_listing()
     scenarios = _scenario_matches()
     rows = sorted((match_row(row, scenarios) for row in listing["matches"]),
                   key=lambda r: (r["date"], r["match_id"]))

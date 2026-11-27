@@ -372,8 +372,9 @@ def test_the_frame_has_four_panels_in_their_order_with_every_button_disabled(tmp
     lead = re.search(r'<p class="small subtle xi-lead">([^<]+)</p>', markup).group(1)
     assert "model solved above" not in lead and "of the XI model" not in lead
     assert "Where an answer holds other targets than the XI above, it says so." in lead
-    assert "Explain the clash, with the two experimental channel targets the XI above used" \
-        in markup
+    # D6: the clash button sits under the pitch, in the default view, so it says what it does
+    # in plain words; the channel targets are the solve's own there, not an opt-in.
+    assert 'id="explain-conflict" disabled>Explain the clash</button>' in markup
     assert scan_labels(visible(markup)) == [] and not re.search(r"\d", visible(markup))
     # Names the shipped specs select without a scope are never used here.
     for name in ("data-requirement", "data-floor", "data-alternative", "alternative-xi",
@@ -946,5 +947,8 @@ def test_the_conflict_line_claims_only_what_the_method_makes():
             "rest can, where the check settles.'") in kit
     assert "smallest" not in kit.lower()
     # The opt-in reads in the glossary's words, never the capitals of a research token.
-    assert "Also check the two wide-channel targets (experimental)" in kit
+    # D6: no research wording in the default view; the opt-in names the two targets as the
+    # main solve does (XI-6: it is ticked whenever the solve above holds them).
+    assert "Also check the two channel targets, as the XI above does" in kit
+    assert "experimental)" not in kit.split("const COPY")[1].split("const PANELS")[0]
     assert "EXPERIMENTAL" not in kit.split("const COPY")[1].split("const PANELS")[0]

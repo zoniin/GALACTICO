@@ -398,10 +398,6 @@
     font-weight: var(--weight-semibold);
   }
 
-  .mr-availability dt::first-letter {
-    text-transform: uppercase;
-  }
-
   .mr-availability dd {
     margin: 0;
     color: var(--text-muted);
@@ -421,8 +417,8 @@
   }
 
   @media (max-width: 640px) {
-    /* MR-5: the season stays on a phone, one scrolling row (the kit's .ui-strip) of 32 px
-       squares; the steps are 44 px wide. */
+    /* MR-5: the season stays on a phone, one scrolling row (the kit's .ui-strip) of squares a
+       thumb hits (AR-2: 44 px); the steps are 44 px wide. */
     .mr-season {
       flex-wrap: nowrap;
       margin-bottom: var(--space-4);
@@ -430,8 +426,19 @@
 
     .mr-season button {
       flex: none;
-      width: 32px;
-      height: 32px;
+      width: var(--target-touch);
+      height: var(--target-touch);
+    }
+
+    .match-report .ui-segmented button {
+      min-width: var(--target-touch);
+    }
+
+    .match-report .provenance a,
+    .match-report .mr-profile a {
+      display: inline-flex;
+      align-items: center;
+      min-height: var(--target-touch);
     }
 
     .mr-step {

@@ -1224,5 +1224,24 @@
       display: grid;
       align-items: start;
     }
+
+    /* Every field, menu and link a thumb reaches: 44 px, by padding (AR-2). */
+    .xi-page select,
+    .xi-page input[type="number"],
+    .xi-page .ui-input,
+    .xi-page .ui-select {
+      min-height: var(--target-touch);
+    }
+
+    .xi-page .xi-link {
+      min-height: var(--target-touch);
+    }
+
+    .xi-page .xi-player-links a,
+    .xi-page .provenance a {
+      display: inline-flex;
+      align-items: center;
+      min-height: var(--target-touch);
+    }
   }
 }

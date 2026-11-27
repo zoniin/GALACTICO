@@ -41,7 +41,7 @@
     section: 'Questions on the same model',
     // One line on screen; the whole lead sits in a closed disclosure under it.
     short: 'Each asks one question about the XI above and runs only when you press its button.',
-    optIn: 'Also check the two wide-channel targets (experimental)',
+    optIn: 'Also check the two channel targets, as the XI above does',
     // The three targets in the page's words, for the frontier's menus (the page's own names,
     // /api/answers/xi/scenarios); an id this does not know keeps the server's label.
     names: Object.freeze({progression: 'Ball progression', left_pass_origins: 'Passes from the left channel',
@@ -72,7 +72,7 @@
     {key: 'conflict', id: 'conflict-panel', button: 'explain-conflict', thing: 'The explanation',
      title: 'Which of your choices clash',
      line: 'A set of your choices that cannot all hold together; drop any one and the rest can, where the check settles.',
-     label: 'Explain the clash, with the two experimental channel targets the XI above used'},
+     label: 'Explain the clash'},
     {key: 'ceilings', id: 'ceilings-panel', button: 'solve-ceilings', thing: 'The ranges',
      title: 'How low and how high each target can go',
      line: 'The least and the largest total any XI reaches on each target.',
@@ -117,7 +117,19 @@
   }
 
   const certificate = pairs => `<details class="xi-cert"><summary>${esc(COPY.certificate)}</summary>${facts(pairs)}</details>`;
-  const tokens = v => list(v).map(say).join(' · ') || DASH;
+  // A solver token in the reader's words, from the map the page serves (XI_WORDS, set from
+  // /api/answers/xi/scenarios, XI-7); a token the map does not hold prints as sent.
+  const words = () => object(root.XI_WORDS) ? root.XI_WORDS : {};
+  const statusWord = v => text(v) && text(words()[v]) ? esc(words()[v]) : say(v);
+  // A run of statuses, one per solve, each in words. No count is worked out here: every digit
+  // on the panel is the server's.
+  const tokens = v => list(v).map(statusWord).join(' · ') || DASH;
+  // A target in the page's words where the id is known; otherwise the server's label.
+  const named = (id, label) => text(COPY.names[id]) ? COPY.names[id] : label;
+  // The server's label of each target, to the page's words, once the menus have arrived: the
+  // combinations name their targets by label only.
+  const LABELS = new Map();
+  const plain = label => LABELS.get(label) ?? label;
   const integers = v => list(v).map(integer).join(', ') || DASH;
   const evidence = reply => object(reply.evidence)
     ? `<div class="xi-evidence">${S.evidenceBadge(reply.evidence)}${S.evidenceInputs(reply.evidence)}</div>` : '';
@@ -193,8 +205,8 @@
           td('Assignments', memberDetails(m)) + '</tr>'));
     }
     out += certificate([
-      ['Status', say(r.status)], ['Solves', integer(c.solves)], ['Statuses', tokens(c.statuses)],
-      ['Proof of the set', integer(c.final_set_proof_solve)], ['Completeness', say(c.completeness)],
+      ['Status', statusWord(r.status)], ['Solves', integer(c.solves)], ['Statuses', tokens(c.statuses)],
+      ['Proof of the set', integer(c.final_set_proof_solve)], ['Completeness', statusWord(c.completeness)],
       ['Stopped by', say(c.stopped_by)], ['Deletion order', say(c.deletion_order)],
       ['Deterministic limit per solve', limit(c.per_solve_deterministic_limit)],
     ]);
@@ -225,15 +237,15 @@
         'Largest sum · one XI found', 'Largest sum · proved bound', 'Minimum'];
       out += table('Each requirement alone', headers, ranges.map(g =>
         `<tr data-range="${esc(word(g.requirement_id))}">` +
-        td(headers[0], `${say(g.label)}<div>${object(g.evidence) ? S.evidenceBadge(g.evidence) : ''}</div>`) +
+        td(headers[0], say(named(g.requirement_id, g.label))) +
         td(headers[1], end(g.least, 'attained')) + td(headers[2], end(g.least, 'bound')) +
         td(headers[3], end(g.largest, 'attained')) + td(headers[4], end(g.largest, 'bound')) +
         td(headers[5], `<span class="mono">${say(g.minimum_text)}</span>${para(g.minimum_reached_text, 'detail')}${para(g.minimum_missed_text, 'detail')}`) +
         '</tr>'));
     }
     out += certificate([
-      ['Feasible set', say(c.feasible_set)], ['Solves', integer(c.solves)], ['Statuses', tokens(c.statuses)],
-      ['Completeness', say(c.completeness)], ['Stopped by', say(c.stopped_by)],
+      ['Feasible set', statusWord(c.feasible_set)], ['Solves', integer(c.solves)], ['Statuses', tokens(c.statuses)],
+      ['Completeness', statusWord(c.completeness)], ['Stopped by', say(c.stopped_by)],
       ['Deterministic limit per solve', limit(c.per_solve_deterministic_limit)],
     ]);
     return out + ledger('ceilings', reply.declared, reply.ledger);
@@ -255,9 +267,9 @@
     const points = list(r.points);
     let out = head(reply);
     const cert = certificate([
-      ['Status', say(r.status)], ['Points', integer(c.points)], ['Solves', integer(c.solves)],
-      ['Statuses', tokens(c.statuses)], ['Completeness', say(c.completeness)],
-      ['Stopped by', say(c.stopped_by)], ['Final region', say(c.final_region_status)],
+      ['Status', statusWord(r.status)], ['Points', integer(c.points)], ['Solves', integer(c.solves)],
+      ['Statuses', tokens(c.statuses)], ['Completeness', statusWord(c.completeness)],
+      ['Stopped by', say(c.stopped_by)], ['Final region', statusWord(c.final_region_status)],
       ['Deterministic limit per solve', limit(c.per_solve_deterministic_limit)],
     ]);
     if ((status === 'INCOMPLETE' || status === 'MODEL_INVALID') && !points.length) {
@@ -272,7 +284,7 @@
       out += para(r.scope_text) + para(r.status_text, 'xi-status-text small');
     }
     if (points.length) {
-      const labels = list(r.dimension_labels);
+      const labels = list(r.dimension_labels).map(plain);
       const headers = labels.map(l => `${l} · rounded sum, in club medians`).concat([
         'one XI reaching it sums to, before rounding, in club medians',
         'allowance, in club medians', COPY.oneXi]);
@@ -336,8 +348,8 @@
       ['World seed', integer(c.world_seed)], ['World fingerprint', `<span class="mono">${say(c.world_fingerprint)}</span>`],
       ['How the worlds are drawn', say(r.draw_text)], ['As worlds are added', say(c.growth)],
       ['Solves', integer(c.solves)], ['Statuses', tokens(list(c.records).map(rec => object(rec) ? rec.status : null))],
-      ['Completeness', say(c.completeness)], ['Stopped by', say(c.stopped_by)],
-      ['Membership completeness', say(object(r.membership) ? r.membership.completeness : null)],
+      ['Completeness', statusWord(c.completeness)], ['Stopped by', say(c.stopped_by)],
+      ['Membership completeness', statusWord(object(r.membership) ? r.membership.completeness : null)],
       ['Deterministic limit per selection solve', limit(c.selection_deterministic_limit)],
       ['Deterministic limit per world least', limit(c.world_least_deterministic_limit)],
     ]);
@@ -559,6 +571,7 @@
       // A reply that is not an object is a failure, said as one: the panels stay disabled.
       if (!object(menus)) throw new Error('the reply is not a menu');
       st.menus = menus;
+      for (const q of list(menus?.requirements)) if (object(q) && text(q.label)) LABELS.set(q.label, named(q.requirement_id, q.label));
       $('#xi-experimental-opt-in').disabled = false;
       // The XI above holds all three targets, so the panels hold them too until the reader
       // unticks the two channel targets (XI-6).

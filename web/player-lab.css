@@ -920,11 +920,47 @@
       grid-template-columns: minmax(0, 1fr);
     }
 
-    /* A control a thumb reaches is 44 px tall. */
+    /* A control a thumb reaches is 44 px tall (AR-2): the links of a list, of the map's list
+       and of a research note included, by padding, never by a larger font. */
     .pl-chips .ui-chip,
     .how-sure > summary,
     .page-actions .ui-btn {
       min-height: var(--target-touch);
+    }
+
+    .pl-match-list a,
+    .pl-map-table td a,
+    .replication a,
+    .credit p.notes a,
+    .pl-about a {
+      display: inline-flex;
+      align-items: center;
+      min-height: var(--target-touch);
+    }
+
+    .pl-match-list {
+      gap: 0;
+    }
+
+    .pl-map-table td a {
+      min-width: var(--target-touch);
+    }
+
+    /* The map's list keeps to the screen: the club goes under the name, and the two numbers
+       take what is left. */
+    .pl-map-table {
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    .pl-map-table th:first-child,
+    .pl-map-table td:first-child {
+      width: 48%;
+      overflow-wrap: anywhere;
+    }
+
+    .pl-map-table .pctsub {
+      display: block;
     }
   }
 

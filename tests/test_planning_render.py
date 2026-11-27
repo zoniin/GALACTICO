@@ -534,7 +534,8 @@ def test_the_editor_locks_experimental_rows_and_never_reads_a_blank_as_zero(
     # The explicit field is prefilled at two decimals and bounded as the API bounds it; the
     # exact number is kept in data-exact and sent unless the reader edits the field (SQ-4:
     # the editor printed a sixteen-digit value).
-    assert ('min="0" max="1000" step="any" required aria-label="Explicit minimum: Positive '
+    # D6: the field is named in plain words ("Your number"), not "Explicit minimum".
+    assert ('min="0" max="1000" step="any" required aria-label="Your number: Positive '
             'completed-pass xT per 90" value="8.25" data-exact="8.25" data-shown="8.25">') \
         in closed
     assert '<option value="75" selected>75</option>' in opened
