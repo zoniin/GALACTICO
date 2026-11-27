@@ -456,7 +456,7 @@ def test_studio_routes_serve_the_proposal_the_link_and_the_next_match(monkeypatc
         reply = client.get("/api/studio/squad")
         assert reply.status_code == 200
         assert reply.headers["vercel-cdn-cache-control"] == (
-            "s-maxage=3600, stale-while-revalidate=3600")
+            "s-maxage=3600, stale-while-revalidate=3600, stale-if-error=86400")
         data = reply.json()
         assert data["default"] == "4-3-3" and list(data["formations"]) == list(FORMATIONS)
         # The stub's roster has no Wikipedia positions: the key says shirt number throughout.

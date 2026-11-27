@@ -434,11 +434,15 @@ def infobox(*, name: str, position: str | None, born: tuple[int, int, int] | Non
             clubs: Sequence[tuple[str, str, int | str | None, int | str | None]] = (),
             national: Sequence[tuple[str, str, int | str | None, int | str | None]] = (),
             club_update: str | None = None, nationalteam_update: str | None = None,
-            birth_place: str | None = None) -> str:
+            birth_place: str | None = None, underscores: bool = False) -> str:
     """A player's ``{{Infobox football biography}}``. ``position`` as the editors write it,
     links and all ("[[Winger (association football)|Winger]], [[Forward]]"). ``clubs`` and
     ``national`` are (years, team link, caps, goals) in order; a caps value ``None`` is a
-    blank field. No image: the site uses none."""
+    blank field. ``underscores`` writes the national rows and the stamps under the
+    template's other spelling (``national_team1``, ``club_update``), as current articles do.
+    No image: the site uses none."""
+    nat = "national_" if underscores else "national"
+    stamp = "_" if underscores else "-"
     lines = ["{{Infobox football biography", f"| name = {name}"]
     if born is not None:
         lines.append(f"| birth_date = {{{{birth date and age|{born[0]}|{born[1]}|{born[2]}"
@@ -453,13 +457,13 @@ def infobox(*, name: str, position: str | None, born: tuple[int, int, int] | Non
                      f"{'' if caps is None else caps} | goals{n} = "
                      f"{'' if goals_ is None else goals_}")
     for n, (years, team, caps, goals_) in enumerate(national, start=1):
-        lines.append(f"| nationalyears{n} = {years} | nationalteam{n} = {team}"
-                     f" | nationalcaps{n} = {'' if caps is None else caps}"
-                     f" | nationalgoals{n} = {'' if goals_ is None else goals_}")
+        lines.append(f"| {nat}years{n} = {years} | {nat}team{n} = {team}"
+                     f" | {nat}caps{n} = {'' if caps is None else caps}"
+                     f" | {nat}goals{n} = {'' if goals_ is None else goals_}")
     if club_update is not None:
-        lines.append(f"| club-update = {club_update}")
+        lines.append(f"| club{stamp}update = {club_update}")
     if nationalteam_update is not None:
-        lines.append(f"| nationalteam-update = {nationalteam_update}")
+        lines.append(f"| {nat}team{stamp}update = {nationalteam_update}")
     lines.append("}}")
     return "\n".join(lines) + "\n'''" + name + "''' is an invented footballer.\n"
 

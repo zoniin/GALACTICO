@@ -193,7 +193,7 @@ def test_every_resource_normalises_into_the_model(clock):
     assert recorder.world.calls == [
         "/v4/competitions", "/v4/matches?dateFrom=2026-11-26&dateTo=2026-11-28",
         "/v4/competitions/PD/matches?season=2026", "/v4/competitions/CL/standings",
-        "/v4/competitions/PD/teams?season=2026", "/v4/competitions/PD/scorers?limit=100",
+        "/v4/competitions/PD/teams?season=2026", "/v4/competitions/PD/scorers?limit=500",
         "/v4/persons/70017", "/v4/persons/70017/matches?limit=50&competitions=PD%2CCL"]
 
 
@@ -254,6 +254,8 @@ def test_the_table_is_the_sources_own(clock):
     assert all(not r.shared and r.form == () for r in table.rows)
     (league_phase,) = run(fd.standings("CL"))
     assert league_phase.competition == "champions-league"
+    # The source writes "Matchday" (a league) or "League phase" in its group field: no group.
+    assert table.group is None and league_phase.group is None
 
 
 def test_a_shared_position_is_marked_shared():
@@ -268,8 +270,12 @@ def test_a_group_stage_gives_one_table_per_group_and_home_and_away_are_not_read(
     body = v4.standings("PL", rows, types=("TOTAL", "HOME", "AWAY"))
     body["standings"].append({"stage": "GROUP_STAGE", "type": "TOTAL", "group": "Group B",
                               "table": rows})
+    body["standings"].append({"stage": "GROUP_STAGE", "type": "TOTAL", "group": "GROUP_C",
+                              "table": rows})
     tables = fdmod.normalise_standings(body, START.isoformat(), config=COMPETITIONS[4])
-    assert len(tables) == 2 and all(t["view"] == "all" for t in tables)
+    assert len(tables) == 3 and all(t["view"] == "all" for t in tables)
+    # Each group's table names its group (the source's GROUP_C as "Group C"); a league's none.
+    assert [t["group"] for t in tables] == [None, "Group B", "Group C"]
 
 
 def test_squads_map_the_four_positions_and_nothing_else(clock):
@@ -1010,4 +1016,4 @@ def test_a_snapshot_is_what_tier_three_keeps(clock):
     assert snap.checked == START.isoformat()
     assert all(isinstance(r, dict) for r in snap.rows)
     assert FootballData.key_for("/matches", {"dateTo": "b", "dateFrom": "a"}, 3) == \
-        "fd:v1:/matches?dateFrom=a&dateTo=b@3"
+        "fd:v2:/matches?dateFrom=a&dateTo=b@3"

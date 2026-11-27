@@ -88,6 +88,31 @@ def test_birth_date_caps_and_stamps_are_read_as_listed_and_missing_stays_missing
     assert scan_labels(data, keys=False) == []
 
 
+def test_both_spellings_of_the_parameters_read_the_same_and_a_signed_stamp_its_day():
+    # Current articles write national_team1, national_caps1 and club_update, and stamp the
+    # counts with a signature ("22:03, 21 November 2026 (UTC)"); older ones nationalteam1
+    # and club-update with a date. Both read alike (D4-B probe 6).
+    rows = dict(clubs=[("2016–", "[[Ribera UD|Ribera]]", 41, 2)],
+                national=[("2019–", "[[Testland national football team|Testland]]", 33, 1)])
+    old = ib.parse_infobox("Test_Lateral", article(
+        **rows, club_update="21 November 2026", nationalteam_update="18 November 2026"))
+    new = ib.parse_infobox("Test_Lateral", article(
+        **rows, underscores=True, club_update="22:03, 21 November 2026 (UTC)",
+        nationalteam_update="09:15, 18 November 2026 (UTC)"))
+    assert "national_team1" in article(**rows, underscores=True)
+    assert new == old
+    assert [(s.team, s.caps, s.goals) for s in new.national] == [("Testland", 33, 1)]
+    assert (new.club_update, new.nationalteam_update) == ("2026-11-21", "2026-11-18")
+    # A signature that is not a stamp of a day, or a time alone, is no date (R8).
+    for text in ("22:03 (UTC)", "22:03, sometime (UTC)", "22:03, 21 November 2026"):
+        assert ib.parse_infobox("X", wiki.infobox(name="X", position=None, born=None,
+                                                  club_update=text)).club_update is None, text
+    # Where one infobox writes a parameter under both spellings, the first non-blank reads.
+    both = ("{{Infobox football biography\n| club-update = \n| club_update = 3 May 2026\n"
+            "| clubupdate = 4 May 2026\n}}")
+    assert ib.parse_infobox("X", both).club_update == "2026-05-03"
+
+
 class Upstream:
     def __init__(self, texts: dict[str, str | None], *, status: int = 200, **reply):
         self.texts, self.status, self.reply = texts, status, reply

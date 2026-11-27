@@ -269,6 +269,7 @@ class Table(_Checked):
     order: str               # the printed order line
     derived: bool            # False only for the source's own "all" table
     sources: tuple[SourceRef, ...]
+    group: str | None = None  # "Group A" for one group of a group stage; None for a league
 
 
 @dataclass(frozen=True)

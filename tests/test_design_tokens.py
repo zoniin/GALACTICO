@@ -19,15 +19,35 @@ WEB = Path(__file__).resolve().parents[1] / "web"
 TOKENS = (WEB / "tokens.css").read_text(encoding="utf-8")
 SHEETS = {name: re.sub(r"/\*.*?\*/", "", (WEB / name).read_text(encoding="utf-8"), flags=re.S)
           for name in ("base.css", "components.css")}
+
+
+def _files(web: Path, pattern: str) -> list[Path]:
+    """Every file under ``web`` matching ``pattern``, subfolders included (``web/season/``, the
+    season pages' folder): a guard that globbed only the top would let a page escape it.
+    Re-pinned in wave D4 (PLAN 4, D4-A): the globs were ``web/*``."""
+    return sorted(path for path in web.rglob(pattern) if path.is_file())
+
+
+def _name(web: Path, path: Path) -> str:
+    # Keyed by the path under web/, so web/season/matches.css never overwrites web/matches.css.
+    return path.relative_to(web).as_posix()
+
+
+def every_sheet(web: Path) -> dict[str, str]:
+    """Every sheet but tokens.css, and every page's own <style>, comments removed."""
+    return {
+        **{_name(web, path): re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"),
+                                    flags=re.S)
+           for path in _files(web, "*.css") if path != web / "tokens.css"},
+        **{_name(web, path): re.sub(r"/\*.*?\*/", "", " ".join(re.findall(
+            r"<style>(.*?)</style>", path.read_text(encoding="utf-8"), flags=re.S)), flags=re.S)
+           for path in _files(web, "*.html")},
+    }
+
+
 # Every other sheet and every page's own <style>: the pages written before the system read the
 # same roles (labs.css re-points the labs' names at them), so a theme is one block of tokens.css.
-EVERY_SHEET = {
-    **{path.name: re.sub(r"/\*.*?\*/", "", path.read_text(encoding="utf-8"), flags=re.S)
-       for path in sorted(WEB.glob("*.css")) if path.name != "tokens.css"},
-    **{path.name: re.sub(r"/\*.*?\*/", "", " ".join(re.findall(
-        r"<style>(.*?)</style>", path.read_text(encoding="utf-8"), flags=re.S)), flags=re.S)
-       for path in sorted(WEB.glob("*.html"))},
-}
+EVERY_SHEET = every_sheet(WEB)
 COLOUR_WORDS = {"red", "green", "gold", "orange", "lime", "white", "black", "yellow", "blue",
                 "purple", "violet", "navy"}
 GOLD = "#c9a227"  # rgb(201, 162, 39): the selected subject, pinned by the e2e gold checks.
@@ -210,12 +230,17 @@ def test_components_use_their_own_names_and_honour_reduced_motion_and_forced_col
 
 # Every script of the site: the files, and each page's inline <script>. A drawing a script
 # writes (inline SVG, a canvas) is held to the same rules as a sheet.
-SCRIPTS = {
-    **{path.name: path.read_text(encoding="utf-8") for path in sorted(WEB.glob("*.js"))},
-    **{f"{path.name} <script>": " ".join(re.findall(
-        r"<script>(.*?)</script>", path.read_text(encoding="utf-8"), flags=re.S))
-       for path in sorted(WEB.glob("*.html"))},
-}
+def every_script(web: Path) -> dict[str, str]:
+    """Every script file under ``web``, and each page's inline <script>."""
+    return {
+        **{_name(web, path): path.read_text(encoding="utf-8") for path in _files(web, "*.js")},
+        **{f"{_name(web, path)} <script>": " ".join(re.findall(
+            r"<script>(.*?)</script>", path.read_text(encoding="utf-8"), flags=re.S))
+           for path in _files(web, "*.html")},
+    }
+
+
+SCRIPTS = every_script(WEB)
 # A pitch or a chart is dark in both themes: gold on it clears 3:1 and needs no edge.
 DARK_SURFACE = re.compile(r'class="pitch|class=\\"pitch|\.pitch\b|\.depth\b|\.flow\b')
 
@@ -278,9 +303,27 @@ def test_the_archive_missing_state_is_one_sentence_everywhere():
     from galactico.api import about
     assert about.UNAVAILABLE.startswith(sentence[:-1])
     # No page tells a reader to run a command.
-    for path in sorted(WEB.glob("*.html")):
+    for path in _files(WEB, "*.html"):
         text = path.read_text(encoding="utf-8")
         for words in ("Run the Pappalardo", "API_FOOTBALL_KEY", "python -m", ".env"):
             assert words not in text, (path.name, words)
     for name in ("labs-shared.js", "site.js"):
         assert "Run the Pappalardo" not in SCRIPTS[name]
+
+
+def test_the_guards_read_the_season_pages_folder_under_its_own_names(tmp_path):
+    # D4-A: a sheet, a page and a script under web/season/ (the season pages' folder) reach
+    # every guard of this file, each under its path, beside a top-level file of the same name.
+    (tmp_path / "season").mkdir()
+    files = {"tokens.css": ":root{}", "matches.css": "a{color:var(--text)}",
+             "season/matches.css": "b{color:#123456}", "kit.js": "var a = 1;",
+             "season/kit.js": "const c = '#abcdef';",
+             "season/team.html": "<style>@layer page{i{color:red}}</style><script>x()</script>"}
+    for name, text in files.items():
+        (tmp_path / name).write_text(text, encoding="utf-8")
+    sheets = every_sheet(tmp_path)
+    assert set(sheets) == {"matches.css", "season/matches.css", "season/team.html"}
+    assert "#123456" in sheets["season/matches.css"] and "red" in sheets["season/team.html"]
+    scripts = every_script(tmp_path)
+    assert set(scripts) == {"kit.js", "season/kit.js", "season/team.html <script>"}
+    assert "#abcdef" in scripts["season/kit.js"]

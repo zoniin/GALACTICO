@@ -27,6 +27,13 @@ studio's activity map); the page's chip speaks for the rest.
 Every page's ``<title>`` is written here, in one pattern: "<page> · <destination> ·
 Galáctico", or "<destination> · Galáctico" where the page is named as its destination.
 
+Every served page loads the shell's sheets and scripts at content-versioned addresses
+(``/static/tokens.css?v=<sha8>``), and a page file names its own as ``<!--asset:name-->``,
+which ``page`` fills the same way; the version is the file's content hash, computed once per
+content, so the address changes exactly when the file does and ``assets.Assets`` may let
+browsers keep it for a year. ``page`` keeps each page file's text and ``served_paths`` keeps
+the app's answer (on ``app.state``), each until the file or the routes change.
+
 Non-claim: the shell writes no football sentence and reads no data. The "About the numbers"
 page is assembled here from sections the serving app hands over (``app.state.about_sections``)
 and from the data credits below; the shell writes none of their content.
@@ -37,10 +44,11 @@ the hosted function can ship this one file (``vercel.json`` ``includeFiles``).
 
 from __future__ import annotations
 
+import hashlib
 import html
 import re
 from collections.abc import Callable, Collection, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -59,6 +67,8 @@ __all__ = [
     "Source",
     "MISSING",
     "about",
+    "asset_url",
+    "asset_version",
     "current_season",
     "footer_markup",
     "head_markup",
@@ -176,6 +186,9 @@ class Page:
     sources: tuple[str, ...] = ()
     aliases: tuple[str, ...] = ()
     description: str = ""
+    pattern: str | None = None
+    """An entity page's route ("/teams/{key}"), where one page file serves many addresses;
+    ``path`` stays its landing or index path. ``None`` for a page at one address."""
 
 
 PAGES: dict[str, Page] = {item.key: item for item in (
@@ -250,10 +263,26 @@ def _serves(app: Any, path: str) -> bool:
     return False
 
 
+_SERVED = "shell_served_paths"
+"""Where ``served_paths`` keeps its answer on ``app.state``."""
+
+
 def served_paths(app: Any) -> frozenset[str]:
-    """The paths of the shell's pages and links that ``app`` answers a GET for."""
+    """The paths of the shell's pages and links that ``app`` answers a GET for.
+
+    Asked once per set of routes: the answer is kept on ``app.state`` with the routes it was
+    worked out from, and worked out again only when a route is added or removed."""
+    routes = tuple(getattr(app, "routes", ()))
+    state = getattr(app, "state", None)
+    stamp = tuple(id(route) for route in routes)
+    known = getattr(state, _SERVED, None) if state is not None else None
+    if known is not None and known[0] == stamp:
+        return known[1]
     wanted = {href for item in NAV for href in item.hrefs} | set(_PAGE_AT)
-    return frozenset(path for path in wanted if _serves(app, path))
+    found = frozenset(path for path in wanted if _serves(app, path))
+    if state is not None:
+        setattr(state, _SERVED, (stamp, found))
+    return found
 
 
 def current_season(today: date) -> str:
@@ -387,20 +416,72 @@ def footer_markup(spec: Page, routes: Collection[str]) -> str:
 
 
 PRELOADED_FONTS = ("dm-sans.woff2", "barlow.woff2", "barlow-italic.woff2")
-"""The type above the fold of every page: the text, the headings and the wordmark."""
+"""The type above the fold of every page: the text, the headings and the wordmark. Preloaded
+at the plain address base.css's ``@font-face`` rules load them from, so each is fetched once."""
+
+SHELL_SHEETS = ("tokens.css", "base.css", "components.css")
+"""The shell's sheets, in layer order, before any sheet of the page."""
+SHELL_SCRIPTS = ("theme.js", "site.js")
+
+_VERSIONS: dict[Path, tuple[tuple[int, int], str]] = {}
 
 
-def head_markup(spec: Page, *, description: str | None = None, url: str | None = None) -> str:
+def asset_version(path: Path) -> str | None:
+    """The first eight hex digits of the SHA-256 of the file's bytes, or ``None`` where there
+    is no such file. Worked out once per content: the file is read again only when its size or
+    modification time changes."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    stamp = (stat.st_mtime_ns, stat.st_size)
+    known = _VERSIONS.get(path)
+    if known is not None and known[0] == stamp:
+        return known[1]
+    try:
+        version = hashlib.sha256(path.read_bytes()).hexdigest()[:8]
+    except OSError:
+        return None
+    _VERSIONS[path] = (stamp, version)
+    return version
+
+
+_ASSET_NAME = re.compile(r"[A-Za-z0-9_-]+(?:[./][A-Za-z0-9_-]+)*")
+
+
+def asset_url(name: str, *, web: Path = WEB) -> str:
+    """The address a page loads ``name`` (a path under ``web/``) at: ``/static/<name>?v=<sha8>``.
+
+    Raises ``ValueError`` for a name that is not a plain relative path, or a file that is not
+    there: a page that names a missing sheet is a mistake to catch, not to serve."""
+    if not _ASSET_NAME.fullmatch(name) or ".." in name.split("/"):
+        raise ValueError(f"{name!r} is not a plain path under web/")
+    version = asset_version(web / name)
+    if version is None:
+        raise ValueError(f"web/{name} does not exist")
+    return f"/static/{name}?v={version}"
+
+
+def _static(name: str, versioned: bool) -> str:
+    return asset_url(name) if versioned else f"/static/{name}"
+
+
+def head_markup(spec: Page, *, description: str | None = None, url: str | None = None,
+                canonical: str | None = None, versioned: bool = False) -> str:
     """What every page loads before its own sheets: its title, its description and the card a
     shared link shows (Open Graph), the type above the fold, the three sheets in layer order,
     the theme switch and the site script, the icon and the chrome colour per theme.
 
     ``description`` is the page's own (``Page.description``) unless the route hands over the
     server's sentence for the view a link opens (a shared lineup, a match); ``url`` is the
-    address asked for."""
+    address asked for. ``canonical`` is the page's one address where several reach it: it is
+    written as ``<link rel="canonical">`` and is the card's ``og:url``. ``versioned`` writes
+    the sheets, the scripts and the icon at their content-versioned addresses (``asset_url``),
+    as every served page does; the type stays at the address its sheet loads it from."""
     fonts = "".join(f'<link rel="preload" href="/static/assets/type/{name}" as="font" '
                     'type="font/woff2" crossorigin>' for name in PRELOADED_FONTS)
     said = description or spec.description
+    shared = canonical or url
     card = ""
     if said:
         card = (f'<meta name="description" content="{_e(said)}">'
@@ -408,31 +489,34 @@ def head_markup(spec: Page, *, description: str | None = None, url: str | None =
                 f'<meta property="og:site_name" content="{_e(BRAND)}">'
                 f'<meta property="og:title" content="{_e(title(spec))}">'
                 f'<meta property="og:description" content="{_e(said)}">')
-        if url:
-            card += f'<meta property="og:url" content="{_e(url)}">'
+        if shared:
+            card += f'<meta property="og:url" content="{_e(shared)}">'
+    link = f'<link rel="canonical" href="{_e(canonical)}">' if canonical else ""
+    sheets = "".join(f'<link rel="stylesheet" href="{_e(_static(name, versioned))}">'
+                     for name in SHELL_SHEETS)
+    scripts = "".join(f'<script src="{_e(_static(name, versioned))}"></script>'
+                      for name in SHELL_SCRIPTS)
     return (
-        f'<title>{_e(title(spec))}</title>{card}{fonts}'
-        '<link rel="icon" href="/static/assets/favicon.svg" type="image/svg+xml">'
+        f'<title>{_e(title(spec))}</title>{card}{link}{fonts}'
+        f'<link rel="icon" href="{_e(_static("assets/favicon.svg", versioned))}" '
+        'type="image/svg+xml">'
         '<meta name="color-scheme" content="light dark">'
         f'<meta name="theme-color" media="(prefers-color-scheme: light)" '
         f'content="{THEME_COLOURS["light"]}">'
         f'<meta name="theme-color" media="(prefers-color-scheme: dark)" '
         f'content="{THEME_COLOURS["dark"]}">'
-        '<link rel="stylesheet" href="/static/tokens.css">'
-        '<link rel="stylesheet" href="/static/base.css">'
-        '<link rel="stylesheet" href="/static/components.css">'
-        '<script src="/static/theme.js"></script>'
-        '<script src="/static/site.js"></script>'
+        f'{sheets}{scripts}'
     )
 
 
 def render(markup: str, spec: Page, routes: Collection[str], *, today: date | None = None,
            slots: dict[str, str] | None = None, description: str | None = None,
-           url: str | None = None) -> str:
+           url: str | None = None, canonical: str | None = None,
+           versioned: bool = False) -> str:
     """``markup`` with the shell filled in. Each placeholder must occur exactly once.
 
     ``slots`` fills further ``<!--slot:name-->`` placeholders of the page with server markup;
-    ``description`` and ``url`` go to the head (``head_markup``).
+    ``description``, ``url``, ``canonical`` and ``versioned`` go to the head (``head_markup``).
     """
     for placeholder in PLACEHOLDERS:
         found = markup.count(placeholder)
@@ -444,7 +528,8 @@ def render(markup: str, spec: Page, routes: Collection[str], *, today: date | No
     if markup.count('<main id="main"') == 1:
         markup = markup.replace('<main id="main"', '<main id="main" tabindex="-1"')
     filled = (markup.replace(PLACEHOLDERS[0], head_markup(spec, description=description,
-                                                          url=url))
+                                                          url=url, canonical=canonical,
+                                                          versioned=versioned))
               .replace(PLACEHOLDERS[1], header_markup(spec, routes, today=today))
               .replace(PLACEHOLDERS[2], footer_markup(spec, routes)))
     for name, value in (slots or {}).items():
@@ -455,21 +540,61 @@ def render(markup: str, spec: Page, routes: Collection[str], *, today: date | No
     return filled
 
 
+_TEMPLATES: dict[Path, tuple[tuple[int, int], str]] = {}
+_ASSET = re.compile(r"<!--asset:([^>]*?)-->")
+
+
+def _template(path: Path) -> str:
+    """A page file's text, read once per content (again only when its size or modification
+    time changes), with each ``<!--asset:name-->`` filled with ``asset_url(name)``: filled on
+    every call, so a sheet that changes gets its new address in a page file that did not."""
+    stat = path.stat()
+    stamp = (stat.st_mtime_ns, stat.st_size)
+    known = _TEMPLATES.get(path)
+    if known is None or known[0] != stamp:
+        known = (stamp, path.read_text(encoding="utf-8"))
+        _TEMPLATES[path] = known
+    return _ASSET.sub(lambda found: asset_url(found.group(1)), known[1])
+
+
 def page(request: Any, key: str, *, slots: dict[str, str] | None = None,
-         description: str | None = None) -> str:
+         description: str | None = None, name: str | None = None,
+         sources: Sequence[str] | None = None, canonical: str | None = None) -> str:
     """The page ``key`` as the app serving ``request`` shows it. Routes return it as HTML.
 
     ``description`` is the server's sentence for the view the address opens, where the route
-    has one (a shared lineup, a match); else the page's own."""
+    has one (a shared lineup, a match); else the page's own. An entity page (one file, many
+    addresses: ``Page.pattern``) hands over the rest: ``name``, what its title calls the view
+    ("Real Madrid", in "<name> · <destination> · Galáctico"); ``sources``, the keys of
+    ``SOURCES`` the reply used, which the footer credits in place of the page's own (none is
+    credited that the reply did not use); ``canonical``, the view's one address (a path, or a
+    full URL), written as the canonical link and the card's ``og:url``."""
     spec = PAGES[key]
-    markup = (WEB / spec.file).read_text(encoding="utf-8")
+    if name is not None:
+        spec = replace(spec, name=name)
+    if sources is not None:
+        unknown = [source for source in sources if source not in SOURCES]
+        if unknown:
+            raise ValueError(f"{key}: unknown sources {unknown}")
+        spec = replace(spec, sources=tuple(dict.fromkeys(sources)))
+    markup = _template(WEB / spec.file)
     return render(markup, spec, served_paths(request.app), slots=slots,
-                  description=description, url=_address(request))
+                  description=description, url=_address(request),
+                  canonical=_absolute(request, canonical), versioned=True)
 
 
 def _address(request: Any) -> str | None:
     url = getattr(request, "url", None)
     return str(url) if url is not None else None
+
+
+def _absolute(request: Any, address: str | None) -> str | None:
+    # A path is written against the address the request came to, so a shared card's og:url
+    # is a full URL; a full URL is kept as given.
+    if not address or not address.startswith("/") or address.startswith("//"):
+        return address or None
+    base = getattr(request, "base_url", None)
+    return str(base).rstrip("/") + address if base is not None else address
 
 
 # ------------------------------------------------------------------ a page that isn't here

@@ -2368,3 +2368,214 @@ names, by the rule).
 away); a reader study showing that the current season first hides the archive from the people
 who look for it (D1); a squad list that stops matching the feed's names often enough that the
 rule leaves most of them as the feed gives them (D3 then needs a declared alias table).
+
+---
+
+## ADR-0036 — The season data layer: football-data.org shown under its terms, one model, one budget
+
+**Problem.** La Liga had no free fill: the free La Liga file (OpenFootball) stops at 20
+September 2026, and OpenLigaDB's Premier League lacks two matchdays, so the current-season pages
+could not say where Real Madrid stand in their own league (data-capabilities 0). The one free
+source that carries La Liga, football-data.org's v4 API, is not redistributable, so it fits
+neither hosted tier the registry had: `PUBLIC` means "redistributable and hostable", and
+`LOCAL_LICENSED` means never served. Each page also read its own feed in its own shape, with no
+shared budget, while football-data.org allows ten requests a minute per key, shared with every
+other user of the key. The FotMob-level pages and the Real Madrid lineup builder the plan builds
+next need one model, one reader and one budget under them, and each data question they rest on
+(appearances, scorers' completeness, matchday squads, infobox coverage) answered by a probe
+before a page shows it.
+
+**Decision.** Phase D of the build plan (waves D1 to D4 and this root step D5): a data layer in
+`galactico/match_centre/season/`, hosted-safe, wired into both apps and read by no page until
+the season pages (Phase P).
+
+- *The HOSTED_DISPLAY tier and the two postures.* `providers/base.py` gains
+  `DataTier.HOSTED_DISPLAY`: shown on the one registered application's hosted pages under the
+  provider's terms and attribution, never redistributed (no export, no bulk endpoint, no raw
+  passthrough), never committed in any form, held only in a runtime cache dropped when access
+  ends. `football_data_org` is the one source at that tier (`may_host_derived` on;
+  `may_redistribute`, `may_commit` and `commercial_use` off; the credit "Football data
+  provided by the Football-Data.org API"), and a posture at that tier cannot be written with
+  redistribution or commit on. `wikidata` is PUBLIC (CC0; its images, P18, are not used).
+  `football_data` (football-data.co.uk) stays REFERENCE_ONLY, a separate provider held apart
+  by a test.
+- *The licence check R7 asks for* is data-capabilities 1.6 and 1.7, as read on 27 November 2026
+  under the form of the registration page, the only place the General Terms and Conditions (last
+  updated 1 June 2018) are published. Quoted there: clause 7.1, the credit **"Football data
+  provided by the Football-Data.org API"** in a visible place; clause 2.3, "The API Key applies to
+  a single Application"; clause 6.1, the key "may not be stored in code repositories of open
+  source projects"; clause 9.1, after cancellation the customer "is not permitted to reference the
+  football data"; clause 9.2, "All graphics, including team logos and profile photos, are
+  copyrighted by their legal owner." No clause grants redistribution or commercial use, and
+  unknown terms are not permission. Hence: the credit wherever its data shows, the key only in
+  the environment (a repository secret in CI), runtime caches only, and no crest, emblem, flag
+  or photo anywhere.
+- *The client, the budget, the cache tiers and the storage rule (B15).*
+  `season/football_data.py` reads the key from `FOOTBALL_DATA_KEY` when a request is due and
+  sends it only in the `X-Auth-Token` header; under pytest a client without an injected
+  transport is off. Every read runs the licence gate, tier three (`FeedCache`, process memory),
+  tier four (`season/store.py`: the Vercel Runtime Cache, tag `fd`, at most seven days, off until
+  its package and switch are verified on a deployment), the view's cap and the key's minute
+  (`season/budget.py`: header-driven, with reserves so warming never takes a reader's request,
+  and a per-view cap and deadline, PLAN 3.6), then one GET. The status map works on status and
+  `errorCode` only: 400 or 401 turns the client off for an hour, 403 and 404 are remembered,
+  429 blocks until the stated reset; no upstream text is echoed. Lifetimes are PLAN 3.4's,
+  versioned by the day's finishes. The cache key carries a schema tag (`fd:v2` since this
+  step's `Table.group`). Nothing football-data.org sends is written to disk, git, a fixture, a
+  log line or a committed screenshot; tests use the synthetic builders (`tests/season_v4.py`,
+  `tests/season_wiki.py`) with invented clubs and the field-names contract
+  (`tests/fixtures/football_data_v4_fields.json`, names only).
+- *Page-shaped JSON (B16).* The season replies will be what one view shows: no export, calendar
+  file or bulk endpoint, and `X-Robots-Tag: noindex` on `/api/season/*` (P0-A).
+- *MediaWiki only (B13).* Wikipedia is read through `api.php` (`action=parse`, `action=query`) and
+  `index.php?action=raw`, every request with `studio.AGENT` and `maxlag=5`; the Lineup's squad
+  list moved to `action=parse` with every `/api/studio/*` reply byte-identical on a stubbed
+  article. Real Madrid's season article gives the squad, season lines, cup ties and goals;
+  appearances by match come from its revision history (REC 1.3); the players' infoboxes give
+  positions, birth dates and (gated) caps, read under either spelling of each parameter and with
+  signed stamps read as their UTC day; Wikidata gives height and place of birth, joined by item.
+- *`playedMatches` and scorers (B1, B2).* `playedMatches` is dropped in normalisation with
+  `shirtNumber`, `crest`, `emblem`, `flag`, `odds` and `filters.client`: it counts the matches a
+  player was named for, not appeared in (D4-B: equal to football-data.org's matchday-squad count
+  for 19 of 19 Madrid scorers, to Wikipedia's appearances for 13 of 19). Scorers are asked for at
+  `limit=500` (`SCORERS_LIMIT`, the highest D4-B found accepted); every list says how many players
+  the source lists with at least one goal, and adds the stop line where it lists 500.
+- *The unified model* (`season/model.py`, PLAN 3.2): frozen dataclasses, `None` for missing and
+  never 0, each fact naming its sources, `to_json` with safe keys and `from_json` refusing a
+  stored reply of another shape. This step adds `Table.group` (`None`, or "Group A" for one group
+  of a group stage; the source's "Matchday" and "League phase" in the same field name no group).
+- *The source chain* (PLAN 3.5, `season/catalog.py`). Each call takes the first available source:
+  football-data.org where it carries the competition, else OpenFootball and OpenLigaDB for the
+  six competitions they carry, Real Madrid's article for the Copa del Rey and Supercopa ties.
+  Rows of two sources are mixed only by declared rules (the today overlay by id, the Madrid fill,
+  the Madrid squad join; `season/crosswalk.py`), and an ambiguous join is not made. A match list
+  credits the sources of the rows shown. Real Madrid's own matches join the article's boxes by
+  the match rule, else by the Madrid-side rule this step adds (`crosswalk.join_madrid_matches`:
+  the same competition, Madrid on the same side, the same Europe/Madrid day, one candidate each
+  way), and a one-word football-data.org name joins by date of birth and the Wikipedia name's
+  first word. Gates: the Copa Libertadores is listed (`catalog.PASSED_GATES = ("P-D9",)`, D4-B
+  probe 3); the Europa League waits for P5-B.
+- *Wiring (this step).* `public.create_centre(title, private=None, football=None)` builds
+  `FootballData.from_env()` where no client is handed over, and `make_router(private,
+  football=)` builds the app's `Catalog` on the board's own OpenFootball reader and the Lineup's
+  squad list, with the season article, infobox, revision and Wikidata readers and the passed
+  gates; its lifespan closes the client. `galactico/api/player_lab.py` passes
+  `football=FootballData.from_env()`. With no key the app behaves exactly as before.
+- *Hosting hygiene (PLATFORM 3.6, D4-A).* `/static` files carry their lifetime: at the
+  content-versioned address every served page now writes (`?v=` the first eight hex digits of the
+  file's SHA-256) a year, `immutable`; at a plain address ten minutes in the browser and a day on
+  the CDN. The hosted app's pages are kept ten minutes on the CDN and served stale for an hour
+  while it asks again (`assets.PageCache`, installed by `create_centre` where no private feed is
+  mounted); the designed 404 five minutes. Every public cacheable reply adds
+  `stale-if-error=86400`, the three existing JSON helpers of `routes.py` included. `vercel.json`
+  ships `web/season/**` and asks for `regions: ["fra1"]`. `season/warm.py` is the plan a scheduled
+  run warms the caches by (at most four requests at priority 2, then one at priority 3); its
+  route is P0-A's.
+- *The `feed.py` changes* (D1). A fetch that returns a `Snapshot` keeps its own checked time; one
+  lock per key replaces sixteen shards; a `FeedError` carrying `retry_after` (the budget's
+  `Deferred`, the client's `Throttled`) holds the key for exactly that long without starting the
+  failure back-off, so a view at its cap never makes a resource unavailable to other views.
+- *The D4-B decisions.* B2's L is 500; B1 stands; P-D9 passed; P-D7 adopted (the four checks pass
+  on 18 of 18 Madrid matches with the Madrid-side join, 14 of 18 without it); B14 "Caps and league
+  games" withdrawn (3 of 26 squad players have no senior national-team row) and `h2h_goals`
+  offered (171 earlier-season boxes parse, every one's goals adding up); P5's scope is 18 clubs;
+  P-D4 is open (nothing was in play during the probe). The scratchpad's `ROOT-DECISIONS.md`
+  holds the text under "D4-B outcomes".
+
+**The R13 override (in the form of W8).** No page's bytes or reply changes, except these, each
+named old → new, and nothing else. The frozen lab APIs and files are untouched.
+
+- *Every served page's head.* The shell's sheets, scripts and icon load at content-versioned
+  addresses: `/static/tokens.css` → `/static/tokens.css?v=<sha8>`, and likewise `base.css`,
+  `components.css`, `theme.js`, `site.js` and `assets/favicon.svg`; the preloaded type stays at
+  its plain address. `head_markup`'s default stays plain, so `tests/test_site_nav.py`'s pin of
+  `<script src="/static/site.js"></script>` in the head holds unchanged.
+- *Cache headers.* `/static/*` replies gain `Cache-Control` and `Vercel-CDN-Cache-Control`
+  (were none); the hosted app's pages gain `Cache-Control: max-age=0` and
+  `Vercel-CDN-Cache-Control: s-maxage=600, stale-while-revalidate=3600, stale-if-error=86400`,
+  the designed 404 `max-age=60` and `s-maxage=300, stale-if-error=86400` (were none); the Lineup,
+  Matches, Table and Goals JSON `s-maxage=N, stale-while-revalidate=3600` → `…,
+  stale-if-error=86400`. `tests/test_lineup_studio.py` re-pinned from `"s-maxage=3600,
+  stale-while-revalidate=3600"` to `"s-maxage=3600, stale-while-revalidate=3600,
+  stale-if-error=86400"`.
+- *`tests/test_site_nav.py`, the whitelist test*
+  (`test_the_module_is_dependency_free_and_ships_with_the_hosted_function`): `hashlib` added to
+  the shell's allowed imports; the walk is recursive over `match_centre/` (was its top level),
+  every relative import resolved at any level to its package, and PLAN 3.1's rule for `season/`
+  and `builder/` checked in the same test (only the named siblings, each other, `providers` and
+  `site_nav`; third-party `httpx`, `fastapi`, `starlette`, `vercel`).
+- *`tests/test_licensing.py` and `tests/test_site_nav.py`'s credits test* (D1): the hostable set
+  `== PUBLIC` → `== PUBLIC ∪ HOSTED_DISPLAY`, each tier exactly its own set; a credited source is
+  PUBLIC or HOSTED_DISPLAY (was PUBLIC), a hosted-display credit linking the terms its posture
+  was read from.
+- *The guard globs.* `tests/test_design_tokens.py` and `tests/test_web_shell.py` glob `web/`
+  recursively (was its top level), keyed by the path under `web/`, so `web/season/` is guarded
+  like the rest; one new test plants files in a temporary `season/` folder.
+- *`tests/test_football_data.py`* (this step): the scorers request `?limit=100` → `?limit=500`;
+  the cache key `fd:v1:` → `fd:v2:`; the group-stage test gains a second group and pins each
+  table's group, and a league's table names none.
+- *`tests/test_crosswalk.py`* (this step): the module's allowed imports gain `..kickoff`
+  (PLAN 3.1 allows it), for the Madrid-side rule's Europe/Madrid day.
+- *`tests/test_static_cache.py`* (this step): the hosted fixture no longer adds `PageCache`
+  itself, since `create_centre` installs it.
+- *`.github/workflows/upstream-smoke.yml`*: the probe step gains `FOOTBALL_DATA_KEY` from the
+  repository secret; the probe asks football-data.org three times and prints counts only.
+
+**Evidence.** data-capabilities 0 and 1 (the reach, the free plan's shape, the terms); the D4-B
+probe report of 27 November 2026 (scratchpad, counts only: 40 football-data.org requests, all
+200, none closer than 10 s; 106 Wikipedia requests, 34 refused with 429 and recovered by the
+readers' fallbacks): scorers at `limit=500` (173 and 198 listed), squads inline for five more
+competitions (one Champions League club listing a single player), the Copa Libertadores reached
+(156 matches), `playedMatches` against appearances (19 of 19 and 13 of 19), the matchday-squad
+checks (18 of 18 with the Madrid-side join; 277 appearance pairs, none outside the named lists),
+the infobox coverage (0 of 26 national rows and stamps read before this step's spelling fix; 3
+of 26 players with no senior national row), three earlier seasons' boxes (55, 60, 56) and 18 of 19
+other clubs' articles. The root's smoke on 27 November 2026 with the key: the local app started,
+and the wired catalogue's day view read 9 matches in 9 of the 12 competitions in one
+football-data.org request; the upstream probe's three requests answered 200 with no contract
+field missing. The tests: `test_season_model.py` (including
+`test_the_builders_emit_exactly_the_fields_files_keys`), `test_season_keys.py`,
+`test_season_budget.py`, `test_season_store.py`, `test_feed.py`, `test_football_data.py`,
+`test_wiki_season.py`, `test_revisions.py`, `test_infobox.py`, `test_wikidata.py`, the B13 pins
+in `test_lineup_studio.py`, `test_season_catalog.py` (the source chain with a key, without one
+and with a refused one, where a patched real transport proves no request leaves; the today
+overlay; versions and the standings debounce; credits by rows shown; each view's cold cap and
+zero requests warm; R9 poisoning; ambiguity left unjoined; a Madrid box whose opponent is named
+otherwise joined by the Madrid-side rule), `test_crosswalk.py` (the Madrid-side and one-word
+rules among them), `test_season_goals.py`, `test_season_derive.py`,
+`test_season_warm.py`, `test_static_cache.py`, `test_hosted_bundle.py` (what `vercel.json` ships,
+imported with `python -I` with the checkout off the path and the network refused),
+`test_upstream_smoke.py`, `test_season_wiring.py`, `test_licensing.py` and
+`test_check_licensing.py` (a football-data.org key pattern and bulk reply refused in any tracked
+file). Every fixture is a synthetic builder with invented clubs; no test calls
+football-data.org.
+
+**Alternatives rejected.** Option B of data-capabilities 1.7, `football_data_org` as PUBLIC with
+a flag saying not redistributable (the type would contradict the flag, the mismatch the October
+audits removed). API-Football on the hosted app (its key is the private board's, its terms are a
+paid account's, and it stays on loopback). Scraping any site, FotMob's included (its terms and
+`robots.txt` forbid it), or reading Wikipedia's rendered pages (B13). Reading `playedMatches` as
+appearances. A per-page client with its own cache and no shared budget. Committing recorded
+replies as fixtures (R7, clause 9.1).
+
+**Open.** The free plan's delay is not measured: until the live watch runs, "Paused" never reads
+"Half-time" and the fixed delay line stays (P-D4). The revision list loses the pages it read
+when a later page is refused, and starts again from the season's first day (carried to the Real
+Madrid page's wave). Runtime Cache, Schedules with the legacy `builds` key and `fra1` with
+`builds` are unverified on a deployment. `studio.first_position` still reads a list template
+written over several lines as its first line (pre-existing; changing it would change
+`/api/studio/squad`, R13).
+
+**Confidence.** High that no request leaves for football-data.org without a key or under
+pytest, that the key reaches no file, row or log, that nothing it sends is committed, that a view
+stays inside its cap, and that the pages render exactly as before with no key (the tests and the
+bundle test above). Medium on the terms' reading: they were read through a page-fetch tool, and a
+person should re-read clauses 2.3, 6.1, 7.1, 9.1 and 9.2 in a browser. Medium on the Madrid-side
+rule for a season in which Madrid play twice on one Europe/Madrid day in one competition (then
+neither box joins, by the rule).
+
+**Reversal.** football-data.org's terms changing to forbid public display, or access ending: the
+`fd` tag is purged, and the catalogue falls back to the free feeds by construction (no
+football-data.org row is held anywhere else). A field-names contract failure in the daily probe:
+the normalisers are fixed before any page reads the changed resource. A licensed paid feed for
+events: a new provider entry and ADR, not a change to this tier.

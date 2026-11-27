@@ -41,6 +41,7 @@ from ..identity import normalise_name
 from ..match_centre import errors
 from ..match_centre.assets import Assets
 from ..match_centre.routes import make_router as match_centre_router
+from ..match_centre.season.football_data import FootballData
 from ..profiles import REJECTED, RESEARCH_ONLY, RenderState
 from ..profiles.build import BUILD_RULES, UNTESTED, construct_version
 from ..profiles.uncertainty import BOOTSTRAP_VERSION, QUANTILE_LEVELS, paired_differences
@@ -59,7 +60,11 @@ OUT_OF_CONTEXT = RenderState.OUT_OF_CONTEXT.value
 STATIC = Path(__file__).resolve().parent.parent.parent / "web"
 
 app = FastAPI(title="Galáctico Historical Decision Laboratory", version="0.3.0")
-app.include_router(match_centre_router())
+# The current season's routes, with the season catalogue on football-data.org where
+# FOOTBALL_DATA_KEY is set (ADR-0036); without it, the free sources exactly as before.
+_centre = match_centre_router(football=FootballData.from_env())
+app.include_router(_centre)
+app.state.catalog = _centre.catalog
 app.include_router(decision_router)
 # The planning labs. Each router owns its page route and its endpoints; none reads data or
 # imports a solver at import time, so Player Lab starts exactly as before.

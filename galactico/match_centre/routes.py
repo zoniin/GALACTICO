@@ -4,12 +4,19 @@ Every page is served through the site shell (``galactico.site_nav``), which fill
 the navigation and the footer for the app that serves it. ``/`` is the Matches page on every app
 that includes this router; an old Player Lab link to ``/`` with a player or a view in its query
 is sent to ``/player`` where the app serves it.
+
+``make_router`` also builds the season catalogue (``season.catalog.Catalog``, ADR-0036) on the
+same OpenFootball reader and squad list as the board, with the football-data.org client it is
+handed (``None`` without a key) and the Wikipedia and Wikidata readers. No route reads it yet:
+the season pages do (PLAN phase P). The router's lifespan closes the client's connections.
 """
 
 from __future__ import annotations
 
 import asyncio
 import re
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime
 from pathlib import Path
 from urllib.parse import urlencode
@@ -34,6 +41,12 @@ from .scouting import (
     baseline_lines,
     teams,
 )
+from .season.catalog import PASSED_GATES, Catalog
+from .season.football_data import FootballData
+from .season.infobox import Infoboxes
+from .season.revisions import Revisions
+from .season.wiki_season import MadridSeason
+from .season.wikidata import Wikidata
 from .studio import ANALYST_TOOLS, Studio, next_card, opponent_goals_link
 
 LINK_WAIT = 2.5
@@ -46,11 +59,36 @@ PLAYER_LAB_QUERY = ("player", "view")
 """Query keys of an old Player Lab link to ``/``. Such a link opens ``/player``."""
 
 
-def make_router(private: ApiFootball | None = None) -> APIRouter:
-    router = APIRouter()
+def season_catalog(public: OpenFootball, studio: Studio,
+                   football: FootballData | None) -> Catalog:
+    """The season catalogue of one app: the board's OpenFootball reader (and through it its
+    OpenLigaDB reader), the Lineup's squad list, football-data.org where ``football`` is a
+    client, Real Madrid's season article, the players' infoboxes, the article's revisions,
+    Wikidata, and the root decisions passed (``PASSED_GATES``)."""
+    return Catalog(football=football, openfootball=public, studio=studio,
+                   madrid=MadridSeason(), wikidata=Wikidata(), infoboxes=Infoboxes(),
+                   revisions=Revisions(), gates=PASSED_GATES)
+
+
+def make_router(private: ApiFootball | None = None, *,
+                football: FootballData | None = None) -> APIRouter:
+    """The match centre's routes. ``football`` is the football-data.org client the season
+    catalogue reads (``None``: none, the free sources only); the catalogue is the router's
+    ``catalog``."""
+
+    @asynccontextmanager
+    async def lifespan(_app) -> AsyncIterator[None]:
+        try:
+            yield
+        finally:
+            if football is not None:
+                await football.aclose()
+
+    router = APIRouter(lifespan=lifespan)
     studio = Studio()
     # A Real Madrid scorer is written as the squad list writes him on every page (names.py).
     public = OpenFootball(names=lambda day: studio.squad_names(day))
+    router.catalog = season_catalog(public, studio, football)
 
     async def in_time(work, fallback=None):
         # The sentence a shared link's card shows, if it comes in time; else the page's own.
@@ -101,7 +139,7 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     def studio_cache(response: Response, payload: dict, seconds: int) -> dict:
         if private is None and not payload.get("warning"):
             response.headers["Vercel-CDN-Cache-Control"] = (
-                f"s-maxage={seconds}, stale-while-revalidate=3600")
+                f"s-maxage={seconds}, stale-while-revalidate=3600, stale-if-error=86400")
         return payload
 
     # The squad, the formations and the XI the server proposes for each (F9).
@@ -178,7 +216,7 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     def shared_cache(response: Response, payload: dict, seconds: int = 900) -> dict:
         if private is None and not payload.get("warnings"):
             response.headers["Vercel-CDN-Cache-Control"] = (
-                f"s-maxage={seconds}, stale-while-revalidate=3600")
+                f"s-maxage={seconds}, stale-while-revalidate=3600, stale-if-error=86400")
         return payload
 
     @router.get("/api/match-centre/leagues/{code}")
@@ -239,7 +277,7 @@ def make_router(private: ApiFootball | None = None) -> APIRouter:
     def goals_cache(response: Response, report: dict, seconds: int) -> dict:
         if private is None and not report["warning"]:
             response.headers["Vercel-CDN-Cache-Control"] = (
-                f"s-maxage={seconds}, stale-while-revalidate=3600")
+                f"s-maxage={seconds}, stale-while-revalidate=3600, stale-if-error=86400")
         return report
 
     # The page's first view (F1, F20): Real Madrid's next opponent where the goal feed carries

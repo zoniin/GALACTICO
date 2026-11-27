@@ -57,18 +57,65 @@ def test_the_module_is_dependency_free_and_ships_with_the_hosted_function():
     imported |= {node.module.split(".")[0] for node in ast.walk(tree)
                  if isinstance(node, ast.ImportFrom) and node.module and not node.level}
     assert not any(isinstance(node, ast.ImportFrom) and node.level for node in ast.walk(tree))
-    assert imported <= {"__future__", "html", "re", "collections", "dataclasses", "datetime",
-                        "pathlib", "typing"}, imported
+    # Re-pinned in wave D4 (PLAN 4, D4-A): hashlib, for the content-versioned asset addresses.
+    assert imported <= {"__future__", "hashlib", "html", "re", "collections", "dataclasses",
+                        "datetime", "pathlib", "typing"}, imported
     include = json.loads((ROOT / "vercel.json").read_text())["builds"][0]["config"][
         "includeFiles"]
     assert "galactico/site_nav.py" in include
-    # Everything the hosted centre imports from the package ships with it.
-    shipped = {"match_centre", "providers", "site_nav"}
-    for module in (ROOT / "galactico" / "match_centre").glob("*.py"):
+    # Everything the hosted centre imports from the package ships with it. Re-pinned in wave
+    # D4 (PLAN 4, D4-A): every module under match_centre/, its subpackages (season/, builder/)
+    # included, each relative import resolved to the module it names, at any level
+    # (``from ..feed import X`` in season/ is galactico.match_centre.feed).
+    def package_imports(module: Path) -> list[str]:
+        package = module.relative_to(ROOT).with_suffix("").parts[:-1]
+        found = []
         for node in ast.walk(ast.parse(module.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.ImportFrom) and node.level == 2:
-                names = [node.module] if node.module else [a.name for a in node.names]
-                assert {name.split(".")[0] for name in names} <= shipped, (module.name, names)
+            if isinstance(node, ast.Import):
+                found += [a.name for a in node.names if a.name.split(".")[0] == "galactico"]
+            elif isinstance(node, ast.ImportFrom) and node.level:
+                base = package[:len(package) - node.level + 1]
+                assert base[:1] == ("galactico",), (module.name, node.level)
+                found += ([".".join([*base, node.module])] if node.module
+                          else [".".join([*base, alias.name]) for alias in node.names])
+            elif isinstance(node, ast.ImportFrom) and (node.module or "").startswith(
+                    "galactico"):
+                found.append(node.module)
+        return found
+
+    shipped = ("galactico.match_centre", "galactico.providers", "galactico.site_nav")
+    centre = ROOT / "galactico" / "match_centre"
+    seen = set()
+    for module in sorted(centre.rglob("*.py")):
+        seen.add(module.parent.relative_to(centre).as_posix())
+        for name in package_imports(module):
+            assert any(name == ok or name.startswith(f"{ok}.") for ok in shipped), (
+                module.relative_to(ROOT).as_posix(), name)
+    assert {".", "season"} <= seen
+    # The season data layer and the lineup builder import only what PLAN 3.1 allows: the
+    # standard library, httpx, FastAPI and Starlette (and vercel, optionally, in store.py),
+    # these siblings, each other, the licence registry and the shell; never galactico.domain,
+    # galactico.api, galactico.optimization or OR-Tools.
+    import sys
+
+    allowed = tuple(f"galactico.match_centre.{name}" for name in (
+        "feed", "kickoff", "names", "openfootball", "openligadb", "freshness", "studio",
+        "season", "builder")) + ("galactico.providers", "galactico.site_nav")
+    layer = [module for folder in ("season", "builder") if (centre / folder).exists()
+             for module in sorted((centre / folder).rglob("*.py"))]
+    assert any(module.name == "catalog.py" for module in layer)
+    for module in layer:
+        where = module.relative_to(ROOT).as_posix()
+        for name in package_imports(module):
+            assert any(name == ok or name.startswith(f"{ok}.") for ok in allowed), (
+                where, name)
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+        outside = {alias.name.split(".")[0] for node in ast.walk(tree)
+                   if isinstance(node, ast.Import) for alias in node.names}
+        outside |= {node.module.split(".")[0] for node in ast.walk(tree)
+                    if isinstance(node, ast.ImportFrom) and not node.level and node.module}
+        outside -= {"galactico", *sys.stdlib_module_names}
+        assert outside <= {"httpx", "fastapi", "starlette", "vercel"}, (where, outside)
 
 
 def test_five_destinations_in_one_order():

@@ -137,7 +137,7 @@ PROVIDER = "football_data_org"
 KEY_VARIABLE = "FOOTBALL_DATA_KEY"
 HEADER = "X-Auth-Token"
 TIMEOUT = httpx.Timeout(5.0, connect=2.0)
-SCHEMA = "v1"
+SCHEMA = "v2"
 """Part of every cache key: a change to a normaliser's output changes it, so rows another
 deployment stored in the old shape are never read as the new one."""
 STORE_TAG = "fd"
@@ -170,8 +170,10 @@ PLAY = timedelta(hours=2)
 """From kick-off to the final whistle, as declared: the source states no finish time."""
 AFTER_FINISH = timedelta(hours=2)
 
-SCORERS_LIMIT = 100
-"""The highest scorers ``limit`` verified to answer (DC 1.2). D4-B probes 500 and 300 (B2)."""
+SCORERS_LIMIT = 500
+"""The scorers ``limit`` asked for (B2): the highest D4-B's probe found accepted (27 November
+2026: 500 answered for La Liga and the Champions League, with 173 and 198 scorers, so no list
+was cut). The stop line is printed where the source lists as many as were asked for."""
 PERSON_COMPETITIONS = ("PD", "CL")
 PERSON_MATCHES_LIMIT = 50
 
@@ -489,11 +491,25 @@ def normalise_matches(body: object, checked: str, *, day: date | None = None,
     return [to_json(m) for m in sorted(found, key=_order)]
 
 
+def _table_group(standing: Mapping[str, Any]) -> str | None:
+    """The group a group stage's table is of, as the page names it: the source's ``GROUP_A``
+    is "Group A", any other name as written. ``None`` for a table of any other stage: the
+    source writes "Matchday" or "League phase" in the same field for a league or a league
+    phase (27 November 2026), which names no group."""
+    text = _text(standing.get("group"))
+    if text is None or _text(standing.get("stage")) != "GROUP_STAGE":
+        return None
+    head, _, letter = text.replace(" ", "_").partition("_")
+    if head.upper() == "GROUP" and 1 <= len(letter) <= 2 and letter.isalnum():
+        return f"Group {letter.upper()}"
+    return text
+
+
 def normalise_standings(body: object, checked: str, *, config: CompetitionConfig) -> list[dict]:
     """``/competitions/{c}/standings``: one ``Table`` per TOTAL table the source lists (one for
-    a league or a league phase, one per group of a group stage), in the source's order. A
-    position two rows share is marked ``shared``; the source's ``form`` is not read (form is
-    derived from results, D3-B)."""
+    a league or a league phase, one per group of a group stage, each with its ``group``), in
+    the source's order. A position two rows share is marked ``shared``; the source's ``form``
+    is not read (form is derived from results, D3-B)."""
     tables = []
     for standing in _items(body, "standings"):
         if not isinstance(standing, Mapping) or standing.get("type") != "TOTAL":
@@ -512,7 +528,8 @@ def normalise_standings(body: object, checked: str, *, config: CompetitionConfig
             competition=config.slug, view="all", after=None,
             rows=tuple(StandingRow(team=team, shared=positions.count(numbers["position"]) > 1,
                                    form=(), **numbers) for team, numbers in rows),
-            order=TABLE_ORDER, derived=False, sources=(_source(checked),))))
+            order=TABLE_ORDER, derived=False, sources=(_source(checked),),
+            group=_table_group(standing))))
     return tables
 
 

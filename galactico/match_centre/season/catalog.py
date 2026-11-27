@@ -34,7 +34,9 @@ it, and is ``Unknown`` otherwise.
   neither states one, the today row, which was read no earlier;
 - *the Madrid fill*: a Real Madrid match football-data.org lists takes the ground, attendance
   and report link its Wikipedia box states (football-data.org's free plan has none), and
-  the referee only where football-data.org names none;
+  the referee only where football-data.org names none; a box is the match's by the match
+  rule, else by the Madrid-side rule (``crosswalk.join_madrid_matches``: the same competition,
+  Madrid on the same side, the same Europe/Madrid day), as for its goals and appearances;
 - *the Madrid squad*: Wikipedia's squad list in its declared order, each player joined to
   football-data.org's squad by date of birth and folded surname (``crosswalk.join_people``;
   Wikipedia's date of birth is his infobox's), then football-data.org's players the list
@@ -107,8 +109,8 @@ from .wikidata import Wikidata, WikidataPerson
 __all__ = [
     "Catalog", "Unknown", "NotListed", "MadridFacts", "Entry", "CREDIT_ORDER",
     "DAY_ORDER", "SCHEDULE_ORDER", "SCORERS_ORDER", "SQUAD_ORDER", "SEARCH_ORDER",
-    "CATALOG_GATES", "STANDINGS_DEBOUNCE", "H2H_PAST_SEASONS", "H2H_OPENFOOTBALL_SINCE",
-    "LINES", "listed_line", "cut_line",
+    "CATALOG_GATES", "PASSED_GATES", "STANDINGS_DEBOUNCE", "H2H_PAST_SEASONS",
+    "H2H_OPENFOOTBALL_SINCE", "LINES", "listed_line", "cut_line",
 ]
 
 T = TypeVar("T")
@@ -127,6 +129,11 @@ SEARCH_ORDER = ("Competitions in the fixed order; then clubs, then players, Real
 
 CATALOG_GATES: dict[str, str] = {"europa-league": "P5-B"}
 """Competitions this build lists only once a later wave passes its gate (PR 2.1 row 9)."""
+
+PASSED_GATES: tuple[str, ...] = ("P-D9",)
+"""The gates the root has passed, which the apps build their catalogue with (ADR-0036):
+"P-D9", the Copa Libertadores, reached on football-data.org's free plan (D4-B probe 3).
+"P5-B" (the Europa League) is not passed. A catalogue built without ``gates`` passes none."""
 
 STANDINGS_DEBOUNCE = timedelta(minutes=10)
 H2H_PAST_SEASONS: tuple[int, ...] = (2025, 2024, 2023)
@@ -705,7 +712,7 @@ class Catalog:
         if facts is not None:
             exact = [m for m in facts.matches if m.key in (parsed.whole, parsed.slug)]
             if exact:
-                joined = crosswalk.join_matches(candidates, exact)
+                joined = crosswalk.join_madrid_matches(candidates, exact)
                 return await self._fill(trace, joined.get(exact[0].key, exact[0]))
         named = [m for m in candidates
                  if crosswalk.slug_names_match(shape["home"], m.home)
@@ -766,7 +773,7 @@ class Catalog:
         facts = await self._facts(trace)
         if facts is None:
             return match
-        joined = crosswalk.join_matches([match], list(facts.matches))
+        joined = crosswalk.join_madrid_matches([match], list(facts.matches))
         box = next((m for m in facts.matches if m.key in joined), None)
         if box is None:
             return match
@@ -817,7 +824,7 @@ class Catalog:
             if not madrid:
                 return [], (Coverage("scorers", 0, _goals_in(match), goal_rules.NO_REPORT),)
         if madrid and facts is not None:
-            joined = crosswalk.join_matches([match], list(facts.matches))
+            joined = crosswalk.join_madrid_matches([match], list(facts.matches))
             box = next((m for m in facts.matches if m.key in joined or m.key == match.key),
                        None)
             if box is not None:
@@ -1220,7 +1227,7 @@ class Catalog:
                 if self._listed(BY_SLUG[slug]):
                     rows = await self._season(trace, slug, cold=not self._fd_on())
                     schedule += [m for m in rows if goal_rules.madrid_side(m) is not None]
-            keyed = crosswalk.join_matches(schedule, list(facts.matches))
+            keyed = crosswalk.join_madrid_matches(schedule, list(facts.matches))
             refs = {p.wp_key: p.person.ref for p in people if p.wp_key}
             article = replace(
                 facts,

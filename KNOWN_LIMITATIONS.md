@@ -544,6 +544,89 @@ to the server's sentence in a comparison. For the
   Wikipedia's databases lag), the Lineup serves the last list it read, dated, or answers "The
   current squad list is unavailable." The infobox positions keep their fallback to each
   article's source.
+- Real Madrid's season article has a second route: where `api.php` turns the `action=parse`
+  request away, its facts come from `index.php?action=raw`. That route holds the statistics,
+  cards, clean sheets, matches, goals and transfers, but not the squad list, which exists only as
+  rendered HTML; the facts then say "The squad list couldn’t be read just now; the squad is left
+  out." Wikidata has no second route: a batch that cannot be read leaves those players' height
+  and place of birth missing.
+- Wikipedia's API may turn this site's requests away; per-match appearances then wait for the
+  next successful read. From the probe's environment `api.php` refused 21 of 29 requests and
+  `index.php?action=raw` 13 of 77 (D4-B). The revision list has no second route, and a refusal on
+  any of its pages loses the pages read before it, so the next read starts again from the
+  season's first day; keeping the pages read and resuming is carried to the Real Madrid page's
+  wave.
+- A player's infobox is read under either spelling of each parameter (`nationalteam1` or
+  `national_team1`, `club-update` or `club_update`), and an update stamp written as a signature
+  ("22:03, 21 November 2026 (UTC)") is read as its UTC day. A stamp in any other form is no date
+  (shown "—"), and a count is never shown without its stamp (B14).
+
+## The season data layer (ADR-0036)
+
+- No page reads it yet. Both apps build the season catalogue (football-data.org where
+  `FOOTBALL_DATA_KEY` is set; OpenFootball, OpenLigaDB, Wikipedia and Wikidata) and every page
+  still renders from the free feeds exactly as before; the season pages are its first readers.
+  Without the key, or once football-data.org refuses it, no request leaves for it, and the
+  catalogue serves the six competitions the free feeds carry, with OpenFootball's La Liga file
+  as stale as it is.
+- football-data.org's free plan delays its scores by an amount it does not publish, and gives no
+  match minute. The delay is not measured yet: nothing was in play during the probe window.
+  Until it is, a match in play is shown "In play" with the time the source was read, "Paused"
+  never reads "Half-time", and the pages say that results may take an hour or more to appear.
+- `playedMatches` counts the matches a player was named for, not the matches he played: it equals
+  football-data.org's matchday-squad count for 19 of 19 Real Madrid scorers and Wikipedia's
+  appearances for 13 of 19 (D4-B). It is never read (B1). Appearances come from Wikipedia, for
+  Real Madrid only, and no leaderboard has an appearances column.
+- A scorers list is asked for at 500 lines and says how many players the source lists with at
+  least one goal; where the source lists exactly 500, one more line says that a player with fewer
+  goals may be missing (B2). Nothing claims the list is complete. An assist the source does not
+  record is missing (shown "—"), never 0.
+- The key's ten requests a minute are shared with every other user of the key. A cold view past
+  its cap (PLAN 3.6) is shown in part, with "Part of this page is still loading. Reload in a
+  minute to see the rest." The shared cache tier (Vercel Runtime Cache) is off: its package is
+  not deployed, and whether it works under the legacy `builds` key is unverified, so each
+  instance starts cold.
+- A match key carries its Europe/Madrid day. If the match moves to another day, its old key
+  resolves only while a season resource that holds it is in the cache; otherwise it is a 404.
+- Keys differ by mode. With no key, a match's key is built from the free feed's club names; with
+  the key, from football-data.org's short names. `match(key)` resolves either form by the club
+  rule, and a board id resolves too (with the key it lands on the football-data.org match).
+- Joins are declared rules, and an ambiguous join is not made. A Real Madrid player whom the
+  crosswalk cannot join uniquely (a shared date of birth and surname, or no infobox birth date)
+  keeps his Wikipedia facts only, with "football-data.org’s record of this player couldn’t be
+  joined to Wikipedia’s, so its facts are left out." A football-data.org name of one word is
+  joined by date of birth and the Wikipedia name's first word, uniquely. A box of Real Madrid's
+  season article that the club-name rule cannot join (the article writes an opponent as its own
+  article is titled) is joined by competition, Real Madrid's side and the Europe/Madrid day
+  (18 of 18 finished Madrid matches, against 14 of 18 by the club-name rule, D4-B).
+- With no key, Champions League and Bundesliga scorers are counted from OpenLigaDB's named goals
+  in finished matches, with no assists; the coverage line says how many goals are named. Premier
+  League, Serie A and Ligue 1 goals get "The free sources this site reads don’t name the scorers
+  of this match." In play, goal reports that disagree with the result are both kept, with a line;
+  once the match is finished, disagreeing goal reports are not shown.
+- A derived table (no key, or a date in the past) orders by points, goal difference, goals scored
+  and name. A competition's official tiebreaks (head-to-head, fair play) and points deductions can
+  differ. A match decided on penalties counts as a draw at its level result; where a source's
+  result includes the shoot-out kicks (not level), the match is left out of every derived figure.
+  Position by matchday is the table on the day of each matchday's last counted result, so a
+  rescheduled match moves its matchday's point to the day it was played. Goal periods are drawn
+  only where minutes are known for at least 80 % of the goals, and a goal report listing more
+  goals for a side than the result is not used.
+- A competition with several tables (a group stage) names each table's group; until the
+  Competition page shows every group, the catalogue gives the first table with "This competition
+  has more than one table; the first is shown."
+- A club squad from football-data.org can be partial (one Champions League club lists a single
+  player). A squad of fewer than 11 players is treated as "the source lists no squad for this
+  club", never shown as the squad.
+- The Copa Libertadores is a calendar season: the 2026 edition ends with the final on 28
+  November, and the source lists no 2027 edition yet.
+- A file at its plain address (the type, or a sheet a page links without a version) can be up
+  to ten minutes old in a reader's browser after a deployment; the shell's sheets and scripts
+  change address with their content and are never stale. A hosted page can be up to ten minutes
+  old on the CDN, and up to an hour more while the CDN fetches it again.
+- Unverified on Vercel, for the user to check on a deployment: whether `regions: ["fra1"]` is
+  honoured with the legacy `builds` key; whether a Schedule sends its secret to the warm route;
+  and whether the Runtime Cache works from Python.
 
 ## Product scope
 

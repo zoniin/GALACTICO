@@ -227,11 +227,19 @@ _MONTHS = ("january", "february", "march", "april", "may", "june", "july", "augu
            "september", "october", "november", "december")
 
 
+_SIGNED = re.compile(r"\s*\d{1,2}:\d\d,\s*(.+?)\s*\(UTC\)\s*")
+"""A signature's stamp, as ``~~~~~`` saves it: "22:03, 21 November 2026 (UTC)"."""
+
+
 def parse_day(text: str | None) -> str | None:
-    """An ISO day from "24 November 2026", "November 24, 2026" or "2026-11-24"; ``None``
-    for anything else, a ``{{…}}`` date template's numbers included where they are y|m|d."""
+    """An ISO day from "24 November 2026", "November 24, 2026" or "2026-11-24", or from a
+    signature's stamp ("22:03, 21 November 2026 (UTC)": its UTC day); ``None`` for anything
+    else, a ``{{…}}`` date template's numbers included where they are y|m|d."""
     if not text:
         return None
+    signed = _SIGNED.fullmatch(plain(text))
+    if signed:
+        text = signed[1]
     for template in templates(text):
         numbers = [p for p in template.positional if re.fullmatch(r"\d{1,4}", p)]
         if len(numbers) >= 3 and len(numbers[0]) == 4:

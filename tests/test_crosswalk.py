@@ -115,6 +115,53 @@ def test_an_ambiguous_match_stays_unjoined_both_ways():
     assert cw.join_matches([fd_a, fd_b], [of_a]) == {}, "within 15 minutes of both"
 
 
+def test_a_madrid_box_the_club_rule_misses_joins_by_side_day_and_competition():
+    # The article writes the opponent as its own article is titled ("Norte Athletic Club
+    # Valle"); football-data.org's name and short name ("Club Norte", "Norte") share no form.
+    opponent = club("Club Norte", "Norte", 90002)
+    fd = game("100009-real-madrid-v-norte-2026-11-04", FD_MADRID, opponent,
+              "2026-11-04T20:00:00Z", competition="champions-league", fd_id=100009)
+    box = game("real-madrid-v-norte-athletic-valle-2026-11-04", MADRID_REF,
+               club("Norte Athletic Valle"), None, competition="champions-league")
+    assert cw.join_matches([fd], [box]) == {}, "the club rule does not equate the names"
+    assert cw.join_madrid_matches([fd], [box]) == {box.key: fd}
+    # The box's day is its kick-off's Europe/Madrid day where it states one: 23:30 UTC on
+    # 3 November is 4 November in Madrid.
+    timed = game("real-madrid-v-norte-athletic-valle-2026-11-04", MADRID_REF,
+                 club("Norte Athletic Valle"), "2026-11-03T23:30:00Z",
+                 competition="champions-league")
+    assert cw.join_madrid_matches([fd], [timed]) == {timed.key: fd}
+    away = game("norte-athletic-valle-v-real-madrid-2026-11-04", club("Norte Athletic Valle"),
+                MADRID_REF, None, competition="champions-league")
+    other_day = game("real-madrid-v-norte-athletic-valle-2026-11-05", MADRID_REF,
+                     club("Norte Athletic Valle"), None, competition="champions-league")
+    league = game("real-madrid-v-norte-athletic-valle-2026-11-04", MADRID_REF,
+                  club("Norte Athletic Valle"), None)
+    neither = game("ribera-v-norte-athletic-valle-2026-11-04", club("Ribera"),
+                   club("Norte Athletic Valle"), None, competition="champions-league")
+    for row in (away, other_day, league, neither):
+        assert cw.join_madrid_matches([fd], [row]) == {}, row.key
+
+
+def test_the_madrid_side_rule_keeps_one_candidate_each_way_and_the_match_rule_first():
+    fd_a = game("1-real-madrid-v-norte-2026-11-04", FD_MADRID, FD_NORTE, "2026-11-04T18:00:00Z",
+                competition="champions-league", fd_id=1)
+    fd_b = game("2-real-madrid-v-ribera-2026-11-04", FD_MADRID, FD_RIBERA,
+                "2026-11-04T21:00:00Z", competition="champions-league", fd_id=2)
+    box = game("real-madrid-v-somewhere-2026-11-04", MADRID_REF, club("Somewhere FC"), None,
+               competition="champions-league")
+    assert cw.join_madrid_matches([fd_a, fd_b], [box]) == {}, "two candidates fit the box"
+    # A box the match rule joins keeps that join, and the Madrid-side rule then joins the
+    # other box to the match left over, not to the one already taken.
+    named = game("real-madrid-v-norte-cf-2026-11-04", MADRID_REF, club("Norte CF"),
+                 "2026-11-04T18:05:00Z", competition="champions-league")
+    assert cw.join_madrid_matches([fd_a, fd_b], [named, box]) == {named.key: fd_a,
+                                                                 box.key: fd_b}
+    twice = game("real-madrid-v-elsewhere-2026-11-04", MADRID_REF, club("Elsewhere"), None,
+                 competition="champions-league")
+    assert cw.join_madrid_matches([fd_b], [box, twice]) == {}, "two boxes fit one match"
+
+
 def test_unique_pairs_keeps_only_one_to_one_fits():
     found = cw.unique_pairs([1, 2, 3], ["a", "b", "b2"],
                             lambda n, s: (n, s[0]) in {(1, "a"), (2, "b"), (3, "b")})
@@ -164,6 +211,20 @@ def test_a_player_the_list_may_hold_is_not_unlisted():
         "the two Bandas and Kai (no birth date on the list) may be listed: not again"
 
 
+def test_a_one_word_name_joins_by_birth_date_and_the_lists_first_word_only_uniquely():
+    teo_fd = cw.Who("70100-x", "Teó", "2003-02-11")
+    teo_wp = cw.Who("teo-ramal", "Teo Ramal", "2003-02-11")
+    assert cw.surname(teo_fd.name) != cw.surname(teo_wp.name)
+    assert cw.join_people([teo_fd], [teo_wp]) == {"teo-ramal": "70100-x"}
+    # Not on another birth date, not where two listed players fit, and never for a name of
+    # two words. (A one-word name that is the listed surname joins by the surname rule.)
+    assert cw.join_people([teo_fd], [cw.Who("t", "Teo Ramal", "2003-02-12")]) == {}
+    assert cw.join_people([teo_fd], [cw.Who("t", "Mario Teo", "2003-02-11")]) == {"t": "70100-x"}
+    assert cw.join_people([teo_fd], [teo_wp, cw.Who("t2", "Teo Otro", "2003-02-11")]) == {}
+    assert cw.join_people([cw.Who("70101-x", "Teo Bajo", "2003-02-11")], [teo_wp]) == {}
+    assert cw.unlisted([teo_fd], [teo_wp], cw.join_people([teo_fd], [teo_wp])) == []
+
+
 def test_a_person_without_a_stated_birth_date_is_not_joined():
     kai = next(p for p in v4.SQUAD if p.name == "Kai Delantero")
     assert cw.join_people([who(kai, wp=False)], [who(kai, wp=True, born=None)]) == {}
@@ -173,7 +234,7 @@ def test_a_person_without_a_stated_birth_date_is_not_joined():
 # ------------------------------------------------------------------ hygiene
 
 
-ALLOWED = {(2, "openligadb"), (1, "keys"), (1, "model")}
+ALLOWED = {(2, "openligadb"), (2, "kickoff"), (1, "keys"), (1, "model")}
 
 
 def test_the_module_imports_only_what_plan_3_1_allows():

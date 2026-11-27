@@ -10,6 +10,12 @@ reads ``birth_date``, each ``clubs``/``caps``/``goals`` row
 and each ``nationalteam``/``nationalcaps``/``nationalgoals`` row, and the ``club-update`` and
 ``nationalteam-update`` stamps those counts run to.
 
+**Parameter names.** The template takes each parameter under more than one spelling
+(``nationalteam1`` and ``national_team1``, ``club-update`` and ``club_update``), and the
+current articles use the underscore ones (D4-B probe 6). Every name is read with ``_``, ``-``
+and spaces dropped and case set aside, so each spelling reads the same; where an infobox
+writes one parameter under two spellings, the first non-blank is read.
+
 **Gated (B14).** The caps are read here and served by nobody until D4-B's coverage probe passes
 ("Caps and league games", P-D12). Where it fails, the criterion is withdrawn with one served
 line, never shown half-filled.
@@ -73,6 +79,22 @@ def _box(wikitext: str):
     return found[0] if found else None
 
 
+def _param(name: str) -> str:
+    """A parameter name as it is looked up: ``_``, ``-`` and spaces dropped, case set aside."""
+    return re.sub(r"[\s_-]+", "", name).casefold()
+
+
+def _named(box) -> dict[str, str]:
+    """The infobox's named parameters under their looked-up names (``_param``); the first
+    non-blank value where two spellings of one name are written."""
+    found: dict[str, str] = {}
+    for name, value in box.named.items():
+        key = _param(name)
+        if key not in found or (not found[key].strip() and value.strip()):
+            found[key] = value
+    return found
+
+
 def _cap(word: str) -> str:
     return word[:1].upper() + word[1:]
 
@@ -96,7 +118,8 @@ def positions(wikitext: str) -> tuple[str, ...]:
     box = _box(wikitext)
     value = None
     if box is not None:
-        value = box.named.get("position") or box.named.get("positions")
+        named = _named(box)
+        value = named.get("position") or named.get("positions")
     if value is None:
         first = first_position(wikitext)
         return (first,) if first else ()
@@ -113,7 +136,7 @@ def birth_date(wikitext: str) -> str | None:
     """The ``birth_date`` field as an ISO date: ``{{birth date and age|1996|3|14}}`` (with
     ``df=y`` or not), or a date written out; else ``None``."""
     box = _box(wikitext)
-    return parse_day(box.named.get("birth_date")) if box is not None else None
+    return parse_day(_named(box).get("birthdate")) if box is not None else None
 
 
 def _number(text: str | None) -> int | None:
@@ -141,14 +164,14 @@ def parse_infobox(title: str, wikitext: str) -> Infobox | None:
     box = _box(wikitext)
     if box is None:
         return None
-    named = box.named
+    named = _named(box)
     return Infobox(
         title=title_key(title), positions=positions(wikitext), born=birth_date(wikitext),
         clubs=tuple(_spells(named, "years", "clubs", "caps", "goals")),
         national=tuple(_spells(named, "nationalyears", "nationalteam", "nationalcaps",
                                "nationalgoals")),
-        club_update=parse_day(named.get("club-update")),
-        nationalteam_update=parse_day(named.get("nationalteam-update")))
+        club_update=parse_day(named.get("clubupdate")),
+        nationalteam_update=parse_day(named.get("nationalteamupdate")))
 
 
 def articles(payload: object) -> dict[str, str]:

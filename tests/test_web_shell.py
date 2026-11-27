@@ -26,10 +26,17 @@ goals.css, lineup.css); re-pinned under ADR-0034, the four are deleted, not kept
 NEW_SHEETS = ("tokens.css", "base.css", "components.css")
 
 
+def _files(*patterns: str) -> list[Path]:
+    """Every file under web/ matching one of ``patterns``, subfolders included (web/season/).
+    Re-pinned in wave D4 (PLAN 4, D4-A): the globs were ``web/*``."""
+    return sorted(path for pattern in patterns for path in WEB.rglob(pattern) if path.is_file())
+
+
 def test_every_html_file_is_a_page_of_the_shell():
     # The invented-figures demo is gone (R8), and no page is served outside the shell: the
-    # pages, and the designed page for an address the app does not serve (ADR-0034, S2).
-    assert {path.name for path in WEB.glob("*.html")} == {
+    # pages, and the designed page for an address the app does not serve (ADR-0034, S2). A
+    # page in a subfolder is named by its path under web/ (Page.file "season/team.html").
+    assert {path.relative_to(WEB).as_posix() for path in _files("*.html")} == {
         spec.file for spec in site_nav.PAGES.values()} | {site_nav.MISSING.file}
     assert not (WEB / "matchroom-demo.html").exists()
 
@@ -104,5 +111,5 @@ def test_the_kit_and_the_shell_scripts_declare_no_global():
 @pytest.mark.parametrize("name", GONE_SHEETS)
 def test_a_retired_sheet_is_gone_and_no_page_loads_it(name):
     assert not (WEB / name).exists()
-    for path in [*WEB.glob("*.html"), *WEB.glob("*.js")]:
+    for path in _files("*.html", "*.js"):
         assert f"/static/{name}" not in path.read_text(encoding="utf-8"), path.name

@@ -21,12 +21,24 @@ competition, kick-offs within 15 minutes of each other, and the home clubs one c
 away clubs one club. A match with no kick-off instant cannot be joined. Each side of the join
 must be unique: a row two candidates fit, or a candidate two rows fit, stays unjoined.
 
+**Real Madrid's own matches** (``join_madrid_matches``: the match boxes of Real Madrid's season
+article, every one a Real Madrid match). A box the match rule leaves unjoined is joined by the
+*Madrid-side rule*: the same competition, Real Madrid on the same side of both (home or
+away), and the same Europe/Madrid day (from the kick-off where stated, else the day the key
+ends with), one candidate each way. The opponent's name is not compared: the article writes
+an opponent as the opponent's own article is titled, which the club rule does not always
+equate with football-data.org's name or short name (a city added or dropped, a legal form
+another source does not write), and a club plays one match on a day in one competition.
+
 **People** (football-data.org with Wikipedia): the same date of birth and the same folded
 surname (the last word of the name once accents, case and hyphens are set aside). Where two
-people on either side share both, none of them is joined. A football-data.org player is *not
-on* a Wikipedia list (``unlisted``) only where he is not joined and no one on the list has his
-folded name, or his date of birth and surname, or (where the list states no birth date for
-someone) his surname: an unjoined player the list may hold is not listed twice.
+people on either side share both, none of them is joined. A football-data.org name of one
+word ("Teo") that this rule leaves unjoined is joined where the dates of birth are equal and
+that word is the first folded word of the Wikipedia name ("Teo Ramal"), unique both ways. A
+football-data.org player is *not on* a Wikipedia list (``unlisted``) only where he is not
+joined and no one on the list has his folded name, or his date of birth and surname, or (where
+the list states no birth date for someone) his surname: an unjoined player the list may hold
+is not listed twice.
 
 Claim: a join here is exactly the stated rule. Non-claim: the rule can join two records the
 sources mean as different (two clubs of one name in one competition, two players with one
@@ -42,13 +54,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TypeVar
 
+from ..kickoff import from_utc
 from ..openligadb import CLUB_NAMES
 from .keys import MADRID_FD_ID, fold, slugify
 from .model import Match, TeamRef
 
 __all__ = ["CLUB_ALIASES", "GENERIC", "KICKOFF_WINDOW", "MADRID_FORM", "Who", "club_form",
            "club_forms", "same_club", "is_madrid", "surname", "unique_pairs", "join_matches",
-           "join_people", "unlisted", "slug_names_match"]
+           "join_madrid_matches", "join_people", "unlisted", "slug_names_match"]
 
 GENERIC = frozenset({"cf", "fc", "afc", "ac", "sc", "cd", "ud", "sd", "rc", "rcd", "ca",
                      "club", "de", "del", "la", "el", "the"})
@@ -162,6 +175,35 @@ def join_matches(primary: Sequence[Match], others: Sequence[Match]) -> dict[str,
     return {other.key: match for other, match in unique_pairs(others, primary, _match_fits)}
 
 
+def _madrid_day(match: Match) -> str:
+    instant = _instant(match.kickoff_utc)
+    return from_utc(instant, "CET").date().isoformat() if instant else match.key[-10:]
+
+
+def _madrid_at(match: Match) -> str | None:
+    """The side Real Madrid is on in ``match``: "home", "away", or ``None`` (neither, both)."""
+    home, away = is_madrid(match.home), is_madrid(match.away)
+    return "home" if home and not away else "away" if away and not home else None
+
+
+def _madrid_fits(box: Match, match: Match) -> bool:
+    side = _madrid_at(box)
+    return (side is not None and box.competition == match.competition
+            and _madrid_at(match) == side and _madrid_day(box) == _madrid_day(match))
+
+
+def join_madrid_matches(primary: Sequence[Match], boxes: Sequence[Match]) -> dict[str, Match]:
+    """Each match box of Real Madrid's season article joined to one of ``primary``: by the
+    match rule, and a box it leaves unjoined by the Madrid-side rule (module), among the
+    ``primary`` matches the match rule left unjoined. Box key -> primary match."""
+    joined = join_matches(primary, boxes)
+    taken = {id(match) for match in joined.values()}
+    rest = [box for box in boxes if box.key not in joined]
+    free = [match for match in primary if id(match) not in taken]
+    joined.update({box.key: match for box, match in unique_pairs(rest, free, _madrid_fits)})
+    return joined
+
+
 @dataclass(frozen=True)
 class Who:
     """A person as a source states him for the join: his key there, name and birth date."""
@@ -193,17 +235,35 @@ def _pair(who: Who) -> tuple[str, str] | None:
     return (who.born, last) if who.born and last else None
 
 
-def join_people(fd: Sequence[Who], wp: Sequence[Who]) -> dict[str, str]:
-    """Wikipedia key -> football-data.org key, by date of birth and folded surname. A person
-    with no stated birth date, or whose pair is shared on either side, is not joined."""
-    pair = _pair
-    fd_pairs = {who.key: pair(who) for who in fd}
-    wp_pairs = {who.key: pair(who) for who in wp}
+def _first(name: str) -> str:
+    words = slugify(name).split("-")
+    return words[0] if words else ""
+
+
+def _pairs(fd: Sequence[Who], wp: Sequence[Who], fd_pair: Callable[[Who], tuple | None],
+           wp_pair: Callable[[Who], tuple | None]) -> dict[str, str]:
+    fd_pairs = {who.key: fd_pair(who) for who in fd}
+    wp_pairs = {who.key: wp_pair(who) for who in wp}
     fd_count = _counts(p for p in fd_pairs.values() if p)
     wp_count = _counts(p for p in wp_pairs.values() if p)
-    by_pair: Mapping[tuple[str, str], str] = {p: key for key, p in fd_pairs.items() if p}
+    by_pair: Mapping[tuple, str] = {p: key for key, p in fd_pairs.items() if p}
     return {key: by_pair[p] for key, p in wp_pairs.items()
             if p and wp_count[p] == 1 and fd_count.get(p) == 1}
+
+
+def join_people(fd: Sequence[Who], wp: Sequence[Who]) -> dict[str, str]:
+    """Wikipedia key -> football-data.org key, by date of birth and folded surname, then a
+    one-word football-data.org name by date of birth and the Wikipedia name's first word
+    (module). A person with no stated birth date, or whose pair is shared on either side, is
+    not joined."""
+    joined = _pairs(fd, wp, _pair, _pair)
+    taken = set(joined.values())
+    one_word = [who for who in fd if who.key not in taken and who.born
+                and len(slugify(who.name).split("-")) == 1 and surname(who.name)]
+    rest = [who for who in wp if who.key not in joined and who.born and _first(who.name)]
+    joined.update(_pairs(one_word, rest, lambda who: (who.born, surname(who.name)),
+                         lambda who: (who.born, _first(who.name))))
+    return joined
 
 
 def unlisted(fd: Sequence[Who], wp: Sequence[Who], joined: Mapping[str, str]) -> list[str]:

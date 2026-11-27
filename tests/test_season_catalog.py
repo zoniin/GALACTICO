@@ -632,6 +632,36 @@ def test_a_la_liga_madrid_matchs_goals_come_from_wikipedia_keyed_to_the_catalogu
     assert "openligadb" not in view.credits
 
 
+@dataclass
+class RenamedWiki(Wiki):
+    """The season article writing the opponent of Madrid's first box as its own article is
+    titled, a name that shares no club form with football-data.org's ("A FC")."""
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if request.url.params.get("action") == "parse":
+            self.requests.append(request)
+            text = wiki.sample_article().replace(
+                "|team2      = [[A FC]]", "|team2      = [[Alfa Athletic Valle]]")
+            assert "Alfa Athletic Valle" in text
+            return httpx.Response(200, json=wiki.parse_reply(text, wiki.squad_html()))
+        return super().__call__(request)
+
+
+def test_a_madrid_box_whose_opponent_is_named_otherwise_joins_by_the_madrid_side_rule():
+    s = build(wiki_stub=RenamedWiki())
+    run(s.catalog.teams("la-liga"))
+    key = "100001-real-madrid-v-a-fc-2026-08-22"
+    view = run(s.catalog.goals(key))
+    assert [(e.minute, e.scorer) for e in view.value] == [
+        (12, "Kai Delantero"), (55, "Kai Delantero"), (70, "A FC Striker"),
+        (90, "Vinício Ala")], "the box is the match's by competition, side and day"
+    assert {e.match for e in view.value} == {key}
+    run(s.catalog.season_matches("la-liga"))
+    run(s.catalog.season_matches("champions-league"))
+    keys = {m.key for m in run(s.catalog.madrid()).value.article.matches}
+    assert key in keys and not any("alfa-athletic" in k for k in keys)
+
+
 def test_a_paused_matchs_disagreement_keeps_both_and_a_match_without_a_source_says_so():
     s = build()
     view = run(s.catalog.goals("200004-test-porto-v-test-roma-2026-11-27"))

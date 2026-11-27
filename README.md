@@ -126,6 +126,21 @@ It ranks players on one selected need and applies no assumed league-strength bon
 The former scouting demo, which printed invented figures beside real players' names, is
 removed (ADR-0033); its old address opens the match centre.
 
+**This season's data layer** (ADR-0036). Both apps now build one season catalogue
+(`galactico/match_centre/season/`) that the coming season pages and the Real Madrid lineup
+builder will read; today's pages still render from the free feeds above. With a
+[football-data.org](https://www.football-data.org/) key in `FOOTBALL_DATA_KEY`, it reads that
+API's free plan (twelve competitions, La Liga and the Champions League among them, ten requests a
+minute) for fixtures, results, tables, squads and scorers, which closes La Liga's gap: the free La
+Liga file stops weeks behind play, football-data.org does not. Its data is shown under its terms
+with "Football data provided by the Football-Data.org API", held only in memory, never stored,
+committed or offered for download. Real Madrid's own season (squad, appearances by match from the
+article's revisions, cup ties, goals) comes from Wikipedia through the MediaWiki API, and heights
+and places of birth from Wikidata. **Without the key the app behaves exactly as before:** no
+request leaves for football-data.org, and the catalogue serves the six competitions OpenFootball
+and OpenLigaDB carry. football-data.org's scores are delayed by an amount it does not publish, so
+nothing here is called live.
+
 ## Historical decision labs
 
 <!-- generated:counts -->
@@ -312,7 +327,12 @@ where Make is available. No API key is needed for this public historical release
 Every test stubs the current-season sources. `uv run python scripts/upstream_smoke.py` asks each
 live one (OpenFootball, OpenLigaDB, the Wikipedia squad page) once through the project's own
 feed code and prints its status, row count and latest result date; a failed or empty source
-fails it. `.github/workflows/upstream-smoke.yml` runs it once a day, apart from the test job.
+fails it. With `FOOTBALL_DATA_KEY` set it also asks football-data.org three times (the
+competitions, one table, the day) and checks each reply against the field-names contract,
+printing counts only; without the key that row says "skipped". `.github/workflows/upstream-smoke.yml`
+runs it once a day, apart from the test job, with the key from the repository secret
+`FOOTBALL_DATA_KEY` (added by the repository's owner, never committed). No test calls
+football-data.org: under pytest a client without an injected transport is off.
 
 The repository contains **no football data**. Corpora are downloaded at runtime
 into a gitignored cache under each provider's own terms, and a CI guard fails on
@@ -327,6 +347,8 @@ any attempt to commit one.
 | LAB, public | Pappalardo/Wyscout 2017/18, five leagues | CC BY 4.0 |
 | LAB, local only | StatsBomb open 2015/16, four leagues | restrictive EULA |
 | VISION | SkillCorner, DFL/Sportec | MIT, CC BY 4.0 |
+| This season, public | OpenFootball, OpenLigaDB, English Wikipedia, Wikidata | CC0 1.0, ODbL 1.0, CC BY-SA 4.0, CC0 1.0 |
+| This season, hosted display | football-data.org API v4, free plan (with a key) | its terms: shown with its credit, never redistributed or committed ([LICENSING](LICENSING.md)) |
 
 <img src="docs/assets/statsbomb/statsbomb-logo.png" alt="StatsBomb" width="170">
 

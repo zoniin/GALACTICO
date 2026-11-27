@@ -44,6 +44,26 @@ permission, so the entry grants neither. Its tier and its flags say the same thi
 posture at this tier cannot be written with redistribution or commit on. A test
 asserts that the hostable set is exactly the PUBLIC and HOSTED_DISPLAY sources.
 
+**How the app keeps to those terms** (ADR-0036). The key is read from `FOOTBALL_DATA_KEY` when a
+request is due and travels only in the request's header: it is in no cache key, row, log line,
+error or reply, and the CI guard refuses a key-shaped string in any tracked file. Without the
+key, or for the hour after football-data.org refuses it, no request is made and the pages show
+the PUBLIC sources alone. Every request runs the licence gate (`assert_may_host`) and the key's
+budget of ten a minute; replies are normalised into the season model (crests, emblems, flags,
+odds and `playedMatches` dropped) and held in process memory, and in the shared runtime cache
+only if that tier is verified and switched on (tag `fd`, at most seven days). The season
+replies are shaped for one page view (no export, calendar file or bulk endpoint), and a page
+that shows football-data.org's data carries its credit, verbatim; a page credits only the
+sources its reply used. The Copa Libertadores, which football-data.org's list marks `TIER_FOUR`, is
+listed only because the free plan answered for it (probed 27 November 2026); a refusal (403)
+makes it not covered, a designed 404, with no further request. The daily upstream probe asks
+football-data.org three times with the key from the repository secret and prints counts only.
+
+Wikipedia is read through the MediaWiki API only (`api.php` `action=parse` and `action=query`,
+`index.php?action=raw`), every request with the project's descriptive User-Agent and
+`maxlag=5`; nothing is scraped from rendered pages. Wikidata is read by the item of each
+player's English Wikipedia article.
+
 `football_data` and `football_data_org` are two providers and must not be confused:
 `football_data` is football-data.co.uk, reference only, and `football_data_org` is
 football-data.org, hosted display. A test holds the two ids, names and terms apart.
