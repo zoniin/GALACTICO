@@ -6,10 +6,16 @@ may only be read on a local disk is the difference between a project and a
 liability. Encoding it means a hosted endpoint that tries to serve restricted rows
 fails at import-time rather than in production.
 
-Four tiers, kept apart at the architecture level. They are the tiers of LICENSING.md:
+Five tiers, kept apart at the architecture level. They are the tiers of LICENSING.md:
 
 ``PUBLIC``
     Redistributable and hostable. Public demo runs on these and nothing else.
+
+``HOSTED_DISPLAY``
+    Shown on the one registered application's hosted pages under the provider's terms
+    and attribution, and nothing more: never redistributed (no export, no bulk
+    endpoint, no raw passthrough of the provider's replies), never committed, and held
+    only in a runtime cache that is dropped when access ends. football-data.org.
 
 ``REFERENCE_ONLY``
     Reachable and free, and not ours to use. Consulted by hand: never ingested,
@@ -55,6 +61,11 @@ class LicenseViolation(RuntimeError):
 
 class DataTier(Enum):
     PUBLIC = "public"
+    HOSTED_DISPLAY = "hosted_display"
+    """Shown on the one registered application's hosted pages under the provider's terms and
+    attribution. Never redistributed (no export, no bulk endpoint, no raw passthrough of the
+    provider's replies), never committed, held only in a runtime cache that is dropped when
+    access ends."""
     REFERENCE_ONLY = "reference_only"
     LOCAL_LICENSED = "licensed"
     TRIAL = "trial"
@@ -72,7 +83,9 @@ class LicensePosture:
     permission is off: unknown terms are not permission.
 
     A posture at ``DataTier.REFERENCE_ONLY`` grants nothing, and cannot be written
-    otherwise.
+    otherwise. A posture at ``DataTier.HOSTED_DISPLAY`` may be shown on the hosted pages
+    and may never be redistributed or committed, and cannot be written otherwise either:
+    the tier and the flags say the same thing.
     """
 
     name: str
@@ -95,6 +108,15 @@ class LicensePosture:
                 raise ValueError(
                     f"{self.name} is reference only and cannot grant "
                     f"{', '.join(granted)}: a reference-only source grants nothing"
+                )
+        if self.tier is DataTier.HOSTED_DISPLAY:
+            contrary = [name for name in ("may_redistribute", "may_commit") if getattr(self, name)]
+            if not self.may_host_derived:
+                contrary.append("may_host_derived off")
+            if contrary:
+                raise ValueError(
+                    f"{self.name} is hosted display and cannot have {', '.join(contrary)}: it "
+                    f"is shown on the hosted pages, never redistributed and never committed"
                 )
 
 
@@ -240,6 +262,16 @@ PROVIDERS: dict[str, LicensePosture] = {
         terms_url="https://www.openligadb.de/lizenz",
         notes="Runtime goal reports link their source and carry its ODbL 1.0 licence.",
     ),
+    "wikidata": LicensePosture(
+        name="Wikidata structured data", tier=DataTier.PUBLIC,
+        may_redistribute=True, may_host_derived=True, may_commit=False, commercial_use=True,
+        requires_attribution=False, attribution="Wikidata, CC0 1.0 (credited as a courtesy).",
+        terms_url="https://www.wikidata.org/wiki/Wikidata:Licensing",
+        notes="Main and Property namespaces are CC0 (read 27 November 2026). Images (P18) are "
+              "Wikimedia Commons files under per-file licences and personality rights, outside "
+              "CC0, and are not used. Read per player by the QID of his English Wikipedia "
+              "article; 'current member of the club' statements are stale and are not a roster.",
+    ),
     "openfootball": LicensePosture(
         name="OpenFootball fixtures and results",
         tier=DataTier.PUBLIC,
@@ -250,6 +282,27 @@ PROVIDERS: dict[str, LicensePosture] = {
         requires_attribution=False,
         terms_url="https://github.com/openfootball/football.json/blob/master/LICENSE.md",
         notes="CC0 1.0. Season files are updated from community-maintained schedules.",
+    ),
+    "football_data_org": LicensePosture(
+        name="football-data.org API v4, free plan",
+        tier=DataTier.HOSTED_DISPLAY,
+        may_redistribute=False,
+        may_host_derived=True,
+        may_commit=False,
+        commercial_use=False,
+        requires_attribution=True,
+        attribution="Football data provided by the Football-Data.org API",
+        terms_url="https://www.football-data.org/client/register",
+        notes="General Terms and Conditions, last updated 1 June 2018, read 27 November 2026 on "
+              "the registration page (the only place they are published). 7.1: the attribution "
+              "above in a visible place. 2.3: one key, one application (one domain for a web app). "
+              "6.1: the key may not be stored in an open-source repository. 9.1: after "
+              "cancellation the data may not be referenced, so runtime cache only. 9.2: crests and "
+              "photos belong to their owners and are not shown. No clause grants redistribution or "
+              "commercial use; unknown terms are not permission. Free plan: 12 competitions plus "
+              "Copa Libertadores, seasons 2023/24 on, 10 requests a minute, scores delayed, and no "
+              "goals, bookings, substitutions, lineups, formations or statistics. Not "
+              "football-data.co.uk (provider 'football_data', reference only).",
     ),
     "api_football": LicensePosture(
         name="API-Football",

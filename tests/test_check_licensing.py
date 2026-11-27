@@ -346,6 +346,90 @@ def test_the_other_two_exemptions_are_as_narrow_as_the_script_says(guard) -> Non
     assert "exceeds" in guard.check([large])[0]
 
 
+# --- football-data.org (wave D1, PLAN 4 D1-A) --------------------------------------
+#
+# Clause 6.1 of its terms keeps the key out of an open-source repository, and clause 9.1
+# bars referencing the data once access ends, so no reply is ever committed. The key is a
+# 32-character hex string, sent as X-Auth-Token and read from FOOTBALL_DATA_KEY.
+
+FD_KEY = "0f" * 16
+FD_KEY_NAME = "FOOTBALL" + "_DATA_KEY"
+FD_HEADER = "X-Auth" + "-Token"
+
+
+@pytest.mark.parametrize("line", [
+    f"{FD_KEY_NAME}={FD_KEY}\n",
+    f'{FD_KEY_NAME.lower()} = "{FD_KEY}"\n',
+    f"football-data-key: '{FD_KEY.upper()}'\n",
+    f"{FD_HEADER}: {FD_KEY}\n",
+    f'headers = {{"{FD_HEADER.lower()}": "{FD_KEY}"}}\n',
+])
+def test_a_football_data_key_is_a_credential(guard, line: str) -> None:
+    for rel in ("galactico/match_centre/settings.py", "docs/notes.md", "tests/fixtures/a.json"):
+        problems = guard.check([write(guard, rel, line)])
+        assert problems == [f"{rel}: looks like a committed football-data.org key"], (rel, line)
+
+
+@pytest.mark.parametrize("line", [
+    f"{FD_HEADER}: proxy-injected\n",
+    f'{FD_KEY_NAME} = os.environ["{FD_KEY_NAME}"]\n',
+    f"{FD_KEY_NAME}=\n",
+    f"{FD_HEADER}: {FD_KEY[:31]}\n",
+    f"football_data = {FD_KEY}\n",
+])
+def test_what_names_the_key_without_holding_it_passes(guard, line: str) -> None:
+    """The header this environment's proxy fills, a read of the environment, an empty
+    example, a string one character short, and the name of the other provider."""
+    assert guard.check([write(guard, "galactico/match_centre/settings.py", line)]) == []
+
+
+def fd_matches(count: int) -> str:
+    """The shape of a football-data.org bulk reply, with invented values only."""
+    return json.dumps({"matches": [
+        {"id": number, "utcDate": "2026-01-01T20:00:00Z", "status": "FINISHED",
+         "homeTeam": {"id": 1, "name": "A FC"}, "awayTeam": {"id": 2, "name": "Norte CF"},
+         "lastUpdated": "2026-01-02T00:00:00Z"} for number in range(count)]})
+
+
+def test_a_football_data_bulk_reply_in_a_json_file_is_refused(guard) -> None:
+    problems = guard.check([write(guard, "exports/day.json", fd_matches(20))])
+    assert problems == ["exports/day.json: content matches a football-data.org bulk reply "
+                        "(20 match records). Its data is never committed"]
+    pretty = json.dumps(json.loads(fd_matches(25)), indent=2)
+    assert len(guard.check([write(guard, "docs/screenshots/day.json", pretty)])) == 1
+    # Under the threshold, or missing one of the three keys, it is not that shape.
+    assert guard.check([write(guard, "exports/few.json", fd_matches(19))]) == []
+    no_stamp = fd_matches(40).replace('"lastUpdated"', '"updated"')
+    assert guard.check([write(guard, "exports/other.json", no_stamp)]) == []
+
+
+def test_the_bulk_fingerprint_reads_json_files_only(guard) -> None:
+    """The synthetic reply builders are Python and spell the same keys in dict literals;
+    a note may quote the shape. Neither is a reply."""
+    builder = "def day():\n    return " + fd_matches(60) + "\n"
+    assert guard.check([write(guard, "tests/season_v4.py", builder)]) == []
+    assert guard.check([write(guard, "docs/shape.md", fd_matches(60))]) == []
+
+
+def test_the_fixtures_exemption_does_not_cover_a_football_data_reply(guard) -> None:
+    """PLAN B15: football-data.org data is never in a fixture. The other fingerprints keep
+    their fixtures exemption; this one does not, and the field-names file passes."""
+    problems = guard.check([write(guard, "tests/fixtures/day.json", fd_matches(60))])
+    assert problems == ["tests/fixtures/day.json: content matches a football-data.org bulk "
+                        "reply (60 match records). Its data is never committed"]
+    assert guard.check([write(guard, "tests/fixtures/few.json", fd_matches(19))]) == []
+    # A season of matches is over the size ceiling, which the fixtures do not have: the
+    # reply is still read, there and everywhere else.
+    season = json.dumps(json.loads(fd_matches(2000)), indent=2)
+    assert len(season.encode("utf-8")) > guard.MAX_BYTES
+    problems = guard.check([write(guard, "tests/fixtures/season.json", season)])
+    assert problems == ["tests/fixtures/season.json: content matches a football-data.org "
+                        "bulk reply (2000 match records). Its data is never committed"]
+    assert len(guard.check([write(guard, "exports/season.json", season)])) == 2
+    fields = ROOT / "tests" / "fixtures" / "football_data_v4_fields.json"
+    assert guard.football_data_records(fields.read_text(encoding="utf-8")) == 0
+
+
 # --- failing closed ------------------------------------------------------------
 
 @pytest.mark.parametrize("flags", [(), ("--staged",)])

@@ -146,9 +146,17 @@ SOURCES: dict[str, Source] = {source.key: source for source in (
     Source("pappalardo", "Pappalardo et al. / Wyscout", "Match events, 2017/18 archive",
            "CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/",
            "https://doi.org/10.6084/m9.figshare.c.4415000"),
+    Source("football_data_org", "football-data.org",
+           "Fixtures, results, tables, squads and scorers, 2026/27", "football-data.org terms",
+           "https://www.football-data.org/client/register", "https://www.football-data.org/"),
+    Source("wikidata", "Wikidata", "Height and place of birth of Real Madrid players",
+           "CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/",
+           "https://www.wikidata.org/"),
 )}
 """The hostable sources the pages read. Their licences are the provider registry's
-(``galactico.providers.base.PROVIDERS``); a test holds the two equal."""
+(``galactico.providers.base.PROVIDERS``); a test holds the two equal. A source here is
+credited only where a page names it in ``Page.sources``, so an entry no page names yet is
+printed nowhere."""
 
 FONTS = (("DM Sans", "/static/assets/type/dmsans-OFL.txt"),
          ("Barlow Condensed", "/static/assets/type/barlowcondensed-OFL.txt"))

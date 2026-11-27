@@ -47,26 +47,109 @@ def test_every_provider_requiring_attribution_supplies_one() -> None:
             assert posture.attribution, f"{provider_id} requires attribution but declares none"
 
 
-# LICENSING.md, "Tiers". The public demo runs on the first set and nothing else; the
-# second is reachable and free and not ours to use.
-PUBLIC_SOURCES = {"pappalardo", "skillcorner", "dfl", "openfootball", "wikipedia", "openligadb"}
+# LICENSING.md, "Tiers". The public demo may run on the first two sets and nothing else:
+# the first is redistributable, the second is shown on the hosted pages under its
+# provider's terms and never redistributed or committed. The third is reachable and free
+# and not ours to use.
+PUBLIC_SOURCES = {"pappalardo", "skillcorner", "dfl", "openfootball", "wikipedia", "openligadb",
+                  "wikidata"}
+HOSTED_DISPLAY_SOURCES = {"football_data_org"}
 REFERENCE_ONLY_SOURCES = {"uefa", "fpl", "football_data", "clubelo"}
 PERMISSIONS = ("may_redistribute", "may_host_derived", "may_commit", "commercial_use")
+FD_CREDIT = "Football data provided by the Football-Data.org API"
 
 
 def test_the_hostable_set_is_exactly_what_the_public_demo_may_use() -> None:
     """Equality, not inclusion. This test carried the name it has now while asserting a
     subset, and a paid feed with no terms recorded sat in the hostable set beside the
-    three public sources. Nothing read it."""
+    three public sources. Nothing read it.
+
+    Re-pinned in wave D1 (PLAN 4, D1-A): the hostable set is PUBLIC and HOSTED_DISPLAY,
+    each tier exactly its own set."""
     hostable = {k for k, v in PROVIDERS.items() if v.may_host_derived}
-    assert hostable == PUBLIC_SOURCES
+    assert hostable == PUBLIC_SOURCES | HOSTED_DISPLAY_SOURCES
     assert {k for k, v in PROVIDERS.items() if v.tier is DataTier.PUBLIC} == PUBLIC_SOURCES
+    assert {k for k, v in PROVIDERS.items()
+            if v.tier is DataTier.HOSTED_DISPLAY} == HOSTED_DISPLAY_SOURCES
     for provider_id in PROVIDERS:
-        if provider_id in PUBLIC_SOURCES:
+        if provider_id in hostable:
             assert assert_may_host(provider_id) is PROVIDERS[provider_id]
         else:
             with pytest.raises(LicenseViolation, match="hosted"):
                 assert_may_host(provider_id)
+
+
+def test_football_data_org_is_shown_with_its_credit_and_never_redistributed_or_committed(
+        ) -> None:
+    """DC 1.7, option A: the tier and the flags say the same thing. Clause 7.1 gives the
+    credit, 9.1 keeps the data out of anything that outlives access, and no clause grants
+    redistribution or commercial use."""
+    posture = assert_may_host("football_data_org")
+    assert posture.tier is DataTier.HOSTED_DISPLAY
+    assert posture.may_host_derived
+    assert not posture.may_redistribute and not posture.may_commit
+    assert not posture.commercial_use
+    assert posture.requires_attribution and posture.attribution == FD_CREDIT
+    assert posture.terms_url == "https://www.football-data.org/client/register"
+    assert "read 27 November 2026" in posture.notes
+    with pytest.raises(LicenseViolation, match="version control"):
+        assert_may_commit("football_data_org")
+    assert assert_may_ingest("football_data_org") is posture
+
+
+def test_wikidata_is_public_and_its_images_are_not_used() -> None:
+    posture = assert_may_host("wikidata")
+    assert posture.tier is DataTier.PUBLIC and posture.may_redistribute
+    assert "CC0 1.0" in posture.attribution
+    assert posture.terms_url == "https://www.wikidata.org/wiki/Wikidata:Licensing"
+    assert "(P18)" in posture.notes and "not used" in posture.notes
+    with pytest.raises(LicenseViolation, match="version control"):
+        assert_may_commit("wikidata")
+
+
+def test_football_data_co_uk_and_football_data_org_are_two_providers() -> None:
+    """Someone "fixing" the .co.uk entry into the .org one is a realistic accident. The
+    .co.uk entry stays reference only; the two ids, names, terms and credits differ."""
+    couk, org = PROVIDERS["football_data"], PROVIDERS["football_data_org"]
+    assert couk is not org and couk.name != org.name
+    assert couk.tier is DataTier.REFERENCE_ONLY
+    assert not any(getattr(couk, name) for name in PERMISSIONS)
+    with pytest.raises(LicenseViolation, match="reference only"):
+        assert_may_host("football_data")
+    assert "football-data.co.uk" in couk.name and "football-data.org" in org.name
+    assert "football-data.co.uk" in couk.terms_url and "football-data.org" in org.terms_url
+    assert couk.attribution != org.attribution
+    assert "Not football-data.co.uk (provider 'football_data', reference only)." in org.notes
+
+
+@pytest.mark.parametrize("contrary", ["may_redistribute", "may_commit", "no_hosting"])
+def test_a_hosted_display_posture_cannot_say_what_its_tier_denies(contrary: str) -> None:
+    """Held by the type, as the reference-only tier is: a hosted-display entry that would
+    redistribute, commit or not host cannot be written."""
+    flags = {"may_redistribute": False, "may_host_derived": True, "may_commit": False,
+             "commercial_use": False}
+    if contrary == "no_hosting":
+        flags["may_host_derived"] = False
+    else:
+        flags[contrary] = True
+    with pytest.raises(ValueError, match="hosted display"):
+        LicensePosture(name="A source", tier=DataTier.HOSTED_DISPLAY,
+                       requires_attribution=True, **flags)
+    LicensePosture(name="A source", tier=DataTier.HOSTED_DISPLAY, requires_attribution=True,
+                   may_redistribute=False, may_host_derived=True, may_commit=False,
+                   commercial_use=False)
+
+
+def test_licensing_md_defines_the_tier_and_names_both_new_entries() -> None:
+    """The document says what the registry says: the tier, its one source and its credit,
+    Wikidata among the public sources, and the two football-data ids kept apart."""
+    text = " ".join((ROOT / "LICENSING.md").read_text(encoding="utf-8").split())
+    assert "**HOSTED_DISPLAY** — shown on the one registered application's hosted pages" in text
+    assert f'"{FD_CREDIT}"' in text
+    assert "football-data.org API v4, free plan" in text
+    assert "and Wikidata structured data ([CC0 1.0]" in text
+    assert ("`football_data` is football-data.co.uk, reference only, and `football_data_org` "
+            "is football-data.org, hosted display.") in text
 
 
 def test_a_paid_feed_is_local_only() -> None:

@@ -13,9 +13,40 @@ attempt to commit into them.
 
 ## Tiers
 
-**PUBLIC** — redistributable and hostable. The public demo runs on these and
-nothing else: Pappalardo/Wyscout (CC BY 4.0), SkillCorner (MIT), DFL/Sportec
-(CC BY 4.0), English Wikipedia season tables (CC BY-SA 4.0), OpenLigaDB match reports (ODbL 1.0), and OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)).
+**PUBLIC** — redistributable and hostable. The public demo may run on these and on
+the hosted-display tier below, and on nothing else: Pappalardo/Wyscout (CC BY 4.0),
+SkillCorner (MIT), DFL/Sportec (CC BY 4.0), English Wikipedia season tables
+(CC BY-SA 4.0), OpenLigaDB match reports (ODbL 1.0), OpenFootball fixtures and results ([CC0 1.0](https://github.com/openfootball/football.json/blob/master/LICENSE.md)),
+and Wikidata structured data ([CC0 1.0](https://www.wikidata.org/wiki/Wikidata:Licensing),
+read 27 November 2026). Wikidata is used for the height and place of birth of Real
+Madrid players only, read by the item of each player's English Wikipedia article and
+never from the club's "current member" statements, which are stale. Its images (P18) are Wikimedia
+Commons files under their own licences and personality rights, outside CC0, and none is
+used.
+
+**HOSTED_DISPLAY** — shown on the one registered application's hosted pages under
+the provider's terms and attribution, and nothing more. Never redistributed: no
+export, no bulk endpoint and no raw passthrough of the provider's replies. Never
+committed in any form: no reply, raw or normalised, no table built from one, no
+recorded fixture and no committed screenshot of a page that shows it. Held only in a
+runtime cache (process memory and, where enabled, Vercel Runtime Cache for at most
+seven days) that is dropped when access ends. One source is at this tier: the
+football-data.org API v4, free plan. Its General Terms and Conditions, last updated
+1 June 2018, are published only under the form on its
+[registration page](https://www.football-data.org/client/register) and were read
+there on 27 November 2026. Clause 7.1 asks for the credit "Football data provided by
+the Football-Data.org API" in a visible place. Clause 2.3 gives one key to one
+application. Clause 6.1 keeps the key out of open-source repositories. Clause 9.1
+bars referencing the data once access ends, which is why it lives only in a cache that
+can be dropped. Clause 9.2 leaves crests, logos and photos with their owners, so none
+is shown. No clause grants redistribution or commercial use, and unknown terms are not
+permission, so the entry grants neither. Its tier and its flags say the same thing: a
+posture at this tier cannot be written with redistribution or commit on. A test
+asserts that the hostable set is exactly the PUBLIC and HOSTED_DISPLAY sources.
+
+`football_data` and `football_data_org` are two providers and must not be confused:
+`football_data` is football-data.co.uk, reference only, and `football_data_org` is
+football-data.org, hosted display. A test holds the two ids, names and terms apart.
 
 **REFERENCE ONLY** — reachable and free, and not ours to use. Consulted by hand,
 never ingested, no adapter. UEFA: clause 6.2 of its terms bars systematic
@@ -130,7 +161,8 @@ its four public blocks and the runner to their prefix.
 
 Pappalardo requires citing the constituent figshare articles individually plus the
 2019 Scientific Data paper. SkillCorner requires the MIT copyright line.
-DFL/Sportec requires CC BY 4.0 attribution.
+DFL/Sportec requires CC BY 4.0 attribution. football-data.org requires "Football
+data provided by the Football-Data.org API", verbatim, wherever its data shows.
 Attribution text lives in `galactico/providers/base.py` next to the posture it
 belongs to.
 
@@ -152,14 +184,19 @@ with coordinates and nothing else, which is roughly what $19 buys legitimately.
 
 `scripts/check_licensing.py` blocks files over 512 KB, data file extensions,
 anything under a restricted tier directory, committed environment files,
-credential-shaped strings, and provider schema keys or a bulk record dump in
-tracked text. The two content checks read a file whose suffix is one of fourteen
-text suffixes and whose size is within the ceiling, and no other file. It lists
+credential-shaped strings (a football-data.org key among them), provider schema
+keys or a bulk record dump in tracked text, and a football-data.org bulk reply in
+any JSON file. The two content checks read a file whose suffix is one of fourteen
+text suffixes and whose size is within the ceiling, and no other file, except that
+every JSON file is read for a football-data.org reply whatever its size. It lists
 paths NUL-separated (`git ls-files -z`): git prints any other listing of a name
 that is not plain ASCII in quotes, and the guard used to count such a file as
 checked without opening it. A listed file that cannot be opened is now exit 2,
 which is not a pass. Three exemptions remain. `tests/fixtures/` is exempt from the
-size and extension checks and from the check for schema keys and record dumps. An
+size and extension checks and from the check for schema keys and record dumps, but
+not from the football-data.org reply check: that provider's data is never committed,
+in a fixture or anywhere else (HOSTED_DISPLAY above), and its synthetic replies are
+built in code (`tests/season_v4.py`). An
 image under `docs/screenshots/` is exempt from the size ceiling and from nothing
 else; until the second audit the whole directory had the exemptions of the
 fixtures. The script itself is exempt from the two content checks, because it

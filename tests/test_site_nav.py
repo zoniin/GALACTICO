@@ -219,10 +219,19 @@ def test_a_destination_with_two_pages_lists_both_under_the_header():
 
 
 def test_the_credits_are_the_provider_registrys():
+    # Re-pinned in wave D1 (PLAN 4, D1-A): a credited source is PUBLIC or HOSTED_DISPLAY. A
+    # hosted-display source is shown under its provider's own terms, which name no licence, so
+    # its credit links the terms the posture was read from.
+    hosted_tiers = (DataTier.PUBLIC, DataTier.HOSTED_DISPLAY)
     for key, source in site_nav.SOURCES.items():
         posture = PROVIDERS[key]
-        assert posture.tier is DataTier.PUBLIC and posture.may_host_derived, key
-        assert source.licence in f"{posture.attribution} {posture.notes}", key
+        assert posture.tier in hosted_tiers and posture.may_host_derived, key
+        if posture.tier is DataTier.PUBLIC:
+            assert source.licence in f"{posture.attribution} {posture.notes}", key
+        else:
+            assert source.licence_url == posture.terms_url, key
+            assert not posture.may_redistribute and not posture.may_commit, key
+        assert scan_labels([source.name, source.used_for, source.licence]) == [], key
     for spec in site_nav.PAGES.values():
         footer = site_nav.footer_markup(spec, ALL_ROUTES)
         for key in spec.sources:

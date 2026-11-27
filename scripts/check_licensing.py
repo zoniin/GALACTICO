@@ -13,16 +13,18 @@ Six checks:
 3. No path under a restricted provider directory.
 4. No credential-shaped strings in tracked text.
 5. No provider schema keys and no bulk record dump in tracked text, whatever the
-   file is called.
+   file is called, and no football-data.org bulk reply in a JSON file.
 6. No environment file. A name that ends ``.example`` is not one.
 
 Checks 4 and 5 read a file whose suffix is one of ``TEXT_SUFFIXES`` and whose size
-is within the ceiling, and no other file.
+is within the ceiling, and no other file, with one exception: check 5 reads every JSON
+file for a football-data.org bulk reply, whatever its size.
 
 Three exemptions, and no other:
 
 - ``tests/fixtures/`` is exempt from checks 1, 2 and 5. It is where a tiny fixture
-  lives.
+  lives. Check 5's football-data.org bulk reply is not waived there: that provider's
+  data is never committed, in a fixture or anywhere else (PLAN B15).
 - An image under ``docs/screenshots/`` is exempt from check 1: a full-page capture
   can be larger than the ceiling. An image is a file with an image suffix whose
   bytes begin as that format does. Nothing else is waived there: until October 2026
@@ -86,6 +88,10 @@ CREDENTIAL_PATTERNS = [
     (re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"), "private key"),
     (re.compile(r"\bghp_[A-Za-z0-9]{36}\b"), "GitHub token"),
     (re.compile(r"\bsk-[A-Za-z0-9]{32,}\b"), "generic secret key"),
+    # PLAN 4 (D1-A), plus an optional closing quote after the name, so that a key in a
+    # dict literal or a JSON object ({"X-Auth-Token": "..."}) is caught as well.
+    (re.compile(r"(football[-_]?data[-_]?key|x-auth-token)['\"]?\s*[:=]\s*['\"]?[0-9a-f]{32}",
+                re.I), "football-data.org key"),
 ]
 
 TEXT_SUFFIXES = {".py", ".md", ".toml", ".yaml", ".yml", ".json", ".txt", ".cfg",
@@ -105,6 +111,21 @@ PROVIDER_FINGERPRINTS = [
     (re.compile(r'"(x-rapidapi-key|api-football)"'), "API-Football response"),
 ]
 BULK_RECORD_THRESHOLD = 200
+
+# football-data.org's bulk replies (a day, a season, a team's or a person's matches): each
+# match record carries these three keys. Its terms (9.1) bar referencing the data once
+# access ends, so no reply, raw or normalised, is ever committed (LICENSING.md,
+# HOSTED_DISPLAY). Read in JSON files only: the synthetic reply builders in tests/ are
+# Python, and a dict literal there spells the same keys.
+FOOTBALL_DATA_MATCH_KEYS = tuple(re.compile(rf'"{key}"\s*:')
+                                 for key in ("homeTeam", "utcDate", "lastUpdated"))
+FOOTBALL_DATA_RECORDS = 20
+
+
+def football_data_records(text: str) -> int:
+    """How many match records of a football-data.org bulk reply ``text`` holds: the
+    fewest of its three keys, so a file needs all three, over and over, to count."""
+    return min(len(pattern.findall(text)) for pattern in FOOTBALL_DATA_MATCH_KEYS)
 
 
 class GuardError(RuntimeError):
@@ -218,6 +239,17 @@ def check(paths: list[Path],
                         problems.append(
                             f"{rel}: {records} record keys — this looks like a data dump"
                         )
+
+        # Not waived under tests/fixtures/, and read whatever the size: a recorded reply is
+        # no tiny fixture (a season of matches is over the ceiling, which the fixtures do not
+        # have), and the synthetic replies are built in Python (tests/season_v4.py).
+        if suffix == ".json" and rel != GUARD_ITSELF:
+            matches = football_data_records(content.decode("utf-8", errors="ignore"))
+            if matches >= FOOTBALL_DATA_RECORDS:
+                problems.append(
+                    f"{rel}: content matches a football-data.org bulk reply "
+                    f"({matches} match records). Its data is never committed"
+                )
 
         # By file name, so an .env one directory down is the same mistake.
         name = rel.rsplit("/", 1)[-1]
