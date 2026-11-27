@@ -252,16 +252,25 @@ test('XI Lab blocks an empty minimum and compares only when something was locked
   expect(minimums.progression).toBe(1.5);
   expect(Object.values(minimums).every(value => typeof value === 'number' && Number.isFinite(value))).toBe(true);
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
-  await expect(page.locator('input[data-requirement="progression"]')).toHaveValue('1.5');
+  // D9: the field shows the target at its display precision (two places for ball
+  // progression), and keeps the exact one it sent.
+  await expect(page.locator('input[data-requirement="progression"]')).toHaveValue('1.50');
+  await expect(page.locator('input[data-requirement="progression"]')).toHaveAttribute('data-exact', '1.5');
 
   // A lock is a comparison worth showing; removing it removes the comparison.
   const lockedReply = page.waitForResponse(r => r.url().endsWith('/api/xi/solve'));
+  const lockedAnswer = page.waitForResponse(r => r.url().endsWith('/api/answers/xi'));
   await page.locator('#lock-player').click();
   const locked = await (await lockedReply).json();
+  const said = await (await lockedAnswer).json();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
   expect(locked.locked).toHaveLength(1);
+  expect(locked.what_changed.comparison_available).toBe(true);
   await expect(page.locator('#changes-panel')).toBeVisible();
-  await expect(page.locator('#changes')).toContainText(locked.what_changed.claim);
+  // XI-4: the comparison is the server's words about the lab's own (who came in and went out
+  // against the XI picked without the choice, ties among equal XIs set aside).
+  expect(said.changes.line).toBeTruthy();
+  await expect(page.locator('#changes-line')).toHaveText(said.changes.line);
   await page.locator('#constraints button').click();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
   await expect(page.locator('#constraints button')).toHaveCount(0);

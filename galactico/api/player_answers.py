@@ -344,14 +344,33 @@ def _measure(row: Mapping[str, Any], label: str, reference: str, minutes: int) -
     return out
 
 
+_THRESHOLDS = re.compile(r"strong from r = (\d+(?:\.\d+)?) and limited from r = (\d+(?:\.\d+)?)")
+
+
+def _reliability_figure(r: float, note: object) -> str:
+    """r at two places, unless two places would put it on the other side of a grade's
+    threshold (0.699 printed "0.70" beside "limited", the threshold of "strong"): then at the
+    fewest places that keep it on its side. Without the thresholds, three places, as the
+    lab's own note prints it."""
+    found = _THRESHOLDS.search(str(note or ""))
+    if not found:
+        return f"{r:.3f}"
+    thresholds = (float(found[1]), float(found[2]))
+    for places in range(2, 7):
+        shown = round(r, places)
+        if all((r >= t) == (shown >= t) for t in thresholds):
+            return f"{r:.{places}f}"
+    return repr(r)
+
+
 def _reliability_words(row: Mapping[str, Any]) -> str:
     """The estimator's reliability in the glossary's words (PL-3): the grade, then what it
     means, with the correlation the grade is read from at two places."""
     grade = str(row.get("signal"))
     r = row.get("reliability")
     agree = {"strong": "agree closely", "limited": "agree only partly"}.get(grade, "agree")
-    tail = (f" (r = {float(r):.2f})" if isinstance(r, int | float) and math.isfinite(float(r))
-            else "")
+    tail = (f" (r = {_reliability_figure(float(r), row.get('signal_note'))})"
+            if isinstance(r, int | float) and math.isfinite(float(r)) else "")
     return (f"Reliability: {grade}. Measured twice on comparable samples of matches, the two "
             f"results {agree}{tail}. This is how repeatable the measure is, not the "
             "uncertainty in his own number.")
@@ -435,6 +454,21 @@ def _player_sentence(name: str, reference: str, minutes: int, measures: list[dic
     return f"{name} played {_whole(minutes)} minutes in this archive."
 
 
+def _zones_withheld(profile: Mapping[str, Any],
+                    rows: Mapping[str, Mapping[str, Any]]) -> str | None:
+    """Why the channel bar is not drawn, when it is withheld with the pass-origin shares."""
+    if profile.get("zone_shares"):
+        return None
+    notes = [row.get("notes") for row in rows.values()
+             if row.get("render_state") == "out_of_context"]
+    if not notes:
+        return None
+    if profile.get("position") == "GK" or any("recorded as GK" in str(n) for n in notes):
+        return ("The channel bar is withheld with the shares above: these measures cover "
+                "outfield players, and he is a goalkeeper.")
+    return "The channel bar is withheld with the shares above, for the reason they give."
+
+
 def player_answer(profile: Mapping[str, Any], labels: Mapping[str, str],
                   minutes_floor: int) -> dict:
     """The answer of one profile, as ``player_lab.profile`` serves it.
@@ -466,6 +500,9 @@ def player_answer(profile: Mapping[str, Any], labels: Mapping[str, str],
         "zones": _zones(profile.get("zone_shares") or {}),
         "zones_line": ("Where his completed passes started, channel by channel from left to "
                        "right. It is partly where he was deployed."),
+        # The channel bar is withheld with the shares it restates: the reason in plain words,
+        # never the registry's note with a position code (R8-7).
+        "zones_withheld_line": _zones_withheld(profile, rows),
         "provenance": _provenance("/api/answers/player/{player_id}"),
     }
 
@@ -556,7 +593,16 @@ def compare_answer(reply: Mapping[str, Any], labels: Mapping[str, str],
         caption["right"] = _side(row, row.get("right"), profiles[1] if profiles else None)
         caption["detail"] = _compare_detail(row)
         captions.append(caption)
-    return {"title": f"{left} v {right}", "answer": sentence,
+    # The note above the pass-origin rows when none can be drawn because of a goalkeeper, in
+    # plain words, once (R8-7: the lab's note repeats the registry's reason for each player).
+    styles = [row for row in reply["deltas"] if row.get("family") == "style"]
+    location_note = None
+    if keepers and styles and not any(row.get("interpretable") for row in styles):
+        location_note = ("No mark is drawn here: both are goalkeepers, and these shares cover "
+                         "outfield players." if len(keepers) == 2 else
+                         f"No mark is drawn here: {keepers[0]} is a goalkeeper, and these "
+                         "shares cover outfield players.")
+    return {"title": f"{left} v {right}", "answer": sentence, "location_note": location_note,
             "left_id": reply["left"]["player_id"], "right_id": reply["right"]["player_id"],
             "rows": captions, "scale_note": ("Bars run from 0 to 100: each player's "
                                              "percentile among players of his position."),
@@ -611,6 +657,19 @@ def compare_caption(row: Mapping[str, Any], left: str, right: str) -> dict:
     return out
 
 
+EXPLORE_ORDER_NOTES: Mapping[str, str] = {
+    "value": "Rows are in order of value, highest first.",
+    "distance_from_reference": (
+        "Not a ranking. Where a player's passes start has no good direction, so the rows are "
+        "in order of distance from the pitch-area reference (dashed tick), farthest first, "
+        "above it or below it."),
+    "name": ("Not a ranking. Where a player's passes start has no good direction and no "
+             "pitch-area reference here, so the rows are in order of name."),
+}
+"""The order of an Explore listing in a reader's words: ``player_lab.ORDER_NOTES`` says the
+same with the registry's word for a measure ("style construct")."""
+
+
 def explore_answer(reply: Mapping[str, Any], label: str,
                    opened: Mapping[str, Any] | None = None) -> dict:
     """The sentence above an Explore listing, and each row's value with its unit in words, as
@@ -641,7 +700,8 @@ def explore_answer(reply: Mapping[str, Any], label: str,
     values = {int(r["player_id"]): (text(r["value"]) if r in shown else "Withheld")
               for r in rows}
     out = {"construct_id": construct, "title": MEASURE_NAMES.get(construct, label),
-           "answer": sentence, "values": {str(k): v for k, v in values.items()},
+           "answer": sentence, "order_note": EXPLORE_ORDER_NOTES.get(str(reply.get("order"))),
+           "values": {str(k): v for k, v in values.items()},
            "listed": len(rows), "count": count,
            "show_all_label": f"Show all {_whole(count)}" if count > len(rows) else None,
            "provenance": _provenance("/api/answers/explore/{construct_id}")}
@@ -1402,6 +1462,12 @@ def match_answer(artifact: Mapping[str, Any], scenarios: Mapping[int, str]) -> d
                          "in a formation. Thicker lines carry more completed passes."),
         "network_coverage": {str(net["team_id"]): _coverage_line(net.get("coverage"))
                              for net in artifact.get("passing_network") or []},
+        # How a pass is linked to its receiver, in words; the lab's own rule (with its
+        # thresholds) stays in the technical record (D6).
+        "network_rule": ("A pass is linked to the receiver the provider names; where none is "
+                         "named, to the player of the very next recorded event, if he is a "
+                         "teammate on the ball within five seconds and close to where the pass "
+                         "ended."),
         "team_summary": _team_summary(artifact),
         "provenance": _provenance("/api/answers/match/{match_id}"),
     }

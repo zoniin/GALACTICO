@@ -424,6 +424,16 @@ def test_about_the_numbers_lists_what_this_app_serves(hosted, local):
         assert f"{member}</span>" in local_page
     assert local_page.count('data-verdict="RECORD_ONLY"') == 2
     assert 'href="/player"' in local_page
+    # D5 (ADR-0035): each measure has the one plain name the pages print, from the served map;
+    # the registry's label, which the research notes use, follows it where the two differ.
+    from galactico.api.player_answers import MEASURE_NAMES
+
+    shown = re.search(r'<section class="page-section about-section" id="why-only-five".*?'
+                      r'</ul>', html.unescape(local_page), re.S).group(0)
+    names = re.findall(r"<li><strong>([^<]+)\.</strong>", shown)
+    assert names == list(MEASURE_NAMES.values())
+    assert "<strong>Ball progression.</strong> “Progression” in the research notes." in shown
+    assert "<strong>Chance creation.</strong> Creating" in shown
 
 
 def _links(html: str) -> set[str]:
@@ -517,3 +527,45 @@ def test_the_hosted_app_serves_under_static_only_what_its_pages_load(hosted, loc
     for name in sorted(loaded):
         assert hosted.get(f"/static/{name}").status_code == 200, name
     assert "assets/studio-kit.webp" in loaded and "goal-links.js" in loaded
+
+
+def _shipped(path: str, patterns: list[str]) -> bool:
+    return any(path == pattern or (pattern.endswith("/**") and path.startswith(pattern[:-2]))
+               for pattern in patterns)
+
+
+def test_the_hosted_bundle_ships_what_the_hosted_app_reads_and_no_archive_page(hosted):
+    # R7-1 (ADR-0035): vercel.json ships the hosted pages, the files under /static they load
+    # (assets.HOSTED) and the hosted package, and no archive page, archive script or the
+    # StatsBomb logo. One brace list of plain paths and ``dir/**`` patterns, no nested braces.
+    from galactico.match_centre.assets import HOSTED
+
+    include = json.loads((ROOT / "vercel.json").read_text())["builds"][0]["config"][
+        "includeFiles"]
+    assert include.startswith("{") and include.endswith("}") and include.count("{") == 1
+    patterns = include[1:-1].split(",")
+    hosted_pages = {spec.file for spec in site_nav.PAGES.values()
+                    if spec.path in site_nav.served_paths(hosted.app)}
+    assert hosted_pages == {"match-centre.html", "leagues.html", "scouting.html",
+                            "studio.html", "about.html"}
+    for name in sorted(hosted_pages | {site_nav.MISSING.file} | set(HOSTED)):
+        assert _shipped(f"web/{name}", patterns), name
+    for module in [*(ROOT / "galactico" / "match_centre").rglob("*.py"),
+                   *(ROOT / "galactico" / "providers").rglob("*.py"),
+                   ROOT / "galactico" / "__init__.py", ROOT / "galactico" / "site_nav.py"]:
+        assert _shipped(module.relative_to(ROOT).as_posix(), patterns), module
+    for name in ("index.html", "xi.html", "match.html", "squad.html", "transfer.html",
+                 "assets/statsbomb-logo.png", "planning.js", "xi-extensions.js",
+                 "labs-shared.js", "labs.css", "player-lab.css"):
+        assert not _shipped(f"web/{name}", patterns), name
+
+
+def test_the_local_app_serves_no_page_template_under_static(local):
+    # H32 on the full app (ADR-0035): every page is served through the shell, so a template
+    # asked for under /static is a 404 there too; the sheets, scripts and images still load.
+    for path in ("index.html", "xi.html", "match.html", "squad.html", "transfer.html",
+                 "match-centre.html", "studio.html", "missing.html", "about.html", "INDEX.HTML"):
+        assert local.get(f"/static/{path}").status_code == 404, path
+    for path in ("tokens.css", "labs.css", "planning.js", "xi-extensions.js", "site.js",
+                 "assets/statsbomb-logo.png", "assets/favicon.svg"):
+        assert local.get(f"/static/{path}").status_code == 200, path

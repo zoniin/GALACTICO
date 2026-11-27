@@ -30,7 +30,6 @@ from typing import Any
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from .. import site_nav
 from ..domain.constructs import CONSTRUCTS, ExternalVerdict
@@ -40,6 +39,7 @@ from ..features.estimators import CHANNEL_GEOMETRY, describe_style
 from ..features.spec import SPECS
 from ..identity import normalise_name
 from ..match_centre import errors
+from ..match_centre.assets import Assets
 from ..match_centre.routes import make_router as match_centre_router
 from ..profiles import REJECTED, RESEARCH_ONLY, RenderState
 from ..profiles.build import BUILD_RULES, UNTESTED, construct_version
@@ -631,8 +631,10 @@ app.state.about_sections = about.sections(constructs, note_base=RESEARCH_NOTE_BA
 errors.install(app)
 
 
+# Sheets, scripts, type and images; never a page template, which is served only through the
+# shell (ADR-0035, H32).
 if STATIC.exists():
-    app.mount("/static", StaticFiles(directory=STATIC), name="static")
+    app.mount("/static", Assets(directory=str(STATIC)), name="static")
 
 
 @app.get("/api/health")

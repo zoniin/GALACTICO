@@ -279,6 +279,11 @@ a comparison's observed-location rows, the sentence beside an estimator signal a
 percentile sentence. Player Lab is frozen except for
 those corrections.
 
+**Since ADR-0033, ADR-0034 and ADR-0035.** The freeze was overridden three more times in
+November 2026, for `web/index.html` alone: the site shell (ADR-0033), the answer-first page
+(ADR-0034) and its second pass (ADR-0035), each for exactly the edits it names. Player Lab's
+API returns the same bytes.
+
 ---
 
 ## ADR-0012 — Optimize explicit structural requirements, not universal XI quality
@@ -1981,3 +1986,385 @@ published.
 source that carries current La Liga goals under a licence the site may use (La Liga then
 returns to the explorer); a test showing a recorded rate carries over after a move (Signings
 could then say more than eligibility).
+
+**Since ADR-0035.** The open item above is resolved: every destination opens its current-season
+page first where one exists, on both apps, so Players opens `/match-centre/scouting` before
+`/player` (ADR-0035, D1). ADR-0035 is this decision's second pass: the third review's findings,
+fixed in the same template, with the R13 overrides it names.
+
+---
+
+## ADR-0035 — Answer-first pages, second pass
+
+**Problem.** ADR-0034 put every page answer first. The third review (an adversarial walk of
+every page of both apps at 1440, 390 and 320 px, 27 November 2026) found that the answers were
+there and the pages still made a reader work: the Players destination opened the 2017/18
+archive on the local app although a current-season page exists; kick-off times were the
+source's local time with no zone; one Real Madrid scorer could be named two ways on one page
+("F. Valverde" from OpenLigaDB, "Federico Valverde" from the squad list); Signings, opened from
+Squad depth's "Find cover" where the targets leave no gap, opened on a list with nothing to
+close; measures were named three ways (the registry's "Progression", the chips', the map's);
+research words ("HEURISTIC", "EXPERIMENTAL", certificates, ledgers) sat in the default view of
+the archive pages; Goals by opponent printed split columns of zeros when no match was
+classified; the Table dropped Pos on a phone; the XI page could open on the goalkeeper and
+printed a target at sixteen digits; and Matches spent six chips and a repeating sentence on how
+current each feed is, with a native US-format date field. The review's further findings are
+H1–H36 (this season's pages), PL-, MR-, XI-, SQ-, TR- and AR- (the archive pages), and the
+cross-cutting R1-, R3-, R7-, R8-, R10-, A11Y-, SPD-, COPY-, UI- and FN- items. R13 pins the
+shipped pages' bytes and several shipped replies, and ADR-0011 freezes Player Lab; both give
+way for exactly the edits below.
+
+**Decision.** Ten root decisions, applied on both apps, and the review's findings fixed in the
+template of ADR-0034. Every new string passes `scan_labels` (the hosted modules' tests run each
+shape through it) or `runtime.finalize`; every number is one a reply carries (R8); every list
+is in a declared, visible order (R1), and no shortlist is ordered by a modelled change
+(ADR-0023).
+
+- *D1, the current season first.* Every destination opens its current-season page first where
+  one exists, on both apps: Players opens `/match-centre/scouting`, then `/player`
+  (`site_nav.NAV`). ADR-0034's open item is resolved by this.
+- *D2, kick-off as one instant.* `galactico/match_centre/kickoff.py` turns each source's
+  published local time into UTC: OpenFootball's Premier League in UK time, its other leagues
+  in Central European time, by the European summer-time rule written out in the module (no
+  time-zone database on the hosted function); OpenLigaDB's own `matchDateTimeUTC`. Every
+  fixture carries `kickoff_utc`; a Premier League result filled from OpenLigaDB is written in
+  UK time. The pages show the reader's local time (`Site.kickoff`, with the weekday where the
+  reader's date differs) and say once "Times in your time zone"; a time whose zone is unknown
+  is shown as published, and the line says so. Server sentences keep their dates in
+  Europe/Madrid.
+- *D3, one name per player.* `galactico/match_centre/names.py` writes a Real Madrid scorer as
+  the Wikipedia squad list writes him where the two names are the same once accents and case
+  are set aside, or where the surname and first initial match one squad player and no other;
+  a name that matches none, or more than one, stays as the feed gives it. It applies on the
+  server to the summary answer, the match report's goals and the Goals explorer's events and
+  scorers.
+- *D4, Signings answers on arrival from Squad depth.* Where the hand-off's targets leave no gap
+  at the position, Signings opens on the scenario Squad depth's answer named for that position
+  (the absences there that leave no XI, with the existing exclusions), states it in the answer
+  and shows each absence as a removable chip (`open_gap`); where no scenario makes a gap, one
+  line says so, the pool is said once after it ("118 La Liga midfielders with 900 or more
+  minutes are eligible at left central midfield.", not a second "none of them has a gap to
+  close"), and the candidate panel still shows the XI with him. The list's order is unchanged:
+  one declared factual key.
+- *D5, plain measure names from one map.* `GET /api/answers/measures` serves the names, units,
+  axis names and position words every Player profiles view prints: chips, compare rows, the
+  Explore heading and rows, the map's legend ("Progression" reads "Ball progression"), and the
+  list of the five on "About the numbers", where the registry's label, which the research notes
+  use, follows the plain name ("Ball progression. “Progression” in the research notes.").
+  Values are at the precision the shipped formatting uses, with units; raw decimals and
+  intervals sit in a closed "How sure is this?".
+- *D6, research words out of the default view.* Match reports' key moments in plain event
+  names and the pass-linking rule in words (`network_rule`); Compare's captions; the XI page's
+  footnotes and the "EXPERIMENTAL" labels; the Signings candidate panel (plain facts and the XI
+  with him first). Method sentences, claims, certificates, ledgers and integer-model notes sit
+  under a closed "Technical record: how this was worked out".
+- *D7, Goals by opponent when nothing is classified.* When no match's opponent is classified,
+  the split columns are hidden (one column, "Goals"), the server's line says why, and the page
+  leads with the scorers.
+- *D8, Pos on a phone.* The Table keeps its Pos column at every width; at 360 px and below
+  W, D and L are hidden and Pts stays in view.
+- *D9, the XI page and the slot names.* Check against targets opens on a field player, never
+  the goalkeeper; a target's field shows the display precision (the exact target in
+  `data-exact`, sent unless edited); LCM and RCM read "Left central midfield" and "Right central
+  midfield" wherever a slot is named in words, from served labels (`xi_answers` `slot_labels`,
+  Lineup's `ROLE_NAMES`; `xi/domain.py` stays frozen).
+- *D10, freshness in one line.* Matches says how current the feeds are in one compact line,
+  the stale leagues flagged, with the server's sentence; dates are in the house format, and the
+  date field stays hidden, opened from a button, bounded by the season.
+
+*This season's pages* (H1–H36). Matches: a day step waits for the board and the report, then
+scrolls to the report and focuses it (H1); at 960 px and below the report comes before the
+board (H2); long names wrap clear of the star (H3); each club's goals sit under its name on a
+phone, and a form row takes two lines under 360 px (H5); days, the filter and the tabs are
+history entries, restored on Back (H8, H9); a season no feed holds is a 404 with "The free
+feeds have no fixtures for 2027/28 yet." and a designed state with "Back to today", and the
+board's reply adds `first` and `last` (H10); focus is restored after a redraw and the day
+buttons use `aria-disabled` (H19); the printed order line and a status line that reads out the
+server's day summary (R1-1, A11Y-3); the form caption is the server's, with the true count
+(R8-3). Table: capped at 52rem (H17); "Choose a date", the chosen date shown, "Latest table" to
+clear it, and no date control in a club's schedule (H16); dates no longer wrap, a scheduled
+fixture shows its kick-off or nothing, and the schedule stacks on a phone (H34); the shorter
+column stays in view (H35); `GET /api/match-centre/standings` opens the Table on the
+competition of Madrid's latest result with one sentence for both competitions (H36). Goals by
+opponent: the answer follows the opponent filter and each group has its own tile labels and
+line (H11); the page answer is the all-competitions scorer sentence and the Champions League
+sentence sits in the explorer card (H12); "Credited to a player" only where it differs from
+Goals (H14); the credit links to www.openligadb.de (H15); the squad and La Liga cards sit beside
+the explorer from 1100 px (H17); the saved-match, per-scorer and goal-side lines and the
+archive sample's counts are the server's (R10-1). Lineup: a formation change on the proposal
+shows the server's proposal for it, and an edited lineup is reshaped from the formation it was
+edited in, by each player's own position, whatever shapes were tried on the way (H6); new 3-5-2
+coordinates, every slot inside the pitch (H7); the goalkeeper's shirt is teal, since gold is
+the selected subject's (H18); a link without a formation means 4-3-3, and a link with only a
+formation opens its proposal (H20, FN-1); the sentence names moved players (H21); "Analyst
+tools" is a server slot filled only on the local app, so the hosted page carries no import
+(H28); every disclosure fits a 320 px screen (UI-1).
+
+*The shell.* Every page has a meta description and Open Graph tags, and a `?xi=` or `?match=`
+link uses the server's sentence (H22); the 404 page offers the navigation the app serves, the
+first as the primary action (H23); server strings use curly apostrophes and en dashes (H24); a
+non-breaking space joins an initial to its surname (H26); `Site.season` sets the header chip
+when a page shows another season (H27); the competition switcher is one tab strip on Matches,
+Table and Goals, one "Copy link" sits in the page actions of every page that keeps its view in
+the address, and there is one date control (H29); the phone tab bar reads "Squad" (the link
+keeps its full name) and the sub-navigation is one line that scrolls sideways (H30). Under
+`/static` both apps serve no page template (`galactico/match_centre/assets.Assets`, mounted by
+`public.py` and, in this change, `galactico/api/player_lab.py`), and the hosted app serves only
+the files its own pages load (`assets.HOSTED`; H32, R7-1). `vercel.json` `includeFiles` ships
+the hosted package, the hosted pages' templates and exactly `assets.HOSTED`, so no archive page,
+archive script or the StatsBomb logo is in the hosted bundle (R7-1). Concurrent fetches and one
+shared OpenLigaDB download per season (SPD-4).
+
+*Player profiles* (D5, PL-1 to PL-6, R8-4, R8-5, R8-7, R3-2, A11Y-2, A11Y-4, A11Y-5). The player
+opened is appended under Explore's forty, gold, where the rows served do not hold him (PL-1);
+Find a player lists players under the minutes floor, greyed, with their minutes
+(`GET /api/answers/players/under-floor`, by name; PL-2); a reliability r is printed at the
+fewest places that keep it on its grade's side of the threshold, so 0.699 never reads "0.70"
+(PL-3); the "Why only five?" view is drawn from `GET /api/answers/why`, its counts the
+registry's, its replication verdicts in allowed words and its note links named by the note,
+never by a title that holds a copy-guard word (PL-4, R3-2, R8-5); every channel of the bar is
+named, in a row under it (A11Y-4); a goalkeeper's reason is said in plain words
+(`zones_withheld_line`, `location_note`, R8-7); Explore's order note is served (`order_note`)
+and names no player as first (R1).
+
+*Match reports* (MR-1 to MR-5, R8-2, R3-1, A11Y-1, SPD-2, D6). The result is said winner's score
+first ("lost 1–0 at home", MR-5); the pass-linking rule is served in words (`network_rule`);
+the page went from 146 keyboard stops to 62 (A11Y-1); a background warm-up loads the corpus
+after start-up, skipped under pytest (SPD-2).
+
+*Check against targets* (XI-1 to XI-8, SPD-1, D9, R3-3, R10-2). The main solve asks for no
+resampled season and "How often each player is picked" asks `POST /api/answers/xi/frequency`
+only when opened (XI-1); solves are cached per declarations and snapshot (XI-2, SPD-1); the
+preset reads "Isco in a 4-3-1-2 diamond" and the answer says where he was placed, since a lock
+keeps a player in the XI, not at one place (XI-3); a second stage finds the equally close XI
+with the fewest changes, so leaving Ronaldo out changes one player (XI-4); an infeasible "Meet
+every target" names the target no XI reaches and the most any XI reaches, badged "No XI reaches
+this", with the clash panel under the pitch (XI-5); the channel opt-in is ticked on arrival and
+the frontier offers plain names (XI-6); the research answers under Advanced keep their method,
+claims, certificates and ledgers under "Technical record: how this was worked out" (XI-7); one
+precision per target (XI-8); the wait shows its seconds and a Cancel; the technical records
+leave out the provenance and tier keys (R3-3); the other XIs' claim is one fixed sentence with
+no count worked out in the page (R10-2).
+
+*Squad depth and Signings* (SQ-1 to SQ-5, R8-6, R8-1, COPY-1, A11Y-6, D4, D6, TR-1 to TR-3,
+SPD-3). With no target stated the answer names the starting target ("the club's median XI"),
+never "every target you set" (R8-6); a candidate is "added to the squad with the rates he
+recorded at his club", and "placed at X it widens by N" only where his forced inclusion changes
+the gap (R8-1); a player with no declared role reads "Listed position only, no declared role:"
+(SQ-2); the editor's field shows two places with the exact value in `data-exact` (SQ-4); the
+Squad pitch is one keyboard stop (A11Y-6); the candidate and "Show all" are in the address and
+restored on reload (TR-1); a lane filter lists the players at least half of whose completed
+passes started in that lane, a filter and never an order (TR-2); the default La Liga pool warms
+at start-up (SPD-3).
+
+*Across the archive* (AR-1 to AR-3). The XI player panel links his season profile (AR-1); no
+target under 44 px at 390 or 320 px (AR-2); a reader's change on an archive page is a history
+entry (AR-3).
+
+*Interface feedback is not football copy (R10).* The Lineup board narrates what a reader just
+did, in the browser: "X replaces Y.", "Now choose the position X takes.", the picked and bench
+hints, "Imported N actions for <name>." and "N actions in your file". Matches' order line ends
+with "Times in your time zone." or "Times as each source publishes them.", and the Table's date
+button reads "Table after <date>". These are interface feedback about the page itself, not
+sentences about football, and stay in the browser; every sentence about a match, a player, a
+table or a lineup is the server's.
+
+**The R13 and ADR-0011 override (in the form of W8).** This change overrides R13, and ADR-0011
+for `web/index.html`, for exactly these edits, and for nothing else of the pages' behaviour.
+The frozen lab APIs (`/api/players*`, `/api/compare`, `/api/explore/*`, `/api/scatter`,
+`/api/matches*`, `/api/xi/*`, the runtime, squad and transfer routes) return the same bytes;
+the frozen files (`optimization/historical.py`, `xi/domain.py`, `xi/solver.py`,
+`xi/tradeoffs.py`, `models/xt/grid.py`, `squad/kernel.py`) are untouched. Each override names
+the pin, old → new, and why.
+
+- *Pages.* The markup, copy, scripts and sheets of every page file and the scripts they load
+  (`match-centre.html`/`.js`, `matches.css`, `leagues.html`/`.js`, `scouting.html`/`.js`,
+  `goal-scout.js`, `goals.css`, `studio.html`/`.js`, `studio-formation.js`, `lineup.css`,
+  `about.html`, `index.html`, `player-lab.css`, `match.html`, `match-lab.css`, `xi.html`,
+  `xi.css`, `xi-extensions.js`, `squad.html`, `transfer.html`, `planning.js`,
+  `planning-pages.css`), with `components.css` (`.page-copy`, the short tab label, the
+  sub-navigation strip), `site.js` (`Site.season`, `toast`, `copyLink`, `kickoff`) and the
+  measure list `galactico/api/about.py` writes for "About the numbers", per D1–D10
+  and the findings above. `web/about.html`'s own `<meta name="description">` is removed: the
+  shell writes one description per page, with Open Graph tags (H22). `index.html` still defines
+  every name ADR-0034 lists and writes the same element ids.
+- *`web/tokens.css`.* `--kit-keeper` `var(--c-amber-300)` → `var(--c-teal-300)`, a new primitive
+  `#6fd0d6`. Why: H18; gold is reserved for the selected subject.
+- *`tests/test_xi_extensions_render.py`.* `SHIPPED_XI_HTML` re-pinned under this ADR from
+  `9200a696…` to `240e1e5e2b9b…` (through two intermediate pins of this round, `ba4d28e1…` and
+  `34b54247…`), for XI-1, XI-2, SPD-1, XI-3 to XI-7, R1-2, R3-3, R10-2, AR-1 and AR-3 as above;
+  the old pin and its reasons are in the constant's docstring. The five additive edits, every
+  id and event and the gold rule are kept. The frame and kit: "Explain the clash, with the two
+  experimental channel targets the XI above used" → "Explain the clash"; the opt-in "Also check
+  the two wide-channel targets (experimental)" → "Also check the two channel targets, as the XI
+  above does", and no "experimental)" in the kit's copy. Why: D6, XI-6.
+- *`tests/test_planning_render.py`.* The editor field's pin gains `data-exact="8.25"
+  data-shown="8.25"` (SQ-4), and its `aria-label` "Explicit minimum:" → "Your number:" (D6); the
+  printed record equals the reply less each `tier` key, and holds no `"tier"` (R3-3); the lines
+  under a slot that the page lists go from 7 to 8 ("Goalkeepers count whatever their minutes:",
+  SQ-4).
+- *`tests/test_served_credit.py`.* The "Why only five?" view is drawn from `/api/answers/why`:
+  the note links "Research note: the second-provider test" and "Research note E-01" (were the
+  note titles, which hold "fit"); "external replication:" → "Second data provider:";
+  "Progression" → "Ball progression", "Metronome fit" → "Metronome (research name)"; the view
+  passes `scan_labels`. Why: PL-4, R3-2, R8-5.
+- *`tests/test_player_answers.py`.* A goalkeeper's answer "No measure is shown for K. Navas:
+  defined for outfield players; this player is recorded as GK." → "These measures cover
+  outfield players; K. Navas is a goalkeeper.", each measure's line in the same words, and a
+  pair with a goalkeeper "First and Keeper cannot be compared on these measures: withheld for
+  Keeper. Defined …" → "Keeper is a goalkeeper; these measures cover outfield players." (R8-7);
+  Explore "…highest first; Marcelo is first, at 0.63." → "…highest first. One measure of one
+  season: not an order of merit." (R1); a match "lost 0–1 at home to Real Betis" → "lost 1–0 at
+  home", and over the real archive the scoreline check "ours–theirs" → the winner's score first
+  together with the result word ("won", "lost", "drew"), so the direction is still checked
+  (MR-5); the reliability r at the fewest places that keep it on its grade's side (PL-3). The
+  compare row pin keeps its three keys and gains `name` and `detail` (D5). New fields:
+  `zones_withheld_line`, `location_note`, `order_note`, `network_rule`.
+- *`tests/test_planning_answers.py`.* With no target stated, "At least one XI meets every target
+  you set." → "At least one XI meets the starting target (the club's median XI)." and "already
+  meet every target you set" → "already meet the starting target (the club's median XI)" (R8-6);
+  Signings "placed there with the rates each recorded at his club" → "each added to the squad
+  with the rates he recorded at his club", and rows "Placed at right back, …" → "Added to the
+  squad, …", with "placed at X it widens by N" where `forced_inclusion_change` > 0 (R8-1); "Listed
+  position only, no declared role: …" (SQ-2). New: D4's arrival on a position where nothing makes
+  a gap is the server's one line, then the pool once ("… are eligible at right back."), and an
+  opened gap keeps the full sentence after its line.
+- *`tests/test_xi_answers.py`.* The preset "Isco at the tip of a diamond" → "Isco in a 4-3-1-2
+  diamond" (XI-3); an infeasible "Meet every target" answer equal to "…no XI from the N players
+  in the pool meets every target." → starts with it and appends the unreachable target and the
+  most any XI reaches (XI-5); the changes count of the lab's XI → of the equally close XI with
+  the fewest changes, never more than the lab's (XI-4); the page's request
+  `api('/api/answers/xi',input)` → `api('/api/answers/xi',input,signal)` (the Cancel).
+- *`tests/test_site_nav.py`.* Players hrefs `("/player", "/match-centre/scouting")` →
+  `("/match-centre/scouting", "/player")`, and the full app's Players link `/player` →
+  `/match-centre/scouting` (D1); the 404 page's ways on, hosted `[/match-centre,
+  /match-centre/leagues, /lineup]` → the navigation the app serves (adds
+  `/match-centre/scouting`; the local app adds `/squad`), one primary (H23); "That page isn't
+  here", "The 2017/18 archive isn't on this site" and the About answer's "this season's" now
+  use ’ (H24); the sub-navigation strip gains `ui-strip`. New: "About the numbers" lists the
+  five measures by their plain names, the registry's label after each that differs (D5); page
+  descriptions and Open Graph
+  tags (H22), the hosted `/static` allowlist, no page template under `/static` on the local app,
+  the hosted bundle (`vercel.json`) ships what the hosted app reads and no archive file (H32,
+  R7-1), and the label markup `<span class="site-nav-label"[ data-short="Squad"]>` (H30).
+- *`tests/test_matches_table.py`.* The scorer clause "K. Forward" → "K. Forward" with a
+  non-breaking space (H26); `/api/match-centre/saved` adds `missing_note` (R10-1); the
+  goals-note, lag and unavailable sentences and "The free La Liga feed doesn’t name scorers."
+  use ’ (H24). The OpenLigaDB stub's `matchDateTimeUTC`, always `T20:00:00Z` whatever its German
+  time, is now the real Central European instant: test data, not an assertion (D2 reads UTC
+  first).
+- *`tests/test_goal_scout.py`.* `test_an_opponent_narrows_the_counts_and_the_matches_but_not_the_answer`
+  → `…_the_matches_and_the_answer`: `narrow["answer"] == whole["answer"]` → "Against Club Seven,
+  Real Madrid CF have scored 2 goals in 1 Champions League match; Jude Bellingham and Kylian
+  Mbappé scored 1 each." (H11); the league `<option value>` list → the served tab buttons (H29);
+  the feed-down, "La Liga goals aren’t…" and opening lines use ’ (H24).
+- *`tests/test_lineup_studio.py`.* "…with 2 of them in other places." → "…in other places:
+  Name25 plays LW and Name7 RW." (H21); the next card's `when` "Sun 29 Nov · 21:00" → "Sun 29
+  Nov", with `kickoff` and `kickoff_utc` (D2); the Analyst tools disclosure leaves `studio.html`
+  for a server slot filled only on the local app, and the page order no longer lists `tools`
+  (H28); the 3-5-2 slots LWB (12,43)→(11,52), LCM (32,39)→(33,35), DM (50,54)→(50,55), RCM
+  (68,39)→(67,35), RWB (88,43)→(89,52), LCB (25,71)→(25,72), CB (50,73)→(50,74), RCB
+  (75,71)→(75,72), the proposals unchanged (H7); "Drawn area for the ST role" → "…for the
+  striker role" (D9); the refusals use ’ (H24).
+- *`tests/test_season_scouting.py`.* "Real Madrid CF's", "Real Madrid's midfielders" and
+  "OpenFootball's La Liga file can't" use ’ (H24). `test_match_centre.py`, `test_season_scouting.py`
+  and `test_lineup_studio.py` gain an autouse fixture that answers the squad list with no
+  names, so no test reaches Wikipedia; no assertion changed.
+- *`tests/test_web_render.py`.* The page harness gains `removeAttribute` and `querySelector`; no
+  assertion changed.
+- *Shipped replies* (every existing key kept). Fixtures add `kickoff_utc` (D2) and `first`,
+  `last`, `season`, `status` (H10, A11Y-3, H27); a season no feed holds 503 → 404 with "The free
+  feeds have no fixtures for YYYY/YY[ yet]." on fixtures and leagues (H10); the fixture report
+  adds `form_note` and `line` (R8-3, H22); Real Madrid's scorer names → the squad list's in the
+  summary answer, the report's goals and the Goals events and scorers (D3); new
+  `GET /api/match-centre/standings` (H36); Goals: the answer narrowed by the opponent, bands add
+  `matches_label`, `goals_label` and `line`, scorers add `filter_line` and `empty_line`, events
+  add `side_label`, and `provider_url` (H11, R10-1, H15); `/api/studio/next` `when` no longer
+  holds the time, and adds `kickoff` and `kickoff_utc`; `/api/studio/lineup` takes `formation`
+  and `xi` as optional (H20, FN-1); the studio formations' slots add `name` (D9), the activity
+  reply adds `filters` (R10-1, H28), and `/api/studio/scorers` reads the squad list alone (same
+  fields). New archive answer routes: `GET /api/answers/measures` (D5), `GET
+  /api/answers/players/under-floor` (PL-2), `GET /api/answers/why` (PL-4) and `POST
+  /api/answers/xi/frequency` (XI-1); the archive answers add the fields named above and the
+  Signings request takes `lane` and `open_gap` (TR-2, D4).
+- *Static files and the bundle.* The hosted `/static` serves `assets.HOSTED` only, and neither
+  app serves a page template there (was every file of `web/` on both apps); `vercel.json`
+  `includeFiles` `{…,web/**}` → the hosted pages' six templates and `assets.HOSTED` (R7-1, H32).
+- *e2e specs*, each re-pin listed in its spec's header and re-expressed on the server's words,
+  none deleted. `match-centre.spec.js`: the freshness chips → one line; the competition select →
+  tabs; `filter=saved` survives a reload; the date control; the Table's landing standings.
+  `players.spec.js`: the page answer is the squad's; the title, meta and tabs; a single "Goals"
+  column; "Copy link". `studio.spec.js`: a formation change shows the proposal; `when` and
+  `kickoff`; the sample counts and "Show"; the striker zone wording. `shell.spec.js`: the 404
+  heading uses ’, and its ways on. `smoke.spec.js`: names from `/api/answers/measures`; the
+  reliability check reads the server's sentence and checks both r figures; the goalkeeper
+  reasons and location notes in plain words; the channel labels row; the opened player under
+  the forty; the Why links from `/api/answers/why`. `labs.spec.js`: `#solver-status`
+  `data-status` with the status line; the frequency on opening, by name; the Isco preset and
+  where he was placed; "No XI reaches this". `repairs.spec.js`: 1.50 shown with `data-exact`
+  1.5; the server's changes line. `alternatives.spec.js`: the served status words, the fixed
+  claim, "Players replaced: N", measured rows only. `tradeoff.spec.js`: display precision with
+  `data-exact`; served words; 1,000.00; "Not checked". `xi-extensions.spec.js`: the opt-in
+  ticked on arrival, the unticked path still tested; `data-status`. `squad.spec.js`: the player
+  panel from the server's view; nested records revealed; the D4 back link carries the opened
+  exclusions. `transfer.spec.js`: the `lane` and `open_gap` request keys; the R8-1 and R8-6
+  sentences; the attained text.
+- *README images.* `docs/screenshots/` regenerated on the local corpus and inspected; an image is
+  kept only where it shows Pappalardo/Wyscout data alone, and `08-why.png` stays as committed.
+
+No assertion about a number, an order, gold, the copy guard, overflow or a credit was weakened;
+each was re-expressed on the new markup or made stronger.
+
+**Evidence.** The third review's findings and the root decisions D1–D10. The hosted tests
+(`test_matches_table.py`, `test_goal_scout.py`, `test_lineup_studio.py`, `test_season_scouting.py`,
+`test_match_centre.py`, `test_site_nav.py`): summer time and its change-over days in both zones,
+UTC rows and filled rows in UK time; the board's `first` and `last`, its season and status line;
+the 404 for a season no feed holds; the standings answer with its numbers checked against the
+tables; the name rule (an ambiguous initial stays as the feed gives it, an own goal in each
+direction, the explorer); the served words for groups, scorers and goal sides; the role names
+and the 3-5-2 spacing; the moved-players clause; links with no formation or only one; every
+page's description and card; the `/static` rules on both apps and the bundle; the nav order.
+The archive tests (`test_player_answers.py`, `test_xi_answers.py`, `test_planning_answers.py`,
+`test_planning_render.py`, `test_served_credit.py`, `test_xi_extensions_render.py`,
+`test_web_render.py`): the Why view's copy guard and counts, the goalkeeper notes, the
+reliability figure, one precision per target, the fewest-changes XI, the unreachable target,
+the cache, the listed-position wording, the D4 scenario. The e2e suite on the local corpus at
+1440, 390 and 320 px, light and dark: no horizontal overflow, no text under 12 px, no target
+under 44 px on a phone, gold the selected subject only, and a copy-guard scan of twenty archive
+states with every disclosure closed and opened.
+
+**Alternatives rejected.** A time-zone database for D2 (the rule is two lines per zone, and the
+hosted function would need `tzdata` it is not guaranteed to have). Showing the source's local
+time with its zone named (a reader in another zone still converts). Merging scorer records
+across feeds (D3 joins names, never goals). Opening Signings' candidate panel on the first row by
+minutes when nothing makes a gap (it would put one candidate first). Rounding the XI kit's
+ranges and frontier tables in the page (the kit's digit rule forbids it, and `/api/xi/*` is
+frozen). Folding Matches' form tables behind a disclosure on a phone (kept open, per H2; see
+Open). Removing `08-why.png` (kept as committed by root decision; see Open).
+
+**Open.** Under Advanced, the XI ranges and frontier tables still print the lab's four-decimal
+texts; a fix would add display texts to `galactico/api/xi_extensions.py` or an answers route
+under its own ADR (XI-7, in part). A few of the lab's own sentences remain inside the opened
+Advanced brief and absence answers (SQ-5), and Signings' closed "Advanced: resampled seasons"
+still says "Left midfield" in its world statement (COPY-1). A combination of leagues other than
+the default still builds its pool on first request, about 2 s (SPD-3). At 390 px the native
+match select cuts the result letter of the served phone label (MR-5). On a phone the Matches
+report (goals and two form tables) comes before the board, which then starts about 1,000 px
+down. When the shared OpenLigaDB download serves a season from cache, its stale-snapshot warning
+no longer reaches the Goals notes (the data stays dated by "Results through"). `08-why.png`
+under `docs/screenshots/`, referenced by no document, shows the "Why only five?" view whose
+labels are formed from StatsBomb data; it stays as committed by root decision, and the review's
+R7-2 asks for it to be removed or regenerated with the StatsBomb credit.
+
+**Confidence.** High that the nav opens the current season first on both apps, that every
+kick-off with a known zone is one instant shown in the reader's zone, that a Madrid scorer has
+one name on a page, that the frozen APIs and files are unchanged and that the order, gold,
+overflow, copy-guard and credit checks hold (the tests above). Medium on the summer-time rule for
+a fixture inside the hour of a change-over (tested at both edges), and on the name rule for a
+squad that later holds two players with one surname and initial (both then keep the feed's
+names, by the rule).
+
+**Reversal.** A source that publishes kick-offs in UTC for every competition (D2's rule then goes
+away); a reader study showing that the current season first hides the archive from the people
+who look for it (D1); a squad list that stops matching the feed's names often enough that the
+rule leaves most of them as the feed gives them (D3 then needs a declared alias table).

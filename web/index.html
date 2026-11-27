@@ -441,8 +441,7 @@ async function showPlayer(id){
         ? `<div class="zones-wrap">${zoneBar(zones)}</div>
       <div class="spectrum">${esc(ANSWER.zones_line || '')}</div>`
         : Object.keys(p.zone_shares || {}).length ? ''
-        : `<div class="spectrum" id="zones-withheld">The channel breakdown is withheld with the
-        pass-origin shares above, which it restates. ${esc((s.find(outOfContext) || {}).notes)}</div>`}
+        : `<div class="spectrum" id="zones-withheld">${esc(ANSWER.zones_withheld_line || 'The channel bar is withheld with the shares above. ' + ((s.find(outOfContext) || {}).notes || ''))}</div>`}
     </section>${matchLinks(ANSWER)}`;
 
   // The header: his name, the facts, the server's sentence, and where to go next.
@@ -678,7 +677,7 @@ async function loadExplore(id){
   // text does not override one. Each row opens the player's profile.
   const opened = ANSWER && ANSWER.opened;
   const rows = opened ? [...d.rows, {...opened, render_state: opened.value_text === 'Withheld' ? 'insufficient_signal' : 'point_estimate', appended: true}] : d.rows;
-  $('#explore-body').innerHTML = `<p class="lede">${esc(d.order_note)}</p>
+  $('#explore-body').innerHTML = `<p class="lede">${esc((ANSWER && ANSWER.order_note) || d.order_note)}</p>
     <p class="pctsub">${esc(d.listed_note)}</p>` +
     `<div class="cards ex-list">` + rows.map(r => {
     const withheld = r.render_state === 'insufficient_signal';
@@ -772,7 +771,7 @@ async function runCompare(){
       // marks for both players, or none and why. The note written here spoke of marks
       // above rows that drew none.
       return section('What they produce', ANSWER && ANSWER.scale_note) + q.map(row).join('') +
-        section('Where their passes start', d.observed_location_note) +
+        section('Where their passes start', (ANSWER && ANSWER.location_note) || d.observed_location_note) +
         st.map(row).join('');
     })();
 
@@ -783,11 +782,13 @@ async function runCompare(){
       // blind reader concluded one player edged the other on half-space.
       if (x.family === 'style') {
         const n = (CONSTRUCTS.channel_geometry||{})[x.construct_id];
+        const sure = (captions.get(x.construct_id) || {}).detail;
         return `<div class="cmp cmp-style">
           <div>${inStrip(geoBar(x.left, n, 'plain-mark'))}</div>
           <div class="mid">${esc((captions.get(x.construct_id) || {}).name || label(x.construct_id))}</div>
           <div>${inStrip(geoBar(x.right, n, 'plain-mark'))}</div>
-          <div class="lang">${lang(x)}</div></div>`;
+          <div class="lang">${lang(x)}
+            ${sure ? `<details class="ui-disclosure how-sure cmp-sure"><summary>How sure is this?</summary><div class="ui-disclosure-body"><p class="note">${esc(sure)}</p></div></details>` : ''}</div></div>`;
       }
       // PL-6: each bar is the player's percentile on the 0 to 100 scale the server names, his
       // value and percentile are the server's words beside it, and the raw values and the

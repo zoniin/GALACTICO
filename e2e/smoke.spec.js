@@ -77,9 +77,14 @@ test.describe('player profile', () => {
     const answer = await page.evaluate(i => fetch('/api/answers/player/' + i).then(r => r.json()), id);
     await expect(page.locator('#player-answer')).toHaveText(answer.answer);
 
-    // Every shipped quality construct must draw a card.
-    for (const label of ['Progression', 'Progression per action', 'Chance creation']) {
-      await expect(profile).toContainText(label);
+    // Every shipped quality construct must draw a card, under the name of the one served map
+    // (D5: the registry's "Progression" reads "Ball progression" everywhere a reader looks).
+    const measures = await page.evaluate(() => fetch('/api/answers/measures').then(r => r.json()));
+    expect([measures.names.progression, measures.names.progression_per_action,
+      measures.names.chance_creation]).toEqual(['Ball progression',
+      'Ball progression per completed pass', 'Chance creation']);
+    for (const label of ['progression', 'progression_per_action', 'chance_creation']) {
+      await expect(profile.locator('h3.name', { hasText: new RegExp(`^${measures.names[label]}$`) })).toHaveCount(1);
     }
     // And the style section must be present and labelled as style. ADR-0034 (G4-3): in the
     // server's plain words, with "not ranked" in its closed "How to read this".
@@ -177,11 +182,16 @@ test.describe('comparison', () => {
       for (const [index, row] of ordered.entries()) {
         const rendered = page.locator('#cmp .cmp').nth(index).locator('.lang');
         // Compare the actual interpretation, excluding the numeric audit suffix.
+        // D5: the raw values and the interval sit under the row's closed "How sure is this?",
+        // the server's line word for word; the caption is the text beside it.
         const caption = await rendered.evaluate(element => {
           const copy = element.cloneNode(true);
-          copy.querySelectorAll('span').forEach(node => node.remove());
+          copy.querySelectorAll('span, details').forEach(node => node.remove());
           return copy.textContent.replace(/\s+/g, ' ').trim();
         });
+        const sure = said.rows.find(r => r.construct_id === row.construct_id).detail;
+        if (sure) await expect(rendered.locator('details.how-sure .note')).toHaveText(sure);
+        else await expect(rendered.locator('details.how-sure')).toHaveCount(0);
         const leader = row.family !== 'style' && row.interpretable && !row.tied
           ? (row.delta > 0 ? data.left.name : data.right.name) : null;
         expect(row.leader, row.construct_id + ' names the measured leader').toBe(leader);
@@ -333,17 +343,28 @@ test.describe('gated values', () => {
         const profile = page.locator('#profile');
         await expect(page.locator('#player-title')).toHaveText(keeper.name);
         await expect(profile.locator('.insufficient')).toHaveCount(shipped.length);
+        // R8-7: the reason is the server's, in plain words: the registry's note named the
+        // position by its code ("recorded as GK"). D5: each row is named from the served map.
+        const said = await page.evaluate(async i => ({
+          answer: await fetch('/api/answers/player/' + i).then(r => r.json()),
+          names: (await fetch('/api/answers/measures').then(r => r.json())).names,
+        }), keeper.player_id);
+        expect(reason).toContain('recorded as GK');
         for (const construct of shipped) {
           const row = profile.locator('.card, .style-row')
-            .filter({ has: page.locator('.name', { hasText: new RegExp(`^${construct.label}$`) }) });
+            .filter({ has: page.locator('.name', { hasText: new RegExp(`^${said.names[construct.id]}$`) }) });
           await expect(row, construct.id + ' is one row').toHaveCount(1);
           await expect(row).toContainText('Withheld');
-          await expect(row).toContainText(reason);
+          const line = said.answer.measures.find(m => m.construct_id === construct.id).status_line;
+          expect(line).toBe('These measures cover outfield players; he is a goalkeeper.');
+          await expect(row).toContainText(line);
+          await expect(row).not.toContainText('recorded as GK');
           await expect(row.locator('svg'), construct.id + ' draws no bar').toHaveCount(0);
         }
         // The channel bar restates the pass-origin shares: withheld with them, with the reason.
         await expect(profile.locator('.zones')).toHaveCount(0);
-        await expect(profile.locator('#zones-withheld')).toContainText(reason);
+        expect(said.answer.zones_withheld_line).toContain('he is a goalkeeper');
+        await expect(profile.locator('#zones-withheld')).toHaveText(said.answer.zones_withheld_line);
         const text = await profile.innerText();
         for (const wrong of ['NaN', 'undefined', 'null', '% of completed passes originated',
                              'percentile among', 'Pitch-area reference', 'median',
@@ -393,6 +414,7 @@ test.describe('gated values', () => {
         // not a blank section and not the minutes floor.
         await page.click('button[data-view="compare"]');
         let compared = page.waitForResponse(r => r.url().includes('/api/compare?') && r.ok());
+        let answered = page.waitForResponse(r => r.url().includes('/api/answers/compare?') && r.ok());
         for (const [sel, box, name] of [['#qa', '#ra', keeper.name], ['#qb', '#rb', 'modric']]) {
           await page.fill(sel, name);
           await page.waitForSelector(`${box} button[data-id]`, { timeout: 10000 });
@@ -400,19 +422,27 @@ test.describe('gated values', () => {
             : `${box} button[data-id]`);
         }
         const withOutfield = await (await compared).json();
+        const saidOne = await (await answered).json();
         await expect(page.locator('#cmp .cmp')).toHaveCount(shipped.length);
-        // ADR-0034 (G4-2): the server's caption, with the reason as player_lab gives it.
+        // ADR-0034 (G4-2): the server's caption; R8-7: in plain words, the reason once, never
+        // the registry's note with its position code.
         for (const line of await page.locator('#cmp .cmp .lang').allInnerTexts()) {
-          expect(line).toBe(`Not comparable: withheld for ${keeper.name}. ${reason}`);
+          expect(line).toBe('Not comparable: these measures cover outfield players.');
         }
+        expect(saidOne.rows.map(r => r.caption)).toEqual(
+          shipped.map(() => 'Not comparable: these measures cover outfield players.'));
         // The note above the observed-location rows is the server's and is true of them:
         // it said "the marks show where each one's completed passes started" over no mark.
+        // The lab's note still names the reason (the API is unchanged); the page prints the
+        // answer's, which says it once in plain words.
         const note = page.locator('#cmp h2', { hasText: 'Where their passes start' })
           .locator('xpath=following-sibling::p[1]');
-        await expect(note).toHaveText(withOutfield.observed_location_note);
         expect(withOutfield.observed_location_note).toBe(
           'A mark is drawn only where both players have a share. None is drawn here: every '
           + `share in this section is withheld for ${keeper.name}. ${reason}`);
+        expect(saidOne.location_note).toBe(`No mark is drawn here: ${keeper.name} is a `
+          + 'goalkeeper, and these shares cover outfield players.');
+        await expect(note).toHaveText(saidOne.location_note);
         await expect(page.locator('#cmp svg')).toHaveCount(0);
         expect(await page.locator('#cmp').innerText()).not.toContain('the marks show');
 
@@ -421,20 +451,26 @@ test.describe('gated values', () => {
         expect(second, 'one goalkeeper in the bundle: the pair is not tested').toBeTruthy();
         compared = page.waitForResponse(r => r.url().includes('/api/compare?')
           && r.url().includes(`b=${second.player_id}`) && r.ok());
+        answered = page.waitForResponse(r => r.url().includes('/api/answers/compare?')
+          && r.url().includes(`b=${second.player_id}`) && r.ok());
         await page.fill('#qb', second.name);
         await page.click(`#rb button[data-id="${second.player_id}"]`);
         const twoKeepers = await (await compared).json();
+        const saidTwo = await (await answered).json();
         const each = [keeper, second].map(k =>
           `${k.name}: ${served.find(r => r.name === k.name).reason}`).join(' ');
         await expect(page.locator('#compare-title')).toContainText(second.name);
         await expect(page.locator('#cmp .cmp')).toHaveCount(shipped.length);
+        expect(saidTwo.answer).toBe('Both are goalkeepers; these measures cover outfield players.');
         for (const line of await page.locator('#cmp .cmp .lang').allInnerTexts()) {
-          expect(line).toBe(
-            `Not comparable: withheld for ${keeper.name} and ${second.name}. ${each}`);
+          expect(line).toBe('Not comparable: these measures cover outfield players.');
         }
-        await expect(note).toHaveText(twoKeepers.observed_location_note);
         expect(twoKeepers.observed_location_note).toContain(
           `withheld for ${keeper.name} and ${second.name}. ${each}`);
+        expect(saidTwo.location_note).toBe('No mark is drawn here: both are goalkeepers, and '
+          + 'these shares cover outfield players.');
+        await expect(note).toHaveText(saidTwo.location_note);
+        expect(await page.locator('#cmp').innerText()).not.toContain('recorded as GK');
         await expect(page.locator('#cmp svg')).toHaveCount(0);
         expect(await page.evaluate(() => document.documentElement.scrollWidth
           <= document.documentElement.clientWidth)).toBe(true);
@@ -465,15 +501,28 @@ test.describe('explore', () => {
       expect(new URL(response.url()).search).toBe('?limit=40');
       // The sentence above the list is the server's, and says which order it used.
       expect(reply.order).toBe('distance_from_reference');
+      // The lab's note names the order; the page prints the answer's, which says the same in a
+      // reader's words (the lab's says "style construct").
       expect(reply.order_note).toContain('Not a ranking.');
       expect(reply.order_note).toContain('in order of distance from the pitch-area reference');
-      await expect(page.locator('#explore-body p.lede')).toHaveText(reply.order_note);
+      const said = await page.evaluate(() => fetch('/api/answers/explore/half_space_share?limit=40')
+        .then(r => r.json()));
+      expect(said.order_note).toContain('Not a ranking.');
+      expect(said.order_note).toContain('in order of distance from the pitch-area reference');
+      expect(said.order_note).not.toContain('construct');
+      await expect(page.locator('#explore-body p.lede')).toHaveText(said.order_note);
 
       // The rows drawn are the rows served, in the order served.
-      const drawn = await page.locator('#explore-body .card')
+      // PL-1: the player the reader opened is appended under the forty, gold, when the rows
+      // served do not hold him; nothing else is added and nothing is reordered.
+      const listedCards = await page.locator('#explore-body .card')
         .evaluateAll(cards => cards.map(card => Number(card.dataset.player)));
-      expect(drawn).toEqual(reply.rows.map(r => r.player_id));
-      expect(drawn.length).toBe(40);
+      const opened = Number(new URL(page.url()).searchParams.get('player'));
+      const served = reply.rows.map(r => r.player_id);
+      expect(served.length).toBe(40);
+      expect(listedCards.slice(served.length)).toEqual(served.includes(opened) ? [] : [opened]);
+      const drawn = listedCards.slice(0, served.length);
+      expect(drawn).toEqual(served);
       // On both sides of the reference: in the reply, and in the values the page prints.
       expect(reply.rows.filter(r => r.value < reply.reference).length).toBeGreaterThan(0);
       expect(reply.rows.filter(r => r.value > reply.reference).length).toBeGreaterThan(0);
@@ -481,18 +530,28 @@ test.describe('explore', () => {
       // completed passes"); the share is read back from it.
       const words = await page.evaluate(() => fetch('/api/answers/explore/half_space_share?limit=40')
         .then(r => r.json()));
-      const texts = await page.locator('#explore-body .card > div:last-child').allInnerTexts();
+      const allTexts = await page.locator('#explore-body .card > div:last-child').allInnerTexts();
+      const texts = allTexts.slice(0, served.length);
       expect(texts).toEqual(reply.rows.map(r => words.values[String(r.player_id)]));
+      const extra = listedCards.length - served.length;
+      if (extra) {
+        // The opened player's row is the server's too, under its own line, and it is the gold one.
+        const mine = await page.evaluate(i => fetch(`/api/answers/explore/half_space_share?limit=40&player=${i}`)
+          .then(r => r.json()), opened);
+        expect(allTexts.slice(served.length)).toEqual([mine.opened.value_text]);
+        await expect(page.locator('#explore-body .ex-opened-note')).toHaveText(mine.opened.line);
+        await expect(page.locator(`#explore-body .card[data-player="${opened}"]`)).toHaveAttribute('aria-current', 'true');
+      }
       await expect(page.locator('#explore-answer')).toHaveText(words.answer);
       const printed = texts.map(t => parseFloat(t) / 100);
       expect(printed.length).toBe(40);
       expect(Math.min(...printed)).toBeLessThan(reply.reference);
       expect(Math.max(...printed)).toBeGreaterThan(reply.reference);
       // One dashed tick on each row, at the reference.
-      await expect(page.locator('#explore-body .card svg line[stroke-dasharray]')).toHaveCount(40);
+      await expect(page.locator('#explore-body .card svg line[stroke-dasharray]')).toHaveCount(40 + extra);
       // Each row is as tall as a bar, and each mark sits by the line it marks.
       const drawings = await bars(page, '#explore-body .card');
-      expect(drawings.length).toBe(40);
+      expect(drawings.length).toBe(40 + extra);
       for (const drawing of drawings) {
         expect(drawing.height).toBeLessThanOrEqual(34);
         expect(drawing.gap).toBeLessThanOrEqual(12);
@@ -565,19 +624,30 @@ test.describe('what a profile prints', () => {
         .toBe('limited');
 
       await openProfile(page, subject.player);
-      const badges = await page.locator('#profile .card .badge[title]').evaluateAll(
-        els => els.map(el => ({ text: el.textContent, title: el.getAttribute('title') })));
-      expect(badges.length).toBe(subject.rows.length);
+      // PL-3: the grade is the summary of each card's "How sure is this?", and the server's
+      // sentence in it prints r; the lab's own note keeps its figure. Both must sit on the side
+      // of the threshold the grade names (two places printed 0.699 as "0.70").
+      const answer = await page.evaluate(i => fetch('/api/answers/player/' + i).then(r => r.json()),
+        subject.player.player_id);
+      const cards = await page.locator('#profile .card .how-sure').evaluateAll(els => els.map(el => ({
+        label: el.querySelector('.ui-disclosure-summary').textContent.trim(),
+        note: el.querySelector('.note').textContent.trim() })));
+      expect(cards.length).toBe(subject.rows.length);
       for (const [index, row] of subject.rows.entries()) {
-        expect(badges[index].text).toBe(`Reliability: ${row.signal}`);
+        expect(cards[index].label).toBe(`Reliability: ${row.signal}`);
         // The sentence is the server's, word for word.
-        expect(badges[index].title).toBe(row.signal_note);
+        const said = answer.measures.find(m => m.construct_id === row.construct_id);
+        expect(said.reliability_note).toBe(row.signal_note);
+        expect(cards[index].note).toBe(said.reliability_text);
         const [, strong, limited] = row.signal_note.match(
           /strong from r = (\d+(?:\.\d+)?) and limited from r = (\d+(?:\.\d+)?)\./).map(Number);
-        const printed = Number(row.signal_note.match(/samples: r = (-?\d+(?:\.\d+)?)\. /)[1]);
+        const noted = Number(row.signal_note.match(/samples: r = (-?\d+(?:\.\d+)?)\. /)[1]);
+        const printed = Number(cards[index].note.match(/\(r = (-?\d+(?:\.\d+)?)\)/)[1]);
         expect(strong).toBeGreaterThan(limited);
         const side = r => (r >= strong ? 'strong' : r >= limited ? 'limited' : 'insufficient');
-        expect(side(printed), `${row.construct_id}: r = ${printed} beside "${row.signal}"`)
+        expect(side(noted), `${row.construct_id}: r = ${noted} beside "${row.signal}"`)
+          .toBe(row.signal);
+        expect(side(printed), `${row.construct_id}: r = ${printed} printed beside "${row.signal}"`)
           .toBe(row.signal);
         expect(side(row.reliability)).toBe(row.signal);
       }
@@ -631,27 +701,28 @@ test.describe('what a profile prints', () => {
       await openProfile(page, kroos);
       const bar = page.locator('#profile .zones');
       await expect(bar).toHaveCount(1);
-      // A name is drawn under each channel wide enough to hold it, and what is drawn can be
-      // reached: the bar's box used to clip all five, under a legend that explains them.
-      // Scrolled and measured in one step, so nothing is redrawn in between.
-      const names = await bar.evaluate(el => {
+      await expect(bar.locator(':scope > div')).toHaveCount(5);
+      // Every channel is named, whatever its width (A11Y-4 and the known item: the narrowest
+      // was left unnamed at 390 px), in a row of its own under the bar, in the page's text
+      // colours, and what is drawn can be reached: the bar's box used to clip all five, under
+      // a legend that explains them. Scrolled and measured in one step.
+      const names = await page.locator('#profile .zone-labels').evaluate(el => {
         el.scrollIntoView({ block: 'center' });
-        return [...el.children].map(segment => {
-          const name = segment.querySelector('span');
+        return [...el.children].map(item => {
+          const name = item.querySelector('span');
           const box = name.getBoundingClientRect();
           const hit = document.elementFromPoint(box.left + box.width / 2,
                                                 box.top + box.height / 2);
-          return { name: name.textContent, wide: segment.getBoundingClientRect().width >= 24,
-                   shown: getComputedStyle(name).visibility === 'visible',
+          return { name: name.textContent, share: item.querySelector('b').textContent,
+                   shown: getComputedStyle(name).visibility === 'visible' && box.width > 0,
                    reached: hit === name };
         });
       });
       expect(names.map(n => n.name)).toEqual(['LW', 'LH', 'C', 'RH', 'RW']);
-      const wide = names.filter(n => n.wide);
-      expect(wide.length).toBeGreaterThanOrEqual(3);
-      for (const n of wide) expect(n.shown && n.reached, `${n.name} is not drawn`).toBe(true);
-      // A name that is drawn is never one that cannot be reached: none sits under another.
-      for (const n of names.filter(n => n.shown)) expect(n.reached, n.name).toBe(true);
+      for (const n of names) {
+        expect(n.shown && n.reached, `${n.name} is not drawn`).toBe(true);
+        expect(n.share, n.name).toMatch(/^\d+%$/);
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth
         <= document.documentElement.clientWidth)).toBe(true);
     });
@@ -733,14 +804,29 @@ test.describe('analysis formed from StatsBomb data', () => {
 
         // Each label is a link to the note that assigned it, in the words the server sent,
         // and the conclusion links to the note that reached it.
+        // R3-2, PL-4: the words are the server's (/api/answers/why): each replication verdict
+        // in allowed words ("robust" and "fit" are copy-guard tokens), and each link named
+        // by its note, never by the note's research title; every address is the registry's.
         const links = locator => locator.evaluateAll(
           anchors => anchors.map(a => [a.textContent.trim(), a.getAttribute('href')]));
+        const W = await page.evaluate(() => fetch('/api/answers/why').then(r => r.json()));
+        const url = note => W.provenance.note_urls[note.key];
         expect(await links(page.locator('#why a'))).toEqual([
-          ...constructs.shipped.map(c => [c.external_replication_label,
-                                          c.external_replication_note.url]),
-          ...constructs.research_only.map(c => [c.note.title, c.note.url])]);
+          ...W.shipped.map(c => [c.note.text, url(c.note)]),
+          ...W.research_only.map(c => [c.note.text, url(c.note)])]);
+        expect(W.shipped.map(c => url(c.note))).toEqual(
+          constructs.shipped.map(c => c.external_replication_note.url));
+        expect(W.research_only.map(c => url(c.note))).toEqual(
+          constructs.research_only.map(c => c.note.url));
+        for (const [index, c] of W.shipped.entries()) {
+          await expect(page.locator('#why .replication').nth(index))
+            .toContainText(`Second data provider: ${c.replication}.`);
+          expect(c.replication).not.toMatch(/robust|fit/i);
+        }
         expect(await links(page.locator('#why-credit a')))
-          .toEqual(credit.notes.map(n => [n.title, n.url]));
+          .toEqual(W.credit.notes.map(n => [n.text, url(n)]));
+        expect(W.credit.notes.map(n => url(n))).toEqual(credit.notes.map(n => n.url));
+        expect(await page.locator('#view-why').innerText()).not.toMatch(/robust|Metronome Fit/i);
         expect(constructs.shipped.length).toBe(5);
         expect(credit.notes.length).toBe(2);
         for (const href of await page.locator('#view-why a')
@@ -751,7 +837,7 @@ test.describe('analysis formed from StatsBomb data', () => {
         await expect(page.locator('#view-why a:visible')).toHaveCount(8);
 
         // No number rides with the credit: the conclusion is words, and so is each label.
-        const conclusion = await page.locator('#why > div', { hasText: 'Research only' })
+        const conclusion = await page.locator('#why .why-group', { has: page.locator('#why-research') })
           .innerText();
         expect(conclusion.replace(/E-01/g, '')).not.toMatch(/\d/);
         for (const c of constructs.shipped) expect(c.external_replication_label).not.toMatch(/\d|_/);
@@ -774,8 +860,11 @@ test.describe('the address and the way between views', () => {
     expect(modric).toMatch(/^\d+$/);
     await expect(page.locator('#player-title')).toHaveText('L. Modrić');
 
+    // D5: the explore heading is the measure's name in the one served map.
+    const names = (await page.evaluate(() => fetch('/api/answers/measures').then(r => r.json()))).names;
+    expect(names.progression).toBe('Ball progression');
     await page.click('button[data-view="explore"]');
-    await expect(page.locator('#explore-title')).toHaveText('Progression');
+    await expect(page.locator('#explore-title')).toHaveText(names.progression);
     expect(new URL(page.url()).searchParams.get('view')).toBe('explore');
     await page.click('#explore-tabs button[data-c="chance_creation"]');
     await expect(page.locator('#explore-title')).toHaveText('Chance creation');
@@ -795,7 +884,7 @@ test.describe('the address and the way between views', () => {
     await page.goBack();
     await expect(page.locator('#explore-title')).toHaveText('Chance creation');
     await page.goBack();
-    await expect(page.locator('#explore-title')).toHaveText('Progression');
+    await expect(page.locator('#explore-title')).toHaveText(names.progression);
     await page.goBack();
     await expect(page.locator('#player-title')).toHaveText('L. Modrić');
     await page.goForward(); await page.goForward(); await page.goForward();

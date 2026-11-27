@@ -458,7 +458,8 @@ to the server's sentence in a comparison. For the
   the same players with full-size buttons.
 - The navigation lists a page only where the serving app answers its route. The hosted site
   therefore shows no Squad & signings destination and links Players to the scouting page and
-  Lineup to the studio; the archive pages appear only on a local install with the corpus.
+  Lineup to the studio; the archive pages appear only on a local install with the corpus. On
+  both apps a destination opens its current-season page first (ADR-0035).
 
 ## This season's pages, answer first (ADR-0034)
 
@@ -496,11 +497,44 @@ to the server's sentence in a comparison. For the
   Squad depth, the "Compare them against a gap" leads, or Squad depth's editor (its link carries
   them over); the two wide-channel experimental targets reach Signings only through a link with
   `optin=1`. On a wide screen its candidate panel scrolls inside itself.
-- On the local app the Players destination opens Player profiles (`/player`) before goals by
-  opponent, as the redesign brief lists them; the review's request to open the current season
-  first is a root decision and is unchanged.
 - The archive pages are still served only on a local install with the corpus; the hosted site
   says so on their addresses.
+
+## The second pass (ADR-0035)
+
+- Kick-off times are turned into one instant by the European summer-time rule written out in
+  `match_centre/kickoff.py` (UK time for OpenFootball's Premier League, Central European time
+  for its other leagues), not by a time-zone database. A source that changed the zone it writes
+  in would be shown an hour out until the table of zones is changed; a time whose zone is not
+  known is shown as published, and the page says so. Server sentences keep Madrid's dates.
+- A Real Madrid scorer takes the squad list's name only where the feed's name matches one squad
+  player by surname and first initial (or exactly, once accents and case are set aside). Two
+  squad players with one surname and initial both keep the feed's names; a player missing from
+  the squad list keeps the feed's name. Other clubs' scorers are named as the feed names them.
+- When the shared OpenLigaDB download serves a season from its cache, the feed's warning for a
+  stale snapshot no longer reaches the Goals notes; the data is still dated by "Results
+  through".
+- On a phone the Matches report (goals and two form tables) comes before the board of the day,
+  which then starts about 1,000 px down the page.
+- "Analyst tools" (importing your own event file on Lineup) is offered only on a local install.
+- Under Advanced on the XI page, the ranges and frontier tables still print the lab's
+  four-decimal texts: the kit prints only digits the server sent, and `/api/xi/*` is frozen.
+  A few of the lab's own sentences remain inside the opened Advanced answers of Squad depth
+  (the brief and the absences), and Signings' closed "Advanced: resampled seasons" still says
+  "Left midfield" in its world statement.
+- Signings opens its pool for the default La Liga set at start-up; another combination of
+  leagues builds its pool on its first request (about 2 s once the league frames are loaded).
+- Where nothing makes a gap at a position, Signings' candidate panel waits for a row to be
+  chosen: opening the first row by minutes would put one candidate first.
+- At 390 px the native match select of Match reports cuts the result letter of the served phone
+  label.
+- Squad depth and Signings answer for Real Madrid's 2017/18 squad, on a local install only:
+  nothing on either app says where the 2026/27 squad is thin. "Who could cover a position?" is
+  answered inside the squad by Squad depth's "Who can play where" row and outside it by
+  Signings' list of every eligible player in one declared factual order; where the targets
+  leave no gap there, that list has nothing to compare against and says so.
+- The Table's La Liga sentence is in the past tense and dated by its matchday, because the free
+  La Liga file stops weeks behind play; Madrid's current La Liga place is not known to the site.
 
 ## Product scope
 

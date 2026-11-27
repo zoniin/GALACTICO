@@ -83,10 +83,13 @@ test('with no position in the link the page opens on the thinnest one and answer
   const first = squad.thin.find(t => t.href);
   await expect(page.locator('#slot')).toHaveValue(first.slot_id);
   await expect(page.locator('#slot-note')).toHaveText('Opened on the thinnest position on Squad depth.');
+  // Phase 3: the declared lane filter (TR-2, none here) and whether to open on a gap (D4: only
+  // for a link that names the position) are sent too.
   expect(Object.keys(request).sort()).toEqual([
-    'excludes', 'experimental_opt_in', 'filters', 'formation', 'include_leagues', 'locks', 'order_key', 'presets',
-    'requirements', 'scenario_id', 'slot_id']);
+    'excludes', 'experimental_opt_in', 'filters', 'formation', 'include_leagues', 'lane', 'locks', 'open_gap',
+    'order_key', 'presets', 'requirements', 'scenario_id', 'slot_id']);
   expect(request.order_key).toBe('minutes');
+  expect([request.lane, request.open_gap]).toEqual([null, false]);
   // The goalkeeper is shown as not offered.
   await expect(page.locator('#slot option[value="gk"]')).toHaveAttribute('disabled', '');
   await expect(page.locator('#slot option[value="gk"]')).toContainText('not measured here');
@@ -101,7 +104,8 @@ test('with no position in the link the page opens on the thinnest one and answer
   expect(pool.deficiency.state).toBe('NO_DECLARED_DEFICIENCY');
   // ADR-0034 (G6-1): the data records a broad position only, so the pool is "eligible" at the
   // position, never said to "play" it; the list says why in one line, with the Foot preset.
-  expect(answer.answer).toBe(`${pool.pool.listed_count} La Liga defenders with 900 or more minutes are eligible at ${first.slot_label.toLowerCase()}; Real Madrid already meet every target you set, so none of them has a gap to close.`);
+  // R8-6: no target was stated, so the target in force is the starting one, said as such.
+  expect(answer.answer).toBe(`${pool.pool.listed_count} La Liga defenders with 900 or more minutes are eligible at ${first.slot_label.toLowerCase()}; Real Madrid already meet the starting target (the club's median XI), so none of them has a gap to close.`);
   await expect(page.locator('#position-note')).toHaveText(answer.position_note);
   if (answer.foot_hint) await expect(page.locator('#foot-hint')).toHaveText(answer.foot_hint.label);
   expect(answer.count).toBe(pool.pool.listed_count);
@@ -122,7 +126,10 @@ test('with no position in the link the page opens on the thinnest one and answer
   await leads.locator('summary').click();
   await expect(page.locator('#leads [data-lead]')).toHaveCount(3);
   await expect(page.locator('#leads [data-preset="exclude-3322"]')).toBeVisible();
-  await expect(page.locator('#leads [data-attained="progression"]')).toHaveText(pool.deficiency.attained[0].statement);
+  // TR-3: what the squad reaches is the answer's plain sentence (the lab's statement, with its
+  // "gated squad" and "declarations", stays in the record), its figure the lab's at three places.
+  expect(answer.attained_text).toBe(`The most any XI of this squad reaches on ball progression is ${pool.deficiency.attained[0].reached.toFixed(3)}; a target above it leaves a gap.`);
+  await expect(page.locator('#leads [data-attained="progression"]')).toHaveText(answer.attained_text);
 
   // "About these numbers": closed, with its one line; inside, what was sent.
   await expect(page.locator('#about-more')).not.toHaveAttribute('open', '');
@@ -166,7 +173,8 @@ test('a declared gap: one sentence per candidate, the order a declared key, and 
   // The answer counts the outcome groups the server sent; the rows are its rows.
   const counts = search.outcome_counts;
   expect(answer.outcome_counts).toEqual(counts);
-  expect(answer.answer.startsWith(`Of ${answer.count} La Liga forwards with 900 or more minutes eligible at centre forward, placed there with the rates each recorded at his club, `)).toBe(true);
+  // R8-1: the count is of candidates added to the squad (the lab's outcome), not placed there.
+  expect(answer.answer.startsWith(`Of ${answer.count} La Liga forwards with 900 or more minutes eligible at centre forward, each added to the squad with the rates he recorded at his club, `)).toBe(true);
   await rowsEqualTheServer(page, answer);
   // The order is the declared key and nothing else: by minutes, ties by id. No outcome places a row.
   expect(answer.rows.map(r => r.player_id)).toEqual(byMinutes(search.rows));
@@ -503,8 +511,8 @@ test('no XI without an addition: worlds proved to have none are counted on their
   expect(answer.answer).not.toContain('gap');
   const made = answer.rows.filter(r => r.outcome === 'MAKES_FIELDABLE');
   expect(made.length).toBe(search.outcome_counts.MAKES_FIELDABLE);
-  expect(made.every(r => r.outcome_sentence === 'Placed at right back, he makes an XI possible.')).toBe(true);
-  expect(answer.rows.filter(r => r.outcome === 'UNCHANGED').every(r => r.outcome_sentence === 'Placed at right back, there is still no XI.')).toBe(true);
+  expect(made.every(r => r.outcome_sentence === 'Added to the squad, he makes an XI possible.')).toBe(true);
+  expect(answer.rows.filter(r => r.outcome === 'UNCHANGED').every(r => r.outcome_sentence === 'Added to the squad, there is still no XI.')).toBe(true);
   // The reference row: the pool median placed there. Its sentence speaks of no shortfall and of no person.
   await reveal(page);
   const reference = search.reference_row;

@@ -563,6 +563,9 @@ function stressLevel(level) {
     (tied.length ? `<p class="level-note" data-part="tied-sets">${tied.map(t => `<span data-set="${esc(list(t.player_ids).join('-'))}">${names(t.players)}</span>`).join(' · ')}</p>` : '') + '</div>';
 }
 
+// A provider's position code in words, as every page prints it.
+const POSITION_WORDS = {GK: 'Goalkeeper', DF: 'Defender', MF: 'Midfielder', FW: 'Forward'};
+
 function removalRow(row) {
   const requirements = list(depth()?.inputs?.requirements).filter(r => r.declared === true);
   let without;
@@ -573,9 +576,9 @@ function removalRow(row) {
   } else if (row.outcome === 'UNKNOWN') without = Shell.notCertified('UNKNOWN');
   else without = `Fieldable · ${pair(row.objective_vector)}<div class="detail small subtle" data-part="change">change from the baseline ${signedPair(row.change_from_baseline)}</div>`;
   return GP.row([
-    {label: 'Player', html: `${GP.nameButton(row)}<div class="small subtle">${esc(row.position)} · ${GP.value(row.minutes, 0)} min</div>`},
+    {label: 'Player', html: `${GP.nameButton(row)}<div class="small subtle">${esc(POSITION_WORDS[row.position] ?? row.position)} · ${GP.value(row.minutes, 0)} min</div>`},
     {label: 'Without him', html: without},
-    {label: 'Recorded rate', html: row.outside_requirements ? 'No number on any requirement.' : requirements.map(r => `${esc(r.label)}: ${GP.value(row.requirement_values?.[r.requirement_id], 3, {approx: true})}`).join('<br>')},
+    {label: 'Recorded rate', html: row.outside_requirements ? 'No number on any requirement.' : requirements.map(r => `${esc(state.targets?.requirement_titles?.[r.requirement_id] ?? r.label)}: ${GP.value(row.requirement_values?.[r.requirement_id], 3, {approx: true})}`).join('<br>')},
     {label: 'Slots', html: list(row.eligible_slots).map(s => esc(slotName(s))).join(', ') || DASH},
   ], {selected: row.player_id === state.selected, data: {player: row.player_id, outcome: row.outcome, attribution: row.core?.attribution ?? ''}});
 }
@@ -587,17 +590,21 @@ function renderRemovals() {
   $('#removals').innerHTML = GP.ordered(reply.listings, state.orderKey, reply.single_absences, removalRow, {id: 'removals-ledger', empty: 'No single absence was evaluated.'});
 }
 
+// The research record of an answer under Advanced, closed (D6, SQ-5): the method sentences,
+// the integer-model notes and every set, below the answer.
+const record = (inner, title = 'Technical record: how this was worked out') => inner ? `<details class="ui-disclosure pl-nested"><summary>${esc(title)}</summary><div class="ui-disclosure-body">${inner}</div></details>` : '';
+
 function renderStress() {
   const reply = state.stress;
   $('#stress-summary').innerHTML = `<div class="status-line">${GP.status(reply.baseline?.status, reply.baseline?.statement)} ${GP.completeness(reply.budget)}</div>` +
-    GP.claim(reply) + GP.warnings(reply.warnings) +
+    record(GP.claim(reply) + GP.warnings(reply.warnings) +
     `<p class="small statement" id="stress-model">${esc(reply.model_statement)}</p>` +
     (reply.completeness_statement ? `<p class="small subtle statement">${esc(reply.completeness_statement)}</p>` : '') +
-    `<p class="small subtle statement">${esc(reply.table_statement)}</p>`;
+    `<p class="small subtle statement">${esc(reply.table_statement)}</p>`);
   $('#removal-warning').textContent = reply.removal_warning ?? '';
   renderRemovals();
   $('#not-removable').innerHTML = list(reply.not_removable).length ? `<p class="figure-note">Not removed in any set: ${list(reply.not_removable).map(p => `${esc(p.name)} (${esc(p.reason)})`).join(' ')}</p>` : '';
-  $('#stress-ledgers').innerHTML = list(reply.levels).map(stressLevel).join('');
+  $('#stress-ledgers').innerHTML = record(list(reply.levels).map(stressLevel).join(''), 'Technical record: every set of absences');
   $('#stress-summary-line').textContent = list(reply.levels).map(l => l.statements?.unfieldable).filter(s => typeof s === 'string').at(-1) ?? '';
   $('#stress-body').classList.remove('hidden');
 }
@@ -606,18 +613,24 @@ function renderStress() {
 function renderBrief() {
   const reply = state.brief, b = reply.brief ?? {}, pool = reply.pool;
   const rows = list(b.rows);
+  // The answer first: the status in words, what a signing must bring at each target (the
+  // pages' target names), how many of the pool do; the pool's definition, the claim and the
+  // integer-model notes under "How this was worked out" (SQ-5, D6).
+  const named = c => state.targets?.requirement_titles?.[c.requirement_id] ?? c.label;
   $('#brief').innerHTML = `<div class="status-line">${GP.certificate(b.status)} ${GP.completeness(reply.budget)}</div>` +
     `<p class="statement" id="brief-statement">${esc(b.statement)}</p><p class="statement small" id="brief-squad">${esc(b.squad_statement)}</p>` +
     (rows.length ? `<ul class="gp-rows" id="brief-rows">${rows.map(row => GP.row([
-      ...list(row.cells).map(c => ({label: c.label, html: `at least ${GP.value(c.need, 3, {approx: true})}<div class="small subtle">the other ten supply ${GP.value(c.residual_supply, 3, {approx: true})}</div>`})),
+      ...list(row.cells).map(c => ({label: named(c), html: `at least ${GP.value(c.need, 3, {approx: true})}<div class="small subtle">the other ten supply ${GP.value(c.residual_supply, 3, {approx: true})}</div>`})),
       {label: 'Row', html: GP.certificate(row.certification)},
-    ])).join('')}</ul><p class="figure-note">${esc(b.witness_statement)}</p>` : '') +
-    (pool ? `<p class="statement" id="brief-pool">${esc(pool.count_statement)}</p><p class="small subtle statement">${esc(pool.definition)}</p>` +
-      list(pool.banner).filter(line => line !== pool.cross_league_flag).map(line => `<p class="small subtle statement">${esc(line)}</p>`).join('') +
+    ])).join('')}</ul>` : '') +
+    (pool ? `<p class="statement" id="brief-pool">${esc(pool.count_statement)}</p>` +
       (pool.cross_league_flag ? `<p class="notice small">${esc(pool.cross_league_flag)}</p>` : '') : (reply.pool_unavailable ? '' : '<p class="small subtle">The pool was not counted.</p>')) +
-    // The server's claim for a brief quotes its own non-claim; a sentence is printed once.
-    GP.warnings(reply.warnings) + GP.claim(typeof reply.claim === 'string' && typeof reply.non_claim === 'string' && reply.claim.includes(reply.non_claim) ? {claim: reply.claim} : reply) +
-    `<p class="figure-note">${esc(reply.policy_note)}</p>`;
+    record((rows.length ? `<p class="figure-note">${esc(b.witness_statement)}</p>` : '') +
+      (pool ? `<p class="small subtle statement">${esc(pool.definition)}</p>` +
+        list(pool.banner).filter(line => line !== pool.cross_league_flag).map(line => `<p class="small subtle statement">${esc(line)}</p>`).join('') : '') +
+      // The server's claim for a brief quotes its own non-claim; a sentence is printed once.
+      GP.warnings(reply.warnings) + GP.claim(typeof reply.claim === 'string' && typeof reply.non_claim === 'string' && reply.claim.includes(reply.non_claim) ? {claim: reply.claim} : reply) +
+      `<p class="figure-note">${esc(reply.policy_note)}</p>`);
   // The link to Signings carries this problem: the server's hand-off for the slot when the
   // answer named it, else the brief's own link.
   const handoff = list(state.answer?.thin).find(t => t.slot_id === reply.brief?.slot_id && typeof t.href === 'string');

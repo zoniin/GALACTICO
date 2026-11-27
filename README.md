@@ -16,6 +16,9 @@ order on every page, and on a phone it is a tab bar at the bottom of the screen:
 | **Lineup** | `/lineup`: pick and share an XI | `/xi`: Check against targets (XI Lab) |
 | **Squad & signings** | — | `/squad` and `/transfer`: Squad depth and Signings (Squad Lab and Transfer Lab) |
 
+Each place opens its current-season page first where one exists, on both apps (ADR-0035): the
+Players link goes to goals by opponent, and Player profiles is the second page under it.
+
 Every page opens the same way (ADR-0034): a chip saying which season its numbers come from,
 a heading that names the page's object or question, **one answer sentence the server writes**,
 then the main picture, then detail in tabs and disclosures that start closed, then "About
@@ -26,8 +29,9 @@ and goals are gathered, the data sources and licences of the pages the app serve
 local app, why only five measures survive, the evidence classes, the verdict registry and what
 is not measured. Old links keep working: `/?player=` opens Player profiles at `/player`, and
 `/?day=` and `/?match=` open the match board. An address the app does not serve gets the
-site's own "That page isn't here" page; on the hosted site an archive address says the archive
-runs only on a local install.
+site's own "That page isn’t here" page, with the navigation as the ways on; on the hosted site
+an archive address says the archive runs only on a local install. A shared link shows the
+page's own description, and a shared lineup or match its server sentence, in the preview card.
 
 ## Lineup
 
@@ -37,14 +41,17 @@ players with the most 2026/27 appearances in each position. Within a position a 
 where the first position of his Wikipedia infobox puts him (left, centre or right, and
 attacking or defensive for a midfielder), else by shirt number. Change shape, tap a bench
 player and then the position he takes, and copy a link that opens the same lineup; saving on
-the device is a convenience. The roster and all-competition appearances and goals come from
+the device is a convenience. Every position is named in words as well as by its short label
+("LCM", "Left central midfield"). Changing shape on the proposed XI shows the server's proposal
+for that shape; an edited lineup is reshaped from the formation it was edited in. A link that
+names only a formation opens its proposal. The roster and all-competition appearances and goals come from
 the current season’s Wikipedia tables, credited with the article's edit date. Madrid's next
-fixture comes from the Matches schedule, with a link to the opponent's goals where the free
-goal feed covers its competition. A player's 2017/18 archive sample sits in a closed "Archive:
+fixture comes from the Matches schedule, its kick-off shown in your time zone, with a link to
+the opponent's goals where the free goal feed covers its competition. A player's 2017/18 archive sample sits in a closed "Archive:
 where he played in 2017/18", labelled with its match, competition and date; the role area for
-a position is drawn, not measured. Import player event CSVs with 0–100 `x,y` coordinates and an
-optional `type` column under "Analyst tools" for your own measured heatmap; imported
-coordinates stay in the browser tab.
+a position is drawn, not measured. On a local install, import player event CSVs with 0–100
+`x,y` coordinates and an optional `type` column under "Analyst tools" for your own measured
+heatmap; imported coordinates stay in the browser tab. The hosted page has no import.
 
 Live match reports use a separate [API-Football account](https://dashboard.api-football.com/).
 Set `API_FOOTBALL_KEY` in the local server’s `.env`. API-Football supplies aggregates.
@@ -52,13 +59,16 @@ The studio’s measured maps require event locations.
 
 ## Goals by opponent
 
-The public Players page opens on Real Madrid's scorers this season (Wikipedia's counts, by
-goals then name), then reads OpenLigaDB’s current Champions League, Premier League and
+The public Players page answers with Real Madrid's scorers this season in every competition
+(Wikipedia's counts, by goals then name), then reads OpenLigaDB’s current Champions League, Premier League and
 Bundesliga match reports without an API key. It opens on Madrid's next opponent where the feed
 carries its competition, else on Madrid in the Champions League, and says which. Choose a club,
 split its matches by the opponent's place before kick-off (places 1–6, places 7 and below, not
 yet classified; the unclassified count is shown), pick an opponent, and open a scoreline for the
-recorded goal minutes. The URL keeps the club, the split, the opponent and the scorer. The club’s reported
+recorded goal minutes. The explorer's sentence follows the opponent you pick. When no match is
+classified yet, the split columns are left out and one line says why. A Real Madrid scorer is
+named as the squad list names him wherever the feed's name matches one squad player by
+surname and first initial (ADR-0035), so a player has one name on the page. The URL keeps the club, the split, the opponent and the scorer. The club’s reported
 score and the number of named goals are shown separately; a scorer listed under two names is
 joined only by a declared rule. La Liga is not offered: OpenLigaDB has no current La Liga
 season, so there is no free source of its goals.
@@ -72,9 +82,15 @@ Open [the match centre](http://127.0.0.1:8091/match-centre). No historical data 
 The public scoreboard reads this season’s fixtures and reported results for La Liga,
 the Premier League, Bundesliga, Serie A, Ligue 1 and the Champions League. It opens on the
 nearest day with fixtures, with one sentence on Madrid's last result (and its scorers, where the
-feed names every goal) and next match. Filter by competition, save matches across dates, or
-inspect either club’s last five reported results before a fixture. **Table** shows tables from
-reported scores as of a chosen date, ordered by points, goal difference and goals scored, says
+feed names every goal) and next match. Kick-offs are shown in your time zone: the server turns
+each source's published time into one instant, from the source's known zone (OpenFootball's
+Premier League in UK time, its other leagues in Central European time; OpenLigaDB states UTC),
+and a time whose zone is unknown is shown as published, and the page says so. One line says how
+current the feeds are, the late ones flagged. A season the free feeds hold no fixtures for says
+so, with a way back to today. Filter by competition, save matches across dates, or
+inspect either club’s last five reported results before a fixture. **Table** opens on the
+competition of Madrid's latest result, with one sentence on where Madrid stand in each of their
+competitions, and shows tables from reported scores as of a chosen date, ordered by points, goal difference and goals scored, says
 where Madrid stand in one sentence, and links every club’s season schedule back to individual
 match reports. Each competition says how current it is from its own rows: "Results through
 <date>", and "Table after matchday N of M" with the count of later fixtures without a result
@@ -121,13 +137,15 @@ removed (ADR-0033); its old address opens the match centre.
 ![Player profiles (Player Lab)](docs/screenshots/01-profile.png)
 
 Five connected historical workstations run locally. Each page answers its question in one
-sentence first and keeps the research tools under closed disclosures (ADR-0034):
+sentence first and keeps the research tools under closed disclosures (ADR-0034); a research
+answer's method sentences, certificates and ledgers sit under a closed "Technical record: how
+this was worked out", so the default view is in plain words (ADR-0035):
 
-- **Player profiles** (Player Lab) — five surviving season constructs, with shared-match uncertainty and evidence gates; the percentile among the player's position group is each measure's headline, and the view and player are in the URL.
+- **Player profiles** (Player Lab) — five surviving season constructs, with shared-match uncertainty and evidence gates; the percentile among the player's position group is each measure's headline, and the view and player are in the URL. Each measure has one plain name everywhere a reader looks, from one served map (`/api/answers/measures`: "Progression" reads "Ball progression"); the raw values and intervals sit under each measure's "How sure is this?".
 - **Match reports** (Match Lab) — the recorded result and its scorers first, then actual lineups, key/tactical timelines, shot locations, inferred passing networks, positive pass-xT flow and player-match contribution vectors.
-- **Check against targets** (XI Lab) — "Can an XI meet your targets?": exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Four exact additions sit under the main solve: the attainable range of each requirement, a certified minimal conflicting set when the minima cannot all hold, the nondominated sums of two or three declared requirements (never ranked), and declared-risk selection over resampled matches. The two side requirements enter them only with the experimental opt-in. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
+- **Check against targets** (XI Lab) — "Can an XI meet your targets?" It opens on a field player, shows each target at one precision with its unit, and names the target no XI reaches when none does. Exact assignment under explicit requirements, structural deficits, lock/exclude/reoptimize, tie-aware stability, equivalent XIs and a separate progression-under-hard-floors query. Four exact additions sit under the main solve: the attainable range of each requirement, a certified minimal conflicting set when the minima cannot all hold, the nondominated sums of two or three declared requirements (never ranked), and declared-risk selection over resampled matches. The two side requirements enter them only with the experimental opt-in. Two pre-match Madrid scenarios support 4-3-3 and 4-3-1-2, including explicit BBC and Isco constraints.
 - **Squad depth** (Squad Lab) — "Where is cover thin?": for a declared squad, template and minima: who is eligible where and why not, which absences raise the declared shortfall or leave no fieldable XI, and what an addition at a slot would have to supply. Real Madrid at the end of 2017/18 by default; any league club under an unreviewed position rule.
-- **Signings** (Transfer Lab) — "Who could fill this position?": for a slot you declare, or the one Squad depth hands over in the link: every gated player eligible there, listed by a declared factual key (minutes, age or name, never by the outcome), each placed at that slot and re-solved exactly, with one sentence on what that did to the gap and, under Advanced, the smallest share of his recorded rates that must carry over for the conclusion to hold. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
+- **Signings** (Transfer Lab) — "Who could fill this position?": for a slot you declare, or the one Squad depth hands over in the link (where the targets leave no gap there, it opens on the absences Squad depth named for that position, each a removable chip, and says so): every gated player eligible there, listed by a declared factual key (minutes, age or name, never by the outcome), each added to the squad with the rates he recorded at his club and re-solved exactly, with one sentence on what that did to the gap and, under Advanced, the smallest share of his recorded rates that must carry over for the conclusion to hold. It carries rates over unchanged and says so. Whether a rate repeats after a move has not been tested.
 
 XI Lab does **not** identify the best football XI. Its default solve finds XIs with the
 least shortfall against declared progression and pass-origin requirements.
@@ -270,8 +288,9 @@ Four labs run on Spain alone (`fetch_pappalardo.py --only Spain`, then
 is the club of his latest appearance in any of them; without them it answers 503,
 and Squad Lab serves its role brief without the candidate count and says so.
 The first match/snapshot request loads the historical corpus and fits its xT surface;
-XI's default 12 shared worlds are deliberately coarse exploratory diagnostics.
-They report **necessary–possible frequencies across equally optimal solutions**,
+The XI page's main solve asks for no resampled season. "How often each player is picked"
+asks for 12 shared worlds only when it is opened; they are deliberately coarse exploratory
+diagnostics. They report **necessary–possible frequencies across equally optimal solutions**,
 not probabilities of being the best player. More worlds are available through the API.
 
 ```bash

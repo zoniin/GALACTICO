@@ -178,6 +178,9 @@ const COPY = {
   invalid: 'A filter is not a whole number in its range. Nothing was sent.',
   candidate: 'Pick a name in the list to see the XI with him in it.',
   failed: 'The list could not be written for this question.',
+  // The one line under "Advanced: resampled seasons": what it shows. The worlds' own statement
+  // is inside, with its counts (D6).
+  worldsLine: 'Whether the closest XIs keep him when the matches before are drawn again.',
 };
 
 const answerT = GP.tracker(), detailT = GP.tracker(), candT = GP.tracker();
@@ -586,7 +589,7 @@ function renderCandidate(worlds, conclusion) {
       list(co.grid).filter(g => g.evaluated).map(g => `<tr data-step="${esc(g.step)}"${g.fraction === co.bracket?.fails_at || g.fraction === co.bracket?.holds_at ? ' data-bracket="true"' : ''}>${cell('Fraction', `<span class="mono" data-value="${esc(String(g.fraction))}">${g.fraction.toFixed(2)}</span>`)}${cell('Status', GP.certificate(g.forced_status))}${cell('(largest, sum)', pair(g.forced_inclusion_objective, {approx: true}))}${cell('Conclusion', g.state === 'HOLDS' ? 'holds' : g.state === 'FAILS' ? 'fails' : 'not determined')}</tr>`).join('') +
       `</tbody></table><p class="tl-facts">${list(co.scaling_statements).map(esc).join(' ')}</p>` +
       `<aside class="cannot-say">${S.cannotSay(['It does not estimate how much carries over. No transport model is applied.'])}</aside></div></details>` +
-    `<details class="ui-disclosure" id="worlds-section"><summary>Advanced: resampled seasons <span class="ui-disclosure-summary">${wc ? esc(wc.statement) : esc(GP.COPY.worlds)}</span></summary><div class="ui-disclosure-body">` +
+    `<details class="ui-disclosure" id="worlds-section"><summary>Advanced: resampled seasons <span class="ui-disclosure-summary">${esc(COPY.worldsLine)}</span></summary><div class="ui-disclosure-body">` +
       `<label class="control"><span class="label">Resampled worlds</span><select id="worlds" aria-label="Resampled worlds">${list(catalogue.worlds_menu).map(w => `<option value="${esc(w)}"${w === worlds ? ' selected' : ''}>${esc(w)}</option>`).join('')}</select></label>` + (wc
       ? `<div id="worlds-figure">${worldStrip(wc)}</div><p class="tl-facts" id="worlds-counts">in every least-shortfall XI: ${GP.value(wc.forced_lower, 0)} of ${GP.value(wc.used, 0)} · in some: ${GP.value(wc.forced_equal, 0)} · in none: ${GP.value(wc.forced_higher, 0)} · no XI without him, or none with him: ${GP.value(wc.no_xi, 0)} · set aside: ${GP.value(wc.set_aside, 0)}</p><p id="worlds-statement" class="small">${esc(wc.statement)}</p><p class="figure-note">Cells are grouped by outcome, not ordered by world.</p>`
       : `<div id="worlds-figure" class="tl-facts">not requested</div><p id="worlds-statement" class="small subtle">${esc(GP.COPY.worlds)}</p>`) + '</div></details>' +

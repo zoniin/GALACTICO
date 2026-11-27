@@ -5,7 +5,7 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": "{galactico/match_centre/**,galactico/providers/**,galactico/__init__.py,galactico/site_nav.py,web/**}",
+        "includeFiles": "{galactico/match_centre/**,galactico/providers/**,galactico/__init__.py,galactico/site_nav.py,web/match-centre.html,web/leagues.html,web/scouting.html,web/studio.html,web/about.html,web/missing.html,web/assets/favicon.svg,web/assets/studio-kit.webp,web/assets/type/barlow-italic.woff2,web/assets/type/barlow.woff2,web/assets/type/barlowcondensed-OFL.txt,web/assets/type/dm-sans.woff2,web/assets/type/dmsans-OFL.txt,web/base.css,web/components.css,web/goal-links.js,web/goal-scout.js,web/goals.css,web/leagues.js,web/lineup.css,web/match-centre.js,web/matches.css,web/scouting.js,web/site.js,web/studio-formation.js,web/studio-map.js,web/studio.js,web/theme.js,web/tokens.css}",
         "excludeFiles": "{data/**,docs/**,experiments/**,tests/**,e2e/**,node_modules/**,.venv/**}"
       }
     }

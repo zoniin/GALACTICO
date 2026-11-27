@@ -61,6 +61,9 @@
     forShown: 'For the XI shown',
     oneXi: 'One XI',
     certificate: 'Certificate',
+    // D6: the method, the certificate and the ledger of every answer sit under one closed
+    // disclosure; the answer itself (its status in words and its table) stays in view.
+    record: 'Technical record: how this was worked out',
     roster: 'The XI shown',
     pointPair: 'At the point-estimate rates',
   });
@@ -117,6 +120,8 @@
   }
 
   const certificate = pairs => `<details class="xi-cert"><summary>${esc(COPY.certificate)}</summary>${facts(pairs)}</details>`;
+  // The research record of one answer, closed (D6): its method sentences, certificate and ledger.
+  const record = inner => inner ? `<details class="xi-record"><summary>${esc(COPY.record)}</summary><div class="xi-record-body">${inner}</div></details>` : '';
   // A solver token in the reader's words, from the map the page serves (XI_WORDS, set from
   // /api/answers/xi/scenarios, XI-7); a token the map does not hold prints as sent.
   const words = () => object(root.XI_WORDS) ? root.XI_WORDS : {};
@@ -194,7 +199,7 @@
     const status = word(r.status);
     let out = `<div class="xi-status"><span class="badge" data-status="${status}">${say(r.status)}</span></div>`;
     if (status === 'UNDECIDED' || status === 'MODEL_INVALID') out += state(S.notCertified(r.status));
-    out += head(reply) + statements(reply) + evidence(reply);
+    out += para(reply.claim, 'xi-claim');
     if (status === 'MODEL_FEASIBLE') out += lineupTable('One XI that meets every declaration', r.feasible_rows);
     const members = list(r.member_rows);
     if (members.length) {
@@ -204,13 +209,13 @@
           td('Leaving it out', say(m.member_text)) + td('Dropping only it', say(m.restore_text)) +
           td('Assignments', memberDetails(m)) + '</tr>'));
     }
-    out += certificate([
+    return out + record(para(reply.non_claim, 'xi-non-claim small subtle') + para(reply.model_note, 'xi-model-note small') +
+      statements(reply) + evidence(reply) + certificate([
       ['Status', statusWord(r.status)], ['Solves', integer(c.solves)], ['Statuses', tokens(c.statuses)],
       ['Proof of the set', integer(c.final_set_proof_solve)], ['Completeness', statusWord(c.completeness)],
       ['Stopped by', say(c.stopped_by)], ['Deletion order', say(c.deletion_order)],
       ['Deterministic limit per solve', limit(c.per_solve_deterministic_limit)],
-    ]);
-    return out + ledger('conflict', reply.declared, reply.ledger);
+    ]) + ledger('conflict', reply.declared, reply.ledger));
   }
 
   /* ---------------------------------------------------------------- ceilings */
@@ -227,9 +232,7 @@
     const set = word(c.feasible_set);
     let out = '';
     if (set === 'UNKNOWN' || set === 'MODEL_INVALID') out += state(S.notCertified(c.feasible_set));
-    out += head(reply);
     if (set === 'NOT_SATISFIABLE' || set === 'FLOORS_UNMET') out += state(S.infeasible(reply.statements));
-    else out += statements(reply);
     if (set === 'UNFIELDABLE') out += state(S.infeasible(r.reasons));
     const ranges = list(r.ranges);
     if (ranges.length) {
@@ -240,15 +243,17 @@
         td(headers[0], say(named(g.requirement_id, g.label))) +
         td(headers[1], end(g.least, 'attained')) + td(headers[2], end(g.least, 'bound')) +
         td(headers[3], end(g.largest, 'attained')) + td(headers[4], end(g.largest, 'bound')) +
-        td(headers[5], `<span class="mono">${say(g.minimum_text)}</span>${para(g.minimum_reached_text, 'detail')}${para(g.minimum_missed_text, 'detail')}`) +
+        td(headers[5], `<span class="mono">${say(g.minimum_text)}</span>`) +
         '</tr>'));
     }
-    out += certificate([
+    // The method, each range's statements about the minimum, the certificate and the ledger.
+    const minimums = ranges.map(g => para(g.minimum_reached_text, 'detail') + para(g.minimum_missed_text, 'detail')).join('');
+    return out + record(head(reply) +
+      (set === 'NOT_SATISFIABLE' || set === 'FLOORS_UNMET' ? '' : statements(reply)) + minimums + certificate([
       ['Feasible set', statusWord(c.feasible_set)], ['Solves', integer(c.solves)], ['Statuses', tokens(c.statuses)],
       ['Completeness', statusWord(c.completeness)], ['Stopped by', say(c.stopped_by)],
       ['Deterministic limit per solve', limit(c.per_solve_deterministic_limit)],
-    ]);
-    return out + ledger('ceilings', reply.declared, reply.ledger);
+    ]) + ledger('ceilings', reply.declared, reply.ledger));
   }
 
   /* ---------------------------------------------------------------- frontier */
@@ -265,7 +270,7 @@
     const c = object(r.certificate) ? r.certificate : {};
     const status = word(r.status);
     const points = list(r.points);
-    let out = head(reply);
+    let out = '';
     const cert = certificate([
       ['Status', statusWord(r.status)], ['Points', integer(c.points)], ['Solves', integer(c.solves)],
       ['Statuses', tokens(c.statuses)], ['Completeness', statusWord(c.completeness)],
@@ -273,22 +278,25 @@
       ['Deterministic limit per solve', limit(c.per_solve_deterministic_limit)],
     ]);
     if ((status === 'INCOMPLETE' || status === 'MODEL_INVALID') && !points.length) {
-      return out + state(`${S.notCertified(r.status)} ${say(r.status_text)}`) + cert +
-        ledger('frontier', reply.declared, reply.ledger);
+      return out + state(`${S.notCertified(r.status)} ${say(r.status_text)}`) +
+        record(head(reply) + cert + ledger('frontier', reply.declared, reply.ledger));
     }
     if (status === 'UNFIELDABLE') out += state(S.infeasible(r.reasons));
     if (status === 'NOT_SATISFIABLE' || status === 'FLOORS_UNMET') {
       // API replies with floors only: the page never sends one.
       out += state(S.infeasible(list(reply.statements).concat(list(r.reasons))));
     } else {
-      out += para(r.scope_text) + para(r.status_text, 'xi-status-text small');
+      out += para(r.status_text, 'xi-status-text small');
     }
+    let method = head(reply) +
+      (status === 'NOT_SATISFIABLE' || status === 'FLOORS_UNMET' ? '' : para(r.scope_text));
     if (points.length) {
       const labels = list(r.dimension_labels).map(plain);
       const headers = labels.map(l => `${l} · rounded sum, in club medians`).concat([
         'one XI reaching it sums to, before rounding, in club medians',
         'allowance, in club medians', COPY.oneXi]);
-      out += evidence(reply) + table('', headers, points.map(p => {
+      method += evidence(reply);
+      out += table('', headers, points.map(p => {
         const sums = list(p.point_texts);
         return '<tr class="xi-point-row">' +
           labels.map((_, i) => td(headers[i], `<span class="mono">${say(sums[i])}</span>`)).join('') +
@@ -297,10 +305,10 @@
           td(COPY.oneXi, `<details><summary>${esc(COPY.oneXi)}</summary>${lineupTable('', p.lineup_rows)}</details>`) +
           '</tr>';
       }), 'xi-frontier-table');
-      out += para(r.witness_text) + para(COPY.pointDetail, 'small subtle') + plot(points) +
-        para(r.point_order, 'small subtle');
+      out += para(COPY.pointDetail, 'small subtle') + plot(points);
+      method += para(r.witness_text) + para(r.point_order, 'small subtle');
     }
-    return out + cert + ledger('frontier', reply.declared, reply.ledger);
+    return out + record(method + cert + ledger('frontier', reply.declared, reply.ledger));
   }
 
   /* -------------------------------------------------------------------- risk */
@@ -313,14 +321,15 @@
     const c = object(r.certificate) ? r.certificate : {};
     const status = word(r.status);
     const verdict = object(reply.verdicts) ? reply.verdicts.risk_rule : null;
-    let out = para(reply.claim, 'xi-claim') +
-      (verdict ? `<div class="xi-verdict">${S.verdictBadge(verdict)}${S.verdictLines(verdict)}</div>` : '') +
+    let out = para(reply.claim, 'xi-claim');
+    let method = (verdict ? `<div class="xi-verdict">${S.verdictBadge(verdict)}${S.verdictLines(verdict)}</div>` : '') +
       para(reply.non_claim, 'xi-non-claim small subtle') + para(reply.model_note, 'xi-model-note small') +
       statements(reply);
     if (status === 'UNKNOWN' || status === 'MODEL_INVALID') out += state(S.notCertified(r.status));
     if (status === 'UNFIELDABLE') out += state(S.infeasible(r.reasons));
     if (status === 'CERTIFIED') {
-      out += evidence(reply) + lineupTable(COPY.roster, r.lineup_rows);
+      method += evidence(reply);
+      out += lineupTable(COPY.roster, r.lineup_rows);
       if (object(r.tail_sum)) {
         out += facts([['Summed largest shortfall over the tail', say(r.tail_sum.summed_maximum_shortfall_text)],
           ['Summed shortfall over the tail', say(r.tail_sum.summed_total_shortfall_text)]]);
@@ -342,7 +351,7 @@
       out += '<div class="xi-groups">' + groups.map(g => `<div class="xi-group"><p class="label">${say(g.heading)}</p><ul>` +
         list(g.rows).map(p => `<li>${say(p.player_text)}</li>`).join('') + '</ul></div>').join('') + '</div>';
     }
-    out += certificate([
+    method += certificate([
       ['Worlds', integer(c.world_count)], ['Used', integers(c.used_world_ids)],
       ['Set aside', say(r.discarded_text)], ['Worlds set aside', integers(list(c.discarded_worlds).map(w => object(w) ? w.world_id : null))],
       ['World seed', integer(c.world_seed)], ['World fingerprint', `<span class="mono">${say(c.world_fingerprint)}</span>`],
@@ -353,7 +362,7 @@
       ['Deterministic limit per selection solve', limit(c.selection_deterministic_limit)],
       ['Deterministic limit per world least', limit(c.world_least_deterministic_limit)],
     ]);
-    return out + ledger('risk', reply.declared, reply.ledger);
+    return out + record(method + ledger('risk', reply.declared, reply.ledger));
   }
 
   /* -------------------------------------------------------------------- frame */

@@ -715,8 +715,11 @@ def players_view(depth: Mapping[str, Any], snapshot: Mapping[str, Any] | None) -
             "position": POSITION_WORDS.get(str(p.get("position")), str(p.get("position"))),
             "minutes_text": _minutes(p).replace(" min", " minutes"),
             "facts_text": " · ".join(facts),
-            "places_text": (f"Positions he can take: {places}." if places
-                            else "No position of this formation."),
+            # A player with no declared role is placed by his listed position alone, and the
+            # panel says so (the club's roles are unreviewed): never "can take" as if reviewed.
+            "places_text": ((f"Positions he can take: {places}." if p.get("role_labels")
+                             else f"Listed position only, no declared role: {places}.")
+                            if places else "No position of this formation."),
             "rates": rates,
             "placements": [] if p.get("state") == "EXCLUDED" else placements.get(pid, []),
             "state_text": ("Left out by you from every count." if p.get("state") == "EXCLUDED"
@@ -947,7 +950,7 @@ def _count_clauses(counts: Mapping[str, int], fieldable: bool) -> str:
 
 def _transfer_sentence(universe: Mapping[str, Any], search: Mapping[str, Any] | None,
                        listed: int, *, counts: Mapping[str, int] | None = None,
-                       lane: str | None = None) -> str:
+                       lane: str | None = None, gap_said: bool = False) -> str:
     deficiency, pool, slot = universe["deficiency"], universe["pool"], universe["slot"]
     team = universe["scenario"]["team_name"]
     where = _lower(slot_label(slot.get("slot_id"), slot.get("label")))
@@ -961,6 +964,9 @@ def _transfer_sentence(universe: Mapping[str, Any], search: Mapping[str, Any] | 
         nobody = _pool_words(pool, slot, 1, filters_clause=False)
         verb = "passes your filters" if _filtered(pool) else "is eligible"
         return f"No {nobody} {verb} at {where}."
+    if state == "NO_DECLARED_DEFICIENCY" and gap_said:
+        # The line before this one has said there is no gap (D4); the pool is said once.
+        return f"{count} {who} {are} {at}."
     if state == "NO_DECLARED_DEFICIENCY":
         stated = any(row.get("declared") and row.get("stated")
                      for row in (universe.get("inputs") or {}).get("requirements") or [])
@@ -1086,7 +1092,9 @@ def transfer_answer(universe: Mapping[str, Any], search: Mapping[str, Any] | Non
         counts = {}
         for row in rows:
             counts[str(row.get("outcome"))] = counts.get(str(row.get("outcome")), 0) + 1
-    sentence = _transfer_sentence(universe, search, len(rows), counts=counts, lane=lane)
+    sentence = _transfer_sentence(universe, search, len(rows), counts=counts, lane=lane,
+                                  gap_said=bool(opened and opened.get("line")
+                                                and not opened.get("excludes")))
     if opened and opened.get("line"):
         sentence = f"{opened['line']} {sentence}"
     return {

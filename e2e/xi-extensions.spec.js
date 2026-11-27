@@ -100,7 +100,7 @@ async function declareMain(page, { minima = true } = {}) {
   await solved(page);
   expect(input.locks.length).toBeGreaterThan(0);
   expect(input.excludes.length).toBeGreaterThan(0);
-  await expect(page.locator('#solver-status')).not.toHaveText('INFEASIBLE');
+  await expect(page.locator('#solver-status')).not.toHaveAttribute('data-status', 'INFEASIBLE');
   return input;
 }
 
@@ -190,6 +190,19 @@ test('ceilings send the main declarations and only the minima in force, and prin
   const input = await declareMain(page);
 
   await openTool(page, '#ceilings-panel');
+  // XI-6: the solve above holds the two channel targets, so the opt-in is ticked on arrival and
+  // the ranges hold all three of its targets; unticked, only the minima the server lists as not
+  // experimental are sent, and the panel says the side minima are set aside.
+  await expect(page.locator('#xi-experimental-opt-in')).toBeChecked();
+  const all = posted(page, '/api/xi/ceilings');
+  await page.locator('#solve-ceilings').click();
+  const allBody = (await all).request().postDataJSON();
+  expect(allBody.experimental_opt_in).toBe(true);
+  expect(Object.keys(allBody.minimums).sort()).toEqual(Object.keys(input.minimums).sort());
+  for (const [key, value] of Object.entries(allBody.minimums)) expect(value).toBe(input.minimums[key]);
+  await expect(page.locator('#xi-ceilings-body')).not.toContainText(menus.side_minima_text);
+  await page.locator('#xi-experimental-opt-in').uncheck();
+  await expect(page.locator('#solve-ceilings')).toBeEnabled();
   const reply = posted(page, '/api/xi/ceilings');
   await page.locator('#solve-ceilings').click();
   const response = await reply;
@@ -228,7 +241,11 @@ test('the frontier needs the opt-in, sends its dimensions in order and draws eve
   // A lock and an exclusion on the main solve, so the request's copies of them can be wrong.
   const input = await declareMain(page, { minima: false });
   for (const id of ['#frontier-dim-1', '#frontier-dim-2', '#frontier-dim-3']) await expect(page.locator(id)).toHaveValue('');
-  await expect(page.locator('#xi-experimental-opt-in')).not.toBeChecked();
+  // XI-6: ticked on arrival, as the solve above holds the channel targets; unticked, the
+  // frontier says it needs them and offers ball progression alone, so nothing can be listed.
+  await expect(page.locator('#xi-experimental-opt-in')).toBeChecked();
+  await expect(page.locator('#frontier-panel')).not.toContainText(menus.frontier_opt_in_text);
+  await page.locator('#xi-experimental-opt-in').uncheck();
   await expect(page.locator('#frontier-panel')).toContainText(menus.frontier_opt_in_text);
   await expect(page.locator('#solve-frontier')).toBeDisabled();
 
@@ -367,6 +384,12 @@ test('risk options are the server menu, integers are sent as served and tables a
   expect(Object.keys(input.minimums).length).toBe(3);
   await page.locator('#risk-worlds').selectOption('0');
   await page.locator('#risk-rule').selectOption(String(tailIndex));
+  // XI-6: ticked on arrival (the solve above holds the channel targets); unticked here, so the
+  // rule holds the minima the server lists as not experimental, and says so.
+  await expect(page.locator('#xi-experimental-opt-in')).toBeChecked();
+  await page.locator('#xi-experimental-opt-in').uncheck();
+  await page.locator('#risk-worlds').selectOption('0');
+  await page.locator('#risk-rule').selectOption(String(tailIndex));
   let reply = posted(page, '/api/xi/risk/tail');
   await page.locator('#solve-risk').click();
   let response = await reply;
@@ -431,8 +454,10 @@ test('an infeasible Satisfy solve is explained in its own arithmetic, with the o
   await page.getByText('Set targets', { exact: true }).click();
   await page.locator('input[data-requirement="progression"]').fill('1000');
   await page.locator('#apply-minima').click();
-  await expect(page.locator('#solver-status')).toHaveText('INFEASIBLE', { timeout: SLOW });
+  await expect(page.locator('#solver-status')).toHaveAttribute('data-status', 'INFEASIBLE', { timeout: SLOW });
   await expect(page.locator('#conflict-panel')).toBeVisible();
+  // XI-5: the clash panel sits under the XI, where the reader sees that none could be picked.
+  await expect(page.locator('#clash-slot #conflict-panel')).toHaveCount(1);
   await expect(page.locator('#explain-conflict')).toBeEnabled();
   const reply = posted(page, '/api/xi/conflict');
   await page.locator('#explain-conflict').click();
@@ -534,6 +559,9 @@ test('a menu reply that is not a menu disables every panel with its error; a min
   await page.locator('#apply-minima').click();
   await solved(page);
   await openTool(page, '#ceilings-panel');
+  // XI-6: ticked on arrival; the rule is about the panels without the opt-in, so untick it.
+  await expect(page.locator('#xi-experimental-opt-in')).toBeChecked();
+  await page.locator('#xi-experimental-opt-in').uncheck();
   const reply = posted(page, '/api/xi/ceilings');
   await page.locator('#solve-ceilings').click();
   const response = await reply;
@@ -588,7 +616,7 @@ test('the new panels never widen the page at 390 and 320 px and add no duplicate
   await page.getByText('Set targets', { exact: true }).click();
   await page.locator('input[data-requirement="progression"]').fill('1000');
   await page.locator('#apply-minima').click();
-  await expect(page.locator('#solver-status')).toHaveText('INFEASIBLE', { timeout: SLOW });
+  await expect(page.locator('#solver-status')).toHaveAttribute('data-status', 'INFEASIBLE', { timeout: SLOW });
   const conflict = posted(page, '/api/xi/conflict');
   await page.locator('#explain-conflict').click();
   expect((await conflict).status()).toBe(200);

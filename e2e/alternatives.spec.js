@@ -24,7 +24,7 @@ test('equivalent XI exploration renders real diverse witnesses and discards a st
   // Restore the actual nonzero policy before the screenshot and equivalent-XI solve.
   await minimumInputs[0].fill(originalMinima[0]);
   await page.locator('#apply-minima').click();
-  await expect(page.locator('#solver-status')).toHaveText('OPTIMAL', { timeout: 120000 });
+  await expect(page.locator('#solver-status')).toHaveAttribute('data-status', 'OPTIMAL', { timeout: 120000 });
   await expect(page.locator('#explore-alternatives')).toBeEnabled();
   await page.locator('#alternatives-panel > summary').click();
   await expect(page.locator('#alternatives-panel')).toHaveAttribute('open', '');
@@ -35,8 +35,11 @@ test('equivalent XI exploration renders real diverse witnesses and discards a st
   const data = await response.json();
   expect(data.alternatives.length).toBeGreaterThan(0);
   await expect(page.locator('#alternatives-body')).toBeVisible();
-  await expect(page.locator('#alternatives-claim')).toHaveText(data.provenance.alternative_search.claim);
-  await expect(page.locator('#alternatives-status')).toContainText(data.provenance.alternative_search.status);
+  // XI-7: the search's status in the served words; its claim and record stay in "Search
+  // record" (the lab's claim is research wording), and the page writes no count of its own.
+  const menu = await page.evaluate(() => fetch('/api/answers/xi/scenarios').then(r => r.json()));
+  await expect(page.locator('#alternatives-status')).toHaveText(menu.search_words[data.provenance.alternative_search.status]);
+  await expect(page.locator('#alternatives-claim')).toHaveText('Each XI below has the same gaps to your targets as the comparison XI and differs from it by at least two players. Not a ranking.');
   await expect(page.locator('.alternative-xi')).toHaveCount(data.alternatives.length + 1);
   const previous = [];
   for (const [index, xi] of [data, ...data.alternatives].entries()) {
@@ -48,11 +51,14 @@ test('equivalent XI exploration renders real diverse witnesses and discards a st
     for (const ids of previous) expect(rendered.filter(id => !ids.has(id)).length).toBeGreaterThanOrEqual(2);
     previous.push(new Set(rendered));
     expect(xi.objective_vector).toEqual(data.objective_vector);
-    await expect(ledger.locator('.alternative-objective')).toContainText(JSON.stringify(data.objective_vector));
-    await expect(ledger.locator('.alternative-requirements')).toContainText('UNMEASURED');
+    await expect(ledger.locator('.alternative-objective')).toHaveText(menu.solution_words[xi.solution_status || data.solution_status]);
+    // The measured targets only, each with its status in words; never a lab token.
+    await expect(ledger.locator('.alternative-requirements tbody tr')).toHaveCount(3);
+    await expect(ledger.locator('.alternative-requirements')).not.toContainText('UNMEASURED');
+    await expect(ledger.locator('.alternative-requirements')).not.toContainText('COVERED');
     if (index > 0) {
       expect(xi.incoming_player_ids).toEqual(rendered.filter(id => !previous[0].has(id)).sort((a, b) => a - b));
-      await expect(ledger.locator('.alternative-delta')).toContainText(xi.player_changes + ' players replaced');
+      await expect(ledger.locator('.alternative-delta')).toContainText('Players replaced: ' + xi.player_changes);
     }
   }
   // Gold remains reserved for the selected player, never an alternative's supposed merit.

@@ -148,6 +148,67 @@ def test_a_goalkeeper_is_told_why_no_measure_is_shown():
         assert not {"place", "percentile_line", "value_line"} & set(line)
 
 
+def test_the_reliability_figure_never_sits_on_the_other_side_of_its_threshold():
+    """The printed r stays on the side of the threshold its grade names: r = 0.699 is
+    "limited", and two places read "0.70", the threshold of "strong" (the bug the smoke spec
+    pins on the page)."""
+    note = ("How repeatable this estimator is over comparable samples: r = 0.699. The signal "
+            "reads strong from r = 0.7 and limited from r = 0.5.")
+    line = player_answers._reliability_words({"signal": "limited", "reliability": 0.699,
+                                              "signal_note": note})
+    assert "(r = 0.699)" in line and "0.70" not in line
+    strong = player_answers._reliability_words({"signal": "strong", "reliability": 0.8787,
+                                                "signal_note": note})
+    assert "(r = 0.88)" in strong
+    edge = player_answers._reliability_words({"signal": "limited", "reliability": 0.4996,
+                                              "signal_note": note})
+    assert "(r = 0.4996)" in edge  # 0.50 and 0.500 both read as the threshold of "limited"
+    bare = player_answers._reliability_words({"signal": "strong", "reliability": 0.8787})
+    assert "(r = 0.879)" in bare
+
+
+def test_a_withheld_channel_bar_says_why_in_plain_words():
+    """R8-7: the line where the channel bar would stand gave the registry's note with its
+    position code ("recorded as GK"); the answer serves the reason in plain words, and nothing
+    when the bar is drawn."""
+    reason = "Defined for outfield players; this player is recorded as GK."
+    rows = [_row(key, "out_of_context", notes=reason) for key in LABELS]
+    keeper = _profile(rows, position="GK", name="K. Navas")
+    got = _clean(player_answers.player_answer({**keeper, "zone_shares": {}}, LABELS, 900))
+    assert got["zones_withheld_line"] == (
+        "The channel bar is withheld with the shares above: these measures cover outfield "
+        "players, and he is a goalkeeper.")
+    assert "GK" not in got["zones_withheld_line"]
+    drawn = {**_profile([_row(key) for key in LABELS]),
+             "zone_shares": {"left_wide": .1, "left_half": .2, "centre": .4, "right_half": .2,
+                             "right_wide": .1}}
+    assert _clean(player_answers.player_answer(drawn, LABELS, 900))["zones_withheld_line"] is None
+
+
+def test_a_comparison_with_a_goalkeeper_says_once_why_no_mark_is_drawn():
+    """R8-7: the lab's note above the pass-origin rows repeats the registry's reason for each
+    goalkeeper; the answer's note says it once, in plain words, and only when no row draws."""
+    note = "Navas: Defined for outfield players; this player is recorded as GK."
+    keeper = {"name": "K. Navas", "player_id": 1}
+    other = {"name": "Kiko Casilla", "player_id": 2}
+    deltas = [_delta(key, interpretable=False, language=f"withheld — {note}") for key in LABELS]
+    profiles = ({"position": "GK", "constructs": []}, {"position": "GK", "constructs": []})
+    got = _clean(player_answers.compare_answer({"left": keeper, "right": other,
+                                                "deltas": deltas}, LABELS, profiles))
+    assert got["answer"] == "Both are goalkeepers; these measures cover outfield players."
+    assert got["location_note"] == ("No mark is drawn here: both are goalkeepers, and these "
+                                    "shares cover outfield players.")
+    one = ({"position": "GK", "constructs": []}, {"position": "MD", "constructs": []})
+    got = _clean(player_answers.compare_answer({"left": keeper, "right": other,
+                                                "deltas": deltas}, LABELS, one))
+    assert got["location_note"] == ("No mark is drawn here: K. Navas is a goalkeeper, and these "
+                                    "shares cover outfield players.")
+    drawn = [_delta(key) for key in LABELS]
+    got = _clean(player_answers.compare_answer({"left": keeper, "right": other,
+                                                "deltas": drawn}, LABELS))
+    assert got["location_note"] is None
+
+
 def test_a_player_with_no_recorded_position_is_compared_with_everyone():
     got = player_answers.player_answer(_profile([_row("progression")], position=""), LABELS, 900)
     assert got["reference"] == "La Liga players with 900+ minutes in 2017/18"
@@ -431,8 +492,11 @@ def test_every_madrid_match_has_a_clean_sentence_whose_scorers_add_up():
             # The scoreline the sentence gives is the provider's recorded score.
             ours, theirs = ((row["home_goals"], row["away_goals"]) if row["venue"] == "home"
                             else (row["away_goals"], row["home_goals"]))
-            # MR-5: the winner's score first, as a result is said ("lost 3–0").
+            # MR-5: the winner's score first, as a result is said ("lost 3–0"); the result
+            # word carries the direction the old "ours–theirs" order did.
             assert f" {max(ours, theirs)}–{min(ours, theirs)} " in got["answer"]
+            word = "won" if ours > theirs else "lost" if ours < theirs else "drew"
+            assert got["answer"].startswith(f"Real Madrid {word} "), got["answer"]
             assert got["scorers_listed"]
             for side in ("home", "away"):
                 credited = sum(len(s["minutes"]) for s in got[side]["scorers"])
@@ -505,6 +569,10 @@ def test_a_match_reply_names_its_measures_in_plain_words_and_orders_each_lineup_
     assert got["network_coverage"] == {"675": (
         "442 of 502 completed passes are linked to a receiver: 442 by the next recorded "
         "action, 0 recorded directly.")}
+    # How a pass is linked to its receiver, in words (D6): the lab's rule, with its thresholds
+    # and its "HEURISTIC" token, stays in the technical record.
+    assert got["network_rule"].startswith("A pass is linked to the receiver the provider names")
+    assert "HEURISTIC" not in got["network_rule"] and "normalized" not in got["network_rule"]
     for number in re.findall(r"\d[\d,]*", got["team_summary"]):
         assert int(number.replace(",", "")) in (469, 11, 502, 1)
 
@@ -552,3 +620,36 @@ def test_an_explore_listing_says_its_order_and_each_value_with_its_unit():
     assert got["title"] == "Passes from the wide channels"
     assert got["answer"].endswith("farthest first on either side. Not ranked.")
     assert got["values"] == {"1": "25% of his completed passes"}
+    # The order note above the rows in a reader's words: the lab's says "style construct".
+    assert got["order_note"].startswith("Not a ranking.")
+    assert "in order of distance from the pitch-area reference" in got["order_note"]
+    assert "construct" not in got["order_note"]
+    named = _clean(player_answers.explore_answer({**style, "order": "name", "reference": None},
+                                                 "Wide-channel pass-origin share"))
+    assert "construct" not in named["order_note"] and "order of name" in named["order_note"]
+
+
+def test_the_why_view_passes_the_copy_guard_and_counts_from_the_registry():
+    """PL-4, R3-2, R8-5: the "Why only five?" view printed "robust" and "fit" (copy-guard
+    tokens) from the registry and a static sentence that said every candidate was tested. The
+    view's words are the server's, over the real registry (corpus-free): every string passes
+    the copy guard, the sentence's numbers are the registry's counts, each replication verdict
+    is in allowed words and every note link is named by its note, never by its title."""
+    registry = api.constructs()
+    got = _clean(player_answers.why_answer(registry))
+    k = registry["counts"]
+    failed = int(k["rejected"]) + int(k["research_only"])
+    assert _numbers(got["answer"]) == [str(k["tested"]), str(k["proposed"]),
+                                       str(k["surviving"]), str(failed), str(k["rejected"]),
+                                       str(k["research_only"])]
+    assert "Every candidate" not in got["answer"]
+    assert len(got["shipped"]) == int(k["surviving"])
+    for card in got["shipped"]:
+        assert "robust" not in card["replication"].lower() and card["name"]
+    for card in got["research_only"]:
+        assert "fit" not in card["name"].lower().split()
+    texts = [c["note"]["text"] for c in got["shipped"] + got["research_only"] if c.get("note")]
+    texts += [n["text"] for n in got["credit"]["notes"]]
+    assert texts and all(scan_labels(t) == [] for t in texts)
+    assert all(key in got["provenance"]["note_urls"]
+               for key in {c["note"]["key"] for c in got["shipped"] if c.get("note")})

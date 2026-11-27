@@ -113,8 +113,10 @@ async function open(page, query = '', { closed = false } = {}) {
   return replies;
 }
 // The detail sections start closed; a test of what they hold opens each, as a reader does.
+// Phase 3 (SQ-1, SQ-5, D6): the research records and "Set your own targets" sit in nested
+// disclosures inside them; a reader opens those too, outermost first.
 async function reveal(page) {
-  const closed = page.locator('.pl-more > details:not([open]) > summary');
+  const closed = page.locator('.pl-more details:not([open]) > summary');
   while (await closed.count()) await closed.first().click();
 }
 // The declared state of the screenshots: a departure, an entered minimum, pairs of absences, a brief.
@@ -239,7 +241,7 @@ test('Squad Lab draws what the server returned, with the gate beside every count
 test('gold marks only the selected player, at every slot he is eligible for', async ({ page }) => {
   test.setTimeout(240000);
   const errors = watch(page);
-  const { snapshot, depth } = await open(page);
+  const { snapshot, depth, answer } = await open(page);
   const slotsOf = id => depth.slots.filter(s => s.available.some(p => p.player_id === id)).map(s => s.slot_id);
   expect(slotsOf(NACHO).length).toBeGreaterThan(1);
 
@@ -249,16 +251,24 @@ test('gold marks only the selected player, at every slot he is eligible for', as
   expect(await chosen.locator('circle').evaluateAll(circles => circles.map(c => getComputedStyle(c).stroke + '|' + getComputedStyle(c).fill))).toEqual(slotsOf(NACHO).map(() => GOLD + '|' + GOLD));
   await expect(page.locator('#player')).toHaveValue(String(NACHO));
   await expect(page.locator('#player-detail h3')).toHaveText('Nacho');
-  await expect(page.locator('#player-detail li[data-pinned]')).toHaveCount(slotsOf(NACHO).length);
-  // What using him at each slot does is the sentence the server sent for that placement.
-  const placed = depth.slots.filter(s => s.pinned.some(p => p.player_id === NACHO)).map(s => s.pinned.find(p => p.player_id === NACHO).statement);
-  expect(placed.length).toBe(slotsOf(NACHO).length);
-  await expect(page.locator('#player-detail li[data-pinned] [data-part="placement"]')).toHaveText(placed);
-  // His declared roles are printed in the server's words, never as role ids.
+  // SQ-2: the panel is the server's view of him (/api/squad/answer, players): one line per
+  // position he is pinned at, in the order of the depth reply's slots, each the server's words
+  // for what using him there does; the positions he can take in the pages' words.
+  const view = answer.players[String(NACHO)];
+  const pinnedAt = depth.slots.filter(s => s.pinned.some(p => p.player_id === NACHO)).map(s => s.slot_id);
+  expect(pinnedAt.length).toBe(slotsOf(NACHO).length);
+  expect(view.placements.map(pl => pl.slot_id)).toEqual(pinnedAt);
+  await expect(page.locator('#player-detail li[data-part="placement"]')).toHaveCount(slotsOf(NACHO).length);
+  await expect(page.locator('#player-detail li[data-part="placement"]')).toHaveText(view.placements.map(pl => pl.text));
+  for (const text of view.placements.map(pl => pl.text)) expect(text).toMatch(/^With him at [a-z]/);
+  // His declared roles are printed in the server's words, never as role ids or codes.
   const nacho = snapshot.squad.find(p => p.player_id === NACHO);
   expect([nacho.role_rules, nacho.role_labels]).toEqual([['cb', 'lb', 'rb'], ['Centre back', 'Left back', 'Right back']]);
-  await expect(page.locator('#player-detail [data-part="roles"]')).toHaveText('Declared roles: ' + nacho.role_labels.join(', ') + '.');
-  expect(await page.locator('#player-detail').innerText()).not.toMatch(/\b(cb|lb|rb)\b/);
+  await expect(page.locator('#player-detail [data-part="places"]')).toHaveText(view.places_text);
+  expect(view.places_text).toMatch(/^Positions he can take: /);
+  await expect(page.locator('#player-detail .player-facts')).toContainText(view.position);
+  expect(view.position).toBe('Defender');
+  expect(await page.locator('#player-detail').innerText()).not.toMatch(/\b(cb|lb|rb|DF)\b/);
   let owners = await goldOwners(page);
   expect(owners.length).toBeGreaterThanOrEqual(2 * slotsOf(NACHO).length);
   expect(new Set(owners)).toEqual(new Set([String(NACHO)]));
@@ -313,6 +323,7 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
 
   const asked = page.waitForRequest(r => r.url().endsWith('/api/squad/depth'));
   const answered = reply(page, '/api/squad/depth');
+  const worded = reply(page, '/api/squad/answer');
   await page.locator('#apply-declarations').click();
   const body = (await asked).postDataJSON();
   expect(Object.keys(body).sort()).toEqual(['excludes', 'experimental_opt_in', 'formation', 'locks', 'presets', 'requirements', 'scenario_id']);
@@ -333,13 +344,22 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   await expect(page.locator(`#depth-pitch g.depth-mark.excluded[data-player="${RONALDO}"] line`)).toHaveCount(depth.slots.filter(s => s.excluded.length).length);
   await expect(page.locator('#thinness [data-thinness="REQUIREMENT"] p')).toHaveText(depth.thinness[2].statement);
   // A placement that raises the shortfall is said in the server's sentence, pair included: the
-  // page words nothing and formats no number of it.
+  // page words nothing and formats no number of it. SQ-2: the panel prints the answer's plain
+  // words for it (the gap to your targets, the position by name), the pair at two places.
   const [raisingId, raisingSlot] = raising[0].split('@');
   const pin = depth.slots.find(s => s.slot_id === raisingSlot).pinned.find(p => String(p.player_id) === raisingId);
   expect(pin.statement).toMatch(/^The least declared shortfall rises: with him there it is largest \d[\d.]*, sum \d[\d.]*\.$/);
+  const said = await (await worded).json();
+  const placement = said.players[raisingId].placements.find(pl => pl.slot_id === raisingSlot);
+  const worded_ = placement.text.match(/^With him at [a-z ]+ the gap to your targets widens: largest (\d[\d.,]*), total (\d[\d.,]*), in units of the club's median XI\.$/);
+  expect(worded_, placement.text).toBeTruthy();
+  // The pair is the lab's, at two places: no number of the page's own.
+  for (const [i, printed] of [worded_[1], worded_[2]].entries()) {
+    expect(Math.abs(Number(printed.replace(/,/g, '')) - pin.objective_vector[i])).toBeLessThanOrEqual(0.005 + 1e-9);
+  }
   await page.locator('#player').selectOption(raisingId);
-  await expect(page.locator(`#player-detail li[data-slot="${raisingSlot}"] [data-part="placement"]`)).toHaveText(pin.statement);
-  await expect(page.locator('#player-detail')).not.toContainText('With him there');
+  await expect(page.locator(`#player-detail li[data-slot="${raisingSlot}"][data-part="placement"]`)).toHaveText(placement.text);
+  await expect(page.locator('#player-detail')).not.toContainText('declared shortfall');
   await page.locator('#player').selectOption('');
   // With a player excluded the stages of spare differ, and the cell still prints the server's sentence.
   expect(depth.tight_groups.some(g => g.spare_by_stage.available !== g.spare_by_stage.gated)).toBe(true);
@@ -440,7 +460,7 @@ test('a departure and an entered minimum: each panel shows its own reply, in the
   await expect(page.locator('#brief-pool')).toHaveText(brief.pool.count_statement);
   // The claim and what it does not claim are each printed once, though the claim quotes the other.
   await expect(page.locator('#brief #claim')).toHaveText(brief.claim);
-  expect((await page.locator('#brief').innerText()).split(brief.non_claim).length - 1).toBe(1);
+  expect((await page.locator('#brief').textContent()).split(brief.non_claim).length - 1).toBe(1);
   // The link to Signings carries this problem: the server's hand-off when its answer named the
   // slot as thinnest, the brief's own link when it did not.
   const handoff = (await page.evaluate(() => state.answer.thin)).find(t => t.slot_id === 'st' && t.href);
@@ -564,7 +584,7 @@ test('nothing overflows at 390 px or 320 px, in the default and the declared sta
 test('another club is audited under provider positions, and the page says they are unreviewed', async ({ page }) => {
   test.setTimeout(240000);
   const errors = watch(page);
-  const { depth } = await open(page, '?scenario=spain-676-planning-2018-05-21');
+  const { depth, answer } = await open(page, '?scenario=spain-676-planning-2018-05-21');
   expect(depth.eligibility.review_status).toBe('UNREVIEWED');
   await expect(page.locator('#scenario')).toHaveValue('spain-676-planning-2018-05-21');
   await expect(page.locator('#eyebrow')).toContainText(depth.scenario.team_name);
@@ -583,7 +603,10 @@ test('another club is audited under provider positions, and the page says they a
   expect(squad.length).toBeGreaterThan(0);
   expect(squad.every(([, roles]) => roles === 0)).toBe(true);
   await page.locator('#player').selectOption(String(squad[0][0]));
-  await expect(page.locator('#player-detail [data-part="roles"]')).toHaveText('Provider position only.');
+  // SQ-2: the server's words for him say he is placed by his listed position alone.
+  const view = answer.players[String(squad[0][0])];
+  expect(view.places_text).toMatch(/^Listed position only, no declared role: /);
+  await expect(page.locator('#player-detail [data-part="places"]')).toHaveText(view.places_text);
   await page.locator('#player').selectOption('');
   expect(await page.locator('svg').evaluateAll(svgs => svgs.some(s => /NaN|undefined/.test(s.outerHTML)))).toBe(false);
   expect(await overflows(page)).toBe(false);
@@ -822,7 +845,7 @@ test('a minimum at a league percentile is labelled once, and a cross-league pool
   await expect(page.locator('#brief-body')).toBeVisible({ timeout: 150000 });
   expect(brief.pool.cross_league_flag).toBeTruthy();
   expect(brief.pool.banner).toContain(brief.pool.cross_league_flag);
-  const text = await page.locator('#brief').innerText();
+  const text = await page.locator('#brief').textContent();
   expect(text.split(brief.pool.cross_league_flag).length - 1).toBe(1);
   await expect(page.locator('#brief .notice')).toHaveText(brief.pool.cross_league_flag);
   for (const line of brief.pool.banner) await expect(page.locator('#brief')).toContainText(line);
@@ -1007,9 +1030,9 @@ test('a thin slot hands its whole problem to Signings, which opens on it with an
   await link.click();
   await expect(page).toHaveURL(/\/transfer\?/);
   const body = (await asked).postDataJSON();
-  expect([body.scenario_id, body.formation, body.slot_id, body.excludes, body.requirements]).toEqual([
+  expect([body.scenario_id, body.formation, body.slot_id, body.excludes, body.requirements, body.open_gap]).toEqual([
     'madrid-planning-2018-05-21', '4-3-3', 'rb', [RONALDO],
-    [{ requirement_id: 'progression', source: 'LEAGUE_PERCENTILE', percentile: 75 }]]);
+    [{ requirement_id: 'progression', source: 'LEAGUE_PERCENTILE', percentile: 75 }], true]);
   const signings = await (await answered).json();
   // An answer on arrival: the slot is chosen, the sentence is the server's, the list is there.
   await expect(page.locator('#slot')).toHaveValue('rb');
@@ -1017,8 +1040,18 @@ test('a thin slot hands its whole problem to Signings, which opens on it with an
   await expect(page.locator('#targets')).toHaveValue('progression-league-p75');
   await expect(page.locator('#departures button[data-preset="exclude-3322"]')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#candidates > li')).toHaveCount(Math.min(signings.count, 25));
-  // And back: the link to Squad depth carries the same problem.
+  // D4: these targets leave no gap at right back, so Signings opens on Squad depth's answer for
+  // it (the absences there that leave no XI), says so first, and shows each as a removable chip.
+  expect(signings.opened.excludes.length).toBeGreaterThan(0);
+  expect(signings.answer.startsWith(signings.opened.line)).toBe(true);
+  for (const name of signings.opened.names) {
+    await expect(page.locator('#departures button', { hasText: `Without ${name}` })).toHaveCount(1);
+  }
+  // And back: the link to Squad depth carries the same problem, with the absences it opened on.
   await expect(page.locator('#next-actions a')).toHaveAttribute('href', signings.squad_href);
-  expect(signings.squad_href).toBe(answer.share_href);
+  const back = new URL(signings.squad_href, BASE), sent = new URL(answer.share_href, BASE);
+  expect(back.searchParams.getAll('exclude').map(Number).sort((a, b) => a - b)).toEqual(
+    [...sent.searchParams.getAll('exclude').map(Number), ...signings.opened.excludes].sort((a, b) => a - b));
+  for (const key of ['scenario', 'formation', 'target']) expect(back.searchParams.getAll(key)).toEqual(sent.searchParams.getAll(key));
   expect(errors).toEqual([]);
 });

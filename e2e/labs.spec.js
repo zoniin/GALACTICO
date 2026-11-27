@@ -185,7 +185,8 @@ test('XI Lab renders eleven unique players and lock/reoptimize preserves the ins
   const errors = watch(page);
   await page.goto(BASE + '/xi');
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 180000 });
-  await expect(page.locator('#solver-status')).toContainText('OPTIMAL');
+  // R10-2: the solver's verdict is the lab's token on the element and the server's words in it.
+  await expect(page.locator('#solver-status')).toHaveAttribute('data-status', 'OPTIMAL');
   const ids = await page.locator('#xi-pitch [data-player]').evaluateAll(nodes => nodes.map(n => n.dataset.player));
   expect(ids).toHaveLength(11);
   expect(new Set(ids).size).toBe(11);
@@ -199,8 +200,23 @@ test('XI Lab renders eleven unique players and lock/reoptimize preserves the ins
   expect(said.xi.map(String)).toEqual(ids);
   await expect(page.locator('#requirements [data-target]')).toHaveCount(3);
   await expect(page.locator('#not-measured')).toContainText('Not measured here: chance creation, rest defence and goalkeeping.');
-  await expect(page.locator('#frequencies')).toContainText('Necessary');
+  await expect(page.locator('#solver-status')).toHaveText(said.status_line);
+  expect(said.status_line).toBe('The search proved that no XI is closer to these targets.');
   await expect(page.locator('#certificate')).toContainText('No overall rating is used.');
+  // XI-1, SPD-1: the resampled seasons run only when "How often each player is picked" is
+  // opened, and its rows are the server's words, by name (R1-2), never "0%–100%".
+  await expect(page.locator('#frequencies')).toBeEmpty();
+  const frequency = page.waitForResponse(r => r.url().endsWith('/api/answers/xi/frequency') && r.ok());
+  await page.locator('#frequency-panel > summary').click();
+  const seasons = await (await frequency).json();
+  await expect(page.locator('#world-count')).toHaveText(seasons.line);
+  expect(seasons.line).toContain('resampled seasons settled');
+  await expect(page.locator('#frequencies tbody tr')).toHaveCount(seasons.rows.length);
+  const listedNames = seasons.rows.map(r => r.name);
+  expect(listedNames).toEqual([...listedNames].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' })));
+  await expect(page.locator('#frequency-others')).toHaveText(seasons.others_line || '');
+  expect(await page.locator('#frequencies').innerText()).not.toContain('%');
+  await page.locator('#frequency-panel > summary').click();
   const isco = await page.locator('#candidate option').evaluateAll(options => options.find(o => /isco/i.test(o.textContent))?.value);
   expect(isco).toBeTruthy();
   await page.locator('#candidate').selectOption(isco);
@@ -222,10 +238,15 @@ test('XI Lab renders eleven unique players and lock/reoptimize preserves the ins
     await expect(page.locator('#xi-pitch [data-player="' + id + '"]')).toHaveCount(1);
   }
   await expect(page.locator('#formation')).toHaveValue('4-3-3');
-  await page.getByRole('button', { name: 'Isco at the tip of a diamond', exact: true }).click();
+  // XI-3: a lock keeps a player in the XI, never at one place, so the pick names the formation,
+  // and the server's sentence says where he was placed.
+  await page.getByRole('button', { name: 'Isco in a 4-3-1-2 diamond', exact: true }).click();
   await expect(page.locator('#xi-body')).toBeVisible({ timeout: 120000 });
   await expect(page.locator('#formation')).toHaveValue('4-3-1-2');
   await expect(page.locator('#xi-pitch [data-player="' + isco + '"]')).toHaveCount(1);
+  const place = await page.locator('#xi-pitch [data-player="' + isco + '"]').getAttribute('aria-label');
+  const slot = place.split(', ')[1];
+  await expect(page.locator('#answer')).toContainText(`Isco is placed at ${slot[0].toLowerCase()}${slot.slice(1)}.`);
   expect(errors).toEqual([]);
   await page.screenshot({ path: path.join('docs', 'screenshots', '11-xi-lab.png'), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -263,14 +284,19 @@ test('infeasible hard minima remain visible and editable without silent relaxati
   const initial = await progression.inputValue();
   await progression.fill('1000');
   await page.locator('#apply-minima').click();
-  await expect(page.locator('#solver-status')).toHaveText('INFEASIBLE', { timeout: 120000 });
-  await expect(progression).toHaveValue('1000');
+  await expect(page.locator('#solver-status')).toHaveAttribute('data-status', 'INFEASIBLE', { timeout: 120000 });
+  await expect(page.locator('#solver-status')).toHaveText('The search proved that no XI meets these choices.');
+  await expect(progression).toHaveValue('1000.00');
   await expect(page.locator('#minimum-inputs input')).toHaveCount(3);
-  // ADR-0034: the lab's NOT_EVALUATED, in a reader's words; the sentence says no XI meets them.
-  await expect(page.locator('#requirements')).toContainText('Not checked');
+  // XI-5: the lab's NOT_EVALUATED gives way to what the ranges prove: the target no XI reaches
+  // is badged so, with the most any XI reaches; the sentence says no XI meets them and why.
+  await expect(page.locator('#requirements [data-target="progression"]')).toContainText('No XI reaches this');
+  await expect(page.locator('#requirements [data-target="progression"]')).toContainText('The most any XI reaches is');
   await expect(page.locator('#answer')).toContainText('no XI from the 16 players in the pool meets every target', { timeout: 60000 });
+  await expect(page.locator('#answer')).toContainText('No XI reaches ball progression 1,000.00; the most any XI reaches is');
+  await expect(page.locator('#infeasible-line')).toBeVisible();
   await progression.fill(initial);
   await page.locator('#apply-minima').click();
-  await expect(page.locator('#solver-status')).toHaveText('OPTIMAL', { timeout: 120000 });
+  await expect(page.locator('#solver-status')).toHaveAttribute('data-status', 'OPTIMAL', { timeout: 120000 });
   await expect(page.locator('#xi-pitch [data-player]')).toHaveCount(11);
 });

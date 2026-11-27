@@ -857,7 +857,7 @@ def test_every_table_cell_carries_its_own_label(tmp_path, make_client):
 # --------------------------------------------------------------------- the page edits
 
 
-SHIPPED_XI_HTML = "ba4d28e1f029ad42bb8ad60b3a4554f1726694c28b0dad2f25d3833f23814768"
+SHIPPED_XI_HTML = "240e1e5e2b9b32e4efb93c0ef29b25e9e7fef8b4619aa2b1811f8eb651a660ab"
 """LF-normalised sha256 of web/xi.html without the five additive edits.
 
 Re-pinned under ADR-0035 (the Phase 3 review fixes), from
@@ -868,8 +868,15 @@ target and share at one precision with its unit, the pages' slot words, why no X
 wait shows its seconds and a Cancel that aborts the request; "How often each player is picked"
 asks ``/api/answers/xi/frequency`` only when opened; the clash panel moves under the XI; the
 technical records leave out the provenance and the warnings (R3-3); a reader's change adds a
-history entry (AR-3); the player panel links his season profile (AR-1). Every id, event, the
-gold rule and the five additive edits are kept.
+history entry (AR-3); the player panel links his season profile (AR-1); the player menu lists
+the XI by place, then everyone else by name, each group headed with its key (R1-2); the
+hard-limit question's record says in words what its totals are instead of printing the lab's
+warnings (R3); a failed check says in plain words why (a player the link names is not in the
+pool, a choice does not fit, or no answer) instead of the server's detail; the status words of
+the questions under "Advanced" come from the served map (``XI_WORDS``, XI-7); the other XIs'
+claim is one fixed sentence with no count the page worked out (R10), the search's status the
+served words. Every id, event,
+the gold rule and the five additive edits are kept.
 
 Re-pinned again under ADR-0034 (the review fixes), from
 18f108a2639ea42b5517183b719eae61b739283b8cb649a934a4927c3aaa2920: the XI is drawn as on Lineup,

@@ -276,6 +276,19 @@ def test_every_state_of_signings_has_one_sentence_that_passes_the_copy_guard():
         # Without a re-solve no row says what placing him does.
         if search is None:
             assert {r["outcome_sentence"] for r in got["rows"]} <= {None}, name
+    # D4 with no set of absences that leaves no XI at the position: the server's one line
+    # says there is no gap, and the pool is said once after it, not a second time as "none of
+    # them has a gap to close". An opened gap (absences found) keeps the full sentence.
+    line = ("Your targets leave no gap, and no set of absences at right back leaves this squad "
+            "without an XI, so there is no gap here to compare them against.")
+    none = planning_answers.transfer_answer(*list(cases["none"][:3]), "minutes", opened={
+        "excludes": [], "names": [], "line": line})
+    assert none["answer"] == (f"{line} 4 La Liga defenders with 900 or more minutes are "
+                              "eligible at right back.")
+    assert shell.scan_labels(none) == []
+    opened = planning_answers.transfer_answer(*list(cases["none"][:3]), "minutes", opened={
+        "excludes": [7], "names": ["X"], "line": "Opened."})
+    assert opened["answer"] == "Opened. " + cases["none"][3]
     no_xi = planning_answers.transfer_answer(*list(cases["no xi"][:3]), "name")
     assert {r["outcome_sentence"] for r in no_xi["rows"]} == {
         "Added to the squad, there is still no XI.",
@@ -511,3 +524,23 @@ def test_signings_says_what_the_data_records_and_folds_its_question_into_one_lin
     assert got["position_note"].endswith("Foot narrows the list by side.")
     assert got["filters_summary"] == "Filters: 1,000+ minutes · age 20 to 25 · left foot"
     assert shell.scan_labels(got) == []
+
+
+def test_a_player_placed_by_his_listed_position_alone_is_said_so():
+    """SQ-2: the panel said "Positions he can take" for every player. Where the club's roles are
+    unreviewed and a player has no declared role, he is placed by his listed position alone;
+    the panel says that, never "can take" as if a role were declared."""
+    slots = [{"slot_id": "lcm", "label": "Left midfield"}, {"slot_id": "dm",
+                                                             "label": "Holding midfield"}]
+    base = {"player_id": 7, "name": "P", "position": "MF", "minutes": 1200, "matches": 20,
+            "starts": 12, "eligible_slots": slots, "outside_requirements": True}
+    depth = {"baseline": {"kind": "NONE"}, "inputs": {"requirements": []}, "slots": [],
+             "omitted": []}
+    declared = planning_answers.players_view(depth, {"squad": [
+        {**base, "role_labels": ["Central midfield"]}]})["7"]
+    listed = planning_answers.players_view(depth, {"squad": [{**base, "role_labels": []}]})["7"]
+    assert declared["places_text"] == ("Positions he can take: left central midfield and "
+                                       "holding midfield.")
+    assert listed["places_text"] == ("Listed position only, no declared role: left central "
+                                     "midfield and holding midfield.")
+    assert shell.scan_labels([declared["places_text"], listed["places_text"]]) == []

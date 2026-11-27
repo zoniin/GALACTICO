@@ -30,6 +30,7 @@ from ..domain.provenance import EvidenceClass
 from ..match_centre import methods
 from ..site_nav import Section
 from . import shell
+from .player_answers import MEASURE_NAMES
 from .runtime import VERDICTS_CLAIM
 
 __all__ = ["EVIDENCE_WORDS", "sections"]
@@ -81,6 +82,17 @@ def _unavailable() -> str:
             '</p></div>')
 
 
+def _plain(construct: dict[str, Any]) -> str:
+    return MEASURE_NAMES.get(construct["id"], construct["label"])
+
+
+def _registry_name(construct: dict[str, Any]) -> str:
+    plain = _plain(construct)
+    if plain == construct["label"]:
+        return ""
+    return f' “{_e(construct["label"])}” in the research notes.'
+
+
 def why_only_five(constructs: Callable[[], dict[str, Any]], player_lab: str) -> Section:
     """The measures that survived and the ones that did not, from the construct registry."""
     try:
@@ -88,8 +100,11 @@ def why_only_five(constructs: Callable[[], dict[str, Any]], player_lab: str) -> 
     except HTTPException:
         return Section("why-only-five", "Why only five?", _unavailable(), answers=WHY_ANSWERS)
     counts = reply["counts"]
+    # One plain name per measure, the pages' own (ADR-0035, D5); the registry's label, which
+    # the research notes use, follows it where the two differ.
     shipped = "".join(
-        f'<li><strong>{_e(c["label"])}.</strong> {_e(c["claim"])}</li>' for c in reply["shipped"])
+        f'<li><strong>{_e(_plain(c))}.</strong>{_registry_name(c)} {_e(c["claim"])}</li>'
+        for c in reply["shipped"])
     rejected = "".join(
         f'<li><strong>{_e(c["label"])}: {_e(c["headline"])}.</strong> {_e(c["detail"])}</li>'
         for c in reply["rejected"])
