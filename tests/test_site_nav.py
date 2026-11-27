@@ -387,7 +387,14 @@ def test_the_local_app_answers_a_missing_page_with_the_same_designed_page(local)
         "application/json")
 
 
-def test_about_the_numbers_lists_what_this_app_serves(hosted, local):
+def test_about_the_numbers_lists_what_this_app_serves(hosted, local, monkeypatch):
+    # The "Why only five?" section reads the construct registry, which reads only the built
+    # bundle's regime; naming it lets the section render where no bundle is built (CI), as
+    # test_docs_consistency does. Without it the section reads as unavailable, which is right
+    # for a server without the archive but not what this test checks.
+    from galactico.api import player_lab as api
+
+    monkeypatch.setattr(api, "bundle", lambda: {"regime": "wyscout_event"})
     sections = re.compile(r'<section class="page-section about-section" id="([\w-]+)"')
     answer = re.compile(r'<p class="page-answer">([^<]*)</p>')
     hosted_page = hosted.get("/about").text

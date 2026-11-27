@@ -629,12 +629,16 @@ def test_an_explore_listing_says_its_order_and_each_value_with_its_unit():
     assert "construct" not in named["order_note"] and "order of name" in named["order_note"]
 
 
-def test_the_why_view_passes_the_copy_guard_and_counts_from_the_registry():
+def test_the_why_view_passes_the_copy_guard_and_counts_from_the_registry(monkeypatch):
     """PL-4, R3-2, R8-5: the "Why only five?" view printed "robust" and "fit" (copy-guard
     tokens) from the registry and a static sentence that said every candidate was tested. The
     view's words are the server's, over the real registry (corpus-free): every string passes
     the copy guard, the sentence's numbers are the registry's counts, each replication verdict
-    is in allowed words and every note link is named by its note, never by its title."""
+    is in allowed words and every note link is named by its note, never by its title.
+
+    The registry reads only the bundle's regime, so the test names it, as
+    test_docs_consistency does, and runs where no bundle is built (CI)."""
+    monkeypatch.setattr(api, "bundle", lambda: {"regime": "wyscout_event"})
     registry = api.constructs()
     got = _clean(player_answers.why_answer(registry))
     k = registry["counts"]
